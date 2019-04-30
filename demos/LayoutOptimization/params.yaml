@@ -1,0 +1,36 @@
+# General options
+general: 
+    name: "3D"       # Name of the output folder
+    preappend_datetime: False  # Place the date and time before the folder name
+    save_file_type: "xdmf" # (xdmf, pvd, None)
+    dolfin_adjoint: True
+    outputs: ["mesh","initial_guess","height","turbine_force","solution"]
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                     # Description              | Units
+    HH: 90                # Hub Height               | m
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 10                   # Actuator disk thickness  | m
+    ex_x: [-800, 800] # x-extent of the farm     | m
+    ex_y: [-800, 800] # y-extent of the farm     | m
+    ex_z: [0, 216]      # z-extent of the farm     | m
+    ex_scale: 0.95        # extent scaling parameter | -
+    grid_rows: 3          # Number of rows           | -
+    grid_cols: 3          # Number of columns        | -
+    numturbs: 9          # Number of Turbines       | -
+    A: 126.0              # Area of the disk         | m^2
+    alpha: 0.0            # Wind Direction           | rads
+    beta: 2173.8621817909 # Normalization Constant   | -
+    yaw: 0.0              # Yaw Angle                | rads
+    axial: 0.33           # axial induction          |
+
+# Domain Constants for a Box Domain
+domain: 
+    #                      # Description           | Units
+    x_range: [-1200, 1200] # x-range of the domain | m
+    y_range: [-1200, 1200] # y-range of the domain | m
+    z_range: [0.04, 630]   # z-range of the domain | m
+    nx: 48                 # Number of x-nodes     | -
+    ny: 48                 # Number of y-nodes     | -
+    nz: 8                  # Number of z-nodes     | -

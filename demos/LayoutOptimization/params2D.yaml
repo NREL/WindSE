@@ -1,0 +1,28 @@
+# General options
+general: 
+    name: "2D"       # Name of the output folder
+    preappend_datetime: false  # Place the date and time before the folder name
+    save_file_type: "xdmf" # (xdmf, pvd, None)
+    dolfin_adjoint: True
+    outputs: ["mesh","initial_guess","turbine_force","solution"]
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    imported: false
+    HH: 90
+    RD: 126
+    thickness: 10
+    yaw: 0
+    axial: 0.33
+    ex_x: [-1800,1800]
+    ex_y: [-1800,1800]
+    grid_rows: 6
+    grid_cols: 6
+
+# Domain Constants for a Box Domain
+domain: 
+    #                      # Description           | Units
+    x_range: [-2500, 2500]        # x-range of the domain | m
+    y_range: [-2500, 2500]        # y-range of the domain | m
+    nx: 100                 # Number of x-nodes     | -
+    ny: 100                 # Number of y-nodes     | -

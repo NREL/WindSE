@@ -1,0 +1,46 @@
+# General options
+general: 
+    name: "CylinderDomain_Test"       # Name of the output folder
+    preappend_datetime: False  # Place the date and time before the folder name
+    save_file_type: "xdmf" # (xdmf, pvd, None)
+    dolfin_adjoint: True
+    outputs: ["mesh","initial_guess","height","turbine_force","solution"]
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                     # Description              | Units
+    HH: 90                # Hub Height               | m
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 20                   # Actuator disk thickness  | m
+    ex_x: [-800, 800] # x-extent of the farm     | m
+    ex_y: [-800, 800] # y-extent of the farm     | m
+    ex_z: [0, 216]      # z-extent of the farm     | m
+    ex_scale: 0.95        # extent scaling parameter | -
+    grid_rows: 2          # Number of rows           | -
+    grid_cols: 3          # Number of columns        | -
+    numturbs: 4          # Number of Turbines       | -
+    A: 126.0              # Area of the disk         | m^2
+    alpha: 0.0            # Wind Direction           | rads
+    beta: 2173.8621817909 # Normalization Constant   | -
+    yaw: 0.3              # Yaw Angle                | rads
+    axial: 0.33           # axial induction          |
+
+# # Domain Constants for a Box Domain
+# domain: 
+#     #            # Description               | Units
+#     path: "Mesh_Data/"
+
+# Domain Constants for a Cylinder Domain
+domain: 
+    #                      # Description           | Units
+    wind_direction: 0.0
+    type: "mshr"
+    # type: "squircular"
+    # type: "elliptic"
+    # type: "stretch"
+    z_range: [0.04, 630]   # z-range of the domain | m
+    center: [0.0,0.0]
+    radius: 2500           # radius of base circle | m
+    nt: 72                # Number of radial nodes| -
+    nz: 10                 # Number of z nodes     | -
+    res: 64              # Resolution for mshr   | -

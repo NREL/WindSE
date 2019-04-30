@@ -1,0 +1,29 @@
+{
+    "general": {
+        "name":"Test",
+        "preappend_datetime":true
+    },
+    "wind_farm": {
+        "HH":90,
+        "RD":126.0,
+        "site_x":[-2500,2500],
+        "site_y":[-2000,2000],
+        "site_z":[0,216],
+        "ex_scale":0.95,
+        "grid_rows":6,
+        "grid_cols":6,
+        "numturbs":36,
+        "A":126.0,
+        "alpha":0.0,
+        "beta":2173.8621817909334
+    },
+    "domain": {
+        "Lx":5000,
+        "Ly":5000,
+        "Lz":630,
+        "offset":0.04,
+        "nx":50,
+        "ny":50,
+        "nz":10
+    }
+}

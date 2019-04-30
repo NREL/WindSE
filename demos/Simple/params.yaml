@@ -1,0 +1,31 @@
+# General options
+general: 
+    name: "Simple_Test"       # Name of the output folder
+    preappend_datetime: false  # Place the date and time before the folder name
+    outputs: ["mesh","initial_guess","height","turbine_force","solution"]
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                     # Description              | Units
+    HH: 90                # Hub Height               | m
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 10.5       # Effective Thickness      | m
+    yaw: 0.0              # Yaw                      | rads
+    axial: 0.33           # Axial Induction          | -
+    ex_x: [-1500, 1500]   # x-extent of the farm     | m
+    ex_y: [-1500, 1500]   # y-extent of the farm     | m
+    ex_scale: 0.95        # extent scaling parameter | -
+    grid_rows: 6          # Number of rows           | -
+    grid_cols: 6          # Number of columns        | -
+    numturbs: 36          # Number of Turbines       | -
+    seed: 15              # Random Seed for Numpy    | -
+
+# Domain Constants for a Box Domain
+domain: 
+    #                      # Description           | Units
+    x_range: [-2500, 2500] # x-range of the domain | m
+    y_range: [-2500, 2500] # y-range of the domain | m
+    z_range: [0.04, 630]   # z-range of the domain | m
+    nx: 10                 # Number of x-nodes     | -
+    ny: 10                 # Number of y-nodes     | -
+    nz: 2                  # Number of z-nodes     | -

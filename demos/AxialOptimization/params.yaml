@@ -1,0 +1,25 @@
+# General options
+general: 
+    name: "Axial_Induction_Optimization"       # Name of the output folder
+    preappend_datetime: False  # Place the date and time before the folder name
+    save_file_type: "xdmf" # (xdmf, pvd, None)
+    dolfin_adjoint: True
+    outputs: ["mesh","initial_guess","height","turbine_force","solution"]
+
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                     # Description              | Units
+    imported: true
+    path: "wind_farm.txt"
+    ex_scale: 1.0        # extent scaling parameter | -
+
+# Domain Constants for a Box Domain
+domain: 
+    #                      # Description           | Units
+    x_range: [0, 1000]        # x-range of the domain | m
+    y_range: [-250, 250]        # y-range of the domain | m
+    z_range: [0, 500]        # z-range of the domain | m
+    nx: 20                 # Number of x-nodes     | -
+    ny: 20                 # Number of y-nodes     | -
+    nz: 10                 # Number of z-nodes     | -

@@ -1,0 +1,12 @@
+*.DS_Store
+*.pyc
+*/output/
+*output/
+*/.ipynb_checkpoints/
+*.ipynb_checkpoints/
+*.egg-info/
+*/.egg-info/
+*.xml.gz
+*.pvd
+*.vtu
+*.h5

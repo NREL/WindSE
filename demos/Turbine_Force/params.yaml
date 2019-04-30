@@ -1,0 +1,22 @@
+# General options
+general: 
+    name: "Turbine_test"       # Name of the output folder
+    preappend_datetime: false  # Place the date and time before the folder name
+    outputs: ["mesh","initial_guess","height","turbine_force","solution"]
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                     # Description              | Units
+    imported: true
+    path: "wind_farm.txt"
+    ex_scale: 1.0        # extent scaling parameter | -
+
+# Domain Constants for a Box Domain
+domain: 
+    #                      # Description           | Units
+    x_range: [0, 1]        # x-range of the domain | m
+    y_range: [0, 1]        # y-range of the domain | m
+    z_range: [0, 1]        # z-range of the domain | m
+    nx: 64                 # Number of x-nodes     | -
+    ny: 64                 # Number of y-nodes     | -
+    nz: 64                 # Number of z-nodes     | -
