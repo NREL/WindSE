@@ -252,7 +252,7 @@ class GenericWindFarm(object):
         yrot = math.sin(yaw)*(x[0]-x0[0]) + math.cos(yaw)*(x[1]-x0[1])
         return [xrot,yrot]
 
-    def TurbineForce(self,fs,mesh,delta_yaw=0.0):
+    def TurbineForce(self,fs,mesh,u_next,delta_yaw=0.0):
         """
         This function creates a turbine force by applying 
         a spacial kernel to each turbine. This kernel is 
@@ -306,23 +306,23 @@ class GenericWindFarm(object):
             # F = 0.75*0.5*4.*A*self.ma[i]/(1.-self.ma[i])/beta
             r = sqrt(xs[1]**2.0+xs[2]**2)
             F = 4.*0.5*(pi*R**2.0)*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5) * 1/(.81831)
-
+            u_d = u_next[0]*cos(yaw) + u_next[1]*sin(yaw)
             ### Combine and add to the total ###
-            tf_x = tf_x + F*T*D*cos(yaw)
-            tf_y = tf_y + F*T*D*sin(yaw)
+            tf_x = tf_x + F*T*D*cos(yaw)*u_d**2
+            tf_y = tf_y + F*T*D*sin(yaw)*u_d**2
 
-        ### Project Turbine Force to save on Assemble time ###
-        self.fprint("Projecting X Force")
-        tf_x = project(tf_x,fs.V0,solver_type='mumps')
-        self.fprint("Projecting Y Force")
-        tf_y = project(tf_y,fs.V1,solver_type='mumps')  
+        # ### Project Turbine Force to save on Assemble time ###
+        # self.fprint("Projecting X Force")
+        # tf_x = project(tf_x,fs.V0,solver_type='mumps')
+        # self.fprint("Projecting Y Force")
+        # tf_y = project(tf_y,fs.V1,solver_type='mumps')  
 
-        ## Assign the components to the turbine force ###
-        self.tf = Function(fs.V)
-        fs.VelocityAssigner.assign(self.tf,[tf_x,tf_y,tf_z])
+        # ## Assign the components to the turbine force ###
+        # self.tf = Function(fs.V)
+        # fs.VelocityAssigner.assign(self.tf,[tf_x,tf_y,tf_z])
 
-        tf_stop = time.time()
-        self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
+        # tf_stop = time.time()
+        # self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
         return as_vector((tf_x,tf_y,tf_z))
 
     def TurbineForce2D(self,fs,mesh):

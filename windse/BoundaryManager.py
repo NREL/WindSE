@@ -277,7 +277,7 @@ class PowerInflow(GenericBoundary):
         self.uy = Function(fs.V1)
         self.uz = Function(fs.V2)
         scaled_z_dist_val = np.abs(np.divide(z_dist_V0.vector()[:],(dom.z_range[1]-dom.z_range[0])))
-        self.reference_velocity = np.multiply(8.0,np.power(scaled_z_dist_Q_val,.15))
+        self.reference_velocity = np.multiply(12.0,np.power(scaled_z_dist_Q_val,.15))
         # ux.vector()[:] = np.multiply(16.0,np.power(scaled_z_dist_val,1./4.))
 
         ux_com, uy_com, uz_com = self.RotateVelocity(self.wind_direction)
