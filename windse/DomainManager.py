@@ -452,16 +452,16 @@ class CylinderDomain(GenericDomain):
         self.fprint("Meshing Type:  {0}".format(self.type))
 
         def Elliptical_Grid(x, y, z):
-            #x_hat = x √(1 - y²/2)
-            #y_hat = y √(1 - x²/2)
+            #x_hat = x sqrt(1 - y^2/2)
+            #y_hat = y sqrt(1 - x^2/2)
             x_hat = np.multiply(self.radius*x,np.sqrt(1.0-np.power(y,2.0)/2.0))
             y_hat = np.multiply(self.radius*y,np.sqrt(1.0-np.power(x,2.0)/2.0))
             z_hat = z
             return [x_hat, y_hat, z_hat]
 
         def FG_Squircular(x, y, z):
-            #x_hat = x √(x² + y² - x²y²) / √(x² + y²)
-            #y_hat = y √(x² + y² - x²y²) / √(x² + y²)
+            #x_hat = x sqrt(x^2 + y^2 - x^2y^2) / sqrt(x^2 + y^2)
+            #y_hat = y sqrt(x^2 + y^2 - x^2y^2) / sqrt(x^2 + y^2)
             innerp = np.power(x,2.0)+np.power(y,2.0)
             prod  = np.multiply(np.power(x,2.0),np.power(y,2.0))
             innerp[innerp==0] = 1 #handle the point (0,0)
