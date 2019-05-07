@@ -4,7 +4,7 @@ Installation:
 General Installation:
 ---------------------
 
-In order to use WindSE, the python version fenics 2018.1.0 or later must be installed along with a compatible version of dolfin-adjoint. WindSE can be installed by downloading the source files from the GitHub (https://github.com/WISDEM/WindSE) and running the command::
+In order to use WindSE, the python version fenics 2018.1.0 or later must be installed along with a compatible version of dolfin-adjoint. WindSE can be installed by downloading the source files from the GitHub (https://github.com/NREL/WindSE) and running the command::
 
     pip install -e .
 
