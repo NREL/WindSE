@@ -10,6 +10,7 @@ Welcome to WindSE's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   install
    api
 
 

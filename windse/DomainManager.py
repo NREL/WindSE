@@ -111,8 +111,9 @@ class GenericDomain(object):
             num (int): the number of times to refine
 
         :Keyword Arguments:
-            * **region** (*list*): for square region use: [[xmin,xmax],[ymin,ymax],[zmin,zmax]]
-                                   for circle region use: [[radius],[c_x,c_y],[zmin,zmax]]
+            * **region** (*list*): 
+                                for square region use: [[xmin,xmax],[ymin,ymax],[zmin,zmax]]
+                                for circle region use: [[radius],[c_x,c_y],[zmin,zmax]]
             * **region_type** (*str*): Either "circle" or "square" 
             * **cell_markers** (*:meth:dolfin.mesh.MeshFunction*): A cell function marking which cells to refine 
         """
