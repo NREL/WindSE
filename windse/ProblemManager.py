@@ -84,15 +84,12 @@ class StabilizedProblem(GenericProblem):
         super(StabilizedProblem, self).__init__(domain,windfarm,function_space,boundary_conditions)
         self.fprint("Setting Up Stabilized Problem",special="header")
 
-        ### Create the turbine force ###
-        self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh)
-
         ### add some helper items for dolfin_adjoint_helper.py ###
         self.params.ground_fx = self.dom.Ground
         self.params.full_hh = self.farm.HH
 
         ### These constants will be moved into the params file ###
-        nu = Constant(.1)
+        nu = Constant(1)
         f = Constant((0.,0.,0.))
         vonKarman=0.41
         lmax=15
@@ -144,9 +141,11 @@ class StabilizedProblem(GenericProblem):
         # FunctTest = Expression("G(xm,ym)",G=dom.Ground,x=mx_1,y=my_1)
         # FunctTest = Expression("G(xm,ym)",G=dom.Ground,x=mx_1,y=my_1)
 
+        ### Create the turbine force ###
+        self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,u_next)
 
         ### Create the functional ###
-        self.F = inner(grad(u_next)*u_next, v)*dx + (nu+self.nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(u_next[0]**2+u_next[1]**2),v)*dx 
+        self.F = inner(grad(u_next)*u_next, v)*dx + (nu+self.nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
 
         ### Add in the Stabilizing term ###
         stab = - eps*inner(grad(q), grad(p_next))*dx - eps*inner(grad(q), dot(grad(u_next), u_next))*dx 

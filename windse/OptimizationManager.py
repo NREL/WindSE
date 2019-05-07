@@ -67,18 +67,6 @@ def CreateYawControl(myaw,farm):
         m.append(Control(myaw[i]))
     return m
 
-def CreateYawControl(myaw,farm):
-    """
-    Creates the controls from a list of values
-
-    Args:
-        m (list): a list of values to optimize.
-    """
-    m=[]
-    for i in range(farm.numturbs):
-        m.append(Control(myaw[i]))
-    return m
-
 def CreateAxialBounds(ma,farm):
     """
     Creates the optimization bounds for axial induction.
@@ -89,8 +77,8 @@ def CreateAxialBounds(ma,farm):
     ub=[]
     lb=[]
     for i in range(farm.numturbs):
-        lb.append(Constant(0.))
-        ub.append(Constant(0.75))
+        lb.append(Constant(0))
+        ub.append(Constant(1.))
         
     bounds = [lb,ub]
     return bounds
@@ -145,6 +133,6 @@ def PowerFunctional(tf,u):
     """
     #how to handle rotation?
     # J=Functional(tf*u[0]**3*dx)
-    J=assemble(-tf[0]*u[0]**3*dx)
+    J=assemble(-dot(tf,u)*dx)
 
     return J
