@@ -1596,7 +1596,7 @@ def run_doctest(infile="-", txt2code=True,
     runner.summarize
     # give feedback also if no failures occurred
     if not runner.failures:
-        print "%d failures in %d tests"%(runner.failures, runner.tries)
+        print("{:d} failures in {:d} tests".format(runner.failures, runner.tries))
     return runner.failures, runner.tries
 
 
