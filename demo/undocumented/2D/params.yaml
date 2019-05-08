@@ -1,0 +1,27 @@
+# General options
+general: 
+    name: "2D" 
+    preappend_datetime: false 
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    output_type: "xdmf"
+
+# Domain Constants for a Box Domain
+domain: 
+    #                      # Description           | Units
+    x_range: [-2500, 2500] # x-range of the domain | m
+    y_range: [-2500, 2500] # y-range of the domain | m
+    nx: 200                # Number of x-nodes     | -
+    ny: 200                # Number of y-nodes     | -
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                  # Description              | Units
+    ex_x: [-1800,1800] # x-extent of the farm     | m
+    ex_y: [-1800,1800] # y-extent of the farm     | m
+    grid_rows: 6       # Number of rows           | -
+    grid_cols: 6       # Number of columns        | -
+    yaw: 0             # Yaw                      | rads
+    axial: 0.33        # Axial Induction          | -
+    HH: 90             # Hub Height               | m
+    RD: 126            # Turbine Diameter         | m
+    thickness: 10      # Effective Thickness      | m

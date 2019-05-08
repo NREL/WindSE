@@ -1,10 +1,9 @@
 # General options
 general: 
-    name: "2D"       # Name of the output folder
-    preappend_datetime: false  # Place the date and time before the folder name
-    save_file_type: "xdmf" # (xdmf, pvd, None)
-    dolfin_adjoint: false
-    outputs: ["mesh","initial_guess","height","turbine_force","solution"]
+    name: "2D"
+    preappend_datetime: false
+    output: ["mesh","initial_guess","turbine_force","solution"]
+    output_type: "xdmf"
 
 # Wind Farm constants for a grid farm
 wind_farm: 

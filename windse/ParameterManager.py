@@ -66,9 +66,9 @@ class Parameters(dict):
         ### Create Instances of the general options ###
         self.name = self["general"].get("name", "Test")
         self.preappend_datetime = self["general"].get("preappend_datetime", False)
-        self.save_file_type = self["general"].get("save_file_type", "pvd")
+        self.output_type = self["general"].get("output_type", "pvd")
         self.dolfin_adjoint = self["general"].get("dolfin_adjoint", False)
-        self.outputs = self["general"].get("outputs", [])
+        self.output = self["general"].get("output", ["solution"])
 
         ### Print some stats ###
 
@@ -133,7 +133,7 @@ class Parameters(dict):
         func.rename(filename,filename)
 
         if filetype == "default":
-            filetype = self.save_file_type
+            filetype = self.output_type
 
         if file is None:
             ### Make sure the folder exists

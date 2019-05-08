@@ -113,13 +113,13 @@ class SteadySolver(GenericSolver):
 
         ### Save Files before solve ###
         self.fprint("Saving Input Data",special="header")
-        if "mesh" in self.params.outputs:
+        if "mesh" in self.params.output:
             self.problem.dom.Save(val=iter_val)
-        if "initial_guess" in self.params.outputs:
+        if "initial_guess" in self.params.output:
             self.problem.bd.SaveInitialGuess(val=iter_val)
-        if "height" in self.params.outputs:
+        if "height" in self.params.output:
             self.problem.bd.SaveHeight()
-        if "turbine_force" in self.params.outputs:
+        if "turbine_force" in self.params.output:
             self.problem.farm.SaveTurbineForce(val=iter_val)
         self.fprint("Finished",special="footer")
 
@@ -171,7 +171,7 @@ class SteadySolver(GenericSolver):
         self.nu_T = project(self.problem.nu_T,self.problem.fs.Q)
 
         ### Save solutions ###
-        if "solution" in self.params.outputs:
+        if "solution" in self.params.output:
             self.fprint("Saving Solution",special="header")
             self.Save(val=iter_val)
             self.fprint("Finished",special="footer")

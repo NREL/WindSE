@@ -15,8 +15,10 @@
 import os
 import sys
 # sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('../'))
-
+sys.path.append(os.getcwd())
+sys.path.insert(0, os.path.abspath('../../'))
+import rstprocess
+rstprocess.process()
 
 # -- Project information -----------------------------------------------------
 

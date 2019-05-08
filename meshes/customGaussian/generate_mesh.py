@@ -112,15 +112,15 @@ leftb.mark(boundaries,5,check_midpoint=False)
 rightb.mark(boundaries,6,check_midpoint=False)
 
 ### Save Mesh andBoundary facet function ###
-vfile = File("pvd/mesh.pvd")
+vfile = File("output/pvd/mesh.pvd")
 vfile << mesh
 
-vfile = File("pvd/boundaries.pvd")
+vfile = File("output/pvd/boundaries.pvd")
 vfile << boundaries
 
-vfile = File("xml/boundaries.xml.gz")
+vfile = File("output/xml/boundaries.xml.gz")
 vfile << boundaries
 
-vfile = File("xml/mesh.xml.gz")
+vfile = File("output/xml/mesh.xml.gz")
 vfile << mesh
 

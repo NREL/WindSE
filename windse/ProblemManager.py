@@ -194,9 +194,9 @@ class TaylorHoodProblem2D(GenericProblem):
         l_mix = Constant(self.farm.HH[0]/mlDenom)
 
         ### Calculate nu_T
-        nu_T=l_mix**2.*S
+        self.nu_T=l_mix**2.*S
 
         ### Create the functional ###
-        self.F = inner(grad(u_next)*u_next, v)*dx + (nu+nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(tf*(u_next[0]**2+u_next[1]**2),v)*dx 
+        self.F = inner(grad(u_next)*u_next, v)*dx + (nu+self.nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(tf*(u_next[0]**2+u_next[1]**2),v)*dx 
 
         self.fprint("Taylor-Hood Problem Setup",special="footer")
