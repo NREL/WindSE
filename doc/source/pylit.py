@@ -134,7 +134,7 @@ __docformat__ = 'restructuredtext'
 #
 # ::
 
-import __builtin__, os, sys
+import os, sys
 import re, optparse
 
 
@@ -1666,7 +1666,7 @@ def execute(infile="-", txt2code=True, **keyw):
     if txt2code:
         data = str(Text2Code(data, **keyw))
     # print "executing " + options.infile
-    exec data
+    exec(data)
 
 
 # main
@@ -1727,7 +1727,7 @@ def main(args=sys.argv[1:], **defaults):
     out_stream.write(str(converter))
 
     if out_stream is not sys.stdout:
-        print "extract written to", out_stream.name
+        print("extract written to "+ out_stream.name)
         out_stream.close()
 
 # If input and output are from files, set the modification time (`mtime`) of
