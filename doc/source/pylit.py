@@ -1643,11 +1643,11 @@ def diff(infile='-', outfile='-', txt2code=True, **keyw):
                                       fromfile=oldname, tofile=newname)
     for line in delta:
         is_different = True
-        print line,
+        print(line, end=" ")
     if not is_different:
-        print oldname
-        print newname
-        print "no differences found"
+        print(oldname)
+        print(newname)
+        print("no differences found")
     return is_different
 
 
@@ -1714,8 +1714,8 @@ def main(args=sys.argv[1:], **defaults):
 
     try:
         (data, out_stream) = open_streams(**options.as_dict())
-    except IOError, ex:
-        print "IOError: %s %s" % (ex.filename, ex.strerror)
+    except IOError(ex):
+        print("IOError: {0} {1}".format(ex.filename, ex.strerror))
         sys.exit(ex.errno)
 
 # Get a converter instance::
