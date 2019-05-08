@@ -839,8 +839,8 @@ class Text2Code(TextCodeConverter):
 
         for line in block:
             if line.lstrip() and self.get_indent(line) < self._codeindent:
-                raise ValueError, "code block contains line less indented " \
-                      "than %d spaces \n%r"%(self._codeindent, block)
+                raise ValueError("code block contains line less indented " \
+                      "than %d spaces \n%r"%(self._codeindent, block))
             yield line.replace(" "*self._codeindent, "", 1)
 
 
