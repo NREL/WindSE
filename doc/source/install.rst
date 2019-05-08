@@ -4,7 +4,7 @@ Installation
 General Installation:
 ---------------------
 
-In order to use WindSE, the python version fenics 2018.1.0 or later must be installed along with a compatible version of dolfin-adjoint. WindSE can be installed by downloading the source files from the GitHub (https://github.com/WISDEM/WindSE) and running the command::
+In order to use WindSE, the python version fenics 2018.1.0 or later must be installed along with a compatible version of dolfin-adjoint. WindSE can be installed by downloading the source files from the GitHub (https://github.com/NREL/WindSE) and running the command::
 
     pip install -e .
 
@@ -13,7 +13,7 @@ in the root folder.
 Conda Installation (Automatic):
 -------------------------------
 
-The best way to use WindSE is via a conda environment. To install conda check out this link: [Conda Installation.](https://conda.io/projects/conda/en/latest/user-guide/install/) After conda is installed, you need to download/clone the WindSE repo. Then can automatically setup the WindSE environment using::
+The best way to use WindSE is via a conda environment. To install conda check out this link: `Conda Installation. <https://conda.io/projects/conda/en/latest/user-guide/install/>`_ After conda is installed, you need to download/clone the WindSE repo. Then can automatically setup the WindSE environment using::
 
     conda env create -f environment.yml
 
