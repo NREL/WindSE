@@ -1247,7 +1247,7 @@ class OptionValues(optparse.Values):
         have a corresponding attribute in `self`,
         """
         for key in keyw:
-            if not self.__dict__.has_key(key):
+            if key not in self.__dict__:
                 setattr(self, key, keyw[key])
 
 # .. _OptionValues.__getattr__:
@@ -1296,7 +1296,7 @@ class PylitOptions(object):
         p.add_option("-t", "--txt2code", action="store_true",
                      help="convert text source to code source")
         p.add_option("--language",
-                     choices = defaults.languages.values(),
+                     choices = list(defaults.languages.values()),
                      help="use LANGUAGE native comment style")
         p.add_option("--comment-string", dest="comment_string",
                      help="documentation block marker in code source "
@@ -1490,7 +1490,7 @@ def open_streams(infile = '-', outfile = '-', overwrite='update', **keyw):
     if infile == '-':
         in_stream = sys.stdin
     else:
-        in_stream = file(infile, 'r')
+        in_stream = open(infile, 'r')
     if outfile == '-':
         out_stream = sys.stdout
     elif overwrite == 'no' and os.path.exists(outfile):
@@ -1498,7 +1498,7 @@ def open_streams(infile = '-', outfile = '-', overwrite='update', **keyw):
     elif overwrite == 'update' and is_newer(outfile, infile):
         raise IOError(1, "Output file is newer than input file!", outfile)
     else:
-        out_stream = file(outfile, 'w')
+        out_stream = open(outfile, 'w')
     return (in_stream, out_stream)
 
 # is_newer
@@ -1614,7 +1614,7 @@ def diff(infile='-', outfile='-', txt2code=True, **keyw):
 
     import difflib
 
-    instream = file(infile)
+    instream = open(infile)
     # for diffing, we need a copy of the data as list::
     data = instream.readlines()
     # convert
@@ -1622,7 +1622,7 @@ def diff(infile='-', outfile='-', txt2code=True, **keyw):
     new = converter()
 
     if outfile != '-' and os.path.exists(outfile):
-        outstream = file(outfile)
+        outstream = open(outfile)
         old = outstream.readlines()
         oldname = outfile
         newname = "<conversion of %s>"%infile
@@ -1662,7 +1662,7 @@ def execute(infile="-", txt2code=True, **keyw):
     """Execute the input file. Convert first, if it is a text source.
     """
 
-    data = file(infile)
+    data = open(infile)
     if txt2code:
         data = str(Text2Code(data, **keyw))
     # print "executing " + options.infile
@@ -1714,7 +1714,7 @@ def main(args=sys.argv[1:], **defaults):
 
     try:
         (data, out_stream) = open_streams(**options.as_dict())
-    except IOError(ex):
+    except IOError as ex:
         print("IOError: {0} {1}".format(ex.filename, ex.strerror))
         sys.exit(ex.errno)
 
