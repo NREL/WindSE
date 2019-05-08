@@ -1486,7 +1486,7 @@ def open_streams(infile = '-', outfile = '-', overwrite='update', **keyw):
     """
     if not infile:
         strerror = "Missing input file name ('-' for stdin; -h for help)"
-        raise IOError, (2, strerror, infile)
+        raise IOError(2, strerror, infile)
     if infile == '-':
         in_stream = sys.stdin
     else:
@@ -1494,9 +1494,9 @@ def open_streams(infile = '-', outfile = '-', overwrite='update', **keyw):
     if outfile == '-':
         out_stream = sys.stdout
     elif overwrite == 'no' and os.path.exists(outfile):
-        raise IOError, (1, "Output file exists!", outfile)
+        raise IOError(1, "Output file exists!", outfile)
     elif overwrite == 'update' and is_newer(outfile, infile):
-        raise IOError, (1, "Output file is newer than input file!", outfile)
+        raise IOError(1, "Output file is newer than input file!", outfile)
     else:
         out_stream = file(outfile, 'w')
     return (in_stream, out_stream)
