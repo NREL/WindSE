@@ -447,6 +447,11 @@ class CylinderDomain(GenericDomain):
         self.x_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
         self.y_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
 
+
+        ### Calculating the boundary of the shadow ###
+        angles = np.linspace(0,2.0*np.pi,self.nt+1)
+        self.boundary_line = (self.radius*np.cos(angles),self.radius*np.sin(angles))
+
         self.fprint("Radius:        {: .1f}".format(self.radius))
         self.fprint("Center:       ({: .1f}, {: .1f})".format(self.center[0],self.center[1]))
         self.fprint("Z Range:      [{: .1f}, {: .1f}]".format(self.z_range[0],self.z_range[1]))

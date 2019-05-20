@@ -155,6 +155,7 @@ class Parameters(dict):
                 file << (func,val)
             elif filetype == "xdmf":
                 file.write(func,val)
+            return file
 
     def fprint(self,string,tab=None,offset=0,special=None):
         """

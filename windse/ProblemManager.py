@@ -45,7 +45,7 @@ class GenericProblem(object):
         ### Append the farm ###
         self.params.full_farm = self.farm
 
-    def ChangeWindAngle(self, theta):
+    def ChangeWindAngle(self,theta):
         """
         This function recomputes all necessary components for a new wind direction
 
@@ -60,9 +60,10 @@ class GenericProblem(object):
         self.up_next.assign(self.bd.u0)
     
         ### Need to accommodate 2D problems ###
-        tf_temp = self.farm.TurbineForce(self.fs,self.dom.mesh,delta_yaw=(theta-self.dom.wind_direction))
-        for i, com in enumerate(tf_temp):
-            self.tf[i].assign(com)
+        u_next,p_next = self.up_next.split(True)
+        self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,u_next,delta_yaw=(theta-self.dom.wind_direction))
+        # for i, com in enumerate(tf_temp):
+        #     self.tf[i].assign(com)
 
         adj_stop = time.time()
         self.fprint("Wind Angle Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")

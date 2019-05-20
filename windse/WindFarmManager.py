@@ -64,6 +64,8 @@ class GenericWindFarm(object):
         ex_list_y = [self.ex_y[0],self.ex_y[0],self.ex_y[1],self.ex_y[1],self.ex_y[0]]
 
         ### Generate and Save Plot ###
+        if hasattr(self.dom,"boundary_line"):
+            plt.plot(*self.dom.boundary_line,c="k")
         plt.plot(ex_list_x,ex_list_y,c="r")
         p=plt.scatter(self.x,self.y,c=self.z)
         plt.xlim(self.dom.x_range[0],self.dom.x_range[1])
@@ -191,37 +193,108 @@ class GenericWindFarm(object):
         self.CalculateExtents()
         self.UpdateConstants()
 
-    def RefineTurbines(self,num_refinements=1,radius_multiplyer=1.2):
+    def RefineTurbines(self,num=1,radius_multiplyer=1.2):
 
         self.fprint("Refining Near Turbines",special="header")
         mark_start = time.time()
-        cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
 
-        radius = radius_multiplyer*np.array(self.RD)/2.0
-        turb_x = np.array(self.x)
-        turb_y = np.array(self.y)
-        if self.dom.finalized:
-            turb_z0 = np.array(self.ground)
-            turb_z1 = np.array(self.z)+radius
-        else:
-            turb_z0 = self.dom.z_range[0]
-            turb_z1 = np.max(self.HH)+radius
+        for i in range(num):
+            if num>1:
+                step_start = time.time()
+                self.fprint("Refining Mesh Step {:d} of {:d}".format(i+1,num), special="header")
+            else:
+                self.fprint("")
 
-        self.fprint("Marking Near Turbine")
-        for cell in cells(self.dom.mesh):
+            cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
 
-            in_circle = (cell.midpoint()[0]-turb_x)**2.0+(cell.midpoint()[1]-turb_y)**2.0<=radius**2.0
-            in_z = np.logical_and(turb_z0 <= cell.midpoint()[2], turb_z1 >= cell.midpoint()[2])
-            near_turbine = np.logical_and(in_circle, in_z)
+            radius = radius_multiplyer*np.array(self.RD)/2.0
+            turb_x = np.array(self.x)
+            turb_x = np.tile(turb_x,(4,1)).T
+            turb_y = np.array(self.y)
+            turb_y = np.tile(turb_y,(4,1)).T
+            turb_z0 = self.dom.z_range[0]-radius
+            turb_z1 = self.z+radius
+            n = self.numturbs
 
-            if any(near_turbine):
-                cell_f[cell] = True
-        mark_stop = time.time()
-        self.fprint("Marking Finished: {:1.2f} s".format(mark_stop-mark_start))
+            self.fprint("Marking Near Turbine")
+            for cell in cells(self.dom.mesh):
 
-        self.dom.Refine(num_refinements,cell_markers=cell_f)
+                pt = cell.get_vertex_coordinates()
+                x = pt[0:-2:3]
+                x = np.tile(x,(n,1))
+                y = pt[1:-1:3]
+                y = np.tile(y,(n,1))
+                z = pt[2::3]
+
+                ### For each turbine, find which vertex is closet using squared distance
+                min_r = np.min(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)
+
+                in_circle = min_r<=radius**2.0
+                in_z = np.logical_and(turb_z0 <= max(z), turb_z1 >= min(z))
+
+                near_turbine = np.logical_and(in_circle, in_z)
+
+                if any(near_turbine):
+                    cell_f[cell] = True
+            mark_stop = time.time()
+            self.fprint("Marking Finished: {:1.2f} s".format(mark_stop-mark_start))
+
+            self.dom.Refine(1,cell_markers=cell_f)
+
+            if num>1:
+                step_stop = time.time()
+                self.fprint("Step {:d} of {:d} Finished: {:1.2f} s".format(i+1,num,step_stop-step_start), special="footer")
+
         self.CalculateHeights()
         self.fprint("Turbine Refinement Finished",special="footer")
+
+
+# Thoughts
+# ud = int(u.n*R dx)
+# T  = Mass*C*ud
+# f  = TRn
+# Questions:
+# where does xsinx come into play?
+# couldn't we just create Rn and then use that for both ud and f?
+
+
+    def CreateRotorDiscs(self,fs,mesh,delta_yaw=0.0):
+        tf_start = time.time()
+        self.fprint("Creating Rotor Discs",special="header")
+        x=SpatialCoordinate(mesh)
+
+        self.discs = Function(fs.Q)
+        # self.discs = Function(fs.V)
+
+        for i in range(self.numturbs):
+            x0 = [self.mx[i],self.my[i],self.mz[i]]
+            yaw = self.myaw[i]+delta_yaw
+            W = self.W[i]/2.0
+            R = self.RD[i]/2.0
+            
+            ### Calculate the normal vector ###
+            n = Constant((cos(yaw),sin(yaw),0.0))
+
+            ### Rotate and Shift the Turbine ###
+            xs = self.YawTurbine(x,x0,yaw)
+
+            ### Create the function that represents the Thickness of the turbine ###
+            T_norm = 1.902701539733748
+            T = exp(-pow((xs[0]/W),10.0))/(T_norm*W)
+
+            ### Create the function that represents the Disk of the turbine
+            D_norm = 2.884512175878827
+            D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),5.0))/(D_norm*R**2.0)
+
+            ### Combine and add to the total ###
+            self.discs = self.discs + T*D
+            # self.discs = self.discs + T*D*n
+
+        self.fprint("Projecting Rotor Discs")
+        self.discs = project(self.discs,fs.Q,solver_type='mumps')
+
+        tf_stop = time.time()
+        self.fprint("Rotor Discs Created: {:1.2f} s".format(tf_stop-tf_start),special="footer")
 
 
 
@@ -308,21 +381,21 @@ class GenericWindFarm(object):
             F = 4.*0.5*(pi*R**2.0)*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5) * 1/(.81831)
             u_d = u_next[0]*cos(yaw) + u_next[1]*sin(yaw)
             ### Combine and add to the total ###
-            tf_x = tf_x + F*T*D*cos(yaw)*u_d**2
-            tf_y = tf_y + F*T*D*sin(yaw)*u_d**2
+            tf_x = tf_x + F*T*D*cos(yaw)#*u_d**2
+            tf_y = tf_y + F*T*D*sin(yaw)#*u_d**2
 
         # ### Project Turbine Force to save on Assemble time ###
         # self.fprint("Projecting X Force")
-        # tf_x = project(tf_x,fs.V0,solver_type='mumps')
+        # tf_x_p = project(tf_x,fs.V0,solver_type='mumps')
         # self.fprint("Projecting Y Force")
-        # tf_y = project(tf_y,fs.V1,solver_type='mumps')  
+        # tf_y_p = project(tf_y,fs.V1,solver_type='mumps')  
 
         # ## Assign the components to the turbine force ###
         # self.tf = Function(fs.V)
-        # fs.VelocityAssigner.assign(self.tf,[tf_x,tf_y,tf_z])
+        # fs.VelocityAssigner.assign(self.tf,[tf_x_p,tf_y_p,tf_z])
 
-        # tf_stop = time.time()
-        # self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
+        tf_stop = time.time()
+        self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
         return as_vector((tf_x,tf_y,tf_z))
 
     def TurbineForce2D(self,fs,mesh):
