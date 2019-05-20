@@ -1,15 +1,30 @@
+from dolfin import *
+from dolfin_adjoint import *
 import windse
+import numpy as np
+
+parameters['form_compiler']['quadrature_degree'] = 6
+set_log_level(20)
 
 ### Initialize WindSE ###
-windse.initialize("params.yaml")
+windse.initialize("params_small.yaml")
 
 ### Generate Domain ###
 dom = windse.BoxDomain()
-dom.Save()
 
 ### Generate Wind Farm ###
-farm = windse.RandomWindFarm(dom)
-farm.Plot(False)
+# farm = windse.RandomWindFarm(dom)
+farm = windse.GridWindFarm(dom)
+
+# farm.Plot(False)
+
+dom.Warp(250,0.75)
+region = [farm.ex_x,farm.ex_y,[0,250]]
+dom.Refine(1,region=region)
+# dom.Save()
+
+### Refine Around the Turbines
+farm.RefineTurbines(num_refinements=1,radius_multiplyer=1.3) 
 
 ### Function Space ###
 fs = windse.LinearFunctionSpace(dom)
@@ -24,6 +39,6 @@ problem = windse.StabilizedProblem(dom,farm,fs,bc)
 solver = windse.SteadySolver(problem)
 solver.Solve()
 
-### Output Results ###
-solver.Save()
-solver.Plot()
+# ### Output Results ###
+# solver.Save()
+# solver.Plot()

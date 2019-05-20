@@ -1,0 +1,34 @@
+# General options
+general: 
+    name: "Small"       # Name of the output folder
+    preappend_datetime: False  # Place the date and time before the folder name
+    save_file_type: "xdmf" # (xdmf, pvd, None)
+    dolfin_adjoint: False
+    outputs: ["mesh","initial_guess","height","solution"]
+
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                     # Description              | Units
+    HH: 90                # Hub Height               | m
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 10       # Effective Thickness      | m
+    yaw: 0.0              # Yaw                      | rads
+    axial: 0.33           # Axial Induction          | -
+    ex_x: [-400, 400]   # x-extent of the farm     | m
+    ex_y: [-400, 400]   # y-extent of the farm     | m
+    ex_scale: 0.95        # extent scaling parameter | -
+    grid_rows: 2          # Number of rows           | -
+    grid_cols: 2          # Number of columns        | -
+    numturbs: 9          # Number of Turbines       | -
+    seed: 15              # Random Seed for Numpy    | -
+
+# Domain Constants for a Box Domain
+domain: 
+    #                      # Description           | Units
+    x_range: [-600, 600] # x-range of the domain | m
+    y_range: [-600, 600] # y-range of the domain | m
+    z_range: [0, 600]   # z-range of the domain | m
+    nx: 24                 # Number of x-nodes     | -
+    ny: 24                 # Number of y-nodes     | -
+    nz: 10                  # Number of z-nodes     | -

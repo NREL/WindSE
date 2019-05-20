@@ -357,6 +357,10 @@ class GenericWindFarm(object):
         tf_y=Function(fs.V1)
         tf_z=Function(fs.V2)
 
+        tn_x=Function(fs.V0)
+        tn_y=Function(fs.V1)
+        tn_z=Function(fs.V2)
+
         for i in range(self.numturbs):
             x0 = [self.mx[i],self.my[i],self.mz[i]]
             yaw = self.myaw[i]+delta_yaw
@@ -376,23 +380,29 @@ class GenericWindFarm(object):
             D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),5.0))/(D_norm*R**2.0)
 
             ### Create the function that represents the force ###
-            # F = 0.75*0.5*4.*A*self.ma[i]/(1.-self.ma[i])/beta
             r = sqrt(xs[1]**2.0+xs[2]**2)
             F = 4.*0.5*(pi*R**2.0)*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5) * 1/(.81831)
-            u_d = u_next[0]*cos(yaw) + u_next[1]*sin(yaw)
-            ### Combine and add to the total ###
-            tf_x = tf_x + F*T*D*cos(yaw)#*u_d**2
-            tf_y = tf_y + F*T*D*sin(yaw)#*u_d**2
 
-        # ### Project Turbine Force to save on Assemble time ###
-        # self.fprint("Projecting X Force")
-        # tf_x_p = project(tf_x,fs.V0,solver_type='mumps')
-        # self.fprint("Projecting Y Force")
-        # tf_y_p = project(tf_y,fs.V1,solver_type='mumps')  
+            # compute disk averaged velocity in yawed case and don't project
+            if self.yaw[0]**2 > 1e-4:
+                u_d = u_next[0]*cos(yaw) + u_next[1]*sin(yaw)
+                ### Combine and add to the total ###
+                tf_x = tf_x + F*T*D*cos(yaw)*u_d**2
+                tf_y = tf_y + F*T*D*sin(yaw)*u_d**2
+            else:
+                tf_x = tf_x + F*T*D*cos(yaw)
+                tf_y = tf_y + F*T*D*sin(yaw)
 
-        # ## Assign the components to the turbine force ###
-        # self.tf = Function(fs.V)
-        # fs.VelocityAssigner.assign(self.tf,[tf_x_p,tf_y_p,tf_z])
+        if self.yaw[0]**2 < 1e-4:
+            ### Project Turbine Force to save on Assemble time ###
+            self.fprint("Projecting X Force")
+            tf_x = project(tf_x,fs.V0,solver_type='mumps')
+            self.fprint("Projecting Y Force")
+            tf_y = project(tf_y,fs.V1,solver_type='mumps')  
+
+            ## Assign the components to the turbine force ###
+            self.tf = Function(fs.V)
+            fs.VelocityAssigner.assign(self.tf,[tf_x,tf_y,tf_z])
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
@@ -401,7 +411,7 @@ class GenericWindFarm(object):
     def TurbineForce2D(self,fs,mesh):
         """
         This function creates a turbine force by applying 
-        a spacial kernel to each turbine. This kernel is 
+        a spatial kernel to each turbine. This kernel is 
         created from the turbines location, yaw, thickness, diameter,
         and force density. Currently, force density is limit to a scaled
         version of 
