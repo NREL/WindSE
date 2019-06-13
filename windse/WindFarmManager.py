@@ -82,12 +82,12 @@ class GenericWindFarm(object):
         """
         This function saves the turbine force if exists to output/.../functions/
         """
-
-        if self.tf_first_save:
-            self.tf_file = self.params.Save(self.tf,"tf",subfolder="functions/",val=val)
-            self.tf_first_save = False
-        else:
-            self.params.Save(self.tf,"tf",subfolder="functions/",val=val,file=self.tf_file)
+        if self.tf is not None:
+            if self.tf_first_save:
+                self.tf_file = self.params.Save(self.tf,"tf",subfolder="functions/",val=val)
+                self.tf_first_save = False
+            else:
+                self.params.Save(self.tf,"tf",subfolder="functions/",val=val,file=self.tf_file)
 
     def GetLocations(self):
         """
@@ -129,6 +129,31 @@ class GenericWindFarm(object):
         self.params["wind_farm"]["ex_x"] = self.ex_x
         self.params["wind_farm"]["ex_y"] = self.ex_y
         self.params["wind_farm"]["ex_z"] = self.ex_z
+
+    def CalculateFarmRegion(self,region_type,factor):
+
+
+        if region_type == "square":
+            x_center = (self.ex_x[1]+self.ex_x[0])/2.0
+            y_center = (self.ex_y[1]+self.ex_y[0])/2.0
+            z_center = (self.ex_z[1]+self.ex_z[0])/2.0
+
+            x = factor*(np.subtract(self.ex_x,x_center))+x_center
+            y = factor*(np.subtract(self.ex_y,y_center))+y_center
+            z = factor*(self.ex_z - z_center)+z_center
+
+            return [x,y,z]
+
+        elif region_type == "circle":
+            z_center = (self.ex_z[1]+self.ex_z[0])/2.0
+            center = [sum(self.x)/float(self.numturbs),sum(self.y)/float(self.numturbs)]
+            radius = factor*max(np.sqrt(np.power(self.x-center[0],2.0)+np.power(self.y-center[1],2.0)))
+            z = factor*(self.ex_z - z_center)+z_center
+
+            return [[radius],center,z]
+
+        else:
+            raise ValueError("Not a valid region type: "+region_type)
 
     def CreateConstants(self):
         """
@@ -193,7 +218,7 @@ class GenericWindFarm(object):
         self.CalculateExtents()
         self.UpdateConstants()
 
-    def RefineTurbines(self,num=1,radius_multiplyer=1.2):
+    def RefineTurbines(self,num,radius_multiplyer):
 
         self.fprint("Refining Near Turbines",special="header")
         mark_start = time.time()
@@ -202,37 +227,49 @@ class GenericWindFarm(object):
             if num>1:
                 step_start = time.time()
                 self.fprint("Refining Mesh Step {:d} of {:d}".format(i+1,num), special="header")
-            else:
-                self.fprint("")
 
             cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
 
             radius = radius_multiplyer*np.array(self.RD)/2.0
-            turb_x = np.array(self.x)
-            turb_x = np.tile(turb_x,(4,1)).T
-            turb_y = np.array(self.y)
-            turb_y = np.tile(turb_y,(4,1)).T
-            turb_z0 = self.dom.z_range[0]-radius
-            turb_z1 = self.z+radius
+            if self.dom.dim == 3:
+                turb_x = np.array(self.x)
+                turb_x = np.tile(turb_x,(4,1)).T
+                turb_y = np.array(self.y)
+                turb_y = np.tile(turb_y,(4,1)).T
+                turb_z0 = self.dom.z_range[0]-radius
+                turb_z1 = self.z+radius
+            else:
+                turb_x = np.array(self.x)
+                turb_x = np.tile(turb_x,(3,1)).T
+                turb_y = np.array(self.y)
+                turb_y = np.tile(turb_y,(3,1)).T
             n = self.numturbs
 
             self.fprint("Marking Near Turbine")
             for cell in cells(self.dom.mesh):
 
                 pt = cell.get_vertex_coordinates()
-                x = pt[0:-2:3]
-                x = np.tile(x,(n,1))
-                y = pt[1:-1:3]
-                y = np.tile(y,(n,1))
-                z = pt[2::3]
+                if self.dom.dim == 3:
+                    x = pt[0:-2:3]
+                    x = np.tile(x,(n,1))
+                    y = pt[1:-1:3]
+                    y = np.tile(y,(n,1))
+                    z = pt[2::3]
+                else:
+                    x = pt[0:-1:2]
+                    x = np.tile(x,(n,1))
+                    y = pt[1::2]
+                    y = np.tile(y,(n,1))
 
                 ### For each turbine, find which vertex is closet using squared distance
                 min_r = np.min(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)
 
                 in_circle = min_r<=radius**2.0
-                in_z = np.logical_and(turb_z0 <= max(z), turb_z1 >= min(z))
-
-                near_turbine = np.logical_and(in_circle, in_z)
+                if self.dom.dim == 3:
+                    in_z = np.logical_and(turb_z0 <= max(z), turb_z1 >= min(z))
+                    near_turbine = np.logical_and(in_circle, in_z)
+                else:
+                    near_turbine = in_circle
 
                 if any(near_turbine):
                     cell_f[cell] = True
@@ -247,16 +284,6 @@ class GenericWindFarm(object):
 
         self.CalculateHeights()
         self.fprint("Turbine Refinement Finished",special="footer")
-
-
-# Thoughts
-# ud = int(u.n*R dx)
-# T  = Mass*C*ud
-# f  = TRn
-# Questions:
-# where does xsinx come into play?
-# couldn't we just create Rn and then use that for both ud and f?
-
 
     def CreateRotorDiscs(self,fs,mesh,delta_yaw=0.0):
         tf_start = time.time()
@@ -309,21 +336,12 @@ class GenericWindFarm(object):
         """
         xrot =   math.cos(yaw)*(x[0]-x0[0]) + math.sin(yaw)*(x[1]-x0[1])
         yrot = - math.sin(yaw)*(x[0]-x0[0]) + math.cos(yaw)*(x[1]-x0[1])
-        zrot = x[2]-x0[2]
-        return [xrot,yrot,zrot]
-
-    def YawTurbine2D(self,x,x0,yaw):
-        """
-        This function yaws the turbines when creating the turbine force.
-
-        Args:
-            x (dolfin.SpacialCoordinate): the space variable, x
-            x0 (list): the location of the turbine to be yawed
-            yaw (float): the yaw value in radians
-        """
-        xrot = math.cos(yaw)*(x[0]-x0[0]) - math.sin(yaw)*(x[1]-x0[1])
-        yrot = math.sin(yaw)*(x[0]-x0[0]) + math.cos(yaw)*(x[1]-x0[1])
-        return [xrot,yrot]
+        if self.dom.dim == 3:
+            zrot = x[2]-x0[2]
+            return [xrot,yrot,zrot]
+        else:
+            zrot = 0.0
+            return [xrot,yrot,zrot]
 
     def TurbineForce(self,fs,mesh,u_next,delta_yaw=0.0):
         """
@@ -355,11 +373,8 @@ class GenericWindFarm(object):
 
         tf_x=Function(fs.V0)
         tf_y=Function(fs.V1)
-        tf_z=Function(fs.V2)
-
-        tn_x=Function(fs.V0)
-        tn_y=Function(fs.V1)
-        tn_z=Function(fs.V2)
+        if self.dom.dim == 3:
+            tf_z=Function(fs.V2)
 
         for i in range(self.numturbs):
             x0 = [self.mx[i],self.my[i],self.mz[i]]
@@ -384,7 +399,7 @@ class GenericWindFarm(object):
             F = 4.*0.5*(pi*R**2.0)*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5) * 1/(.81831)
 
             # compute disk averaged velocity in yawed case and don't project
-            if self.yaw[0]**2 > 1e-4:
+            if self.yaw[0]**2 > 1e-4: ###?This only works if first turbine it yawed?###
                 u_d = u_next[0]*cos(yaw) + u_next[1]*sin(yaw)
                 ### Combine and add to the total ###
                 tf_x = tf_x + F*T*D*cos(yaw)*u_d**2
@@ -402,11 +417,19 @@ class GenericWindFarm(object):
 
             ## Assign the components to the turbine force ###
             self.tf = Function(fs.V)
-            fs.VelocityAssigner.assign(self.tf,[tf_x,tf_y,tf_z])
+            if self.dom.dim == 3:
+                fs.VelocityAssigner.assign(self.tf,[tf_x,tf_y,tf_z])
+            else:
+                fs.VelocityAssigner.assign(self.tf,[tf_x,tf_y])
+        else:
+            self.tf = None
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
-        return as_vector((tf_x,tf_y,tf_z))
+        if self.dom.dim == 3:
+            return as_vector((tf_x,tf_y,tf_z))
+        else:
+            return as_vector((tf_x,tf_y))
 
     def TurbineForce2D(self,fs,mesh):
         """
@@ -555,7 +578,7 @@ class GridWindFarm(GenericWindFarm):
         self.CalculateHeights()
 
         ### Update the extent in the z direction ###
-        self.ex_z = [min(self.ground),max(self.z)+self.RD]
+        self.ex_z = [min(self.ground),max(self.z+self.RD)]
         self.params["wind_farm"]["ex_z"] = self.ex_z
 
         self.fprint("Wind Farm Generated",special="footer")
@@ -621,6 +644,7 @@ class RandomWindFarm(GenericWindFarm):
         self.x = np.random.uniform(self.ex_x[0]+self.radius,self.ex_x[1]-self.radius,self.numturbs)
         self.y = np.random.uniform(self.ex_y[0]+self.radius,self.ex_y[1]-self.radius,self.numturbs)
 
+
         ### Convert the constant parameters to lists ###
         self.CreateLists()
         
@@ -629,6 +653,11 @@ class RandomWindFarm(GenericWindFarm):
 
         ### Calculate Ground Heights ###
         self.CalculateHeights()
+
+        ### Update the extent in the z direction ###
+        self.ex_z = [min(self.ground),max(self.z+self.RD)]
+        self.params["wind_farm"]["ex_z"] = self.ex_z
+
 
         self.fprint("Wind Farm Generated",special="footer")
 
@@ -686,5 +715,6 @@ class ImportedWindFarm(GenericWindFarm):
 
         ### Calculate the extent of the farm ###
         self.CalculateExtents()
-        
+    
+
         self.fprint("Wind Farm Imported",special="footer")

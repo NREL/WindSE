@@ -25,6 +25,23 @@ class GenericFunctionSpace(object):
     def __init__(self,dom):
         self.params = windse_parameters
         self.fprint = self.params.fprint
+        self.dim = dom.dim
+
+    def SetupSubspaces(self):
+        self.V = self.W.sub(0).collapse()
+        self.Q = self.W.sub(1).collapse()
+        self.V0 = self.V.sub(0).collapse() 
+        self.V1 = self.V.sub(1).collapse()
+        if self.dim == 3:
+            self.V2 = self.V.sub(2).collapse()
+
+        if self.dim == 3: 
+            self.VelocityAssigner = FunctionAssigner(self.V,[self.V0,self.V1,self.V2])
+        else:
+            self.VelocityAssigner = FunctionAssigner(self.V,[self.V0,self.V1])
+
+        self.SolutionAssigner = FunctionAssigner(self.W,[self.V,self.Q])
+
 
 
 class LinearFunctionSpace(GenericFunctionSpace):
@@ -42,30 +59,24 @@ class LinearFunctionSpace(GenericFunctionSpace):
         V = VectorElement('Lagrange', dom.mesh.ufl_cell(), 1) 
         Q = FiniteElement('Lagrange', dom.mesh.ufl_cell(), 1)
         self.W = FunctionSpace(dom.mesh, MixedElement([V,Q]))
-        self.V = self.W.sub(0).collapse()
-        self.Q = self.W.sub(1).collapse()
-        self.V0 = self.V.sub(0).collapse() 
-        self.V1 = self.V.sub(1).collapse() 
-        self.V2 = self.V.sub(2).collapse()
+
+        self.SetupSubspaces()
 
         self.fprint("Velocity DOFS: {:d}".format(self.V.dim()))
         self.fprint("Pressure DOFS: {:d}".format(self.Q.dim()))
         self.fprint("Total DOFS:    {:d}".format(self.W.dim()))
-
-        self.VelocityAssigner = FunctionAssigner(self.V,[self.V0,self.V1,self.V2])
-        self.SolutionAssigner = FunctionAssigner(self.W,[self.V,self.Q])
-        # exit()
+        
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")
 
-class TaylorHoodFunctionSpace2D(GenericFunctionSpace):
+class TaylorHoodFunctionSpace(GenericFunctionSpace):
     """
-    The TaylorHoodFunctionSpace2D is made up of a vector function space for velocity
+    The TaylorHoodFunctionSpace is made up of a vector function space for velocity
     and a scalar space for pressure. The velocity function space is piecewise quadratic
     and the pressure function space is piecewise linear.
     """
     def __init__(self,dom):
-        super(TaylorHoodFunctionSpace2D, self).__init__(dom)
+        super(TaylorHoodFunctionSpace, self).__init__(dom)
 
         ### Create the function space ###
         fs_start = time.time()
@@ -73,18 +84,13 @@ class TaylorHoodFunctionSpace2D(GenericFunctionSpace):
         V = VectorElement('Lagrange', dom.mesh.ufl_cell(), 2) 
         Q = FiniteElement('Lagrange', dom.mesh.ufl_cell(), 1)
         self.W = FunctionSpace(dom.mesh, MixedElement([V,Q]))
-        self.V = self.W.sub(0).collapse()
-        self.Q = self.W.sub(1).collapse()
-        self.V0 = self.V.sub(0).collapse() 
-        self.V1 = self.V.sub(1).collapse() 
+
+        self.SetupSubspaces()
 
         self.fprint("Velocity DOFS: {:d}".format(self.V.dim()))
         self.fprint("Pressure DOFS: {:d}".format(self.Q.dim()))
         self.fprint("Total DOFS:    {:d}".format(self.W.dim()))
 
-        self.VelocityAssigner = FunctionAssigner(self.V,[self.V0,self.V1])
-        self.SolutionAssigner = FunctionAssigner(self.W,[self.V,self.Q])
-        # exit()
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")
 

@@ -28,18 +28,20 @@ def initialize(loc):
     global GridWindFarm, RandomWindFarm, ImportedWindFarm
     from windse.WindFarmManager import GridWindFarm, RandomWindFarm, ImportedWindFarm
 
-    global LinearFunctionSpace, TaylorHoodFunctionSpace2D
-    from windse.FunctionSpaceManager import LinearFunctionSpace, TaylorHoodFunctionSpace2D
+    global LinearFunctionSpace, TaylorHoodFunctionSpace
+    from windse.FunctionSpaceManager import LinearFunctionSpace, TaylorHoodFunctionSpace
 
-    global PowerInflow, UniformInflow, UniformInflow2D
-    from windse.BoundaryManager import PowerInflow, UniformInflow, UniformInflow2D
+    global PowerInflow, UniformInflow
+    from windse.BoundaryManager import PowerInflow, UniformInflow
 
-    global StabilizedProblem, TaylorHoodProblem2D
-    from windse.ProblemManager import StabilizedProblem, TaylorHoodProblem2D
+    global StabilizedProblem, TaylorHoodProblem
+    from windse.ProblemManager import StabilizedProblem, TaylorHoodProblem
 
     global SteadySolver, MultiAngleSolver
     from windse.SolverManager import SteadySolver, MultiAngleSolver
 
-    global CreateAxialControl, CreateAxialBounds, CreateLayoutControl, CreateLayoutBounds, CreateYawControl, CreateYawBounds, SplitSolution, PowerFunctional
-    from windse.OptimizationManager import CreateAxialControl, CreateAxialBounds, CreateLayoutControl, CreateLayoutBounds, CreateYawControl, CreateYawBounds, SplitSolution, PowerFunctional
+    global Optimizer
+    from windse.OptimizationManager import Optimizer
+    # global CreateAxialControl, CreateAxialBounds, CreateLayoutControl, CreateLayoutBounds, CreateYawControl, CreateYawBounds, SplitSolution, PowerFunctional
+    # from windse.OptimizationManager import CreateAxialControl, CreateAxialBounds, CreateLayoutControl, CreateLayoutBounds, CreateYawControl, CreateYawBounds, SplitSolution, PowerFunctional
 

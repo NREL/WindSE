@@ -14,6 +14,7 @@ if main_file != "sphinx-build":
     from dolfin import *
     from sys import platform
     import time
+    import numpy as np
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -117,7 +118,7 @@ class SteadySolver(GenericSolver):
             self.problem.dom.Save(val=iter_val)
         if "initial_guess" in self.params.output:
             self.problem.bd.SaveInitialGuess(val=iter_val)
-        if "height" in self.params.output:
+        if "height" in self.params.output and self.problem.dom.dim == 3:
             self.problem.bd.SaveHeight()
         if "turbine_force" in self.params.output:
             self.problem.farm.SaveTurbineForce(val=iter_val)
@@ -186,16 +187,21 @@ class MultiAngleSolver(SteadySolver):
         angles (list): A list of wind inflow directions.
     """ 
 
-    def __init__(self,problem,angles):
+    def __init__(self,problem):
         super(MultiAngleSolver, self).__init__(problem)
+        if self.params["domain"]["type"] not in ["cylinder","interpolated"]:
+            raise ValueError("A cylinder, or interpolated cylinder domain is required for a Multi-Angle Solver")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
-        self.angles = angles
+        self.init_wind = self.params["solver"]["init_wind_angle"]
+        self.final_wind = self.params["solver"]["final_wind_angle"]
+        self.num_wind = self.params["solver"]["num_wind_angles"]
+        self.angles = np.linspace(self.init_wind,self.final_wind,self.num_wind+1)
 
     def Solve(self):
         for i, theta in enumerate(self.angles):
             self.fprint("Performing Solve {:d} of {:d}".format(i+1,len(self.angles)),special="header")
             self.fprint("Wind Angle: "+repr(theta))
-            if i > 0 or not near(theta,self.problem.dom.wind_direction):
+            if i > 0 or not near(theta,self.init_wind):
                 self.ChangeWindAngle(theta)
             self.orignal_solve(iter_val=theta)
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")

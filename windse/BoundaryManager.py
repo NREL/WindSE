@@ -46,7 +46,9 @@ class GenericBoundary(object):
         bcs_params = self.params.get("boundary_conditions",{})
         self.boundary_names = bcs_params.get("names", dom.boundary_names)
         self.boundary_types = bcs_params.get("types", dom.boundary_types)
-        self.wind_direction = dom.wind_direction
+        self.vmax = bcs_params.get("max_vel", 8.0)
+        self.power = bcs_params.get("power", 0.25)
+        self.init_wind = dom.init_wind
 
         ### Define the zero function based on domain dimension ###
         self.zeros = Constant(dom.mesh.topology().dim()*(0.0,))
@@ -86,24 +88,6 @@ class GenericBoundary(object):
         self.fprint("Boundary Conditions Applied",offset=1)
         self.fprint("")
 
-    # def RotateVelocity(self,ux,uy,uz,theta):
-    #     ux_hat = ux.vector()[:]
-    #     uy_hat = uy.vector()[:]
-    #     uz_hat = uz.vector()[:]
-
-    #     for i in range(len(ux_hat)):
-    #         x = ux_hat[i]
-    #         y = uy_hat[i]
-    #         z = uz_hat[i]
-    #         ux_hat[i] = math.cos(theta)*(x) - math.sin(theta)*(y)
-    #         uy_hat[i] = math.sin(theta)*(x) + math.cos(theta)*(y)
-    #         uz_hat[i] = z
-
-    #     ux.vector()[:] = ux_hat
-    #     uy.vector()[:] = uy_hat
-    #     uz.vector()[:] = uz_hat    
-    #     return [ux,uy,uz]
-
     def RotateVelocity(self,theta):
         length = len(self.reference_velocity)
         ux_com = np.zeros(length)
@@ -114,7 +98,8 @@ class GenericBoundary(object):
             v = self.reference_velocity[i]
             ux_com[i] = math.cos(theta)*v
             uy_com[i] = math.sin(theta)*v
-            uz_com[i] = 0.0   
+            if self.dom.dim == 3:
+                uz_com[i] = 0.0   
         return [ux_com,uy_com,uz_com]
 
     def RecomputeVelocity(self,theta):
@@ -122,7 +107,8 @@ class GenericBoundary(object):
         ux_com, uy_com, uz_com = self.RotateVelocity(theta)
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com
-        self.uz.vector()[:] = uz_com
+        if self.dom.dim == 3:
+            self.uz.vector()[:] = uz_com
 
         ### Assigning Velocity
         self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
@@ -154,6 +140,28 @@ class GenericBoundary(object):
             self.params.Save(self.height,"height",subfolder="functions/",val=val,file=self.height_file)
             self.params.Save(self.depth,"depth",subfolder="functions/",val=val,file=self.depth_file)
 
+    def CalculateHeights(self):
+        ### Calculate the distance to the ground for the Q function space ###
+        # self.z_dist_Q = Function(fs.Q)
+        self.height = Function(self.fs.Q)
+        self.depth = Function(self.fs.Q)
+        Q_coords = self.fs.Q.tabulate_dof_coordinates()
+        height_vals = self.height.vector()[:]
+        for i in range(len(Q_coords)):
+            height_vals[i] = self.dom.Ground(Q_coords[i,0],Q_coords[i,1])
+        z_dist_Q = Q_coords[:,2]-height_vals
+        self.height.vector()[:]=height_vals
+        self.depth.vector()[:]=z_dist_Q
+
+        ### Calculate the distance to the ground for the V function space ###
+        self.depth_V = Function(self.fs.V)
+        V_coords = self.fs.V.tabulate_dof_coordinates()
+        z_dist_V_val = np.zeros(len(V_coords))
+        for i in range(len(V_coords)):
+            z_dist_V_val[i] = V_coords[i,2]-self.dom.Ground(V_coords[i,0],V_coords[i,1])
+        self.depth_V.vector()[:]=z_dist_V_val
+
+
 class UniformInflow(GenericBoundary):
     def __init__(self,dom,fs):
         super(UniformInflow, self).__init__(dom,fs)
@@ -164,15 +172,24 @@ class UniformInflow(GenericBoundary):
             for value in values:
                 self.fprint(value,offset=1)
         ### Create the Velocity Function ###
-        ux = Function(fs.V0)
-        uy = Function(fs.V1)
-        uz = Function(fs.V2)
-        ux.vector()[:] = np.full(len(ux.vector()[:]),8)
+        self.ux = Function(fs.V0)
+        self.uy = Function(fs.V1)
+        if self.dom.dim == 3:
+            uz = Function(fs.V2)
+        self.ux.vector()[:] = np.full(len(self.ux.vector()[:]),self.vmax)
+
+        ### Compute distances ###
+        if self.dom.dim == 3:
+            self.fprint("Computing Distance to Ground")
+            self.CalculateHeights()
 
         ### Assigning Velocity
         self.fprint("Computing Velocity Vector")
         self.bc_velocity = Function(fs.V)
-        fs.VelocityAssigner.assign(self.bc_velocity,[ux,uy,uz])
+        if self.dom.dim == 3:
+            fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
+        else:
+            fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy])
 
         ### Create Pressure Boundary Function
         self.bc_pressure = Function(fs.Q)
@@ -185,38 +202,6 @@ class UniformInflow(GenericBoundary):
         ### Setup the boundary Conditions ###
         self.SetupBoundaries()
         self.fprint("Boundary Condition Finished",special="footer")
-
-class UniformInflow2D(GenericBoundary):
-    def __init__(self,dom,fs):
-        super(UniformInflow2D, self).__init__(dom,fs)
-        self.fprint("Setting Up Boundary Conditions",special="header")
-        self.fprint("Type: Uniform Inflow")
-        for key, values in self.boundary_types.items():
-            self.fprint("Boundary Type: {0}, Applied to:".format(key))
-            for value in values:
-                self.fprint(value,offset=1)
-        ### Create the Velocity Function ###
-        ux = Function(fs.V0)
-        uy = Function(fs.V1)
-        ux.vector()[:] = np.full(len(ux.vector()[:]),8)
-
-        ### Assigning Velocity
-        self.fprint("Computing Velocity Vector")
-        self.bc_velocity = Function(fs.V)
-        fs.VelocityAssigner.assign(self.bc_velocity,[ux,uy])
-
-        ### Create Pressure Boundary Function
-        self.bc_pressure = Function(fs.Q)
-
-        ### Create Initial Guess
-        self.fprint("Assigning Initial Guess")
-        self.u0 = Function(fs.W)
-        fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
-
-        ### Setup the boundary Conditions ###
-        self.SetupBoundaries()
-        self.fprint("Boundary Condition Setup",special="footer")
-
 
 class PowerInflow(GenericBoundary):
     """
@@ -240,55 +225,43 @@ class PowerInflow(GenericBoundary):
     """
     def __init__(self,dom,fs):
         super(PowerInflow, self).__init__(dom,fs)
+
+        if self.dom.dim != 3:
+            raise ValueError("PowerInflow can only be used with 3D domains.")
+
+        ### Setup Boundary Conditions
         self.fprint("Setting Up Boundary Conditions",special="header")
         self.fprint("Type: Power Law Inflow")
-
         for key, values in self.boundary_types.items():
             self.fprint("Boundary Type: {0}, Applied to:".format(key))
             for value in values:
                 self.fprint(value,offset=1)
         self.fprint("")
-        ### Calculate the distance to the ground for the Q function space ###
-        # self.z_dist_Q = Function(fs.Q)
-        self.fprint("Computing Distance to Ground")
-        self.height = Function(fs.Q)
-        self.depth = Function(fs.Q)
-        Q_coords = fs.Q.tabulate_dof_coordinates()
-        height_vals = self.height.vector()[:]
-        for i in range(len(Q_coords)):
-            height_vals[i] = dom.Ground(Q_coords[i,0],Q_coords[i,1])
-        self.z_dist_Q = Q_coords[:,2]-height_vals
-        self.height.vector()[:]=height_vals
-        self.depth.vector()[:]=self.z_dist_Q
-        scaled_z_dist_Q_val = np.abs(np.divide(self.z_dist_Q,(dom.z_range[1]-dom.z_range[0])))
 
-        ### Calculate the distance to the ground for the Q function space ###
-        self.z_dist_V = Function(fs.V)
-        V_coords = fs.V.tabulate_dof_coordinates()
-        z_dist_V_val = np.zeros(len(V_coords))
-        for i in range(len(V_coords)):
-            z_dist_V_val[i] = V_coords[i,2]-dom.Ground(V_coords[i,0],V_coords[i,1])
-        self.z_dist_V.vector()[:]=z_dist_V_val
-        z_dist_V0,z_dist_V1,z_dist_V2 = self.z_dist_V.split(True)
+        ### Compute distances ###
+        self.fprint("Computing Distance to Ground")
+        self.CalculateHeights()
+        depth_v0,depth_v1,depth_v2 = self.depth_V.split(deepcopy=True)
 
         ### Create the Velocity Function ###
         self.fprint("Computing Velocity Vector")
         self.ux = Function(fs.V0)
         self.uy = Function(fs.V1)
         self.uz = Function(fs.V2)
-        scaled_z_dist_val = np.abs(np.divide(z_dist_V0.vector()[:],(dom.z_range[1]-dom.z_range[0])))
-        self.reference_velocity = np.multiply(12.0,np.power(scaled_z_dist_Q_val,.15))
-        # ux.vector()[:] = np.multiply(16.0,np.power(scaled_z_dist_val,1./4.))
+        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(dom.z_range[1]-dom.z_range[0])))
+        self.reference_velocity = np.multiply(self.vmax,np.power(scaled_depth,self.power))
+        ux_com, uy_com, uz_com = self.RotateVelocity(self.init_wind)
 
-        ux_com, uy_com, uz_com = self.RotateVelocity(self.wind_direction)
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com
         self.uz.vector()[:] = uz_com
 
-
         ### Assigning Velocity
         self.bc_velocity = Function(self.fs.V)
-        self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
+        if self.dom.dim == 3:
+            fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
+        else:
+            fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy])
 
         ### Create Pressure Boundary Function
         self.bc_pressure = Function(self.fs.Q)

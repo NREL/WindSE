@@ -24,7 +24,7 @@ dom.Refine(1,region=region)
 # dom.Save()
 
 ### Refine Around the Turbines
-farm.RefineTurbines(num_refinements=1,radius_multiplyer=1.3) 
+farm.RefineTurbines(num=1,radius_multiplyer=1.3) 
 
 ### Function Space ###
 fs = windse.LinearFunctionSpace(dom)

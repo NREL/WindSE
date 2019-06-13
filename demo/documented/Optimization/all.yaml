@@ -1,0 +1,53 @@
+# General options
+general: 
+    name: "All"       # Name of the output folder
+    preappend_datetime: false  # Place the date and time before the folder name
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: true
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                     # Description              | Units
+    type: grid            #                          |
+    ex_x: [-750, 750]   # x-extent of the farm     | m
+    ex_y: [-750, 750]   # y-extent of the farm     | m
+    grid_rows: 3          # Number of rows           | -
+    grid_cols: 3          # Number of columns        | -
+    HH: 90                # Hub Height               | m
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 10.5       # Effective Thickness      | m
+    yaw: .26              # Yaw                      | rads
+    axial: 0.33           # Axial Induction          | -
+
+# Domain Constants for a Box Domain
+domain: 
+    #                      # Description           | Units
+    type: rectangle        #                       |
+    x_range: [-1500, 1500] # x-range of the domain | m
+    y_range: [-1500, 1500] # y-range of the domain | m
+    nx: 50                 # Number of x-nodes     | -
+    ny: 50                 # Number of y-nodes     | -
+
+refine:
+    #                      # Description                  | Units
+    farm_num: 2            # number of farm refinements   | -
+    farm_type: square      # type of refinement at farm   | -
+    farm_factor: 1.5       # farm radius multiplier       | -
+
+function_space:
+    type: taylor_hood
+
+boundary_condition:
+    type: uniform
+    max_vel: 8.0
+
+problem:
+    type: taylor_hood
+
+solver:
+    type: steady
+
+optimization:
+    controls: [yaw, layout, axial]
+    taylor_test: True
+    optimize: False

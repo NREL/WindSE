@@ -11,6 +11,7 @@ Welcome to WindSE's documentation!
    :caption: Contents:
 
    install
+   params
    demo
    api
 

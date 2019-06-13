@@ -1,17 +1,17 @@
 # General options
 general: 
-    name: Simple_Test       # Name of the output folder
+    name: "2D_Random"       # Name of the output folder
     preappend_datetime: false  # Place the date and time before the folder name
-    outputs: ["mesh","initial_guess","height","turbine_force","solution"]
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
 
 # Wind Farm constants for a grid farm
 wind_farm: 
     #                     # Description              | Units
-    type: grid            #                          |
+    type: random          #                          |
     ex_x: [-1500, 1500]   # x-extent of the farm     | m
     ex_y: [-1500, 1500]   # y-extent of the farm     | m
-    grid_rows: 6          # Number of rows           | -
-    grid_cols: 6          # Number of columns        | -
+    numturbs: 36         # number of turbines       | -
+    seed: 8675309         # random seed for repeats  | -
     HH: 90                # Hub Height               | m
     RD: 126.0             # Turbine Diameter         | m
     thickness: 10.5       # Effective Thickness      | m
@@ -21,20 +21,26 @@ wind_farm:
 # Domain Constants for a Box Domain
 domain: 
     #                      # Description           | Units
-    type: box              #                       |
+    type: rectangle        #                       |
     x_range: [-2500, 2500] # x-range of the domain | m
     y_range: [-2500, 2500] # y-range of the domain | m
-    z_range: [0.04, 630]   # z-range of the domain | m
     nx: 50                 # Number of x-nodes     | -
     ny: 50                 # Number of y-nodes     | -
-    nz: 10                 # Number of z-nodes     | -
 
 refine:
     #                      # Description                  | Units
-    warp_percent: 0.75     # percent of cells moved       | -
-    warp_height: 250       # move cell below this value   | m
-    farm_num: 0            # number of farm refinements   | -
+    farm_num: 1            # number of farm refinements   | -
     farm_type: square      # type of refinement at farm   | -
     farm_factor: 1.2       # farm radius multiplier       | -
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.3    # turbine radius multiplier    | -
+
+function_space:
+    type: taylor_hood
+
+boundary_condition:
+    type: uniform
+    max_vel: 8.0
+
+problem:
+    type: taylor_hood

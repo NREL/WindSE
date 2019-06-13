@@ -128,11 +128,13 @@ class GenericDomain(object):
             if region_type == "circle":
                 self.fprint("Circle Radius: {:.1f}".format(region[0][0]))
                 self.fprint("Circle Center: ({:.1f}, {:.1f})".format(region[1][0],region[1][1]))
-                self.fprint("Z Range:       [{:.1f}, {:.1f}]".format(region[2][0],region[2][1]))
+                if self.dim == 3:
+                    self.fprint("Z Range:       [{:.1f}, {:.1f}]".format(region[2][0],region[2][1]))
             else:
                 self.fprint("X Range: [{: .1f}, {: .1f}]".format(region[0][0],region[0][1]))
                 self.fprint("Y Range: [{: .1f}, {: .1f}]".format(region[1][0],region[1][1]))
-                self.fprint("Z Range: [{: .1f}, {: .1f}]".format(region[2][0],region[2][1]))
+                if self.dim == 3:
+                    self.fprint("Z Range: [{: .1f}, {: .1f}]".format(region[2][0],region[2][1]))
         else:
             self.fprint("Region Type: {0}".format("full"))
 
@@ -163,7 +165,12 @@ class GenericDomain(object):
                     radius=region[0][0]
                     for cell in cells(self.mesh):
                         in_circle = (cell.midpoint()[0]-region[1][0])**2.0+(cell.midpoint()[1]-region[1][1])**2.0<=radius**2.0
-                        if in_circle and between(cell.midpoint()[2],tuple(region[2])):
+                        if self.dim == 3:
+                            in_z = between(cell.midpoint()[2],tuple(region[2]))
+                            in_region = in_circle and in_z
+                        else:
+                            in_region = in_circle
+                        if in_region:
                             cell_f[cell] = True
                             cells_marked += 1
 
@@ -171,9 +178,13 @@ class GenericDomain(object):
                 else:
                     cell_f = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
                     for cell in cells(self.mesh):
-                        if between(cell.midpoint()[0],tuple(region[0])) and \
-                           between(cell.midpoint()[1],tuple(region[1])) and \
-                           between(cell.midpoint()[2],tuple(region[2])):
+                        in_square = between(cell.midpoint()[0],tuple(region[0])) and between(cell.midpoint()[1],tuple(region[1]))
+                        if self.dim == 3:
+                            in_z = between(cell.midpoint()[2],tuple(region[2]))
+                            in_region = in_square and in_z
+                        else:
+                            in_region = in_square
+                        if in_region:
                             cell_f[cell] = True
                             cells_marked += 1
                 self.fprint("Cells Marked for Refinement: {:d}".format(cells_marked))
@@ -212,6 +223,7 @@ class GenericDomain(object):
             h (float): the height that split occurs
             s (float); the percent below split in the range [0,1)
         """
+
         warp_start = time.time()
         self.fprint("Starting Mesh Warping",special="header")
         self.fprint("Height of Split:     {:1.2f} m".format(h))
@@ -356,13 +368,14 @@ class BoxDomain(GenericDomain):
         self.fprint("Generating Box Domain",special="header")
 
         ### Initialize values from Options ###
-        self.wind_direction = self.params["domain"].get("wind_direction",0.0)
+        self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
         self.x_range = self.params["domain"]["x_range"]
         self.y_range = self.params["domain"]["y_range"]
         self.z_range = self.params["domain"]["z_range"]
         self.nx = self.params["domain"]["nx"]
         self.ny = self.params["domain"]["ny"]
         self.nz = self.params["domain"]["nz"]
+        self.dim = 3
 
         ### Print Some stats ###
         self.fprint("X Range: [{: .1f}, {: .1f}]".format(self.x_range[0],self.x_range[1]))
@@ -442,11 +455,13 @@ class CylinderDomain(GenericDomain):
         self.center   = self.params["domain"]["center"]
         self.z_range  = self.params["domain"]["z_range"]
         self.nt = self.params["domain"]["nt"]
-        self.type = self.params["domain"]["type"]
-        self.wind_direction = self.params["domain"].get("wind_direction",0.0)
+        self.mesh_type = self.params["domain"]["mesh_type"]
         self.x_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
         self.y_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
+        self.dim = 3
 
+        ### Get the initial wind direction ###
+        self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
 
         ### Calculating the boundary of the shadow ###
         angles = np.linspace(0,2.0*np.pi,self.nt+1)
@@ -455,7 +470,7 @@ class CylinderDomain(GenericDomain):
         self.fprint("Radius:        {: .1f}".format(self.radius))
         self.fprint("Center:       ({: .1f}, {: .1f})".format(self.center[0],self.center[1]))
         self.fprint("Z Range:      [{: .1f}, {: .1f}]".format(self.z_range[0],self.z_range[1]))
-        self.fprint("Meshing Type:  {0}".format(self.type))
+        self.fprint("Meshing Type:  {0}".format(self.mesh_type))
 
         def Elliptical_Grid(x, y, z):
             #x_hat = x sqrt(1 - y^2/2)
@@ -503,7 +518,7 @@ class CylinderDomain(GenericDomain):
 
         mesh_start = time.time()
         self.fprint("")
-        if self.type == "mshr":
+        if self.mesh_type == "mshr":
             self.fprint("Generating Mesh Using mshr")
 
             self.res = self.params["domain"]["res"]
@@ -536,11 +551,11 @@ class CylinderDomain(GenericDomain):
             z = self.mesh.coordinates()[:,2]
             
             self.fprint("Morphing Mesh")
-            if self.type == "elliptic":
+            if self.mesh_type == "elliptic":
                 x_hat, y_hat, z_hat = Elliptical_Grid(x, y, z)
-            elif self.type == "squircular":
+            elif self.mesh_type == "squircular":
                 x_hat, y_hat, z_hat = FG_Squircular(x, y, z)
-            elif self.type == "stretch":
+            elif self.mesh_type == "stretch":
                 x_hat, y_hat, z_hat = Simple_Stretching(x, y, z)
 
             x_hat += self.center[0]
@@ -556,8 +571,8 @@ class CylinderDomain(GenericDomain):
         self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
 
         ### Define Plane Normal ###
-        nom_x = np.cos(self.wind_direction)
-        nom_y = np.sin(self.wind_direction)
+        nom_x = np.cos(self.init_wind)
+        nom_y = np.sin(self.init_wind)
 
         ### Define Boundary Subdomains ###
         mark_start = time.time()
@@ -648,13 +663,14 @@ class RectangleDomain(GenericDomain):
         self.fprint("Generating Rectangle Domain",special="header")
 
         ### Initialize values from Options ###
-        self.wind_direction = self.params["domain"].get("wind_direction",0.0)
+        self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
         self.x_range = self.params["domain"]["x_range"]
         self.y_range = self.params["domain"]["y_range"]
         self.nx = self.params["domain"]["nx"]
         self.ny = self.params["domain"]["ny"]
         self.fprint("X Range: [{: .1f}, {: .1f}]".format(self.x_range[0],self.x_range[1]))
         self.fprint("Y Range: [{: .1f}, {: .1f}]".format(self.y_range[0],self.y_range[1]))
+        self.dim = 2
 
         ### Create mesh ###
         mesh_start = time.time()
@@ -737,7 +753,7 @@ class ImportedDomain(GenericDomain):
 
         ### Get the file type for the mesh (h5, xml.gz) ###
         self.filetype = self.params["domain"].get("filetype", "xml.gz")
-        self.wind_direction = self.params["domain"].get("wind_direction",0.0)
+        self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
 
         ### Import data from Options ###
         if "path" in self.params["domain"]:
@@ -766,6 +782,7 @@ class ImportedDomain(GenericDomain):
             raise ValueError("Supported mesh types: h5, xml.gz.")
         self.bmesh = BoundaryMesh(self.mesh,"exterior")
         mesh_stop = time.time()
+        self.dim = self.mesh.topology().dim()
         self.fprint("Mesh Imported: {:1.2f} s".format(mesh_stop-mesh_start))
 
         ### Calculate the range of the domain and push to options ###

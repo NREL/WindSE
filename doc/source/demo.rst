@@ -4,7 +4,7 @@ Demos
 =====
 
 
-Introductory demos
+Introductory demos param demos
 ------------------
 
 These demos will show how to set up simple wind farms and solve for flow 
@@ -14,7 +14,7 @@ fields using WindSE
    <demos/2D_Grid/2D_Grid.py>`.
 
 
-Optimization demos
+Optimization demos driver demos
 -------------------
 
 These demos will show how to optimize for various parameters using the 
