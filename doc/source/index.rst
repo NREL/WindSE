@@ -11,6 +11,7 @@ Welcome to WindSE's documentation!
    :caption: Contents:
 
    install
+   run
    params
    demo
    api
@@ -22,4 +23,3 @@ Indices and tables
 
 * :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`

@@ -63,7 +63,7 @@ def process():
 
             # Build list of rst and png files in demo source directory
             rst_files = [f for f in os.listdir(path) if os.path.splitext(f)[1] == ".rst" ]
-            other_files = [f for f in os.listdir(path) if os.path.splitext(f)[1] in (".png", ".pdf", ".gif", ".py", ".gz", ".yaml")]
+            other_files = [f for f in os.listdir(path) if os.path.splitext(f)[1] in (".png", ".pdf", ".gif", ".py", ".gz", ".yaml", ".zip")]
 
             # Create directory in documentation tree for demo
             demo_dir = os.path.join('./demos/', demo)
@@ -73,6 +73,15 @@ def process():
             # Copy .png and .py files into documentation demo directory
             for f in other_files:
                 shutil.copy(os.path.join(path, f), demo_dir)
+
+            # # Copy input folders
+            # if "Input_Data" in os.listdir(path):
+            #     input_path = os.path.join(path, "Input_Data")
+            #     demo_input_dir = os.path.join(demo_dir, "Input_Data/")
+            #     if not os.path.exists(demo_input_dir):
+            #         os.makedirs(demo_input_dir)
+            #     for f in os.listdir(input_path):
+            #         shutil.copy(os.path.join(input_path, f), demo_input_dir)
 
             # Copy rst files into documentation demo directory
             for f in rst_files:

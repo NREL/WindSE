@@ -99,7 +99,7 @@ def run_action():
     ### Setup Boundary Conditions ###
     bc_dict = {"uniform":windse.UniformInflow,
                "power":windse.PowerInflow}
-    bc = bc_dict[params["boundary_condition"]["type"]](dom,fs)
+    bc = bc_dict[params["boundary_condition"]["vel_profile"]](dom,fs)
 
     ### Generate the problem ###
     prob_dict = {"stabilized":windse.StabilizedProblem,
@@ -112,6 +112,12 @@ def run_action():
     solver = solve_dict[params["solver"]["type"]](problem)
     solver.Solve()
 
+
+    # import dolfin_adjoint as da
+    # tape = da.get_working_tape()
+    # tape.visualise()
+
+    exit()
     ### Perform Optimization ###
     if params["optimization"]:
         opt=windse.Optimizer(solver)
@@ -120,7 +126,7 @@ def run_action():
 
         if params["optimization"].get("optimize",True):
             opt.Optimize()
-    
+
 
 def main():
     actions = {"run": run_action}

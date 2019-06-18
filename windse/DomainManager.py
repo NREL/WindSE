@@ -455,7 +455,7 @@ class CylinderDomain(GenericDomain):
         self.center   = self.params["domain"]["center"]
         self.z_range  = self.params["domain"]["z_range"]
         self.nt = self.params["domain"]["nt"]
-        self.mesh_type = self.params["domain"]["mesh_type"]
+        self.mesh_type = self.params["domain"].get("mesh_type","mshr")
         self.x_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
         self.y_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
         self.dim = 3
@@ -619,6 +619,11 @@ class CylinderDomain(GenericDomain):
 
         wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
                     + self.boundary_markers.where_equal(self.boundary_names["outflow"])
+
+        boundary_val_temp = self.boundary_markers.array()
+        self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        self.boundary_markers.set_values(boundary_val_temp)
+
         for facet_id in wall_facets:
             facet = Facet(self.mesh,facet_id)
             vert_ids = facet.entities(0)
@@ -765,7 +770,7 @@ class ImportedDomain(GenericDomain):
         else:
             self.mesh_path = self.params["domain"]["mesh_path"]
             if self.filetype == "xml.gz":
-                self.boundary_path = self.params["domain"]["boundary_path"]
+                self.boundary_path = self.params["domain"]["bound_path"]
             self.typo_path  = self.params["domain"]["typo_path"]
 
         ### Create the mesh ###

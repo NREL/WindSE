@@ -44,8 +44,8 @@ class GenericBoundary(object):
 
         ### Check if boundary information is given in the params file ###
         bcs_params = self.params.get("boundary_conditions",{})
-        self.boundary_names = bcs_params.get("names", dom.boundary_names)
-        self.boundary_types = bcs_params.get("types", dom.boundary_types)
+        self.boundary_names = bcs_params.get("boundary_names", dom.boundary_names)
+        self.boundary_types = bcs_params.get("boundary_types", dom.boundary_types)
         self.vmax = bcs_params.get("max_vel", 8.0)
         self.power = bcs_params.get("power", 0.25)
         self.init_wind = dom.init_wind
@@ -105,12 +105,19 @@ class GenericBoundary(object):
     def RecomputeVelocity(self,theta):
         self.fprint("Recomputing Velocity")
         ux_com, uy_com, uz_com = self.RotateVelocity(theta)
+
+        self.ux = Function(self.fs.V0)
+        self.uy = Function(self.fs.V1)
+        self.uz = Function(self.fs.V2)
+
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com
         if self.dom.dim == 3:
             self.uz.vector()[:] = uz_com
 
         ### Assigning Velocity
+        self.bc_velocity = Function(self.fs.V)
+        self.u0 = Function(self.fs.W)
         self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
         self.fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
         

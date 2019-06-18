@@ -164,6 +164,11 @@ class SteadySolver(GenericSolver):
 
         ### Solve the problem ###
         self.fprint("Solving",special="header")
+
+        print(self.problem.bd.bcs)
+        print(dir(self.problem.bd.bcs[0]))
+        print(self.problem.bd.bcs[0].value())
+
         start = time.time()
         solve(self.problem.F == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters)
         stop = time.time()
@@ -192,10 +197,10 @@ class MultiAngleSolver(SteadySolver):
         if self.params["domain"]["type"] not in ["cylinder","interpolated"]:
             raise ValueError("A cylinder, or interpolated cylinder domain is required for a Multi-Angle Solver")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
-        self.init_wind = self.params["solver"]["init_wind_angle"]
-        self.final_wind = self.params["solver"]["final_wind_angle"]
+        self.init_wind = self.params["solver"].get("init_wind_angle", 0.0)
+        self.final_wind = self.params["solver"].get("final_wind_angle", 2.0*pi)
         self.num_wind = self.params["solver"]["num_wind_angles"]
-        self.angles = np.linspace(self.init_wind,self.final_wind,self.num_wind+1)
+        self.angles = np.linspace(self.init_wind,self.final_wind,self.num_wind)
 
     def Solve(self):
         for i, theta in enumerate(self.angles):

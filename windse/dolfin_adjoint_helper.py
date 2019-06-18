@@ -28,7 +28,6 @@ def linalg_solve(*args, **kwargs):
     return dolfin_adjoint.backend.solve(*args,"mumps") 
 
 dolfin_adjoint.types.compat.linalg_solve = linalg_solve
-
 def recompute_component(self, inputs, block_variable, idx, prepared):
     """This function overrides 
     dolfin_adjoint.solving.SolveBlock.recompute_component
@@ -88,7 +87,7 @@ class BaseHeightBlock(Block):
         self.add_dependency(y.block_variable)
 
     def __str__(self):
-        return "NormaliseBlock"
+        return "BaseHeightBlock"
 
     def prepare_recompute_component(self, inputs, relevant_outputs):
         x = inputs[0]
