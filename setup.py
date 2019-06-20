@@ -10,6 +10,7 @@ setup(name ="windse",
       author_email="ryan.king@nrel.gov",
       url="https://github.com/WISDEM/WindSE",
       packages=['windse'],
+      py_modules=['windse_driver'],
       entry_points={'console_scripts' : ['windse_driver = windse.windse_driver:main'],},
 
 )
