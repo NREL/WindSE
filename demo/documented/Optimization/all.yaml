@@ -38,7 +38,7 @@ function_space:
     type: taylor_hood
 
 boundary_condition:
-    type: uniform
+    vel_profile: uniform
     max_vel: 8.0
 
 problem:

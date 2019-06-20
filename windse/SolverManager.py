@@ -164,11 +164,6 @@ class SteadySolver(GenericSolver):
 
         ### Solve the problem ###
         self.fprint("Solving",special="header")
-
-        print(self.problem.bd.bcs)
-        print(dir(self.problem.bd.bcs[0]))
-        print(self.problem.bd.bcs[0].value())
-
         start = time.time()
         solve(self.problem.F == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters)
         stop = time.time()

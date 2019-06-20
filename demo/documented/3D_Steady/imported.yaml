@@ -22,7 +22,7 @@ wind_farm:
 domain: 
     #                      # Description           | Units
     type: imported
-    path: Mesh_Data/
+    path: Input_Data/
 
 refine:
     #                      # Description                  | Units
@@ -38,9 +38,12 @@ function_space:
     type: linear
 
 boundary_condition:
-    type: power
+    vel_profile: power
     max_vel: 8.0
     power: 0.25
 
 problem:
     type: stabilized
+
+solver:
+    type: steady

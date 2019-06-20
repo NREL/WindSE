@@ -45,7 +45,7 @@ function_space:
     type: linear
 
 boundary_condition:
-    type: power
+    vel_profile: power
     max_vel: 8.0
     power: 0.25
 

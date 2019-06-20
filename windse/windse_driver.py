@@ -116,8 +116,8 @@ def run_action():
     # import dolfin_adjoint as da
     # tape = da.get_working_tape()
     # tape.visualise()
+    # exit()
 
-    exit()
     ### Perform Optimization ###
     if params["optimization"]:
         opt=windse.Optimizer(solver)

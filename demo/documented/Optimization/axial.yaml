@@ -9,7 +9,7 @@ general:
 wind_farm: 
     #                     # Description              | Units
     type: imported            #                          |
-    path: Farm_Data/column_farm.txt
+    path: Input_Data/column_farm.txt
 
 # Domain Constants for a Box Domain
 domain: 
@@ -36,7 +36,7 @@ function_space:
     type: linear
 
 boundary_condition:
-    type: power
+    vel_profile: power
     max_vel: 8.0
     power: 0.25
 

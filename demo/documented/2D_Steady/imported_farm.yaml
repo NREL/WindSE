@@ -8,7 +8,7 @@ general:
 wind_farm: 
     #                     # Description              | Units
     type: imported        #                          |
-    path: wind_farm.txt   # location of wind farm    | -
+    path: Input_Data/wind_farm.txt   # location of wind farm    | -
 
 # Domain Constants for a Box Domain
 domain: 
@@ -31,8 +31,11 @@ function_space:
     type: taylor_hood
 
 boundary_condition:
-    type: uniform
+    vel_profile: uniform
     max_vel: 8.0
 
 problem:
     type: taylor_hood
+    
+solver:
+    type: steady

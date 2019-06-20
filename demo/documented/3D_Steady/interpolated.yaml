@@ -22,7 +22,7 @@ wind_farm:
 domain: 
     #                      # Description           | Units
     type: interpolated
-    path: Mesh_Data/
+    path: Input_Data/
     mesh_type: "mshr"
     z_range: [0.04, 630]   # z-range of the domain | m
     center: [0.0,0.0]      # location of center    | m
@@ -44,9 +44,12 @@ function_space:
     type: linear
 
 boundary_condition:
-    type: power
+    vel_profile: power
     max_vel: 8.0
     power: 0.25
 
 problem:
     type: stabilized
+
+solver:
+    type: steady
