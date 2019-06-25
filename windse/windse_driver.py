@@ -22,13 +22,21 @@ def print_usage():
 
 ### Pop first argument, check it is a valid action. ###
 def get_action():
-    if len(sys.argv) <= 1:
+    if len(sys.argv) == 1:
+        action = 'run'
+    elif len(sys.argv)==2:
+        if not sys.argv[1] in ALL_ACTIONS:
+            action = 'run'
+        action = sys.argv.pop(1)
+    elif len(sys.argv)==3:
+        if not sys.argv[1] in ALL_ACTIONS:
+            print_usage()
+            sys.exit(1)
+        action = sys.argv.pop(1)
+    else:
         print_usage()
         sys.exit(1)
-    if not sys.argv[1] in ALL_ACTIONS:
-        print_usage()
-        sys.exit(1)
-    return sys.argv.pop(1)
+    return action
 
 ### Run the driver ###
 def run_action():
@@ -86,11 +94,11 @@ def run_action():
             dom.Refine(farm_num,region=region,region_type=farm_type)
 
         if turbine_num > 0:
-            farm.RefineTurbines(turbine_num,turbine_factor) 
+            farm.RefineTurbines(turbine_num,turbine_factor)
 
     ### Finalize the Domain ###
     dom.Finalize()
-    
+
     ### Function Space ###
     func_dict = {"linear":windse.LinearFunctionSpace,
                  "taylor_hood":windse.TaylorHoodFunctionSpace}
