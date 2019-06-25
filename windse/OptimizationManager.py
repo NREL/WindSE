@@ -2,7 +2,7 @@
 The OptimizationManager submodule contains all the required function for
 optimizing via dolfin-adjoint. To use dolfin-adjoin set::
 
-    general: 
+    general:
         dolfin_adjoint: True
 
 in the param.yaml file.
@@ -16,7 +16,10 @@ import __main__
 import os
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
+try:
+ main_file = os.path.basename(__main__.__file__)
+except:
+ main_file = ""
 
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
@@ -34,8 +37,8 @@ if main_file != "sphinx-build":
 class Optimizer(object):
     """
     A GenericProblem contains on the basic functions required by all problem objects.
-    
-    Args: 
+
+    Args:
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
     def __init__(self, solver):
@@ -137,7 +140,7 @@ class Optimizer(object):
         #how to handle rotation?
         # J=Functional(tf*u[0]**3*dx)
         self.J=assemble(-dot(self.problem.tf,self.solver.u_next)*dx)
-        self.Jhat = ReducedFunctional(self.J, self.controls) 
+        self.Jhat = ReducedFunctional(self.J, self.controls)
 
     def ListControls(self,m):
         for i,val in enumerate(m):
@@ -150,7 +153,7 @@ class Optimizer(object):
 
         self.fprint("Assigning New Values")
         self.AssignControls()
-        
+
         self.fprint("Solving With New Values")
         self.solver.Solve()
 
@@ -159,7 +162,7 @@ class Optimizer(object):
         return m_opt
 
     def TaylorTest(self):
-        
+
         self.fprint("Beginning Taylor Test",special="header")
 
         h = [Constant(0.001)]*(len(self.controls))

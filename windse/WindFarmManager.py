@@ -1,5 +1,5 @@
 """
-The windfarm manager contains everything required to set up a 
+The windfarm manager contains everything required to set up a
 windfarm.
 """
 
@@ -7,7 +7,10 @@ import __main__
 import os
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
+try:
+ main_file = os.path.basename(__main__.__file__)
+except:
+ main_file = ""
 
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
@@ -33,8 +36,8 @@ if main_file != "sphinx-build":
 class GenericWindFarm(object):
     """
     A GenericProblem contains on the basic functions required by all problem objects.
-    
-    Args: 
+
+    Args:
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
     def __init__(self, dom):
@@ -108,11 +111,11 @@ class GenericWindFarm(object):
 
     def CalculateExtents(self):
         """
-        This functions takes into consideration the turbine locations, diameters, 
+        This functions takes into consideration the turbine locations, diameters,
         and hub heights to create lists that describe the extent of the windfarm.
         These lists are append to the parameters object.
         """
-        ### Locate the extreme turbines ### 
+        ### Locate the extreme turbines ###
         x_min = np.argmin(self.x)
         x_max = np.argmax(self.x)
         y_min = np.argmin(self.y)
@@ -201,8 +204,8 @@ class GenericWindFarm(object):
 
     def RotateFarm(self,angle):
         """
-        This function rotates the position of each turbine. It does not change 
-        the yaw of the turbines. 
+        This function rotates the position of each turbine. It does not change
+        the yaw of the turbines.
 
         Args:
             angle (float): the rotation angle in radians
@@ -298,7 +301,7 @@ class GenericWindFarm(object):
             yaw = self.myaw[i]+delta_yaw
             W = self.W[i]/2.0
             R = self.RD[i]/2.0
-            
+
             ### Calculate the normal vector ###
             n = Constant((cos(yaw),sin(yaw),0.0))
 
@@ -345,11 +348,11 @@ class GenericWindFarm(object):
 
     def TurbineForce(self,fs,mesh,u_next,delta_yaw=0.0):
         """
-        This function creates a turbine force by applying 
-        a spacial kernel to each turbine. This kernel is 
+        This function creates a turbine force by applying
+        a spacial kernel to each turbine. This kernel is
         created from the turbines location, yaw, thickness, diameter,
         and force density. Currently, force density is limit to a scaled
-        version of 
+        version of
 
         .. math::
 
@@ -380,7 +383,7 @@ class GenericWindFarm(object):
             x0 = [self.mx[i],self.my[i],self.mz[i]]
             yaw = self.myaw[i]+delta_yaw
             W = self.W[i]/2.0
-            R = self.RD[i]/2.0 
+            R = self.RD[i]/2.0
             ma = self.ma[i]
 
             ### Rotate and Shift the Turbine ###
@@ -413,7 +416,7 @@ class GenericWindFarm(object):
             self.fprint("Projecting X Force")
             tf_x = project(tf_x,fs.V0,solver_type='mumps')
             self.fprint("Projecting Y Force")
-            tf_y = project(tf_y,fs.V1,solver_type='mumps')  
+            tf_y = project(tf_y,fs.V1,solver_type='mumps')
 
             ## Assign the components to the turbine force ###
             self.tf = Function(fs.V)
@@ -433,11 +436,11 @@ class GenericWindFarm(object):
 
     def TurbineForce2D(self,fs,mesh):
         """
-        This function creates a turbine force by applying 
-        a spatial kernel to each turbine. This kernel is 
+        This function creates a turbine force by applying
+        a spatial kernel to each turbine. This kernel is
         created from the turbines location, yaw, thickness, diameter,
         and force density. Currently, force density is limit to a scaled
-        version of 
+        version of
 
         .. math::
 
@@ -467,7 +470,7 @@ class GenericWindFarm(object):
             x0 = [self.mx[i],self.my[i]]
             yaw = self.myaw[i]
             W = self.W[i]/2.0
-            R = self.RD[i]/2.0 
+            R = self.RD[i]/2.0
             ma = self.ma[i]
 
             ### Rotate and Shift the Turbine ###
@@ -495,7 +498,7 @@ class GenericWindFarm(object):
         self.fprint("Projecting X Force")
         tf_x = project(tf_x,fs.V0,solver_type='mumps')
         self.fprint("Projecting Y Force")
-        tf_y = project(tf_y,fs.V1,solver_type='mumps')    
+        tf_y = project(tf_y,fs.V1,solver_type='mumps')
 
         ### Assign the components to the turbine force ###
         self.tf = Function(fs.V)
@@ -513,7 +516,7 @@ class GridWindFarm(GenericWindFarm):
     Example:
         In the .yaml file you need to define::
 
-            wind_farm: 
+            wind_farm:
                 #                     # Description              | Units
                 HH: 90                # Hub Height               | m
                 RD: 126.0             # Turbine Diameter         | m
@@ -525,10 +528,10 @@ class GridWindFarm(GenericWindFarm):
                 grid_rows: 6          # Number of rows           | -
                 grid_cols: 6          # Number of columns        | -
 
-        This will produce a 6x6 grid of turbines equally spaced within the 
+        This will produce a 6x6 grid of turbines equally spaced within the
         region [-1500, 1500]x[-1500, 1500].
 
-    Args: 
+    Args:
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
     def __init__(self,dom):
@@ -572,7 +575,7 @@ class GridWindFarm(GenericWindFarm):
         self.CreateLists()
 
         ### Convert the lists into lists of dolfin Constants ###
-        self.CreateConstants() 
+        self.CreateConstants()
 
         ### Calculate Ground Heights ###
         self.CalculateHeights()
@@ -585,13 +588,13 @@ class GridWindFarm(GenericWindFarm):
 
 class RandomWindFarm(GenericWindFarm):
     """
-    A RandomWindFarm produces turbines located randomly with a defined 
+    A RandomWindFarm produces turbines located randomly with a defined
     range. The params.yaml file determines how this grid is set up.
 
     Example:
         In the .yaml file you need to define::
 
-            wind_farm: 
+            wind_farm:
                 #                     # Description              | Units
                 HH: 90                # Hub Height               | m
                 RD: 126.0             # Turbine Diameter         | m
@@ -603,11 +606,11 @@ class RandomWindFarm(GenericWindFarm):
                 numturbs: 36          # Number of Turbines       | -
                 seed: 15              # Random Seed for Numpy    | -
 
-        This will produce a 36 turbines randomly located within the 
-        region [-1500, 1500]x[-1500, 1500]. The seed is optional but 
+        This will produce a 36 turbines randomly located within the
+        region [-1500, 1500]x[-1500, 1500]. The seed is optional but
         useful for reproducing test.
 
-    Args: 
+    Args:
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
     def __init__(self,dom):
@@ -616,7 +619,7 @@ class RandomWindFarm(GenericWindFarm):
 
         ### Initialize Values from Options ###
         self.numturbs = self.params["wind_farm"]["numturbs"]
-        
+
         self.HH = [self.params["wind_farm"]["HH"]]*self.numturbs
         self.RD = [self.params["wind_farm"]["RD"]]*self.numturbs
         self.W = [self.params["wind_farm"]["thickness"]]*self.numturbs
@@ -628,7 +631,7 @@ class RandomWindFarm(GenericWindFarm):
         self.ex_y = self.params["wind_farm"]["ex_y"]
 
         self.seed = self.params["wind_farm"].get("seed",None)
-        
+
 
         ### Print some useful stats ###
         self.fprint("Number of Turbines: {:d}".format(self.numturbs))
@@ -647,9 +650,9 @@ class RandomWindFarm(GenericWindFarm):
 
         ### Convert the constant parameters to lists ###
         self.CreateLists()
-        
+
         ### Convert the lists into lists of dolfin Constants ###
-        self.CreateConstants() 
+        self.CreateConstants()
 
         ### Calculate Ground Heights ###
         self.CalculateHeights()
@@ -670,7 +673,7 @@ class ImportedWindFarm(GenericWindFarm):
     Example:
         In the .yaml file you need to define::
 
-            wind_farm: 
+            wind_farm:
                 imported: true
                 path: "inputs/wind_farm.txt"
 
@@ -682,19 +685,19 @@ class ImportedWindFarm(GenericWindFarm):
 
         The first row isn't necessary. Each row defines a different turbine.
 
-    Args: 
+    Args:
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
     def __init__(self,dom):
         super(ImportedWindFarm, self).__init__(dom)
         self.fprint("Importing Wind Farm",special="header")
-        
+
         ### Import the data from path ###
         self.path = self.params["wind_farm"]["path"]
         raw_data = np.loadtxt(self.path,comments="#")
 
         ### Parse the data ###
-        self.x     = raw_data[:,0] 
+        self.x     = raw_data[:,0]
         self.y     = raw_data[:,1]
         self.HH    = raw_data[:,2]
         self.yaw   = raw_data[:,3]
@@ -708,13 +711,13 @@ class ImportedWindFarm(GenericWindFarm):
         self.fprint("Number of Turbines: {:d}".format(self.numturbs))
 
         ### Convert the lists into lists of dolfin Constants ###
-        self.CreateConstants() 
+        self.CreateConstants()
 
         ### Calculate Ground Heights ###
         self.CalculateHeights()
 
         ### Calculate the extent of the farm ###
         self.CalculateExtents()
-    
+
 
         self.fprint("Wind Farm Imported",special="footer")

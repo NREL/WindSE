@@ -1,5 +1,5 @@
-""" 
-The BoundaryManager submodule contains the classes required for 
+"""
+The BoundaryManager submodule contains the classes required for
 defining the boundary conditions. The boundaries need to be numbered
 as follows:
 
@@ -17,7 +17,10 @@ import __main__
 import os
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
+try:
+ main_file = os.path.basename(__main__.__file__)
+except:
+ main_file = ""
 
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
@@ -29,9 +32,9 @@ if main_file != "sphinx-build":
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters["general"].get("dolfin_adjoint", False):
-        from dolfin_adjoint import *  
+        from dolfin_adjoint import *
 
-    import math 
+    import math
 
 class GenericBoundary(object):
     def __init__(self,dom,fs):
@@ -99,7 +102,7 @@ class GenericBoundary(object):
             ux_com[i] = math.cos(theta)*v
             uy_com[i] = math.sin(theta)*v
             if self.dom.dim == 3:
-                uz_com[i] = 0.0   
+                uz_com[i] = 0.0
         return [ux_com,uy_com,uz_com]
 
     def RecomputeVelocity(self,theta):
@@ -120,7 +123,7 @@ class GenericBoundary(object):
         self.u0 = Function(self.fs.W)
         self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
         self.fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
-        
+
         self.SetupBoundaries()
 
     def SaveInitialGuess(self,val=0):
@@ -213,17 +216,17 @@ class UniformInflow(GenericBoundary):
 class PowerInflow(GenericBoundary):
     """
     PowerInflow creates a set of boundary conditions where the x-component
-    of velocity follows a power law. Currently the function is 
+    of velocity follows a power law. Currently the function is
 
     .. math::
 
         u_x=8.0 \\left( \\frac{z-z_0}{z_1-z_0} \\right)^{0.15}.
-        
+
     where :math:`z_0` is the ground and :math:`z_1` is the top of the domain.
 
     Args:
         dom (:class:`windse.DomainManager.GenericDomain`): A windse domain object.
-        fs (:class:`windse.FunctionSpaceManager.GenericFunctionSpace`): 
+        fs (:class:`windse.FunctionSpaceManager.GenericFunctionSpace`):
             A windse function space object
 
     Todo:

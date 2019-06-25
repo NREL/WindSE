@@ -1,5 +1,5 @@
 """
-The DomainManager submodule contains the various classes used for 
+The DomainManager submodule contains the various classes used for
 creating different types of domains
 """
 
@@ -7,7 +7,10 @@ import __main__
 import os
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
+try:
+ main_file = os.path.basename(__main__.__file__)
+except:
+ main_file = ""
 
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
@@ -27,7 +30,7 @@ if main_file != "sphinx-build":
     ### Check if we need dolfin_adjoint ###
     if windse_parameters["general"].get("dolfin_adjoint", False):
         from dolfin_adjoint import *
-        
+
     ### This import improves the plotter functionality on Mac ###
     if platform == 'darwin':
         import matplotlib
@@ -52,7 +55,7 @@ class GenericDomain(object):
 
     def Plot(self):
         """
-        This function plots the domain using matplotlib and saves the 
+        This function plots the domain using matplotlib and saves the
         output to output/.../plots/mesh.pdf
         """
 
@@ -111,15 +114,15 @@ class GenericDomain(object):
             num (int): the number of times to refine
 
         :Keyword Arguments:
-            * **region** (*list*): 
+            * **region** (*list*):
                                 for square region use: [[xmin,xmax],[ymin,ymax],[zmin,zmax]]
                                 for circle region use: [[radius],[c_x,c_y],[zmin,zmax]]
-            * **region_type** (*str*): Either "circle" or "square" 
-            * **cell_markers** (*:meth:dolfin.mesh.MeshFunction*): A cell function marking which cells to refine 
+            * **region_type** (*str*): Either "circle" or "square"
+            * **cell_markers** (*:meth:dolfin.mesh.MeshFunction*): A cell function marking which cells to refine
         """
         refine_start = time.time()
 
-        ### Print some useful stats 
+        ### Print some useful stats
         self.fprint("Starting Mesh Refinement",special="header")
         if cell_markers is not None:
             self.fprint("Region Type: {0}".format("cell_markers"))
@@ -189,7 +192,7 @@ class GenericDomain(object):
                             cells_marked += 1
                 self.fprint("Cells Marked for Refinement: {:d}".format(cells_marked))
 
-            
+
             ### If neither a region or cell markers were provided, Refine everwhere ###
             else:
                 cell_f = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),True)
@@ -208,15 +211,15 @@ class GenericDomain(object):
             if num>1:
                 step_stop = time.time()
                 self.fprint("Step {:d} of {:d} Finished: {:1.2f} s".format(i+1,num,step_stop-step_start), special="footer")
-        
+
         refine_stop = time.time()
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
 
     def Warp(self,h,s):
         """
-        This function warps the mesh to shift more cells towards the ground. 
-        is achieved by spliting the domain in two and moving the cells so 
+        This function warps the mesh to shift more cells towards the ground.
+        is achieved by spliting the domain in two and moving the cells so
         that a percentage of them are below the split.
 
         Args:
@@ -258,7 +261,7 @@ class GenericDomain(object):
 
     def WarpNonlinear(self,s):
         """
-        This function warps the mesh to shift more cells towards the ground. 
+        This function warps the mesh to shift more cells towards the ground.
         The cells are shifted based on the function:
 
         .. math::
@@ -304,7 +307,7 @@ class GenericDomain(object):
         self.bmesh.coordinates()[:,1]=y_hd
         self.bmesh.coordinates()[:,2]=z_hd
         self.bmesh.bounding_box_tree().build(self.bmesh)
-        
+
         self.fprint("Moving Mesh to New Boundary Using ALE")
         ALE.move(self.mesh,self.bmesh)
 
@@ -343,12 +346,12 @@ class GenericDomain(object):
 class BoxDomain(GenericDomain):
     """
     A box domain is simply a 3D rectangular prism. This box is defined
-    by 6 parameters in the param.yaml file. 
+    by 6 parameters in the param.yaml file.
 
     Example:
         In the yaml file define::
 
-            domain: 
+            domain:
                 #                      # Description           | Units
                 x_range: [-2500, 2500] # x-range of the domain | m
                 y_range: [-2500, 2500] # y-range of the domain | m
@@ -357,7 +360,7 @@ class BoxDomain(GenericDomain):
                 ny: 10                 # Number of y-nodes     | -
                 nz: 2                  # Number of z-nodes     | -
 
-        This will produce a box with corner points (-2500,-2500,0.04) 
+        This will produce a box with corner points (-2500,-2500,0.04)
         to (2500,2500,630). The mesh will have *nx* nodes in the *x*-direction,
         *ny* in the *y*-direction, and *nz* in the *z*-direction.
     """
@@ -425,22 +428,22 @@ class BoxDomain(GenericDomain):
 
 class CylinderDomain(GenericDomain):
     """
-    A cylinder domain is a cylinder that is centered a c0 and has radius r. 
-    This domain is defined by 6 parameters in the param.yaml file. The 
+    A cylinder domain is a cylinder that is centered a c0 and has radius r.
+    This domain is defined by 6 parameters in the param.yaml file. The
     center of the cylinder is assumed to be the z-axis.
 
     Example:
         In the yaml file define::
 
-            domain: 
+            domain:
                 #                      # Description           | Units
                 z_range: [0.04, 630]   # z-range of the domain | m
                 radius: 2500           # radius of base circle | m
                 nt: 100                # Number of radial nodes| -
                 nz: 10                 # Number of z nodes     | -
 
-        This will produce a upright cylinder centered at (0.0,0.0) with a 
-        radius of 2500 m and extends from z=0.04 to 630 m. The mesh will 
+        This will produce a upright cylinder centered at (0.0,0.0) with a
+        radius of 2500 m and extends from z=0.04 to 630 m. The mesh will
         have *nx* nodes in the *x*-direction, *ny* in the *y*-direction, and
         *nz* in the *z*-direction.
     """
@@ -549,7 +552,7 @@ class CylinderDomain(GenericDomain):
             x = self.mesh.coordinates()[:,0]
             y = self.mesh.coordinates()[:,1]
             z = self.mesh.coordinates()[:,2]
-            
+
             self.fprint("Morphing Mesh")
             if self.mesh_type == "elliptic":
                 x_hat, y_hat, z_hat = Elliptical_Grid(x, y, z)
@@ -642,19 +645,19 @@ class CylinderDomain(GenericDomain):
 class RectangleDomain(GenericDomain):
     """
     A rectangle domain is simply a 2D rectangle. This mesh is defined
-    by 4 parameters in the param.yaml file. 
+    by 4 parameters in the param.yaml file.
 
     Example:
         In the yaml file define::
 
-            domain: 
+            domain:
                 #                      # Description           | Units
                 x_range: [-2500, 2500] # x-range of the domain | m
                 y_range: [-2500, 2500] # y-range of the domain | m
                 nx: 10                 # Number of x-nodes     | -
                 ny: 10                 # Number of y-nodes     | -
 
-        This will produce a rectangle with corner points (-2500,-2500) 
+        This will produce a rectangle with corner points (-2500,-2500)
         to (2500,2500). The mesh will have *nx* nodes in the *x*-direction,
         and *ny* in the *y*-direction.
 
@@ -717,23 +720,23 @@ class RectangleDomain(GenericDomain):
 class ImportedDomain(GenericDomain):
     """
     This class generates a domain from imported files. This mesh is defined
-    by 2 parameters in the param.yaml file. 
+    by 2 parameters in the param.yaml file.
 
     Example:
         In the yaml file define::
 
-            domain: 
+            domain:
                 path: "Mesh_data/"
                 filetype: "xml.gz"
 
         The supported filetypes are "xml.gz" and "h5". For "xml.gz" 3 files are
-        required: 
+        required:
 
             * mesh.xml.gz - this contains the mesh in a format dolfin can handle
             * boundaries.xml.gz - this contains the facet markers that define where the boundaries are
-            * topology.txt - this contains the data for the ground topology. 
+            * topology.txt - this contains the data for the ground topology.
                 It assumes that the coordinates are from a uniform mesh.
-                It contains three column: x, y, z. The x and y columns contain 
+                It contains three column: x, y, z. The x and y columns contain
                 just the unique values. The z column contains the ground values
                 for every combination of x and y. The first row must be the number
                 of points in the x and y direction. Here is an example for z=x+y/10::
@@ -823,7 +826,7 @@ class ImportedDomain(GenericDomain):
         x_data = self.topography[1:,0]
         y_data = self.topography[1:,1]
         z_data = self.topography[1:,2]
-        
+
         x_data = np.sort(np.unique(x_data))
         y_data = np.sort(np.unique(y_data))
         z_data = np.reshape(z_data,(int(self.topography[0,0]),int(self.topography[0,1])))

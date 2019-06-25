@@ -1,5 +1,5 @@
 """
-The ParameterManager controls the handles importing 
+The ParameterManager controls the handles importing
 the parameters from the params.yaml file. These
 functions don't need to be accessed by the end user.
 """
@@ -8,7 +8,10 @@ import __main__
 import os
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
+try:
+ main_file = os.path.basename(__main__.__file__)
+except:
+ main_file = ""
 
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
@@ -34,12 +37,12 @@ class Logger(object):
 
     def write(self, message):
         self.terminal.write(message)
-        self.log.write(message)  
+        self.log.write(message)
 
     def flush(self):
         self.terminal.flush()
         self.log.flush()
-        pass    
+        pass
 
 class Parameters(dict):
     """
@@ -52,7 +55,7 @@ class Parameters(dict):
 
     def Load(self, loc):
         """
-        This function loads the parameters from the .yaml file. 
+        This function loads the parameters from the .yaml file.
         It should only be assessed once from the :meth:`windse.initialize` function.
 
         Args:
@@ -83,7 +86,7 @@ class Parameters(dict):
 
         ### Make sure folder exists ###
         if not os.path.exists(self.folder): os.makedirs(self.folder)
-        
+
         ### Setup the logger ###
         self.log = self.folder+"log.txt"
         sys.stdout = Logger(self.log)
@@ -101,7 +104,7 @@ class Parameters(dict):
 
     def Read(self):
         """
-        This function reads the current state of the parameters object 
+        This function reads the current state of the parameters object
         and prints it in a easy to read way.
         """
         for group in self:
@@ -175,7 +178,7 @@ class Parameters(dict):
             ### Check if tab length has been overridden
             if tab is None:
                 tab = self.current_tab
-            
+
             ### Check if we are starting or ending a section
             if special=="header":
                 self.current_tab += 1

@@ -1,5 +1,5 @@
 """
-The ProblemManager contains all of the 
+The ProblemManager contains all of the
 different classes of problems that windse can solve
 """
 
@@ -7,7 +7,10 @@ import __main__
 import os
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
+try:
+ main_file = os.path.basename(__main__.__file__)
+except:
+ main_file = ""
 
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
@@ -25,8 +28,8 @@ if main_file != "sphinx-build":
 class GenericProblem(object):
     """
     A GenericProblem contains on the basic functions required by all problem objects.
-    
-    Args: 
+
+    Args:
         domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
         windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
         function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
@@ -37,7 +40,7 @@ class GenericProblem(object):
         self.params = windse_parameters
         self.dom  = domain
         self.farm = windfarm
-        self.fs   = function_space 
+        self.fs   = function_space
         self.bd  = boundary_data
         self.tf_first_save = True
         self.fprint = self.params.fprint
@@ -53,7 +56,7 @@ class GenericProblem(object):
         """
         This function recomputes all necessary components for a new wind direction
 
-        Args: 
+        Args:
             theta (float): The new wind angle in radians
         """
         adj_start = time.time()
@@ -70,10 +73,10 @@ class GenericProblem(object):
 
 class StabilizedProblem(GenericProblem):
     """
-    The StabilizedProblem setup everything required for solving Navier-Stokes with 
+    The StabilizedProblem setup everything required for solving Navier-Stokes with
     a stabilization term
 
-    Args: 
+    Args:
         domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
         windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
         function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
@@ -84,7 +87,7 @@ class StabilizedProblem(GenericProblem):
         self.fprint("Setting Up Stabilized Problem",special="header")
 
 
-        
+
         ### Create Functional ###
         self.ComputeFunctional()
 
@@ -136,20 +139,20 @@ class StabilizedProblem(GenericProblem):
 
         ### Create the functional ###
         if self.farm.yaw[0]**2 > 1e-4:
-            self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+            self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx
         else :
-            self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_next[0]**2+self.u_next[1]**2),v)*dx 
-        
+            self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_next[0]**2+self.u_next[1]**2),v)*dx
+
         ### Add in the Stabilizing term ###
-        stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
+        stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx
         self.F += stab
 
 
 class TaylorHoodProblem(GenericProblem):
     """
-    The TaylorHoodProblem sets up everything required for solving Navier-Stokes 
+    The TaylorHoodProblem sets up everything required for solving Navier-Stokes
 
-    Args: 
+    Args:
         domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
         windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
         function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
@@ -198,8 +201,8 @@ class TaylorHoodProblem(GenericProblem):
 
         ### Create the functional ###
         if self.farm.yaw[0]**2 > 1e-4:
-            self.F = inner(grad(u_next)*u_next, v)*dx + (nu+self.nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+            self.F = inner(grad(u_next)*u_next, v)*dx + (nu+self.nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx
         else :
-            self.F = inner(grad(u_next)*u_next, v)*dx + (nu+self.nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(u_next[0]**2+u_next[1]**2),v)*dx 
-    
+            self.F = inner(grad(u_next)*u_next, v)*dx + (nu+self.nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(u_next[0]**2+u_next[1]**2),v)*dx
+
         self.fprint("Taylor-Hood Problem Setup",special="footer")

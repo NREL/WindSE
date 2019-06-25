@@ -7,7 +7,10 @@ import __main__
 import os
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
+try:
+ main_file = os.path.basename(__main__.__file__)
+except:
+ main_file = ""
 
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
@@ -30,12 +33,12 @@ class GenericFunctionSpace(object):
     def SetupSubspaces(self):
         self.V = self.W.sub(0).collapse()
         self.Q = self.W.sub(1).collapse()
-        self.V0 = self.V.sub(0).collapse() 
+        self.V0 = self.V.sub(0).collapse()
         self.V1 = self.V.sub(1).collapse()
         if self.dim == 3:
             self.V2 = self.V.sub(2).collapse()
 
-        if self.dim == 3: 
+        if self.dim == 3:
             self.VelocityAssigner = FunctionAssigner(self.V,[self.V0,self.V1,self.V2])
         else:
             self.VelocityAssigner = FunctionAssigner(self.V,[self.V0,self.V1])
@@ -56,7 +59,7 @@ class LinearFunctionSpace(GenericFunctionSpace):
         fs_start = time.time()
         self.fprint("Creating Function Space",special="header")
 
-        V = VectorElement('Lagrange', dom.mesh.ufl_cell(), 1) 
+        V = VectorElement('Lagrange', dom.mesh.ufl_cell(), 1)
         Q = FiniteElement('Lagrange', dom.mesh.ufl_cell(), 1)
         self.W = FunctionSpace(dom.mesh, MixedElement([V,Q]))
 
@@ -65,7 +68,7 @@ class LinearFunctionSpace(GenericFunctionSpace):
         self.fprint("Velocity DOFS: {:d}".format(self.V.dim()))
         self.fprint("Pressure DOFS: {:d}".format(self.Q.dim()))
         self.fprint("Total DOFS:    {:d}".format(self.W.dim()))
-        
+
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")
 
@@ -81,7 +84,7 @@ class TaylorHoodFunctionSpace(GenericFunctionSpace):
         ### Create the function space ###
         fs_start = time.time()
         self.fprint("Creating Function Space",special="header")
-        V = VectorElement('Lagrange', dom.mesh.ufl_cell(), 2) 
+        V = VectorElement('Lagrange', dom.mesh.ufl_cell(), 2)
         Q = FiniteElement('Lagrange', dom.mesh.ufl_cell(), 1)
         self.W = FunctionSpace(dom.mesh, MixedElement([V,Q]))
 
@@ -93,4 +96,3 @@ class TaylorHoodFunctionSpace(GenericFunctionSpace):
 
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")
-

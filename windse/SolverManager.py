@@ -7,7 +7,10 @@ import __main__
 import os
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
+try:
+ main_file = os.path.basename(__main__.__file__)
+except:
+ main_file = ""
 
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
@@ -31,7 +34,7 @@ if main_file != "sphinx-build":
 
     ### Improve Solver parameters ###
     parameters["std_out_all_processes"] = False;
-    parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'        
+    parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
     parameters['form_compiler']['representation'] = 'uflacs'
@@ -52,7 +55,7 @@ class GenericSolver(object):
 
     def Plot(self):
         """
-        This function plots the solution functions using matplotlib and saves the 
+        This function plots the solution functions using matplotlib and saves the
         output to output/.../plots/u.pdf and output/.../plots/p.pdf
         """
 
@@ -92,16 +95,16 @@ class GenericSolver(object):
         """
         This function recomputes all necessary components for a new wind direction
 
-        Args: 
+        Args:
             theta (float): The new wind angle in radians
         """
         self.problem.ChangeWindAngle(theta)
-        
+
 class SteadySolver(GenericSolver):
     """
     This solver is for solving the steady state problem
 
-    Args: 
+    Args:
         problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
     """
     def __init__(self,problem):
@@ -125,7 +128,7 @@ class SteadySolver(GenericSolver):
         self.fprint("Finished",special="footer")
 
         ####################################################################
-        ### This is the better way to define a nonlinear problem but it 
+        ### This is the better way to define a nonlinear problem but it
         ### doesn't play nice with dolfin_adjoint
         # ### Define Jacobian ###
         # dU = TrialFunction(self.problem.fs.W)
@@ -156,7 +159,7 @@ class SteadySolver(GenericSolver):
         # ### Add some helper functions to solver options ###
         solver_parameters = {"nonlinear_solver": "snes",
                              "snes_solver": {
-                             "linear_solver": "mumps", 
+                             "linear_solver": "mumps",
                              "maximum_iterations": 50,
                              "error_on_nonconvergence": False,
                              "line_search": "bt"
@@ -182,10 +185,10 @@ class MultiAngleSolver(SteadySolver):
     This solver will solve the problem using the steady state solver for every
     angle in angles.
 
-    Args: 
+    Args:
         problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
         angles (list): A list of wind inflow directions.
-    """ 
+    """
 
     def __init__(self,problem):
         super(MultiAngleSolver, self).__init__(problem)
