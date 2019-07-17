@@ -163,6 +163,7 @@ This section will define all the parameters for the wind farm::
     wind_farm: 
         type:      <str>
         path:      <str>
+        display:   <str>
         ex_x:      <float list>
         ex_y:      <float list>
         grid_rows: <int>
@@ -183,6 +184,8 @@ This section will define all the parameters for the wind farm::
 |                        | |   "grid", "random", "imported"              |                    |         |             |
 +------------------------+-----------------------------------------------+--------------------+---------+-------------+
 | ``path``               | Location of the wind farm text file           | "imported"         | None    | \-          |
++------------------------+-----------------------------------------------+--------------------+---------+-------------+
+| ``display``            | | Displays a plot of the wind farm            | no                 | False   | \-          |
 +------------------------+-----------------------------------------------+--------------------+---------+-------------+
 | ``ex_x``               | | The x extents of the farm where turbines    | | "grid"           | None    | m           |
 |                        | | can be placed                               | | "random"         |         |             |

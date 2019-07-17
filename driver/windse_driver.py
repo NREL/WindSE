@@ -1,9 +1,8 @@
 import sys
 import numpy as np
+import time
 import os.path as osp
 import argparse
-
-import windse
 
 ALL_ACTIONS = ("run")
 help_msg = """
@@ -26,12 +25,19 @@ def get_action():
         print_usage()
         sys.exit(1)
     if not sys.argv[1] in ALL_ACTIONS:
-        print_usage()
-        sys.exit(1)
+        if sys.argv[1] == "--help":
+            print_usage()
+            exit()
+        else:
+            print_usage()
+            sys.exit(1)
     return sys.argv.pop(1)
 
 ### Run the driver ###
 def run_action():
+    tick = time.time()
+    import windse
+    
     parser = argparse.ArgumentParser(usage="windse run [options] params", formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("params", nargs='?', help='path to yaml file containing the WindSE parameters')
     args = parser.parse_args()
@@ -46,6 +52,7 @@ def run_action():
 
     ### Initialize WindSE ###
     windse.initialize(params_loc)
+    
     params=windse.windse_parameters
 
     ### Setup the Domain ###
@@ -61,7 +68,7 @@ def run_action():
                  "random":windse.RandomWindFarm,
                  "imported":windse.ImportedWindFarm}
     farm = farm_dict[params["wind_farm"]["type"]](dom)
-    farm.Plot(False)
+    farm.Plot(params["wind_farm"].get("display",False))
 
     ### Move and refine the mesh
     if "refine" in params.keys():
@@ -119,7 +126,7 @@ def run_action():
     # exit()
 
     ### Perform Optimization ###
-    if params["optimization"]:
+    if params.get("optimization",{}):
         opt=windse.Optimizer(solver)
         if params["optimization"].get("taylor_test",False):
             opt.TaylorTest()
@@ -127,6 +134,9 @@ def run_action():
         if params["optimization"].get("optimize",True):
             opt.Optimize()
 
+    tock = time.time()
+
+    print("Run Complete: {:1.2f} s".format(tock-tick))
 
 def main():
     actions = {"run": run_action}

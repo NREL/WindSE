@@ -221,7 +221,7 @@ class GenericDomain(object):
 
         Args:
             h (float): the height that split occurs
-            s (float); the percent below split in the range [0,1)
+            s (float): the percent below split in the range [0,1)
         """
 
         warp_start = time.time()

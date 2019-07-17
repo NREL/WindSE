@@ -30,7 +30,7 @@ domain:
 
 refine:
     #                      # Description                  | Units
-    farm_num: 2            # number of farm refinements   | -
+    farm_num: 1            # number of farm refinements   | -
     farm_type: square      # type of refinement at farm   | -
     farm_factor: 1.5       # farm radius multiplier       | -
 

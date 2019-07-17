@@ -18,9 +18,9 @@ domain:
     x_range: [0, 1000]     # x-range of the domain | m
     y_range: [-250, 250]   # y-range of the domain | m
     z_range: [0.04, 500]   # z-range of the domain | m
-    nx: 20                 # Number of x-nodes     | -
+    nx: 10                 # Number of x-nodes     | -
     ny: 10                 # Number of y-nodes     | -
-    nz: 8                  # Number of z-nodes     | -
+    nz: 6                  # Number of z-nodes     | -
 
 refine:
     #                      # Description                  | Units

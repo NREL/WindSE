@@ -23,13 +23,13 @@ wind_farm:
 domain: 
     #                      # Description           | Units
     type: interpolated
-    path: Mesh_Data/
+    path: Input_Data/
     mesh_type: "mshr"
     z_range: [0.04, 630]   # z-range of the domain | m
     center: [0.0,0.0]      # location of center    | m
     radius: 2000           # radius of base circle | m
-    nt: 36                 # Number of radial nodes| -
-    res: 25                # Resolution for mshr   | -
+    nt: 18                 # Number of radial nodes| -
+    res: 15                # Resolution for mshr   | -
 
 refine:
     #                      # Description                  | Units
@@ -55,5 +55,5 @@ problem:
 solver:
     type: multiangle
     init_wind_angle: 0.0
-    final_wind_angle: 6.28
-    num_wind_angles: 8
+    final_wind_angle: 4.18879020479
+    num_wind_angles: 3
