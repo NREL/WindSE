@@ -19,10 +19,10 @@ The best way to use WindSE is via a conda environment. To install conda check ou
     source activate <enviroment_name>
     conda install -c conda-forge windse
 
-Conda Installation (Manual):
+Conda Installation (Source):
 ----------------------------
 
-If the automatic setup fails, or you just want to setup the environment manually, follow these steps. After conda is installed, create a new environment using::
+If you want to use the latest version or just want to setup the environment manually, follow these steps. After conda is installed, create a new environment using::
 
     conda create --name <enviroment_name>
 
