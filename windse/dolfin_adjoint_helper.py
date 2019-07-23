@@ -55,7 +55,7 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
         ## print markers
         ## print u0
         ## print tf
-        print(dir(bcs))
+        # print(dir(bcs))
 
         dolfin_adjoint.backend.solve(eq, func, bcs, **self.forward_kwargs)
     return func
