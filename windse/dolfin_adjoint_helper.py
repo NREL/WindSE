@@ -50,6 +50,13 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
     if not self.forward_kwargs:
         dolfin_adjoint.backend.solve(eq, func, bcs, solver_parameters={'linear_solver': 'mumps'})
     else:
+
+        ## Print bcs function
+        ## print markers
+        ## print u0
+        ## print tf
+        print(dir(bcs))
+
         dolfin_adjoint.backend.solve(eq, func, bcs, **self.forward_kwargs)
     return func
 

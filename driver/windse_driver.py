@@ -59,6 +59,7 @@ def run_action():
     dom_dict = {"box":windse.BoxDomain,
                 "rectangle":windse.RectangleDomain,
                 "cylinder":windse.CylinderDomain,
+                "circle":windse.CircleDomain,
                 "imported":windse.ImportedDomain,
                 "interpolated":windse.InterpolatedCylinderDomain}
     dom = dom_dict[params["domain"]["type"]]()

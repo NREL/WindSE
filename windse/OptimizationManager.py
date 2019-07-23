@@ -23,6 +23,7 @@ if main_file != "sphinx-build":
     from dolfin import *
     import numpy as np
     import copy
+    from sys import platform
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -30,6 +31,12 @@ if main_file != "sphinx-build":
     ### Check if we need dolfin_adjoint ###
     if windse_parameters["general"].get("dolfin_adjoint", False):
         from dolfin_adjoint import *
+
+    ### This import improves the plotter functionality on Mac ###
+    if platform == 'darwin':
+        import matplotlib
+        matplotlib.use('TKAgg')
+    import matplotlib.pyplot as plt
 
 class Optimizer(object):
     """
@@ -46,15 +53,42 @@ class Optimizer(object):
         self.farm = solver.problem.farm
         self.fprint = self.params.fprint
 
+        self.control_types = self.params["optimization"]["controls"]
+        self.layout_bounds = self.params["optimization"].get("layout_bounds",[self.farm.ex_x,self.farm.ex_y])
+
+        self.iteration = 0
+
         self.fprint("Setting Up Optimizer",special="header")
-        self.fprint("Controls: {0}".format(self.params["optimization"]["controls"]))
+        
+        self.fprint("Controls: {0}".format(self.control_types))
         self.CreateControls()
-        self.fprint("Number of Controls: {:d}".format(len(self.controls)))
+ 
+        
         self.fprint("Define Bounds")
         self.CreateBounds()
+
+        self.get_minimum_distance_constraint_func(self.controls, 100)
+
         self.fprint("Define Optimizing Functional")
-        self.PowerFunctional()
+        if self.params["solver"]["type"] == "multiangle":
+            self.J = self.solver.J
+            self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
+            self.Jcurrent = self.J
+        else:
+            self.PowerFunctional()
+        
+        print(dir(self.Jhat.functional))
+        print(self.Jhat.functional)
+
+        self.fprint("Number of Controls: {:d}".format(len(self.controls)),special="header")
+        self.OptPrintFunction(self.init_vals)
+        self.fprint("",special="footer")
+
+
         self.fprint("Optimizer Setup",special="footer")
+
+    def ReducedFunctionalCallback(self, j, m):
+            self.Jcurrent = j 
 
     def CreateControls(self):
         self.controls = []
@@ -62,7 +96,7 @@ class Optimizer(object):
         self.indexes = [[],[],[],[]]
         self.init_vals = []
         j = 0
-        if "layout" in self.params["optimization"]["controls"]:
+        if "layout" in self.control_types:
             for i in range(self.farm.numturbs):
                 self.indexes[0].append(j)
                 j+=1
@@ -76,7 +110,7 @@ class Optimizer(object):
                 self.controls.append(Control(self.farm.my[i]))
                 self.init_vals.append(self.farm.my[i])
 
-        if "yaw" in self.params["optimization"]["controls"]:
+        if "yaw" in self.control_types:
             for i in range(self.farm.numturbs):
                 self.indexes[2].append(j)
                 j+=1
@@ -84,7 +118,7 @@ class Optimizer(object):
                 self.controls.append(Control(self.farm.myaw[i]))
                 self.init_vals.append(self.farm.myaw[i])
 
-        if "axial" in self.params["optimization"]["controls"]:
+        if "axial" in self.control_types:
             for i in range(self.farm.numturbs):
                 self.indexes[3].append(j)
                 j+=1
@@ -96,19 +130,19 @@ class Optimizer(object):
         lower_bounds = []
         upper_bounds = []
 
-        if "layout" in self.params["optimization"]["controls"]:
+        if "layout" in self.control_types:
             for i in range(self.farm.numturbs):
-                lower_bounds.append(Constant((self.farm.ex_x[0] + self.farm.radius[i])))
-                lower_bounds.append(Constant((self.farm.ex_y[0] + self.farm.radius[i])))
-                upper_bounds.append(Constant((self.farm.ex_x[1] - self.farm.radius[i])))
-                upper_bounds.append(Constant((self.farm.ex_y[1] - self.farm.radius[i])))
+                lower_bounds.append(Constant((self.layout_bounds[0][0] + self.farm.radius[i])))
+                lower_bounds.append(Constant((self.layout_bounds[1][0] + self.farm.radius[i])))
+                upper_bounds.append(Constant((self.layout_bounds[0][1] - self.farm.radius[i])))
+                upper_bounds.append(Constant((self.layout_bounds[1][1] - self.farm.radius[i])))
 
-        if "yaw" in self.params["optimization"]["controls"]:
+        if "yaw" in self.control_types:
             for i in range(self.farm.numturbs):
                 lower_bounds.append(Constant(-pi/4.))
                 upper_bounds.append(Constant(pi/4.))
 
-        if "axial" in self.params["optimization"]["controls"]:
+        if "axial" in self.control_types:
             for i in range(self.farm.numturbs):
                 lower_bounds.append(Constant(0))
                 upper_bounds.append(Constant(1.))
@@ -116,12 +150,12 @@ class Optimizer(object):
         self.bounds = [lower_bounds,upper_bounds]
 
     def AssignControls(self):
-        if "layout" in self.params["optimization"]["controls"]:
+        if "layout" in self.control_types:
             self.farm.mx = self.controls[self.indexes[0]]
             self.farm.my = self.controls[self.indexes[1]]
-        if "yaw" in self.params["optimization"]["controls"]:
+        if "yaw" in self.control_types:
             self.farm.myaw = self.controls[self.indexes[2]]
-        if "axial" in self.params["optimization"]["controls"]:
+        if "axial" in self.control_types:
             self.farm.ma = self.controls[self.indexes[3]]
 
 
@@ -136,17 +170,74 @@ class Optimizer(object):
         """
         #how to handle rotation?
         # J=Functional(tf*u[0]**3*dx)
-        self.J=assemble(-dot(self.problem.tf,self.solver.u_next)*dx)
-        self.Jhat = ReducedFunctional(self.J, self.controls) 
+        self.J = assemble(-dot(self.problem.tf,self.solver.u_next)*dx)
+        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback) 
+        self.Jcurrent = self.J
 
     def ListControls(self,m):
         for i,val in enumerate(m):
-            self.fprint(self.names[i]+": "+repr(m[i]))
+            self.fprint(self.names[i]+": "+repr(float(m[i])))
+
+    def PlotLayout(self,m,show=False):
+        x_val = []
+        y_val = []
+
+        for i,val in enumerate(m):
+            if "x" in self.names[i]:
+                x_val.append(float(m[i]))
+            elif "y" in self.names[i]:
+                y_val.append(float(m[i]))
+
+        z_val = self.problem.dom.Ground(x_val,y_val)
+
+        ### Create the path names ###
+        folder_string = self.params.folder+"/plots/"
+        file_string = self.params.folder+"/plots/wind_farm_step_"+repr(self.iteration)+".pdf"
+
+        ### Check if folder exists ###
+        if not os.path.exists(folder_string): os.makedirs(folder_string)
+
+        ### Create a list that outlines the extent of the farm ###
+        ex_list_x = [self.layout_bounds[0][0],self.layout_bounds[0][1],self.layout_bounds[0][1],self.layout_bounds[0][0],self.layout_bounds[0][0]]
+        ex_list_y = [self.layout_bounds[1][0],self.layout_bounds[1][0],self.layout_bounds[1][1],self.layout_bounds[1][1],self.layout_bounds[1][0]]
+
+        ### Generate and Save Plot ###
+        plt.clf()
+        if hasattr(self.problem.dom,"boundary_line"):
+            plt.plot(*self.problem.dom.boundary_line,c="k")
+        plt.plot(ex_list_x,ex_list_y,c="r")
+        p=plt.scatter(x_val,y_val,c=z_val)
+        plt.xlim(self.problem.dom.x_range[0],self.problem.dom.x_range[1])
+        plt.ylim(self.problem.dom.y_range[0],self.problem.dom.y_range[1])
+        clb = plt.colorbar(p)
+        clb.ax.set_ylabel('Hub Height')
+
+        plt.title("Power Output: {: 5.2f}".format(self.Jcurrent))
+        plt.savefig(file_string)
+        if show:
+            plt.show()
+
+    def OptPrintFunction(self,m):
+        self.ListControls(m)
+
+        if "layout" in self.control_types:
+            self.PlotLayout(m,show=False)
+        
+        self.iteration += 1
+
+    def get_minimum_distance_constraint_func(self, m_pos, min_distance=200):
+        if "layout" in self.control_types and len(self.control_types)==1:
+            self.dist_constraint = MinimumDistanceConstraint(m_pos, min_distance)
+        else:
+            print("minimum distance is supported when only optimizing layout")
+            self.dist_constraint = None
 
     def Optimize(self):
 
         self.fprint("Beginning Optimization",special="header")
-        m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.ListControls)
+
+        # m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+        m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
         self.fprint("Assigning New Values")
         self.AssignControls()
@@ -174,3 +265,55 @@ class Optimizer(object):
         self.fprint("Taylor Test Finished",special="footer")
 
         return conv_rate
+
+class MinimumDistanceConstraint(InequalityConstraint):
+    def __init__(self, m_pos, min_distance=200):
+
+        self.min_distance = min_distance
+        self.m_pos = m_pos
+        print("In mimimum distance constraint")
+
+    def length(self):
+        nconstraints = comb(len(self.m_pos)/2,2.)
+        return nconstraints
+
+    def function(self, m):
+        ieqcons = []
+        
+        m_pos = m
+
+        for i in range(int(len(m_pos) / 2)):
+            for j in range(int(len(m_pos) / 2)):
+                if j > i:
+                    ieqcons.append(((m_pos[2 * i] - m_pos[2 * j])**2 + (m_pos[2 * i + 1] - m_pos[2 * j + 1])**2) - self.min_distance**2)
+
+        arr = np.array(ieqcons)
+
+        print("In mimimum distance constraint function eval")
+        # print "distances: ", arr*lengthscale
+        numClose = 0
+        for i in range(len(arr)):
+            if arr[i]<0:
+                print(arr[i]*lengthscale)
+                numClose +=1
+        print("Number of turbines in violation of spacing constraint:", numClose)
+        return np.array(ieqcons)
+
+    def jacobian(self, m):
+        ieqcons = []
+        
+        m_pos = m
+
+        for i in range(int(len(m_pos) / 2)):
+            for j in range(int(len(m_pos) / 2)):
+                if j>i:
+                    prime_ieqcons = np.zeros(len(m))
+
+                    prime_ieqcons[2 * i] = 2 * (m_pos[2 * i] - m_pos[2 * j])
+                    prime_ieqcons[2 * j] = -2 * (m_pos[2 * i] - m_pos[2 * j])
+                    prime_ieqcons[2 * i + 1] = 2 * (m_pos[2 * i + 1] - m_pos[2 * j + 1])
+                    prime_ieqcons[2 * j + 1] = -2 * (m_pos[2 * i + 1] - m_pos[2 * j + 1])
+
+                    ieqcons.append(prime_ieqcons)
+        print("In mimimum distance constraint Jacobian eval")
+        return np.array(ieqcons)

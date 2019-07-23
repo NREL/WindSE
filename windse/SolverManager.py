@@ -189,13 +189,20 @@ class MultiAngleSolver(SteadySolver):
 
     def __init__(self,problem):
         super(MultiAngleSolver, self).__init__(problem)
-        if self.params["domain"]["type"] not in ["cylinder","interpolated"]:
-            raise ValueError("A cylinder, or interpolated cylinder domain is required for a Multi-Angle Solver")
+        if self.params["domain"]["type"] not in ["circle","cylinder","interpolated"]:
+            raise ValueError("A circle, cylinder, or interpolated cylinder domain is required for a Multi-Angle Solver")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
         self.init_wind = self.params["solver"].get("init_wind_angle", 0.0)
         self.final_wind = self.params["solver"].get("final_wind_angle", 2.0*pi)
         self.num_wind = self.params["solver"]["num_wind_angles"]
         self.angles = np.linspace(self.init_wind,self.final_wind,self.num_wind)
+
+        #Check if we are optimizing
+        if self.params.get("optimization",{}):
+            self.optimizing = True
+            self.J = 0
+        else:
+            self.optimizing = False
 
     def Solve(self):
         for i, theta in enumerate(self.angles):
@@ -205,3 +212,6 @@ class MultiAngleSolver(SteadySolver):
                 self.ChangeWindAngle(theta)
             self.orignal_solve(iter_val=theta)
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
+
+            if self.optimizing:
+                self.J += assemble(-dot(self.problem.tf,self.u_next)*dx)

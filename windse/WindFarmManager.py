@@ -64,6 +64,7 @@ class GenericWindFarm(object):
         ex_list_y = [self.ex_y[0],self.ex_y[0],self.ex_y[1],self.ex_y[1],self.ex_y[0]]
 
         ### Generate and Save Plot ###
+        plt.figure()
         if hasattr(self.dom,"boundary_line"):
             plt.plot(*self.dom.boundary_line,c="k")
         plt.plot(ex_list_x,ex_list_y,c="r")
@@ -396,7 +397,7 @@ class GenericWindFarm(object):
 
             ### Create the function that represents the force ###
             r = sqrt(xs[1]**2.0+xs[2]**2)
-            F = 4.*0.5*(pi*R**2.0)*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5) * 1/(.81831)
+            F = 4.*0.5*(pi*R**2.0)*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5) #* 1/(.81831)
 
             # compute disk averaged velocity in yawed case and don't project
             if self.yaw[0]**2 > 1e-4: ###?This only works if first turbine it yawed?###
@@ -567,6 +568,11 @@ class GridWindFarm(GenericWindFarm):
         self.x, self.y = np.meshgrid(self.grid_x,self.grid_y)
         self.x = self.x.flatten()
         self.y = self.y.flatten()
+
+        ### Apply Jitter ###
+        if self.params["wind_farm"].get("jitter",False):
+            self.x += np.random.randn(self.numturbs)*5.0
+            self.y += np.random.randn(self.numturbs)*5.0
 
         ### Convert the constant parameters to lists ###
         self.CreateLists()

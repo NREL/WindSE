@@ -22,8 +22,8 @@ def initialize(loc):
     else:
         from windse.helper_functions import BaseHeight
         
-    global BoxDomain, CylinderDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain
-    from windse.DomainManager import BoxDomain, CylinderDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain
+    global BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain
+    from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain
 
     global GridWindFarm, RandomWindFarm, ImportedWindFarm
     from windse.WindFarmManager import GridWindFarm, RandomWindFarm, ImportedWindFarm

@@ -108,7 +108,8 @@ class GenericBoundary(object):
 
         self.ux = Function(self.fs.V0)
         self.uy = Function(self.fs.V1)
-        self.uz = Function(self.fs.V2)
+        if self.dom.dim == 3:
+            self.uz = Function(self.fs.V2)
 
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com
@@ -117,10 +118,19 @@ class GenericBoundary(object):
 
         ### Assigning Velocity
         self.bc_velocity = Function(self.fs.V)
-        self.u0 = Function(self.fs.W)
-        self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
-        self.fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
+        if self.dom.dim == 3:
+            self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
+        else:
+            self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy])
         
+        ### Create Pressure Boundary Function
+        self.bc_pressure = Function(self.fs.Q)
+
+        ### Create Initial Guess
+        self.fprint("Assigning Initial Guess")
+        self.u0 = Function(self.fs.W)
+        self.fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
+
         self.SetupBoundaries()
 
     def SaveInitialGuess(self,val=0):
@@ -183,7 +193,14 @@ class UniformInflow(GenericBoundary):
         self.uy = Function(fs.V1)
         if self.dom.dim == 3:
             uz = Function(fs.V2)
-        self.ux.vector()[:] = np.full(len(self.ux.vector()[:]),self.vmax)
+        self.reference_velocity = np.full(len(self.ux.vector()[:]),self.vmax)
+        self.ux.vector()[:] = self.reference_velocity
+
+        ux_com, uy_com, uz_com = self.RotateVelocity(self.init_wind)
+        self.ux.vector()[:] = ux_com
+        self.uy.vector()[:] = uy_com
+        if self.dom.dim == 3:
+            self.uz.vector()[:] = uz_com
 
         ### Compute distances ###
         if self.dom.dim == 3:

@@ -81,16 +81,14 @@ class StabilizedProblem(GenericProblem):
     """
     def __init__(self,domain,windfarm,function_space,boundary_conditions):
         super(StabilizedProblem, self).__init__(domain,windfarm,function_space,boundary_conditions)
-        self.fprint("Setting Up Stabilized Problem",special="header")
-
-
         
         ### Create Functional ###
         self.ComputeFunctional()
 
-        self.fprint("Stabilized Problem Setup",special="footer")
 
     def ComputeFunctional(self,theta=None):
+        self.fprint("Setting Up Stabilized Problem",special="header")
+
         ### Create the test/trial/functions ###
         self.up_next = Function(self.fs.W)
         self.u_next,self.p_next = split(self.up_next)
@@ -139,10 +137,11 @@ class StabilizedProblem(GenericProblem):
             self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
         else :
             self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_next[0]**2+self.u_next[1]**2),v)*dx 
-        
+
         ### Add in the Stabilizing term ###
         stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
         self.F += stab
+        self.fprint("Stabilized Problem Setup",special="footer")
 
 
 class TaylorHoodProblem(GenericProblem):
@@ -157,10 +156,15 @@ class TaylorHoodProblem(GenericProblem):
     """
     def __init__(self,domain,windfarm,function_space,boundary_conditions):
         super(TaylorHoodProblem, self).__init__(domain,windfarm,function_space,boundary_conditions)
+
+        ### Create Functional ###
+        self.ComputeFunctional()
+
+    def ComputeFunctional(self,theta=None):
         self.fprint("Setting Up Taylor-Hood Problem",special="header")
 
         ### These constants will be moved into the params file ###
-        nu = Constant(0.1)
+        nu = Constant(0.5)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
         lmax=15
@@ -172,7 +176,7 @@ class TaylorHoodProblem(GenericProblem):
 
         ### Create the test/trial/functions ###
         self.up_next = Function(self.fs.W)
-        u_next,p_next = split(self.up_next)
+        self.u_next,self.p_next = split(self.up_next)
         v,q = TestFunctions(self.fs.W)
 
         ### Set the initial guess ###
@@ -180,7 +184,7 @@ class TaylorHoodProblem(GenericProblem):
         self.up_next.assign(self.bd.u0)
 
         ### Calculate the stresses and viscosities ###
-        S = sqrt(2.*inner(0.5*(grad(u_next)+grad(u_next).T),0.5*(grad(u_next)+grad(u_next).T)))
+        S = sqrt(2.*inner(0.5*(grad(self.u_next)+grad(self.u_next).T),0.5*(grad(self.u_next)+grad(self.u_next).T)))
 
         ### Create l_mix based on distance to the ground ###
         if self.dom.dim == 3:
@@ -194,12 +198,15 @@ class TaylorHoodProblem(GenericProblem):
         self.nu_T=l_mix**2.*S
 
         ### Create the turbine force ###
-        self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,u_next)
+        if theta is not None:
+            self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next,delta_yaw=(theta-self.dom.init_wind))
+        else:
+            self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next)
 
         ### Create the functional ###
         if self.farm.yaw[0]**2 > 1e-4:
-            self.F = inner(grad(u_next)*u_next, v)*dx + (nu+self.nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+            self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
         else :
-            self.F = inner(grad(u_next)*u_next, v)*dx + (nu+self.nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(u_next[0]**2+u_next[1]**2),v)*dx 
+            self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_next[0]**2+self.u_next[1]**2),v)*dx 
     
         self.fprint("Taylor-Hood Problem Setup",special="footer")

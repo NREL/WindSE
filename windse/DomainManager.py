@@ -639,6 +639,114 @@ class CylinderDomain(GenericDomain):
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
 
+class CircleDomain(GenericDomain):
+    """
+    ADD DOCUMENTATION
+    """
+
+    def __init__(self):
+        super(CircleDomain, self).__init__()
+
+        self.fprint("Generating Circle Domain",special="header")
+
+        ### Initialize values from Options ###
+        self.radius   = self.params["domain"]["radius"]
+        self.center   = self.params["domain"]["center"]
+        self.nt = self.params["domain"]["nt"]
+        self.res = self.params["domain"]["res"]
+        self.x_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
+        self.y_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
+        self.dim = 2
+
+        ### Get the initial wind direction ###
+        self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
+
+        ### Calculating the boundary of the shadow ###
+        angles = np.linspace(0,2.0*np.pi,self.nt+1)
+        self.boundary_line = (self.radius*np.cos(angles),self.radius*np.sin(angles))
+
+        self.fprint("Radius:        {: .1f}".format(self.radius))
+        self.fprint("Center:       ({: .1f}, {: .1f})".format(self.center[0],self.center[1]))
+
+        mesh_start = time.time()
+        self.fprint("")
+        self.fprint("Generating Mesh Using mshr")
+
+        ### Create Mesh ###
+        mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
+        self.mesh = generate_mesh(mshr_circle,self.res)
+
+        ### Create the boundary mesh ###
+        self.bmesh = BoundaryMesh(self.mesh,"exterior")
+        mesh_stop = time.time()
+        self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
+
+        ### Define Plane Normal ###
+        nom_x = np.cos(self.init_wind)
+        nom_y = np.sin(self.init_wind)
+
+        ### Define Boundary Subdomains ###
+        mark_start = time.time()
+        self.fprint("")
+        self.fprint("Marking Boundaries")
+        outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y)
+        inflow  = CompiledSubDomain("nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, c0=self.center[0], c1=self.center[1])
+        self.boundary_subdomains = [outflow,inflow]
+        self.boundary_names = {"inflow":2,"outflow":1}
+        self.boundary_types = {"inflow":  ["inflow"],
+                               "no_stress": ["outflow"]}
+
+        ### Generate the boundary markers for boundary conditions ###
+        self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        self.boundary_markers.set_all(0)
+        for i in range(len(self.boundary_subdomains)):
+            self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
+
+        mark_stop = time.time()
+        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
+        self.fprint("Initial Domain Setup",special="footer")
+
+    def ground_function(self,x,y):
+        return 0.0
+
+    def RecomputeBoundaryMarkers(self,theta):
+        mark_start = time.time()
+        self.fprint("")
+        self.fprint("Remarking Boundaries")
+
+        ### Define Plane Normal ###
+        nom_x = np.cos(theta)
+        nom_y = np.sin(theta)
+
+        ### Define center ###
+        c0 = self.center[0]
+        c1 = self.center[1]
+
+        ### Set Tol ###
+        tol = 1e-5
+
+        wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
+                    + self.boundary_markers.where_equal(self.boundary_names["outflow"])
+
+        boundary_val_temp = self.boundary_markers.array()
+        self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        self.boundary_markers.set_values(boundary_val_temp)
+
+        for facet_id in wall_facets:
+            facet = Facet(self.mesh,facet_id)
+            vert_ids = facet.entities(0)
+            vert_coords = self.mesh.coordinates()[vert_ids]
+            x = vert_coords[:,0]
+            y = vert_coords[:,1]
+
+            if all(nom_x*(x-c0)+nom_y*(y-c1)<=0+tol):
+                self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
+            else:
+                self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
+
+        mark_stop = time.time()
+        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
+
 class RectangleDomain(GenericDomain):
     """
     A rectangle domain is simply a 2D rectangle. This mesh is defined
