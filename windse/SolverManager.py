@@ -215,7 +215,7 @@ class MultiAngleSolver(SteadySolver):
 
             if self.optimizing:
                 # self.J += assemble(-dot(self.problem.tf,self.u_next)*dx)
-                if self.farm.yaw[0]**2 > 1e-4:
-                    self.J += assemble(-dot(self.problem.tf,self.solver.u_next),*dx)
+                if self.problem.farm.yaw[0]**2 > 1e-4:
+                    self.J += assemble(-dot(self.problem.tf,self.u_next),*dx)
                 else:
-                    self.J += assemble(-inner(dot(self.problem.tf,self.solver.u_next),self.solver.u_next[0]**2+self.solver.u_next[1]**2)*dx)
+                    self.J += assemble(-inner(dot(self.problem.tf,self.u_next),self.u_next[0]**2+self.u_next[1]**2)*dx)
