@@ -674,31 +674,36 @@ class CircleDomain(GenericDomain):
 
         mesh_start = time.time()
         self.fprint("")
-        self.fprint("Generating Mesh Using mshr")
-
-        ### Create Mesh ###
         if self.mesh_type == "mshr":
+
+            self.fprint("Generating Mesh Using mshr")
+
+            ### Create Mesh ###
             mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
             self.mesh = generate_mesh(mshr_circle,self.res)
+
         else:
-            self.fprint("Generating Box Mesh")
+            self.fprint("Generating Rectangle Mesh")
+
             self.nxy = int(self.nt/4.0)
 
             ### Create mesh ###
             start = Point(-1.0, -1.0)
             stop  = Point( 1.0,  1.0)
-            self.mesh = RectangleMesh(start, stop, int(self.nxy/1.0), int(self.nxy/1.0),"crossed")
-            # self.mesh = refine(self.mesh)
+            self.mesh = RectangleMesh(start, stop, int(self.nxy/2.0), int(self.nxy/2.0))
+            self.mesh = refine(self.mesh)
             x = self.mesh.coordinates()[:,0]
             y = self.mesh.coordinates()[:,1]
             
             self.fprint("Morphing Mesh")
             if self.mesh_type == "elliptic":
-                x_hat, y_hat, z_hat = Elliptical_Grid(x, y, None, self.radius)
+                x_hat, y_hat, z_hat = Elliptical_Grid(x, y, 0, self.radius)
             elif self.mesh_type == "squircular":
-                x_hat, y_hat, z_hat = FG_Squircular(x, y, None, self.radius)
+                x_hat, y_hat, z_hat = FG_Squircular(x, y, 0, self.radius)
             elif self.mesh_type == "stretch":
-                x_hat, y_hat, z_hat = Simple_Stretching(x, y, None, self.radius)
+                x_hat, y_hat, z_hat = Simple_Stretching(x, y, 0, self.radius)
+            else:
+                raise ValueError("Mesh type: "+self.mesh_type+" not recognized")
 
             x_hat += self.center[0]
             y_hat += self.center[1]
@@ -852,6 +857,46 @@ class RectangleDomain(GenericDomain):
 
     def ground_function(self,x,y):
         return 0.0
+
+    def RecomputeBoundaryMarkers(self,theta):
+        mark_start = time.time()
+        self.fprint("")
+        self.fprint("Remarking Boundaries")
+
+        ### Define Plane Normal ###
+        nom_x = np.cos(theta)
+        nom_y = np.sin(theta)
+
+        ### Define center ###
+        c0 = (self.x_range[1]-self.x_range[0])/2.
+        c1 = (self.y_range[1]-self.y_range[0])/2.
+        # c0 = self.center[0]
+        # c1 = self.center[1]
+
+        ### Set Tol ###
+        tol = 1e-5
+
+        wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
+                    + self.boundary_markers.where_equal(self.boundary_names["outflow"])
+
+        boundary_val_temp = self.boundary_markers.array()
+        self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        self.boundary_markers.set_values(boundary_val_temp)
+
+        for facet_id in wall_facets:
+            facet = Facet(self.mesh,facet_id)
+            vert_ids = facet.entities(0)
+            vert_coords = self.mesh.coordinates()[vert_ids]
+            x = vert_coords[:,0]
+            y = vert_coords[:,1]
+
+            if all(nom_x*(x-c0)+nom_y*(y-c1)<=0+tol):
+                self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
+            else:
+                self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
+
+        mark_stop = time.time()
+        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
 
 class ImportedDomain(GenericDomain):
     """

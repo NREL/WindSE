@@ -164,7 +164,7 @@ class TaylorHoodProblem(GenericProblem):
         self.fprint("Setting Up Taylor-Hood Problem",special="header")
 
         ### These constants will be moved into the params file ###
-        nu = Constant(0.5)
+        nu = Constant(1.)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
         lmax=15

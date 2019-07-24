@@ -189,8 +189,8 @@ class MultiAngleSolver(SteadySolver):
 
     def __init__(self,problem):
         super(MultiAngleSolver, self).__init__(problem)
-        if self.params["domain"]["type"] not in ["circle","cylinder","interpolated"]:
-            raise ValueError("A circle, cylinder, or interpolated cylinder domain is required for a Multi-Angle Solver")
+        # if self.params["domain"]["type"] not in ["circle","cylinder","interpolated"]:
+        #     raise ValueError("A circle, cylinder, or interpolated cylinder domain is required for a Multi-Angle Solver")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
         self.init_wind = self.params["solver"].get("init_wind_angle", 0.0)
         self.final_wind = self.params["solver"].get("final_wind_angle", 2.0*pi)
@@ -214,4 +214,8 @@ class MultiAngleSolver(SteadySolver):
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
 
             if self.optimizing:
-                self.J += assemble(-dot(self.problem.tf,self.u_next)*dx)
+                # self.J += assemble(-dot(self.problem.tf,self.u_next)*dx)
+                if self.problem.farm.yaw[0]**2 > 1e-4:
+                    self.J += assemble(-dot(self.problem.tf,self.u_next),*dx)
+                else:
+                    self.J += assemble(-inner(dot(self.problem.tf,self.u_next),self.u_next[0]**2+self.u_next[1]**2)*dx)

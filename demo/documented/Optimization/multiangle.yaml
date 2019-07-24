@@ -2,7 +2,7 @@
 general: 
     name: "MultiAngle_2D"       # Name of the output folder
     preappend_datetime: false  # Place the date and time before the folder name
-    output: [] #"mesh","initial_guess","height","turbine_force","solution"]
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: true
 
 # Wind Farm constants for a grid farm
@@ -25,7 +25,7 @@ wind_farm:
 domain: 
     #                      # Description           | Units
     type: circle
-    # mesh_type: squircular
+    mesh_type: stretch
     center: [0.0,0.0]      # location of center    | m
     radius: 1700           # radius of base circle | m
     nt: 72                 # Number of radial nodes| -

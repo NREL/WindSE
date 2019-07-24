@@ -170,7 +170,11 @@ class Optimizer(object):
         """
         #how to handle rotation?
         # J=Functional(tf*u[0]**3*dx)
-        self.J = assemble(-dot(self.problem.tf,self.solver.u_next)*dx)
+
+        if self.farm.yaw[0]**2 > 1e-4:
+            self.J = assemble(-dot(self.problem.tf,self.solver.u_next),*dx)
+        else:
+            self.J = assemble(-inner(dot(self.problem.tf,self.solver.u_next),self.solver.u_next[0]**2+self.solver.u_next[1]**2)*dx)
         self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback) 
         self.Jcurrent = self.J
 
