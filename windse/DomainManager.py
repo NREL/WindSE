@@ -38,6 +38,52 @@ if main_file != "sphinx-build":
     parameters["refinement_algorithm"] = "plaza_with_parent_facets"
 
 
+def Elliptical_Grid(x, y, z, radius):
+    #x_hat = x sqrt(1 - y^2/2)
+    #y_hat = y sqrt(1 - x^2/2)
+    x_hat = np.multiply(radius*x,np.sqrt(1.0-np.power(y,2.0)/2.0))
+    y_hat = np.multiply(radius*y,np.sqrt(1.0-np.power(x,2.0)/2.0))
+    z_hat = z
+    return [x_hat, y_hat, z_hat]
+
+def FG_Squircular(x, y, z, radius):
+    #x_hat = x sqrt(x^2 + y^2 - x^2y^2) / sqrt(x^2 + y^2)
+    #y_hat = y sqrt(x^2 + y^2 - x^2y^2) / sqrt(x^2 + y^2)
+    innerp = np.power(x,2.0)+np.power(y,2.0)
+    prod  = np.multiply(np.power(x,2.0),np.power(y,2.0))
+    innerp[innerp==0] = 1 #handle the point (0,0)
+    ratio = np.divide(np.sqrt(np.subtract(innerp,prod)),np.sqrt(innerp))
+
+    x_hat = np.multiply(radius*x,ratio)
+    y_hat = np.multiply(radius*y,ratio)
+    z_hat = z
+    return [x_hat, y_hat, z_hat]
+
+def Simple_Stretching(x, y, z, radius):
+    radii = np.sqrt(np.power(x,2.0)+np.power(y,2.0))
+    radii[radii==0] = 1 #handle the point (0,0)
+    prod  = np.multiply(x,y)
+    x2_ratio = np.divide(np.power(x,2.0),radii)
+    y2_ratio = np.divide(np.power(y,2.0),radii)
+    xy_ratio = np.divide(prod,radii)
+
+    x2_gte_y2 = np.power(x,2.0)>=np.power(y,2.0)
+
+    x_hat = np.zeros(len(x))
+    y_hat = np.zeros(len(y))
+
+    x_hat[x2_gte_y2]  = np.multiply(radius*np.sign(x),x2_ratio)[x2_gte_y2]
+    x_hat[~x2_gte_y2] = np.multiply(radius*np.sign(y),xy_ratio)[~x2_gte_y2]
+
+    y_hat[x2_gte_y2]  = np.multiply(radius*np.sign(x),xy_ratio)[x2_gte_y2]
+    y_hat[~x2_gte_y2] = np.multiply(radius*np.sign(y),y2_ratio)[~x2_gte_y2]
+
+    z_hat = z
+    return [x_hat, y_hat, z_hat]
+
+
+
+
 class GenericDomain(object):
     """
     A GenericDomain contains on the basic functions required by all domain objects
@@ -472,50 +518,6 @@ class CylinderDomain(GenericDomain):
         self.fprint("Z Range:      [{: .1f}, {: .1f}]".format(self.z_range[0],self.z_range[1]))
         self.fprint("Meshing Type:  {0}".format(self.mesh_type))
 
-        def Elliptical_Grid(x, y, z):
-            #x_hat = x sqrt(1 - y^2/2)
-            #y_hat = y sqrt(1 - x^2/2)
-            x_hat = np.multiply(self.radius*x,np.sqrt(1.0-np.power(y,2.0)/2.0))
-            y_hat = np.multiply(self.radius*y,np.sqrt(1.0-np.power(x,2.0)/2.0))
-            z_hat = z
-            return [x_hat, y_hat, z_hat]
-
-        def FG_Squircular(x, y, z):
-            #x_hat = x sqrt(x^2 + y^2 - x^2y^2) / sqrt(x^2 + y^2)
-            #y_hat = y sqrt(x^2 + y^2 - x^2y^2) / sqrt(x^2 + y^2)
-            innerp = np.power(x,2.0)+np.power(y,2.0)
-            prod  = np.multiply(np.power(x,2.0),np.power(y,2.0))
-            innerp[innerp==0] = 1 #handle the point (0,0)
-            ratio = np.divide(np.sqrt(np.subtract(innerp,prod)),np.sqrt(innerp))
-
-            x_hat = np.multiply(self.radius*x,ratio)
-            y_hat = np.multiply(self.radius*y,ratio)
-            z_hat = z
-            return [x_hat, y_hat, z_hat]
-
-        def Simple_Stretching(x, y, z):
-            radii = np.sqrt(np.power(x,2.0)+np.power(y,2.0))
-            radii[radii==0] = 1 #handle the point (0,0)
-            prod  = np.multiply(x,y)
-            x2_ratio = np.divide(np.power(x,2.0),radii)
-            y2_ratio = np.divide(np.power(y,2.0),radii)
-            xy_ratio = np.divide(prod,radii)
-
-            x2_gte_y2 = np.power(x,2.0)>=np.power(y,2.0)
-
-            x_hat = np.zeros(len(x))
-            y_hat = np.zeros(len(y))
-
-            x_hat[x2_gte_y2]  = np.multiply(self.radius*np.sign(x),x2_ratio)[x2_gte_y2]
-            x_hat[~x2_gte_y2] = np.multiply(self.radius*np.sign(y),xy_ratio)[~x2_gte_y2]
-
-            y_hat[x2_gte_y2]  = np.multiply(self.radius*np.sign(x),xy_ratio)[x2_gte_y2]
-            y_hat[~x2_gte_y2] = np.multiply(self.radius*np.sign(y),y2_ratio)[~x2_gte_y2]
-
-            z_hat = z
-            return [x_hat, y_hat, z_hat]
-
-
         mesh_start = time.time()
         self.fprint("")
         if self.mesh_type == "mshr":
@@ -552,11 +554,11 @@ class CylinderDomain(GenericDomain):
             
             self.fprint("Morphing Mesh")
             if self.mesh_type == "elliptic":
-                x_hat, y_hat, z_hat = Elliptical_Grid(x, y, z)
+                x_hat, y_hat, z_hat = Elliptical_Grid(x, y, z, self.radius)
             elif self.mesh_type == "squircular":
-                x_hat, y_hat, z_hat = FG_Squircular(x, y, z)
+                x_hat, y_hat, z_hat = FG_Squircular(x, y, z, self.radius)
             elif self.mesh_type == "stretch":
-                x_hat, y_hat, z_hat = Simple_Stretching(x, y, z)
+                x_hat, y_hat, z_hat = Simple_Stretching(x, y, z, self.radius)
 
             x_hat += self.center[0]
             y_hat += self.center[1]
@@ -654,6 +656,7 @@ class CircleDomain(GenericDomain):
         self.center   = self.params["domain"]["center"]
         self.nt = self.params["domain"]["nt"]
         self.res = self.params["domain"]["res"]
+        self.mesh_type = self.params["domain"].get("mesh_type","mshr")
         self.x_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
         self.y_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
         self.dim = 2
@@ -667,14 +670,42 @@ class CircleDomain(GenericDomain):
 
         self.fprint("Radius:        {: .1f}".format(self.radius))
         self.fprint("Center:       ({: .1f}, {: .1f})".format(self.center[0],self.center[1]))
+        self.fprint("Meshing Type:  {0}".format(self.mesh_type))
 
         mesh_start = time.time()
         self.fprint("")
         self.fprint("Generating Mesh Using mshr")
 
         ### Create Mesh ###
-        mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
-        self.mesh = generate_mesh(mshr_circle,self.res)
+        if self.mesh_type == "mshr":
+            mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
+            self.mesh = generate_mesh(mshr_circle,self.res)
+        else:
+            self.fprint("Generating Box Mesh")
+            self.nxy = int(self.nt/4.0)
+
+            ### Create mesh ###
+            start = Point(-1.0, -1.0)
+            stop  = Point( 1.0,  1.0)
+            self.mesh = RectangleMesh(start, stop, int(self.nxy/1.0), int(self.nxy/1.0),"crossed")
+            # self.mesh = refine(self.mesh)
+            x = self.mesh.coordinates()[:,0]
+            y = self.mesh.coordinates()[:,1]
+            
+            self.fprint("Morphing Mesh")
+            if self.mesh_type == "elliptic":
+                x_hat, y_hat, z_hat = Elliptical_Grid(x, y, None, self.radius)
+            elif self.mesh_type == "squircular":
+                x_hat, y_hat, z_hat = FG_Squircular(x, y, None, self.radius)
+            elif self.mesh_type == "stretch":
+                x_hat, y_hat, z_hat = Simple_Stretching(x, y, None, self.radius)
+
+            x_hat += self.center[0]
+            y_hat += self.center[1]
+
+            xy_hat_coor = np.array([x_hat, y_hat]).transpose()
+            self.mesh.coordinates()[:] = xy_hat_coor
+            self.mesh.bounding_box_tree().build(self.mesh)
 
         ### Create the boundary mesh ###
         self.bmesh = BoundaryMesh(self.mesh,"exterior")

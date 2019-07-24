@@ -1,11 +1,19 @@
 import dolfin
 import dolfin_adjoint
 import numpy as np
+from sys import platform
 
 from windse.helper_functions import BaseHeight as backend_BaseHeight
 from pyadjoint.tape import get_working_tape, annotate_tape, stop_annotating
 from pyadjoint.block import Block
 from pyadjoint.overloaded_type import create_overloaded_object
+
+
+### This import improves the plotter functionality on Mac ###
+if platform == 'darwin':
+    import matplotlib
+    matplotlib.use('TKAgg')
+import matplotlib.pyplot as plt
 
 def linalg_solve(*args, **kwargs):
     """This function overrides dolfin_adjoints.compat.linalg_solve.
@@ -51,11 +59,28 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
         dolfin_adjoint.backend.solve(eq, func, bcs, solver_parameters={'linear_solver': 'mumps'})
     else:
 
-        ## Print bcs function
-        ## print markers
-        ## print u0
-        ## print tf
-        # print(dir(bcs))
+
+        # test = dolfin.File("tf_x.pvd")
+        # test << eq.lhs.coefficients()[3]
+        # test = dolfin.File("tf_y.pvd")
+        # test << eq.lhs.coefficients()[4]
+        # test = dolfin.File("u0.pvd")
+        # test << eq.lhs.coefficients()[5]
+
+        # bc_dofs = bcs[0].get_boundary_values().keys()
+        # bc_x = []
+        # bc_y = []
+        # for dof in bc_dofs:
+        #     bc_x.append(func.function_space().tabulate_dof_coordinates()[dof][0])
+        #     bc_y.append(func.function_space().tabulate_dof_coordinates()[dof][1])
+
+        # print("Inflow Velocity: " + repr(bcs[0].value()([0.0,0.0])))
+        # print("Initial Condition: " + repr(func([0.0,0.0])))
+        # plt.clf()
+        # plt.scatter(bc_x,bc_y)
+        # plt.show()
+
+        # exit()
 
         dolfin_adjoint.backend.solve(eq, func, bcs, **self.forward_kwargs)
     return func

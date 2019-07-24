@@ -2,7 +2,7 @@
 general: 
     name: "MultiAngle_2D"       # Name of the output folder
     preappend_datetime: false  # Place the date and time before the folder name
-    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    output: [] #"mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: true
 
 # Wind Farm constants for a grid farm
@@ -25,10 +25,11 @@ wind_farm:
 domain: 
     #                      # Description           | Units
     type: circle
+    # mesh_type: squircular
     center: [0.0,0.0]      # location of center    | m
     radius: 1700           # radius of base circle | m
     nt: 72                 # Number of radial nodes| -
-    res: 40                # Resolution for mshr   | -
+    res: 20                # Resolution for mshr   | -
 
 refine:
     #                      # Description                  | Units
@@ -49,11 +50,12 @@ problem:
 solver:
     type: multiangle
     init_wind_angle: 0.0
-    final_wind_angle: 4.71238898038
-    num_wind_angles: 4
+    final_wind_angle: 6.28
+    # final_wind_angle: 4.71238898038
+    num_wind_angles: 1
 
 optimization:
     controls: [layout]
     layout_bounds: [[-750, 750],[-750, 750]] # bounds for the layout | m
-    taylor_test: True
+    taylor_test: false
     optimize: True

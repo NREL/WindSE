@@ -88,7 +88,7 @@ class Optimizer(object):
         self.fprint("Optimizer Setup",special="footer")
 
     def ReducedFunctionalCallback(self, j, m):
-            self.Jcurrent = j 
+        self.Jcurrent = j 
 
     def CreateControls(self):
         self.controls = []
