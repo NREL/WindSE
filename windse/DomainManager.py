@@ -657,6 +657,7 @@ class CircleDomain(GenericDomain):
         self.x_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
         self.y_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
         self.dim = 2
+        self.mesh_type = self.params["domain"].get("mesh_type","mshr")
 
         ### Get the initial wind direction ###
         self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
@@ -668,13 +669,83 @@ class CircleDomain(GenericDomain):
         self.fprint("Radius:        {: .1f}".format(self.radius))
         self.fprint("Center:       ({: .1f}, {: .1f})".format(self.center[0],self.center[1]))
 
+        def Elliptical_Grid(x, y):
+            #x_hat = x sqrt(1 - y^2/2)
+            #y_hat = y sqrt(1 - x^2/2)
+            x_hat = np.multiply(self.radius*x,np.sqrt(1.0-np.power(y,2.0)/2.0))
+            y_hat = np.multiply(self.radius*y,np.sqrt(1.0-np.power(x,2.0)/2.0))
+            return [x_hat, y_hat]
+
+        def FG_Squircular(x, y):
+            #x_hat = x sqrt(x^2 + y^2 - x^2y^2) / sqrt(x^2 + y^2)
+            #y_hat = y sqrt(x^2 + y^2 - x^2y^2) / sqrt(x^2 + y^2)
+            innerp = np.power(x,2.0)+np.power(y,2.0)
+            prod  = np.multiply(np.power(x,2.0),np.power(y,2.0))
+            innerp[innerp==0] = 1 #handle the point (0,0)
+            ratio = np.divide(np.sqrt(np.subtract(innerp,prod)),np.sqrt(innerp))
+
+            x_hat = np.multiply(self.radius*x,ratio)
+            y_hat = np.multiply(self.radius*y,ratio)
+            return [x_hat, y_hat]
+
+        def Simple_Stretching(x, y):
+            radii = np.sqrt(np.power(x,2.0)+np.power(y,2.0))
+            radii[radii==0] = 1 #handle the point (0,0)
+            prod  = np.multiply(x,y)
+            x2_ratio = np.divide(np.power(x,2.0),radii)
+            y2_ratio = np.divide(np.power(y,2.0),radii)
+            xy_ratio = np.divide(prod,radii)
+
+            x2_gte_y2 = np.power(x,2.0)>=np.power(y,2.0)
+
+            x_hat = np.zeros(len(x))
+            y_hat = np.zeros(len(y))
+
+            x_hat[x2_gte_y2]  = np.multiply(self.radius*np.sign(x),x2_ratio)[x2_gte_y2]
+            x_hat[~x2_gte_y2] = np.multiply(self.radius*np.sign(y),xy_ratio)[~x2_gte_y2]
+
+            y_hat[x2_gte_y2]  = np.multiply(self.radius*np.sign(x),xy_ratio)[x2_gte_y2]
+            y_hat[~x2_gte_y2] = np.multiply(self.radius*np.sign(y),y2_ratio)[~x2_gte_y2]
+            return [x_hat, y_hat]
+
         mesh_start = time.time()
         self.fprint("")
-        self.fprint("Generating Mesh Using mshr")
+        if self.mesh_type == "mshr":
 
-        ### Create Mesh ###
-        mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
-        self.mesh = generate_mesh(mshr_circle,self.res)
+            self.fprint("Generating Mesh Using mshr")
+
+            ### Create Mesh ###
+            mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
+            self.mesh = generate_mesh(mshr_circle,self.res)
+
+        else:
+            self.fprint("Generating Rectangle Mesh")
+
+            self.nxy = int(self.nt/4.0)
+
+            ### Create mesh ###
+            start = Point(-1.0, -1.0)
+            stop  = Point( 1.0,  1.0)
+            self.mesh = RectangleMesh(start, stop, int(self.nxy/2.0), int(self.nxy/2.0))
+            self.mesh = refine(self.mesh)
+            x = self.mesh.coordinates()[:,0]
+            y = self.mesh.coordinates()[:,1]
+            
+            self.fprint("Morphing Mesh")
+            if self.mesh_type == "elliptic":
+                x_hat, y_hat = Elliptical_Grid(x, y)
+            elif self.mesh_type == "squircular":
+                x_hat, y_hat = FG_Squircular(x, y)
+            elif self.mesh_type == "stretch":
+                x_hat, y_hat = Simple_Stretching(x, y)
+
+            x_hat += self.center[0]
+            y_hat += self.center[1]
+
+            xy_hat_coor = np.array([x_hat, y_hat]).transpose()
+            self.mesh.coordinates()[:] = xy_hat_coor
+            self.mesh.bounding_box_tree().build(self.mesh)
+
 
         ### Create the boundary mesh ###
         self.bmesh = BoundaryMesh(self.mesh,"exterior")
@@ -821,6 +892,46 @@ class RectangleDomain(GenericDomain):
 
     def ground_function(self,x,y):
         return 0.0
+
+    def RecomputeBoundaryMarkers(self,theta):
+        mark_start = time.time()
+        self.fprint("")
+        self.fprint("Remarking Boundaries")
+
+        ### Define Plane Normal ###
+        nom_x = np.cos(theta)
+        nom_y = np.sin(theta)
+
+        ### Define center ###
+        c0 = (self.x_range[1]-self.x_range[0])/2.
+        c1 = (self.y_range[1]-self.y_range[0])/2.
+        # c0 = self.center[0]
+        # c1 = self.center[1]
+
+        ### Set Tol ###
+        tol = 1e-5
+
+        wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
+                    + self.boundary_markers.where_equal(self.boundary_names["outflow"])
+
+        boundary_val_temp = self.boundary_markers.array()
+        self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        self.boundary_markers.set_values(boundary_val_temp)
+
+        for facet_id in wall_facets:
+            facet = Facet(self.mesh,facet_id)
+            vert_ids = facet.entities(0)
+            vert_coords = self.mesh.coordinates()[vert_ids]
+            x = vert_coords[:,0]
+            y = vert_coords[:,1]
+
+            if all(nom_x*(x-c0)+nom_y*(y-c1)<=0+tol):
+                self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
+            else:
+                self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
+
+        mark_stop = time.time()
+        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
 
 class ImportedDomain(GenericDomain):
     """
