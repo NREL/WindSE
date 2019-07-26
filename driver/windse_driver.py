@@ -91,7 +91,7 @@ def run_action():
                 region = farm.CalculateFarmRegion(refine_data[1],length=refine_data[2])
                 dom.Refine(refine_data[0],region=region,region_type=refine_data[1])
         else:
-            region = farm.CalculateFarmRegion(farm_type,farm_factor,radius=farm_radius)
+            region = farm.CalculateFarmRegion(farm_type,farm_factor,length=farm_radius)
             dom.Refine(farm_num,region=region,region_type=farm_type)
 
         if turbine_num > 0:

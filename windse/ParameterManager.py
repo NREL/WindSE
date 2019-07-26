@@ -192,18 +192,17 @@ class Parameters(dict):
             ### Apply Offset if provided ###
             tab += offset
 
-            ### Create Tabbed string
+            ### Create Tabbed string ###
             tabbed = "|    "*tab
 
-            ### Apply Tabbed string
+            ### Apply Tabbed string ###
             if isinstance(string,str):
                 string = tabbed+string
             else:
                 string = tabbed+repr(string)
 
-            ### Print
-            print(string)
-            sys.stdout.flush()
+            ### Print ###
+            print(string, flush=True)
 
             if special=="header":
                 self.fprint("",tab=tab+1)
