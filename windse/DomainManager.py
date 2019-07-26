@@ -423,6 +423,9 @@ class BoxDomain(GenericDomain):
         self.nz = self.params["domain"]["nz"]
         self.dim = 3
 
+        ### Get the initial wind direction ###
+        self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
+
         ### Print Some stats ###
         self.fprint("X Range: [{: .1f}, {: .1f}]".format(self.x_range[0],self.x_range[1]))
         self.fprint("Y Range: [{: .1f}, {: .1f}]".format(self.y_range[0],self.y_range[1]))
@@ -468,6 +471,48 @@ class BoxDomain(GenericDomain):
 
     def ground_function(self,x,y):
         return self.z_range[0]
+
+    def RecomputeBoundaryMarkers(self,theta):
+        mark_start = time.time()
+        self.fprint("")
+        self.fprint("Remarking Boundaries")
+
+        tol = 1e-3
+
+        ### This function rounds to the nearest ordinal direction ###
+        theta45 = round((theta-pi/4.0)/(pi/2))*(pi/2)+pi/4.0
+
+        ### Check if the wind angle is a ordinal direction ###
+        if   near(theta45, 1.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","left"]
+            self.boundary_types["no_stress"] = ["back","right"]
+        elif near(theta45, 3.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["back","left"]
+            self.boundary_types["no_stress"] = ["front","right"]
+        elif near(theta45, 5.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["back","right"]
+            self.boundary_types["no_stress"] = ["front","left"]
+        elif near(theta45, 7.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","right"]
+            self.boundary_types["no_stress"] = ["back","left"]
+
+        ### Check the special cases that the wind angle is a cardinal direction ###
+        if   near(theta, 0.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","right","left"]
+            self.boundary_types["no_stress"] = ["back"]
+        elif near(theta, 1.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","back","left"]
+            self.boundary_types["no_stress"] = ["right"]
+        elif near(theta, 2.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["back","right","left"]
+            self.boundary_types["no_stress"] = ["front"]
+        elif near(theta, 3.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","back","right"]
+            self.boundary_types["no_stress"] = ["left"]
+
+
+        mark_stop = time.time()
+        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
 
 class CylinderDomain(GenericDomain):
     """
@@ -612,31 +657,43 @@ class CylinderDomain(GenericDomain):
         nom_x = np.cos(theta)
         nom_y = np.sin(theta)
 
-        ### Define center ###
-        c0 = self.center[0]
-        c1 = self.center[1]
+        ### Define Boundary Subdomains ###
+        outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1])
+        inflow  = CompiledSubDomain("x[2] >= z0 && x[2] <= z1 && nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
+        top     = CompiledSubDomain("near(x[2], z1) && on_boundary",z1 = self.z_range[1])
+        bottom  = CompiledSubDomain("near(x[2], z0) && on_boundary",z0 = self.z_range[0])
 
-        ### Set Tol ###
-        tol = 1e-5
-
-        wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
-                    + self.boundary_markers.where_equal(self.boundary_names["outflow"])
-
-        boundary_val_temp = self.boundary_markers.array()
+        ### Generate the boundary markers for boundary conditions ###
         self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
-        self.boundary_markers.set_values(boundary_val_temp)
+        self.boundary_markers.set_all(0)
+        for i in range(len(self.boundary_subdomains)):
+            self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
 
-        for facet_id in wall_facets:
-            facet = Facet(self.mesh,facet_id)
-            vert_ids = facet.entities(0)
-            vert_coords = self.mesh.coordinates()[vert_ids]
-            x = vert_coords[:,0]
-            y = vert_coords[:,1]
+        # ### Define center ###
+        # c0 = self.center[0]
+        # c1 = self.center[1]
 
-            if all(nom_x*(x-c0)+nom_y*(y-c1)<=0+tol):
-                self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
-            else:
-                self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
+        # ### Set Tol ###
+        # tol = 1e-5
+
+        # wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
+        #             + self.boundary_markers.where_equal(self.boundary_names["outflow"])
+
+        # boundary_val_temp = self.boundary_markers.array()
+        # self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        # self.boundary_markers.set_values(boundary_val_temp)
+
+        # for facet_id in wall_facets:
+        #     facet = Facet(self.mesh,facet_id)
+        #     vert_ids = facet.entities(0)
+        #     vert_coords = self.mesh.coordinates()[vert_ids]
+        #     x = vert_coords[:,0]
+        #     y = vert_coords[:,1]
+
+        #     if all(nom_x*(x-c0)+nom_y*(y-c1)<=0+tol):
+        #         self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
+        #     else:
+        #         self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
@@ -754,31 +811,42 @@ class CircleDomain(GenericDomain):
         nom_x = np.cos(theta)
         nom_y = np.sin(theta)
 
-        ### Define center ###
-        c0 = self.center[0]
-        c1 = self.center[1]
+        ### Define Boundary Subdomains ###
+        mark_start = time.time()
+        outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y)
+        inflow  = CompiledSubDomain("nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, c0=self.center[0], c1=self.center[1])
 
-        ### Set Tol ###
-        tol = 1e-5
-
-        wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
-                    + self.boundary_markers.where_equal(self.boundary_names["outflow"])
-
-        boundary_val_temp = self.boundary_markers.array()
+        ### Generate the boundary markers for boundary conditions ###
         self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
-        self.boundary_markers.set_values(boundary_val_temp)
+        self.boundary_markers.set_all(0)
+        for i in range(len(self.boundary_subdomains)):
+            self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
 
-        for facet_id in wall_facets:
-            facet = Facet(self.mesh,facet_id)
-            vert_ids = facet.entities(0)
-            vert_coords = self.mesh.coordinates()[vert_ids]
-            x = vert_coords[:,0]
-            y = vert_coords[:,1]
+        # ### Define center ###
+        # c0 = self.center[0]
+        # c1 = self.center[1]
 
-            if all(nom_x*(x-c0)+nom_y*(y-c1)<=0+tol):
-                self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
-            else:
-                self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
+        # ### Set Tol ###
+        # tol = 1e-5
+
+        # wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
+        #             + self.boundary_markers.where_equal(self.boundary_names["outflow"])
+
+        # boundary_val_temp = self.boundary_markers.array()
+        # self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        # self.boundary_markers.set_values(boundary_val_temp)
+
+        # for facet_id in wall_facets:
+        #     facet = Facet(self.mesh,facet_id)
+        #     vert_ids = facet.entities(0)
+        #     vert_coords = self.mesh.coordinates()[vert_ids]
+        #     x = vert_coords[:,0]
+        #     y = vert_coords[:,1]
+
+        #     if all(nom_x*(x-c0)+nom_y*(y-c1)<=0+tol):
+        #         self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
+        #     else:
+        #         self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
@@ -863,37 +931,38 @@ class RectangleDomain(GenericDomain):
         self.fprint("")
         self.fprint("Remarking Boundaries")
 
-        ### Define Plane Normal ###
-        nom_x = np.cos(theta)
-        nom_y = np.sin(theta)
+        tol = 1e-3
 
-        ### Define center ###
-        c0 = (self.x_range[1]-self.x_range[0])/2.
-        c1 = (self.y_range[1]-self.y_range[0])/2.
-        # c0 = self.center[0]
-        # c1 = self.center[1]
+        ### This function rounds to the nearest ordinal direction ###
+        theta45 = round((theta-pi/4.0)/(pi/2))*(pi/2)+pi/4.0
 
-        ### Set Tol ###
-        tol = 1e-5
+        ### Check if the wind angle is a ordinal direction ###
+        if   near(theta45, 1.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","left"]
+            self.boundary_types["no_stress"] = ["back","right"]
+        elif near(theta45, 3.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["back","left"]
+            self.boundary_types["no_stress"] = ["front","right"]
+        elif near(theta45, 5.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["back","right"]
+            self.boundary_types["no_stress"] = ["front","left"]
+        elif near(theta45, 7.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","right"]
+            self.boundary_types["no_stress"] = ["back","left"]
 
-        wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
-                    + self.boundary_markers.where_equal(self.boundary_names["outflow"])
-
-        boundary_val_temp = self.boundary_markers.array()
-        self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
-        self.boundary_markers.set_values(boundary_val_temp)
-
-        for facet_id in wall_facets:
-            facet = Facet(self.mesh,facet_id)
-            vert_ids = facet.entities(0)
-            vert_coords = self.mesh.coordinates()[vert_ids]
-            x = vert_coords[:,0]
-            y = vert_coords[:,1]
-
-            if all(nom_x*(x-c0)+nom_y*(y-c1)<=0+tol):
-                self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
-            else:
-                self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
+        ### Check the special cases that the wind angle is a cardinal direction ###
+        if   near(theta, 0.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","right","left"]
+            self.boundary_types["no_stress"] = ["back"]
+        elif near(theta, 1.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","back","left"]
+            self.boundary_types["no_stress"] = ["right"]
+        elif near(theta, 2.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["back","right","left"]
+            self.boundary_types["no_stress"] = ["front"]
+        elif near(theta, 3.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","back","right"]
+            self.boundary_types["no_stress"] = ["left"]
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))

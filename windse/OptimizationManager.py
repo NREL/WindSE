@@ -76,9 +76,6 @@ class Optimizer(object):
             self.Jcurrent = self.J
         else:
             self.PowerFunctional()
-        
-        print(dir(self.Jhat.functional))
-        print(self.Jhat.functional)
 
         self.fprint("Number of Controls: {:d}".format(len(self.controls)),special="header")
         self.OptPrintFunction(self.init_vals)
@@ -210,7 +207,7 @@ class Optimizer(object):
         if hasattr(self.problem.dom,"boundary_line"):
             plt.plot(*self.problem.dom.boundary_line,c="k")
         plt.plot(ex_list_x,ex_list_y,c="r")
-        p=plt.scatter(x_val,y_val,c=z_val)
+        p=plt.scatter(x_val,y_val,c=range(self.farm.numturbs))
         plt.xlim(self.problem.dom.x_range[0],self.problem.dom.x_range[1])
         plt.ylim(self.problem.dom.y_range[0],self.problem.dom.y_range[1])
         clb = plt.colorbar(p)
@@ -240,8 +237,8 @@ class Optimizer(object):
 
         self.fprint("Beginning Optimization",special="header")
 
-        # m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
-        m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
+        m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+        # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
         self.fprint("Assigning New Values")
         self.AssignControls()
@@ -257,6 +254,7 @@ class Optimizer(object):
         
         self.fprint("Beginning Taylor Test",special="header")
 
+        # h = [Constant(10)]*(len(self.controls))
         h = [Constant(0.001)]*(len(self.controls))
 
         conv_rate = taylor_test(self.Jhat, self.init_vals, h)

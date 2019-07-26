@@ -131,7 +131,7 @@ class GenericWindFarm(object):
         self.params["wind_farm"]["ex_y"] = self.ex_y
         self.params["wind_farm"]["ex_z"] = self.ex_z
 
-    def CalculateFarmRegion(self,region_type,factor):
+    def CalculateFarmRegion(self,region_type,factor=1.0,length=None):
 
 
         if region_type == "square":
@@ -139,19 +139,27 @@ class GenericWindFarm(object):
             y_center = (self.ex_y[1]+self.ex_y[0])/2.0
             z_center = (self.ex_z[1]+self.ex_z[0])/2.0
 
-            x = factor*(np.subtract(self.ex_x,x_center))+x_center
-            y = factor*(np.subtract(self.ex_y,y_center))+y_center
-            z = factor*(self.ex_z - z_center)+z_center
+            if length is None:
+                x = factor*(np.subtract(self.ex_x,x_center))+x_center
+                y = factor*(np.subtract(self.ex_y,y_center))+y_center
+                z = factor*(self.ex_z - z_center)+z_center
+            else:
+                x = [-length+x_center,length+x_center]
+                y = [-length+x_center,length+x_center]
+                z = 1.2*(self.ex_z - z_center)+z_center
 
             return [x,y,z]
 
         elif region_type == "circle":
-            z_center = (self.ex_z[1]+self.ex_z[0])/2.0
             center = [sum(self.x)/float(self.numturbs),sum(self.y)/float(self.numturbs)]
-            radius = factor*max(np.sqrt(np.power(self.x-center[0],2.0)+np.power(self.y-center[1],2.0)))
-            z = factor*(self.ex_z - z_center)+z_center
+            z_center = (self.ex_z[1]+self.ex_z[0])/2.0
 
-            return [[radius],center,z]
+            if length is None:
+                length = factor*max(np.sqrt(np.power(self.x-center[0],2.0)+np.power(self.y-center[1],2.0)))
+            
+            z = 1.2*(self.ex_z - z_center)+z_center
+
+            return [[length],center,z]
 
         else:
             raise ValueError("Not a valid region type: "+region_type)
@@ -705,6 +713,7 @@ class ImportedWindFarm(GenericWindFarm):
         self.HH    = raw_data[:,2]
         self.yaw   = raw_data[:,3]
         self.RD    = raw_data[:,4]
+        self.radius = self.RD/2.0
         self.W     = raw_data[:,5]
         self.a     = raw_data[:,6]
 

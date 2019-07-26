@@ -78,6 +78,7 @@ def run_action():
         farm_num       = params["refine"].get("farm_num",0)
         farm_type      = params["refine"].get("farm_type","square")
         farm_factor    = params["refine"].get("farm_factor",1.0)
+        farm_radius    = params["refine"].get("farm_radius",None)
         farm_custom    = params["refine"].get("farm_custom",None)
         turbine_num    = params["refine"].get("turbine_num",0)
         turbine_factor = params["refine"].get("turbine_factor",1.0)
@@ -85,12 +86,12 @@ def run_action():
         if warp_height is not None:
             dom.Warp(warp_height,warp_percent)
 
-        if farm_num > 0:
-            if farm_custom is not None:
-                region = farm_custom
-            else:
-                region = farm.CalculateFarmRegion(farm_type,farm_factor)
-
+        if farm_custom is not None:
+            for refine_data in farm_custom:
+                region = farm.CalculateFarmRegion(refine_data[1],length=refine_data[2])
+                dom.Refine(refine_data[0],region=region,region_type=refine_data[1])
+        else:
+            region = farm.CalculateFarmRegion(farm_type,farm_factor,radius=farm_radius)
             dom.Refine(farm_num,region=region,region_type=farm_type)
 
         if turbine_num > 0:
@@ -112,7 +113,7 @@ def run_action():
     ### Generate the problem ###
     prob_dict = {"stabilized":windse.StabilizedProblem,
                  "taylor_hood":windse.TaylorHoodProblem}
-    problem = prob_dict[params["problem"]["type"]](dom,farm,fs,bc)
+    problem = prob_dict[params["problem"]["type"]](dom,farm,fs,bc)#,opt=opt)
 
     ### Solve ###
     solve_dict = {"steady":windse.SteadySolver,

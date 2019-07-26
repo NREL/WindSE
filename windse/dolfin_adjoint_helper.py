@@ -78,6 +78,7 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
         # print("Initial Condition: " + repr(func([0.0,0.0])))
         # plt.clf()
         # plt.scatter(bc_x,bc_y)
+        # plt.savefig("Marker.pdf")
         # plt.show()
 
         # exit()

@@ -107,12 +107,12 @@ class StabilizedProblem(GenericProblem):
 
 
         ### These constants will be moved into the params file ###
-        nu = Constant(0.1)
+        nu = Constant(1.0)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
         lmax=15
         mlDenom = 8.
-        eps=Constant(0.01)
+        eps=Constant(1.0)
 
         self.fprint("Viscosity:                 {:1.2e}".format(float(nu)))
         self.fprint("Mixing Length Scale:       {:1.2e}".format(float(mlDenom)))
@@ -164,7 +164,7 @@ class TaylorHoodProblem(GenericProblem):
         self.fprint("Setting Up Taylor-Hood Problem",special="header")
 
         ### These constants will be moved into the params file ###
-        nu = Constant(1.)
+        nu = Constant(1.0)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
         lmax=15

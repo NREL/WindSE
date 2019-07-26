@@ -169,7 +169,7 @@ class SteadySolver(GenericSolver):
         stop = time.time()
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
         self.u_next,self.p_next = self.problem.up_next.split(True)
-        self.nu_T = project(self.problem.nu_T,self.problem.fs.Q)
+        self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,annotate=False)
 
         ### Save solutions ###
         if "solution" in self.params.output:

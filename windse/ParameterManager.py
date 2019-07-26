@@ -16,6 +16,7 @@ if main_file != "sphinx-build":
     import datetime
     import numpy as np
     from math import ceil
+    import shutil
     from dolfin import File, HDF5File, XDMFFile, MPI, Mesh
     import sys
 
@@ -87,6 +88,9 @@ class Parameters(dict):
         ### Setup the logger ###
         self.log = self.folder+"log.txt"
         sys.stdout = Logger(self.log)
+
+        ### Copy params file to output folder ###
+        shutil.copy(loc,self.folder)
 
         ### Create checkpoint if required ###
         # if self.save_file_type == "hdf5":
