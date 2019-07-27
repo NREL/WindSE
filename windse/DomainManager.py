@@ -1138,3 +1138,53 @@ class InterpolatedCylinderDomain(CylinderDomain):
         self.finalized = True
         self.fprint("")
         self.fprint("Domain Finalized")
+
+class InterpolatedBoxDomain(BoxDomain):
+    def __init__(self):
+        super(InterpolatedBoxDomain, self).__init__()
+        # self.original_refine = super(InterpolatedCylinderDomain, self).Refine
+        # self.original_move = super(InterpolatedCylinderDomain, self).Move
+
+        # if shape == "cylinder":
+        #     base = CylinderDomain()
+        # elif shape == "box":
+        #     base = BoxDomain()
+        # else:
+        #     raise ValueError(shape+" is not a recognized base type")
+
+        # print(dir(base))
+        # self.__dict__.update(base.__dict__)
+
+        interp_start = time.time()
+        self.fprint("")
+        self.fprint("Building Ground Interpolating Function")
+
+        ### Import data from Options ###
+        if "path" in self.params["domain"]:
+            self.path = self.params["domain"]["path"]
+            self.typo_path  = self.path + "topology.txt"
+        else:
+            self.typo_path  = self.params["domain"]["typo_path"]
+
+        ### import ground data
+        self.topography = np.loadtxt(self.typo_path)
+        x_data = self.topography[1:,0]
+        y_data = self.topography[1:,1]
+        z_data = self.topography[1:,2]
+
+        ### generate interpolating function
+        x_data = np.sort(np.unique(x_data))
+        y_data = np.sort(np.unique(y_data))
+        z_data = np.reshape(z_data,(int(self.topography[0,0]),int(self.topography[0,1])))
+        self.topography_interpolated = RectBivariateSpline(x_data,y_data,z_data.T)
+        interp_stop = time.time()
+        self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
+
+    def ground_function(self,x,y):
+        return self.topography_interpolated(x,y)[0]
+
+    def Finalize(self):
+        self.Move(self.ground_function)
+        self.finalized = True
+        self.fprint("")
+        self.fprint("Domain Finalized")

@@ -56,12 +56,16 @@ def run_action():
     params=windse.windse_parameters
 
     ### Setup the Domain ###
-    dom_dict = {"box":windse.BoxDomain,
-                "rectangle":windse.RectangleDomain,
-                "cylinder":windse.CylinderDomain,
-                "circle":windse.CircleDomain,
-                "imported":windse.ImportedDomain,
-                "interpolated":windse.InterpolatedCylinderDomain}
+    if params["domain"].get("interpolated",False):
+        dom_dict = {"box":windse.InterpolatedBoxDomain,
+                    "cylinder":windse.InterpolatedCylinderDomain
+        }
+    else:
+        dom_dict = {"box":windse.BoxDomain,
+                    "rectangle":windse.RectangleDomain,
+                    "cylinder":windse.CylinderDomain,
+                    "circle":windse.CircleDomain,
+                    "imported":windse.ImportedDomain}
     dom = dom_dict[params["domain"]["type"]]()
 
     ### Setup the Wind farm ###

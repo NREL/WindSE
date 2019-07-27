@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: "Single_Angle_Box"       # Name of the output folder
+    name: Single_Angle_Cylinder_Sym       # Name of the output folder
     preappend_datetime: false  # Place the date and time before the folder name
     output: [mesh, initial_guess, height, turbine_force, solution]
     dolfin_adjoint: true
@@ -23,13 +23,15 @@ wind_farm:
 # Domain Constants for a Box Domain
 domain: 
     #                      # Description           | Units
-    type: box              #                       |
-    x_range: [-1500, 1500] # x-range of the domain | m
-    y_range: [-1500, 1500] # y-range of the domain | m
+    type: cylinder 
+    interpolated: true 
+    typo_path: Input_Data/sym_typo.txt
+    mesh_type: squircular
     z_range: [0.04, 630]   # z-range of the domain | m
-    nx: 25                 # Number of x-nodes     | -
-    ny: 25                 # Number of y-nodes     | -
-    nz: 8                 # Number of z-nodes     | -
+    center: [0.0,0.0]      # location of center    | m
+    radius: 1500           # radius of base circle | m
+    nt: 100                # Number of radial nodes| -
+    nz: 8
 
 refine:
     #                      # Description                  | Units
