@@ -67,7 +67,7 @@ class Optimizer(object):
         self.fprint("Define Bounds")
         self.CreateBounds()
 
-        self.get_minimum_distance_constraint_func(self.controls, 100)
+        self.get_minimum_distance_constraint_func(self.controls, 200)
 
         self.fprint("Define Optimizing Functional")
         if self.params["solver"]["type"] == "multiangle":
