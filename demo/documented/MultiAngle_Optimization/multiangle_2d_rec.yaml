@@ -49,8 +49,6 @@ problem:
 
 solver:
     type: multiangle
-    init_wind_angle: 0.0
-    final_wind_angle: 5.49778714378
     num_wind_angles: 8
 
 # optimization:

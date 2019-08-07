@@ -3,6 +3,7 @@ import dolfin_adjoint
 import numpy as np
 from sys import platform
 import os,shutil
+import time
 
 from windse.helper_functions import BaseHeight as backend_BaseHeight
 from pyadjoint.tape import get_working_tape, annotate_tape, stop_annotating
@@ -39,8 +40,8 @@ def linalg_solve(*args, **kwargs):
 dolfin_adjoint.types.compat.linalg_solve = linalg_solve
 
 
-
-shutil.rmtree("iter/", ignore_errors=True)
+timestr = time.strftime("%Y%m%d-%H%M%S")
+debug_folder = "debug/opt_ouput_"+timestr+"/"
 def recompute_component(self, inputs, block_variable, idx, prepared):
     file_exists = False
 
@@ -69,6 +70,9 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
     if not self.forward_kwargs:
         dolfin_adjoint.backend.solve(eq, func, bcs, solver_parameters={'linear_solver': 'mumps'})
     else:
+
+        print(eq.lhs)
+
         # exit()
         # print()
         # print("Oh man and I'm doing a fancy solve")
@@ -101,11 +105,11 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
             # print()
             # print("but we haven't been here before")
             self.recompute_set = 0
-            while os.path.isfile("debug/iter/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd"):
+            while os.path.isfile(debug_folder+"dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd"):
                 self.recompute_set +=1
             # print("and that's the "+repr(self.recompute_set)+" time this has happened")
             # print()
-            self.savefile = dolfin.File("debug/iter/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd")
+            self.savefile = dolfin.File(debug_folder+"dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd")
             self.solve_iteration = 0
         
         print(self.recompute_set)
