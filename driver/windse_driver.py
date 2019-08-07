@@ -87,16 +87,29 @@ def run_action():
         turbine_num    = params["refine"].get("turbine_num",0)
         turbine_factor = params["refine"].get("turbine_factor",1.0)
 
-        if warp_height is not None:
-            dom.Warp(warp_height,warp_percent)
 
         if farm_custom is not None:
             for refine_data in farm_custom:
-                region = farm.CalculateFarmRegion(refine_data[1],length=refine_data[2])
-                dom.Refine(refine_data[0],region=region,region_type=refine_data[1])
+                if refine_data[1] == "full":
+                    dom.Refine(refine_data[0])
+                else:
+                    region = farm.CalculateFarmRegion(refine_data[1],length=refine_data[2])
+                    dom.Refine(refine_data[0],region=region,region_type=refine_data[1])
         else:
             region = farm.CalculateFarmRegion(farm_type,farm_factor,length=farm_radius)
             dom.Refine(farm_num,region=region,region_type=farm_type)
+
+###############################################
+###############################################
+###############################################
+###############################################
+        if warp_height is not None:
+            dom.WarpNonlinear(1.2)
+            # dom.Warp(warp_height,warp_percent)
+###############################################
+###############################################
+###############################################
+###############################################
 
         if turbine_num > 0:
             farm.RefineTurbines(turbine_num,turbine_factor) 
@@ -111,7 +124,8 @@ def run_action():
 
     ### Setup Boundary Conditions ###
     bc_dict = {"uniform":windse.UniformInflow,
-               "power":windse.PowerInflow}
+               "power":windse.PowerInflow,
+               "log":windse.LogLayerInflow}
     bc = bc_dict[params["boundary_condition"]["vel_profile"]](dom,fs)
 
     ### Generate the problem ###

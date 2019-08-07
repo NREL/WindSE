@@ -2,6 +2,7 @@ import dolfin
 import dolfin_adjoint
 import numpy as np
 from sys import platform
+import os,shutil
 
 from windse.helper_functions import BaseHeight as backend_BaseHeight
 from pyadjoint.tape import get_working_tape, annotate_tape, stop_annotating
@@ -36,7 +37,17 @@ def linalg_solve(*args, **kwargs):
     return dolfin_adjoint.backend.solve(*args,"mumps") 
 
 dolfin_adjoint.types.compat.linalg_solve = linalg_solve
+
+
+
+shutil.rmtree("iter/", ignore_errors=True)
 def recompute_component(self, inputs, block_variable, idx, prepared):
+    file_exists = False
+
+
+    # print()
+    # print("hey Look at me I'm recomputing!")
+    # print()
     """This function overrides 
     dolfin_adjoint.solving.SolveBlock.recompute_component
 
@@ -58,8 +69,10 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
     if not self.forward_kwargs:
         dolfin_adjoint.backend.solve(eq, func, bcs, solver_parameters={'linear_solver': 'mumps'})
     else:
-
-
+        # exit()
+        # print()
+        # print("Oh man and I'm doing a fancy solve")
+        # print()
         # test = dolfin.File("tf_x.pvd")
         # test << eq.lhs.coefficients()[3]
         # test = dolfin.File("tf_y.pvd")
@@ -82,8 +95,27 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
         # plt.show()
 
         # exit()
+        if hasattr(self, 'solve_iteration'):
+            self.solve_iteration += 1
+        else:
+            # print()
+            # print("but we haven't been here before")
+            self.recompute_set = 0
+            while os.path.isfile("debug/iter/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd"):
+                self.recompute_set +=1
+            # print("and that's the "+repr(self.recompute_set)+" time this has happened")
+            # print()
+            self.savefile = dolfin.File("debug/iter/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd")
+            self.solve_iteration = 0
+        
+        print(self.recompute_set)
 
         dolfin_adjoint.backend.solve(eq, func, bcs, **self.forward_kwargs)
+
+        u, p = func.split(True)
+        u.rename("velocity","velocity")
+        self.savefile << (u,self.solve_iteration)
+
     return func
 
 dolfin_adjoint.solving.SolveBlock.recompute_component = recompute_component

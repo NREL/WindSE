@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: "Single_Angle_Sym"       # Name of the output folder
+    name: "Single_Angle_Box_Sym"       # Name of the output folder
     preappend_datetime: false  # Place the date and time before the folder name
     output: [mesh, initial_guess, height, turbine_force, solution]
     dolfin_adjoint: true
@@ -29,8 +29,8 @@ domain:
     x_range: [-1500, 1500] # x-range of the domain | m
     y_range: [-1500, 1500] # y-range of the domain | m
     z_range: [0.04, 630]   # z-range of the domain | m
-    nx: 25                 # Number of x-nodes     | -
-    ny: 25                 # Number of y-nodes     | -
+    nx: 5                 # Number of x-nodes     | -
+    ny: 5                 # Number of y-nodes     | -
     nz: 8                 # Number of z-nodes     | -
 
 refine:
@@ -39,7 +39,7 @@ refine:
     warp_height: 250       # move cell below this value   | m
     farm_custom: [
         [1, square, 1250],
-        [1, square, 1000]
+        [2, square, 1000]
     ]
 
 function_space:

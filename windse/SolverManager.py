@@ -81,12 +81,12 @@ class GenericSolver(object):
         if self.first_save:
             self.u_file = self.params.Save(self.u_next,"velocity",subfolder="solutions/",val=val)
             self.p_file = self.params.Save(self.p_next,"pressure",subfolder="solutions/",val=val)
-            self.nuT_file = self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val)
+            # self.nuT_file = self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val)
             self.first_save = False
         else:
             self.params.Save(self.u_next,"velocity",subfolder="solutions/",val=val,file=self.u_file)
             self.params.Save(self.p_next,"pressure",subfolder="solutions/",val=val,file=self.p_file)
-            self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuT_file)
+            # self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuT_file)
 
     def ChangeWindAngle(self,theta):
         """
@@ -158,8 +158,8 @@ class SteadySolver(GenericSolver):
                              "snes_solver": {
                              "linear_solver": "mumps", 
                              "maximum_iterations": 50,
-                             "error_on_nonconvergence": False,
-                             "line_search": "bt"
+                             "error_on_nonconvergence": True,
+                             "line_search": "bt",
                              }}
 
         ### Solve the problem ###
@@ -169,7 +169,9 @@ class SteadySolver(GenericSolver):
         stop = time.time()
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
         self.u_next,self.p_next = self.problem.up_next.split(True)
-        self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,annotate=False,solver_type='mumps')
+        # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,annotate=False,solver_type='mumps')
+        self.nu_T = None
+
 
         ### Save solutions ###
         if "solution" in self.params.output:
@@ -192,10 +194,15 @@ class MultiAngleSolver(SteadySolver):
         # if self.params["domain"]["type"] not in ["circle","cylinder","interpolated"]:
         #     raise ValueError("A circle, cylinder, or interpolated cylinder domain is required for a Multi-Angle Solver")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
-        self.init_wind = self.params["solver"].get("init_wind_angle", 0.0)
-        self.final_wind = self.params["solver"].get("final_wind_angle", 2.0*pi)
+        self.wind_range = self.params["solver"].get("wind_angle_range", None)
+        if  self.wind_range is None:
+            self.wind_range = [0, 2.0*np.pi]
+            self.endpoint = self.params["solver"].get("endpoint", False)
+        else:
+            self.endpoint = self.params["solver"].get("endpoint", True)
+
         self.num_wind = self.params["solver"]["num_wind_angles"]
-        self.angles = np.linspace(self.init_wind,self.final_wind,self.num_wind)
+        self.angles = np.linspace(*self.wind_range,self.num_wind,endpoint=self.endpoint)
 
         #Check if we are optimizing
         if self.params.get("optimization",{}):
@@ -208,14 +215,49 @@ class MultiAngleSolver(SteadySolver):
         for i, theta in enumerate(self.angles):
             self.fprint("Performing Solve {:d} of {:d}".format(i+1,len(self.angles)),special="header")
             self.fprint("Wind Angle: "+repr(theta))
-            if i > 0 or not near(theta,self.init_wind):
+            if i > 0 or not near(theta,self.wind_range[0]):
                 self.ChangeWindAngle(theta)
             self.orignal_solve(iter_val=theta)
-            self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
 
             if self.optimizing:
                 # self.J += assemble(-dot(self.problem.tf,self.u_next)*dx)
-                if self.problem.farm.yaw[0]**2 > 1e-4:
-                    self.J += assemble(-dot(self.problem.tf,self.u_next),*dx)
-                else:
-                    self.J += assemble(-inner(dot(self.problem.tf,self.u_next),self.u_next[0]**2+self.u_next[1]**2)*dx)
+                # if self.problem.farm.yaw[0]**2 > 1e-4:
+                #     self.J += assemble(-dot(self.problem.tf,self.u_next),*dx)
+                # else:
+                # self.J += assemble(-inner(dot(self.problem.tf,self.u_next),self.u_next[0]**2+self.u_next[1]**2)*dx)
+                self.J += -self.CalculatePowerFunctional((theta-self.problem.dom.init_wind)) 
+                print(self.J)
+            self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
+
+    def CalculatePowerFunctional(self,delta_yaw):
+        self.fprint("Computing Power Functional")
+
+        x=SpatialCoordinate(self.problem.dom.mesh)
+        J=0.
+        for i in range(self.problem.farm.numturbs):
+
+            mx = self.problem.farm.mx[i]
+            my = self.problem.farm.my[i]
+            mz = self.problem.farm.mz[i]
+            x0 = [mx,my,mz]
+            W = self.problem.farm.W[i]*1.0
+            R = self.problem.farm.RD[i]/2.0 
+            ma = self.problem.farm.ma[i]
+            yaw = self.problem.farm.myaw[i]+delta_yaw
+            u = self.u_next
+
+            WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
+
+            ### Rotate and Shift the Turbine ###
+            xs = self.problem.farm.YawTurbine(x,x0,yaw)
+
+            ### Create the function that represents the Thickness of the turbine ###
+            T = exp(-pow((xs[0]/W),6.0))#/(T_norm*W)
+
+            ### Create the function that represents the Disk of the turbine
+            D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))#/(D_norm*R**2.0)
+
+            u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
+
+            J += dot(T*D*WTGbase*u_d**2.0,u)*dx
+        return J

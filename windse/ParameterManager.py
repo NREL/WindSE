@@ -134,6 +134,7 @@ class Parameters(dict):
         self.fprint("Saving: {0}".format(filename))
 
         ### Name the function in the meta data, This should probably be done at creation
+        old_filename = func.name()
         func.rename(filename,filename)
 
         if filetype == "default":
@@ -152,6 +153,7 @@ class Parameters(dict):
                 out = XDMFFile(file_string)
                 out.write(func,val)
 
+            func.rename(old_filename,old_filename)
             return out
 
         else:
@@ -159,6 +161,8 @@ class Parameters(dict):
                 file << (func,val)
             elif filetype == "xdmf":
                 file.write(func,val)
+
+            func.rename(old_filename,old_filename)
             return file
 
     def fprint(self,string,tab=None,offset=0,special=None):

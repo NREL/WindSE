@@ -31,8 +31,8 @@ def initialize(loc):
     global LinearFunctionSpace, TaylorHoodFunctionSpace
     from windse.FunctionSpaceManager import LinearFunctionSpace, TaylorHoodFunctionSpace
 
-    global PowerInflow, UniformInflow
-    from windse.BoundaryManager import PowerInflow, UniformInflow
+    global PowerInflow, UniformInflow, LogLayerInflow
+    from windse.BoundaryManager import PowerInflow, UniformInflow, LogLayerInflow
 
     global StabilizedProblem, TaylorHoodProblem
     from windse.ProblemManager import StabilizedProblem, TaylorHoodProblem

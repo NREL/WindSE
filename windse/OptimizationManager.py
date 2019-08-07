@@ -67,11 +67,11 @@ class Optimizer(object):
         self.fprint("Define Bounds")
         self.CreateBounds()
 
-        self.get_minimum_distance_constraint_func(self.controls, 200)
+        self.get_minimum_distance_constraint_func(self.controls, 2*80.0)
 
         self.fprint("Define Optimizing Functional")
         if self.params["solver"]["type"] == "multiangle":
-            self.J = self.solver.J
+            self.J = assemble(self.solver.J)
             self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
             self.Jcurrent = self.J
         else:
@@ -129,10 +129,10 @@ class Optimizer(object):
 
         if "layout" in self.control_types:
             for i in range(self.farm.numturbs):
-                lower_bounds.append(Constant((self.layout_bounds[0][0] + self.farm.radius[i])))
-                lower_bounds.append(Constant((self.layout_bounds[1][0] + self.farm.radius[i])))
-                upper_bounds.append(Constant((self.layout_bounds[0][1] - self.farm.radius[i])))
-                upper_bounds.append(Constant((self.layout_bounds[1][1] - self.farm.radius[i])))
+                lower_bounds.append(Constant((self.layout_bounds[0][0])))# + self.farm.radius[i])))
+                lower_bounds.append(Constant((self.layout_bounds[1][0])))# + self.farm.radius[i])))
+                upper_bounds.append(Constant((self.layout_bounds[0][1])))# - self.farm.radius[i])))
+                upper_bounds.append(Constant((self.layout_bounds[1][1])))# - self.farm.radius[i])))
 
         if "yaw" in self.control_types:
             for i in range(self.farm.numturbs):
@@ -176,20 +176,20 @@ class Optimizer(object):
         self.Jcurrent = self.J
 
     def ListControls(self,m):
-        for i,val in enumerate(m):
-            self.fprint(self.names[i]+": "+repr(float(m[i])))
+        for i in range(self.farm.numturbs):
+            self.fprint("Turbine {0:} of {1:}: {2: 4.2f}, {3: 4.2f}".format(i,self.farm.numturbs,self.x_val[i],self.y_val[i]))
 
     def PlotLayout(self,m,show=False):
-        x_val = []
-        y_val = []
+        self.x_val = []
+        self.y_val = []
 
         for i,val in enumerate(m):
             if "x" in self.names[i]:
-                x_val.append(float(m[i]))
+                self.x_val.append(float(m[i]))
             elif "y" in self.names[i]:
-                y_val.append(float(m[i]))
+                self.y_val.append(float(m[i]))
 
-        z_val = self.problem.dom.Ground(x_val,y_val)
+        z_val = self.problem.dom.Ground(self.x_val,self.y_val)
 
         ### Create the path names ###
         folder_string = self.params.folder+"/plots/"
@@ -207,7 +207,7 @@ class Optimizer(object):
         if hasattr(self.problem.dom,"boundary_line"):
             plt.plot(*self.problem.dom.boundary_line,c="k")
         plt.plot(ex_list_x,ex_list_y,c="r")
-        p=plt.scatter(x_val,y_val,c=range(self.farm.numturbs))
+        p=plt.scatter(self.x_val,self.y_val,c=range(self.farm.numturbs))
         plt.xlim(self.problem.dom.x_range[0],self.problem.dom.x_range[1])
         plt.ylim(self.problem.dom.y_range[0],self.problem.dom.y_range[1])
         clb = plt.colorbar(p)
@@ -218,11 +218,17 @@ class Optimizer(object):
         if show:
             plt.show()
 
+    def SaveLayout(self,m):
+
+        self.problem.farm.UpdateConstants(m=m,control_types=self.control_types,indexes=self.indexes)
+        self.problem.farm.SaveWindFarm(val=self.iteration)
+
     def OptPrintFunction(self,m):
-        self.ListControls(m)
 
         if "layout" in self.control_types:
             self.PlotLayout(m,show=False)
+            self.SaveLayout(m)
+            self.ListControls(m)
         
         self.iteration += 1
 
@@ -296,7 +302,7 @@ class MinimumDistanceConstraint(InequalityConstraint):
         numClose = 0
         for i in range(len(arr)):
             if arr[i]<0:
-                print(arr[i]*lengthscale)
+                # print(arr[i]*lengthscale)
                 numClose +=1
         print("Number of turbines in violation of spacing constraint:", numClose)
         return np.array(ieqcons)

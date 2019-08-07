@@ -454,9 +454,10 @@ class BoxDomain(GenericDomain):
         right   = CompiledSubDomain("near(x[1], y1) && on_boundary",y1 = self.y_range[1])
         self.boundary_subdomains = [top,bottom,front,back,left,right]
         self.boundary_names = {"top":1,"bottom":2,"front":3,"back":4,"left":5,"right":6}
-        self.boundary_types = {"inflow":    ["top","front","left","right"],
-                               "no_slip":   ["bottom"],
-                               "no_stress": ["back"]}
+        self.boundary_types = {"inflow":          ["front","left","right"],
+                               "no_slip":         ["bottom"],
+                               "horizontal_slip": ["top"],
+                               "no_stress":       ["back"]}
 
         ### Generate the boundary markers for boundary conditions ###
         self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
@@ -493,7 +494,7 @@ class BoxDomain(GenericDomain):
             self.boundary_types["inflow"]    = ["back","right"]
             self.boundary_types["no_stress"] = ["front","left"]
         elif near(theta45, 7.0*pi/4.0, eps=tol):
-            self.boundary_types["inflow"]    = ["front","right"]
+            self.boundary_types["inflow"]    = ["top","front","right"]
             self.boundary_types["no_stress"] = ["back","left"]
 
         ### Check the special cases that the wind angle is a cardinal direction ###
@@ -509,7 +510,6 @@ class BoxDomain(GenericDomain):
         elif near(theta, 3.0*pi/2.0, eps=tol):
             self.boundary_types["inflow"]    = ["front","back","right"]
             self.boundary_types["no_stress"] = ["left"]
-
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
@@ -631,9 +631,10 @@ class CylinderDomain(GenericDomain):
         bottom  = CompiledSubDomain("near(x[2], z0) && on_boundary",z0 = self.z_range[0])
         self.boundary_subdomains = [outflow,inflow,top,bottom]
         self.boundary_names = {"inflow":2,"outflow":1,"top":3,"bottom":4}
-        self.boundary_types = {"inflow":  ["inflow","top"],
-                               "no_stress": ["outflow"],
-                               "no_slip": ["bottom"]}
+        self.boundary_types = {"inflow":          ["inflow"],
+                               "no_stress":       ["outflow"],
+                               "horizontal_slip": ["top"],
+                               "no_slip":         ["bottom"]}
 
         ### Generate the boundary markers for boundary conditions ###
         self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
@@ -1062,9 +1063,10 @@ class ImportedDomain(GenericDomain):
             self.boundary_markers = MeshFunction("size_t", self.mesh, self.boundary_path)
         print("Markers Imported")
         self.boundary_names = {"top":1,"bottom":2,"front":3,"back":4,"left":5,"right":6}
-        self.boundary_types = {"inflow":    ["top","front","left","right"],
-                               "no_slip":   ["bottom"],
-                               "no_stress": ["back"]}
+        self.boundary_types = {"inflow":          ["front","left","right"],
+                               "no_slip":         ["bottom"],
+                               "horizontal_slip": ["top"],
+                               "no_stress":       ["back"]}
         mark_stop = time.time()
         self.fprint("Boundary Markers Imported: {:1.2f} s".format(mark_stop-mark_start))
 

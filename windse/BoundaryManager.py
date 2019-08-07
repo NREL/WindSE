@@ -43,15 +43,17 @@ class GenericBoundary(object):
         self.fprint = self.params.fprint
 
         ### Check if boundary information is given in the params file ###
-        bcs_params = self.params.get("boundary_conditions",{})
+        bcs_params = self.params.get("boundary_condition",{})
         self.boundary_names = bcs_params.get("boundary_names", dom.boundary_names)
         self.boundary_types = bcs_params.get("boundary_types", dom.boundary_types)
         self.vmax = bcs_params.get("max_vel", 8.0)
         self.power = bcs_params.get("power", 0.25)
+        self.k = bcs_params.get("k", 0.4)
         self.init_wind = dom.init_wind
 
         ### Define the zero function based on domain dimension ###
         self.zeros = Constant(dom.mesh.topology().dim()*(0.0,))
+        self.zero  = Constant(0.0)
 
     def SetupBoundaries(self):
         ### Create the equations need for defining the boundary conditions ###
@@ -65,26 +67,29 @@ class GenericBoundary(object):
         for bc_type, bs in self.boundary_types.items():
             if bc_type == "inflow":
                 for b in bs:
-                    bcs_eqns.append([self.bc_velocity,self.boundary_names[b]])
+                    bcs_eqns.append([self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
 
             elif bc_type == "no_slip":
                 for b in bs:
-                    bcs_eqns.append([self.zeros,self.boundary_names[b]])
+                    bcs_eqns.append([self.fs.W.sub(0), self.zeros, self.boundary_names[b]])
 
+            elif bc_type == "horizontal_slip":
+                for b in bs:
+                    bcs_eqns.append([self.fs.W.sub(0).sub(2), self.zero, self.boundary_names[b]])
 
             elif bc_type == "no_stress":
                 for b in bs:
-                    bcs_eqns.append([None,self.boundary_names[b]])
+                    bcs_eqns.append([None, None, self.boundary_names[b]])
 
             else:
-                raise ValueError(bc_type+"is not a recognized boundary type")
+                raise ValueError(bc_type+" is not a recognized boundary type")
 
 
         ### Set the boundary conditions ###
         self.bcs = []
         for i in range(len(bcs_eqns)):
             if bcs_eqns[i][0] is not None:
-                self.bcs.append(DirichletBC(self.fs.W.sub(0), bcs_eqns[i][0], self.dom.boundary_markers, bcs_eqns[i][1]))
+                self.bcs.append(DirichletBC(bcs_eqns[i][0], bcs_eqns[i][1], self.dom.boundary_markers, bcs_eqns[i][2]))
         self.fprint("Boundary Conditions Applied",offset=1)
         self.fprint("")
 
@@ -192,7 +197,7 @@ class UniformInflow(GenericBoundary):
         self.ux = Function(fs.V0)
         self.uy = Function(fs.V1)
         if self.dom.dim == 3:
-            uz = Function(fs.V2)
+            self.uz = Function(fs.V2)
         self.reference_velocity = np.full(len(self.ux.vector()[:]),self.vmax)
         self.ux.vector()[:] = self.reference_velocity
 
@@ -211,9 +216,9 @@ class UniformInflow(GenericBoundary):
         self.fprint("Computing Velocity Vector")
         self.bc_velocity = Function(fs.V)
         if self.dom.dim == 3:
-            fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
+            self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
         else:
-            fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy])
+            self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy])
 
         ### Create Pressure Boundary Function
         self.bc_pressure = Function(fs.Q)
@@ -221,7 +226,7 @@ class UniformInflow(GenericBoundary):
         ### Create Initial Guess
         self.fprint("Assigning Initial Guess")
         self.u0 = Function(fs.W)
-        fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
+        self.fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
 
         ### Setup the boundary Conditions ###
         self.SetupBoundaries()
@@ -283,16 +288,73 @@ class PowerInflow(GenericBoundary):
         ### Assigning Velocity
         self.bc_velocity = Function(self.fs.V)
         if self.dom.dim == 3:
-            fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
+            self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
         else:
-            fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy])
+            self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy])
 
         ### Create Pressure Boundary Function
         self.bc_pressure = Function(self.fs.Q)
 
         ### Create Initial Guess
         self.fprint("Assigning Initial Guess")
-        self.u0 = Function(fs.W)
+        self.u0 = Function(self.fs.W)
+        self.fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
+
+        ### Setup the boundary Conditions ###
+        self.SetupBoundaries()
+        self.fprint("Boundary Condition Setup",special="footer")
+
+class LogLayerInflow(GenericBoundary):
+    def __init__(self,dom,fs):
+        super(LogLayerInflow, self).__init__(dom,fs)
+
+        if self.dom.dim != 3:
+            raise ValueError("LogLayerInflow can only be used with 3D domains.")
+
+        ### Setup Boundary Conditions
+        self.fprint("Setting Up Boundary Conditions",special="header")
+        self.fprint("Type: Power Law Inflow")
+
+        for key, values in self.boundary_types.items():
+            self.fprint("Boundary Type: {0}, Applied to:".format(key))
+            for value in values:
+                self.fprint(value,offset=1)
+        self.fprint("")
+
+        ### Compute distances ###
+        self.fprint("Computing Distance to Ground")
+        self.CalculateHeights()
+        depth_v0,depth_v1,depth_v2 = self.depth_V.split(deepcopy=True)
+
+
+
+        ### Create the Velocity Function ###
+        self.fprint("Computing Velocity Vector")
+        self.ux = Function(fs.V0)
+        self.uy = Function(fs.V1)
+        self.uz = Function(fs.V2)
+        scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+dom.z_range[0],(dom.z_range[0])))
+        ustar = self.vmax*self.k/np.log(80.0/dom.z_range[0])
+        self.reference_velocity = np.multiply(ustar/self.k,np.log(scaled_depth))
+        ux_com, uy_com, uz_com = self.RotateVelocity(self.init_wind)
+
+        self.ux.vector()[:] = ux_com
+        self.uy.vector()[:] = uy_com
+        self.uz.vector()[:] = uz_com
+
+        ### Assigning Velocity
+        self.bc_velocity = Function(self.fs.V)
+        if self.dom.dim == 3:
+            self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
+        else:
+            self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy])
+
+        ### Create Pressure Boundary Function
+        self.bc_pressure = Function(self.fs.Q)
+
+        ### Create Initial Guess
+        self.fprint("Assigning Initial Guess")
+        self.u0 = Function(self.fs.W)
         self.fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
 
         ### Setup the boundary Conditions ###
