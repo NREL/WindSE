@@ -107,7 +107,7 @@ class StabilizedProblem(GenericProblem):
 
 
         ### These constants will be moved into the params file ###
-        nu = Constant(0.01)
+        nu = self.params["problem"].get("viscosity",0.0001)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
         lmax=15

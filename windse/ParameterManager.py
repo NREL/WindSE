@@ -133,6 +133,11 @@ class Parameters(dict):
         """
         self.fprint("Saving: {0}".format(filename))
 
+        # if not isinstance(init_func,Function):
+        #     func = Function(func)
+        # else:
+        #     func = init_func
+
         ### Name the function in the meta data, This should probably be done at creation
         old_filename = func.name()
         func.rename(filename,filename)

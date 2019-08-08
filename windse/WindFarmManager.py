@@ -104,12 +104,12 @@ class GenericWindFarm(object):
         """
         This function saves the turbine force if exists to output/.../functions/
         """
-        if isinstance(self.tf,Function):
+        if isinstance(self.tf_save,Function):
             if self.tf_first_save:
-                self.tf_file = self.params.Save(self.tf,"tf",subfolder="functions/",val=val)
+                self.tf_file = self.params.Save(self.tf_save,"tf",subfolder="functions/",val=val)
                 self.tf_first_save = False
             else:
-                self.params.Save(self.tf,"tf",subfolder="functions/",val=val,file=self.tf_file)
+                self.params.Save(self.tf_save,"tf",subfolder="functions/",val=val,file=self.tf_file)
 
     def GetLocations(self):
         """
@@ -170,7 +170,8 @@ class GenericWindFarm(object):
             else:
                 x = [-length+x_center,length+x_center]
                 y = [-length+x_center,length+x_center]
-                z = 1.2*(self.ex_z - z_center)+z_center
+                # z = 1.2*(self.ex_z - z_center)+z_center
+                z = [self.dom.z_range[0], np.mean(self.HH)+np.mean(self.RD)]
 
             return [x,y,z]
 
@@ -182,13 +183,7 @@ class GenericWindFarm(object):
                 length = factor*max(np.sqrt(np.power(self.x-center[0],2.0)+np.power(self.y-center[1],2.0)))
             
             # z = 1.2*(self.ex_z - z_center)+z_center
-###############################################
-###############################################
-###############################################
-            z = [0, 140]
-###############################################
-###############################################
-###############################################
+            z = [self.dom.z_range[0], np.mean(self.HH)+np.mean(self.RD)]
 
             return [[length],center,z]
 
@@ -476,9 +471,9 @@ class GenericWindFarm(object):
 
         # if self.yaw[0]**2 < 1e-4:
         ### Project Turbine Force to save on Assemble time ###
-        # self.fprint("Projecting Turbine Force")
-        # self.tf = project(tf,fs.V,solver_type='mumps')
-        self.tf=None
+        self.fprint("Projecting Turbine Force")
+        self.tf_save = project(tf,fs.V,solver_type='mumps',annotate=False)
+        # self.tf=None
         # # else:
         # self.tf = tf
 

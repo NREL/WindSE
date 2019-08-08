@@ -16,9 +16,9 @@ def initialize(loc):
 
     windse_parameters.Load(loc)
 
-    global BaseHeight, ReducedFunctional
+    global BaseHeight#, ReducedFunctional
     if windse_parameters["general"].get("dolfin_adjoint", False):
-        from windse.dolfin_adjoint_helper import BaseHeight, ReducedFunctional
+        from windse.dolfin_adjoint_helper import BaseHeight#, ReducedFunctional
     else:
         from windse.helper_functions import BaseHeight
         

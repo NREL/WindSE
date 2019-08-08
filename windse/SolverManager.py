@@ -44,7 +44,8 @@ class GenericSolver(object):
     def __init__(self,problem):
         self.params = windse_parameters
         self.problem  = problem
-        self.u_next,self.p_next = self.problem.up_next.split(True)
+        # self.u_next,self.p_next = self.problem.up_next.split(True)
+        self.u_next,self.p_next = split(self.problem.up_next)
         self.nu_T = self.problem.nu_T
         self.first_save = True
         self.fprint = self.params.fprint
@@ -78,14 +79,15 @@ class GenericSolver(object):
         """
         This function saves the mesh and boundary markers to output/.../solutions/
         """
+        u,p = self.problem.up_next.split(True,annotate=False)
         if self.first_save:
-            self.u_file = self.params.Save(self.u_next,"velocity",subfolder="solutions/",val=val)
-            self.p_file = self.params.Save(self.p_next,"pressure",subfolder="solutions/",val=val)
+            self.u_file = self.params.Save(u,"velocity",subfolder="solutions/",val=val)
+            self.p_file = self.params.Save(p,"pressure",subfolder="solutions/",val=val)
             # self.nuT_file = self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val)
             self.first_save = False
         else:
-            self.params.Save(self.u_next,"velocity",subfolder="solutions/",val=val,file=self.u_file)
-            self.params.Save(self.p_next,"pressure",subfolder="solutions/",val=val,file=self.p_file)
+            self.params.Save(u,"velocity",subfolder="solutions/",val=val,file=self.u_file)
+            self.params.Save(p,"pressure",subfolder="solutions/",val=val,file=self.p_file)
             # self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuT_file)
 
     def ChangeWindAngle(self,theta):
@@ -157,19 +159,20 @@ class SteadySolver(GenericSolver):
         solver_parameters = {"nonlinear_solver": "snes",
                              "snes_solver": {
                              "linear_solver": "mumps", 
-                             "maximum_iterations": 50,
-                             "error_on_nonconvergence": True,
+                             "maximum_iterations": 20,
+                             "error_on_nonconvergence": False,
                              "line_search": "bt",
                              }}
 
         ### Solve the problem ###
         self.fprint("Solving",special="header")
         start = time.time()
-        print(self.problem.F)
+        # print(self.problem.F)
         solve(self.problem.F == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters)
         stop = time.time()
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
-        self.u_next,self.p_next = self.problem.up_next.split(True)
+        # self.u_next,self.p_next = self.problem.up_next.split(True)
+        self.u_next,self.p_next = split(self.problem.up_next)
         # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,annotate=False,solver_type='mumps')
         self.nu_T = None
 
@@ -227,7 +230,7 @@ class MultiAngleSolver(SteadySolver):
                 # else:
                 # self.J += assemble(-inner(dot(self.problem.tf,self.u_next),self.u_next[0]**2+self.u_next[1]**2)*dx)
                 self.J += -self.CalculatePowerFunctional((theta-self.problem.dom.init_wind)) 
-                print(self.J)
+                # print(self.J)
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
 
     def CalculatePowerFunctional(self,delta_yaw):
@@ -260,5 +263,5 @@ class MultiAngleSolver(SteadySolver):
 
             u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
 
-            J += dot(T*D*WTGbase*u_d**2.0,u)*dx
+            J += abs(dot(T*D*WTGbase*u_d**2.0,u))*dx
         return J

@@ -77,6 +77,8 @@ def run_action():
 
     ### Move and refine the mesh
     if "refine" in params.keys():
+        warp_type      = params["refine"].get("warp_type",None)
+        warp_strength  = params["refine"].get("warp_strength",None)
         warp_height    = params["refine"].get("warp_height",None)
         warp_percent   = params["refine"].get("warp_percent",None)
         farm_num       = params["refine"].get("farm_num",0)
@@ -86,6 +88,12 @@ def run_action():
         farm_custom    = params["refine"].get("farm_custom",None)
         turbine_num    = params["refine"].get("turbine_num",0)
         turbine_factor = params["refine"].get("turbine_factor",1.0)
+
+
+        if warp_type == "smooth":
+            dom.WarpSmooth(warp_strength)
+        elif warp_type == "split":
+            dom.WarpSplit(warp_height,warp_percent)
 
 
         if farm_custom is not None:
@@ -99,17 +107,6 @@ def run_action():
             region = farm.CalculateFarmRegion(farm_type,farm_factor,length=farm_radius)
             dom.Refine(farm_num,region=region,region_type=farm_type)
 
-###############################################
-###############################################
-###############################################
-###############################################
-        if warp_height is not None:
-            dom.WarpNonlinear(1.2)
-            # dom.Warp(warp_height,warp_percent)
-###############################################
-###############################################
-###############################################
-###############################################
 
         if turbine_num > 0:
             farm.RefineTurbines(turbine_num,turbine_factor) 

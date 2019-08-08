@@ -172,15 +172,15 @@ class GenericDomain(object):
         elif region is not None:
             self.fprint("Region Type: {0}".format(region_type))
             if region_type == "circle":
-                self.fprint("Circle Radius: {:.1f}".format(region[0][0]))
-                self.fprint("Circle Center: ({:.1f}, {:.1f})".format(region[1][0],region[1][1]))
+                self.fprint("Circle Radius: {:.2f}".format(region[0][0]))
+                self.fprint("Circle Center: ({:.2f}, {:.2f})".format(region[1][0],region[1][1]))
                 if self.dim == 3:
-                    self.fprint("Z Range:       [{:.1f}, {:.1f}]".format(region[2][0],region[2][1]))
+                    self.fprint("Z Range:       [{:.2f}, {:.2f}]".format(region[2][0],region[2][1]))
             else:
-                self.fprint("X Range: [{: .1f}, {: .1f}]".format(region[0][0],region[0][1]))
-                self.fprint("Y Range: [{: .1f}, {: .1f}]".format(region[1][0],region[1][1]))
+                self.fprint("X Range: [{: .2f}, {: .2f}]".format(region[0][0],region[0][1]))
+                self.fprint("Y Range: [{: .2f}, {: .2f}]".format(region[1][0],region[1][1]))
                 if self.dim == 3:
-                    self.fprint("Z Range: [{: .1f}, {: .1f}]".format(region[2][0],region[2][1]))
+                    self.fprint("Z Range: [{: .2f}, {: .2f}]".format(region[2][0],region[2][1]))
         else:
             self.fprint("Region Type: {0}".format("full"))
 
@@ -212,7 +212,8 @@ class GenericDomain(object):
                     for cell in cells(self.mesh):
                         in_circle = (cell.midpoint()[0]-region[1][0])**2.0+(cell.midpoint()[1]-region[1][1])**2.0<=radius**2.0
                         if self.dim == 3:
-                            in_z = between(cell.midpoint()[2],tuple(region[2]))
+                            g_z = self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
+                            in_z = between(cell.midpoint()[2],(region[2][0],region[2][1]+g_z))
                             in_region = in_circle and in_z
                         else:
                             in_region = in_circle
@@ -226,7 +227,8 @@ class GenericDomain(object):
                     for cell in cells(self.mesh):
                         in_square = between(cell.midpoint()[0],tuple(region[0])) and between(cell.midpoint()[1],tuple(region[1]))
                         if self.dim == 3:
-                            in_z = between(cell.midpoint()[2],tuple(region[2]))
+                            g_z = self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
+                            in_z = between(cell.midpoint()[2],(region[2][0],region[2][1]+g_z))
                             in_region = in_square and in_z
                         else:
                             in_region = in_square
@@ -259,7 +261,7 @@ class GenericDomain(object):
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
 
-    def Warp(self,h,s):
+    def WarpSplit(self,h,s):
         """
         This function warps the mesh to shift more cells towards the ground. 
         is achieved by spliting the domain in two and moving the cells so 
@@ -302,7 +304,7 @@ class GenericDomain(object):
         self.fprint("Warping Finished: {:1.2f} s".format(warp_stop-warp_start),special="footer")
 
 
-    def WarpNonlinear(self,s):
+    def WarpSmooth(self,s):
         """
         This function warps the mesh to shift more cells towards the ground. 
         The cells are shifted based on the function:
@@ -427,9 +429,9 @@ class BoxDomain(GenericDomain):
         self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
 
         ### Print Some stats ###
-        self.fprint("X Range: [{: .1f}, {: .1f}]".format(self.x_range[0],self.x_range[1]))
-        self.fprint("Y Range: [{: .1f}, {: .1f}]".format(self.y_range[0],self.y_range[1]))
-        self.fprint("Z Range: [{: .1f}, {: .1f}]".format(self.z_range[0],self.z_range[1]))
+        self.fprint("X Range: [{: .2f}, {: .2f}]".format(self.x_range[0],self.x_range[1]))
+        self.fprint("Y Range: [{: .2f}, {: .2f}]".format(self.y_range[0],self.y_range[1]))
+        self.fprint("Z Range: [{: .2f}, {: .2f}]".format(self.z_range[0],self.z_range[1]))
 
         ### Create mesh ###
         mesh_start = time.time()
@@ -558,9 +560,9 @@ class CylinderDomain(GenericDomain):
         angles = np.linspace(0,2.0*np.pi,self.nt+1)
         self.boundary_line = (self.radius*np.cos(angles),self.radius*np.sin(angles))
 
-        self.fprint("Radius:        {: .1f}".format(self.radius))
-        self.fprint("Center:       ({: .1f}, {: .1f})".format(self.center[0],self.center[1]))
-        self.fprint("Z Range:      [{: .1f}, {: .1f}]".format(self.z_range[0],self.z_range[1]))
+        self.fprint("Radius:        {: .2f}".format(self.radius))
+        self.fprint("Center:       ({: .2f}, {: .2f})".format(self.center[0],self.center[1]))
+        self.fprint("Z Range:      [{: .2f}, {: .2f}]".format(self.z_range[0],self.z_range[1]))
         self.fprint("Meshing Type:  {0}".format(self.mesh_type))
 
         mesh_start = time.time()
@@ -658,43 +660,43 @@ class CylinderDomain(GenericDomain):
         nom_x = np.cos(theta)
         nom_y = np.sin(theta)
 
-        ### Define Boundary Subdomains ###
-        outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1])
-        inflow  = CompiledSubDomain("x[2] >= z0 && x[2] <= z1 && nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
-        top     = CompiledSubDomain("near(x[2], z1) && on_boundary",z1 = self.z_range[1])
-        bottom  = CompiledSubDomain("near(x[2], z0) && on_boundary",z0 = self.z_range[0])
+        # ### Define Boundary Subdomains ###
+        # outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1])
+        # inflow  = CompiledSubDomain("x[2] >= z0 && x[2] <= z1 && nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
+        # top     = CompiledSubDomain("near(x[2], z1) && on_boundary",z1 = self.z_range[1])
+        # bottom  = CompiledSubDomain("near(x[2], z0) && on_boundary",z0 = self.z_range[0])
 
-        ### Generate the boundary markers for boundary conditions ###
-        self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
-        self.boundary_markers.set_all(0)
-        for i in range(len(self.boundary_subdomains)):
-            self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
-
-        # ### Define center ###
-        # c0 = self.center[0]
-        # c1 = self.center[1]
-
-        # ### Set Tol ###
-        # tol = 1e-5
-
-        # wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
-        #             + self.boundary_markers.where_equal(self.boundary_names["outflow"])
-
-        # boundary_val_temp = self.boundary_markers.array()
+        # ### Generate the boundary markers for boundary conditions ###
         # self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
-        # self.boundary_markers.set_values(boundary_val_temp)
+        # self.boundary_markers.set_all(0)
+        # for i in range(len(self.boundary_subdomains)):
+        #     self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
 
-        # for facet_id in wall_facets:
-        #     facet = Facet(self.mesh,facet_id)
-        #     vert_ids = facet.entities(0)
-        #     vert_coords = self.mesh.coordinates()[vert_ids]
-        #     x = vert_coords[:,0]
-        #     y = vert_coords[:,1]
+        ### Define center ###
+        c0 = self.center[0]
+        c1 = self.center[1]
 
-        #     if all(nom_x*(x-c0)+nom_y*(y-c1)<=0+tol):
-        #         self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
-        #     else:
-        #         self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
+        ### Set Tol ###
+        tol = 1e-5
+
+        wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
+                    + self.boundary_markers.where_equal(self.boundary_names["outflow"])
+
+        boundary_val_temp = self.boundary_markers.array()
+        self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        self.boundary_markers.set_values(boundary_val_temp)
+
+        for facet_id in wall_facets:
+            facet = Facet(self.mesh,facet_id)
+            vert_ids = facet.entities(0)
+            vert_coords = self.mesh.coordinates()[vert_ids]
+            x = vert_coords[:,0]
+            y = vert_coords[:,1]
+
+            if all(nom_x*(x-c0)+nom_y*(y-c1)<=0+tol):
+                self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
+            else:
+                self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
@@ -726,8 +728,8 @@ class CircleDomain(GenericDomain):
         angles = np.linspace(0,2.0*np.pi,self.nt+1)
         self.boundary_line = (self.radius*np.cos(angles),self.radius*np.sin(angles))
 
-        self.fprint("Radius:        {: .1f}".format(self.radius))
-        self.fprint("Center:       ({: .1f}, {: .1f})".format(self.center[0],self.center[1]))
+        self.fprint("Radius:        {: .2f}".format(self.radius))
+        self.fprint("Center:       ({: .2f}, {: .2f})".format(self.center[0],self.center[1]))
         self.fprint("Meshing Type:  {0}".format(self.mesh_type))
 
         mesh_start = time.time()
@@ -886,8 +888,8 @@ class RectangleDomain(GenericDomain):
         self.y_range = self.params["domain"]["y_range"]
         self.nx = self.params["domain"]["nx"]
         self.ny = self.params["domain"]["ny"]
-        self.fprint("X Range: [{: .1f}, {: .1f}]".format(self.x_range[0],self.x_range[1]))
-        self.fprint("Y Range: [{: .1f}, {: .1f}]".format(self.y_range[0],self.y_range[1]))
+        self.fprint("X Range: [{: .2f}, {: .2f}]".format(self.x_range[0],self.x_range[1]))
+        self.fprint("Y Range: [{: .2f}, {: .2f}]".format(self.y_range[0],self.y_range[1]))
         self.dim = 2
 
         ### Create mesh ###
@@ -1133,7 +1135,7 @@ class InterpolatedCylinderDomain(CylinderDomain):
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
 
     def ground_function(self,x,y):
-        return self.topography_interpolated(x,y)[0]
+        return self.topography_interpolated(x,y)[0]+self.z_range[0]
 
     def Finalize(self):
         self.Move(self.ground_function)
@@ -1183,7 +1185,7 @@ class InterpolatedBoxDomain(BoxDomain):
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
 
     def ground_function(self,x,y):
-        return self.topography_interpolated(x,y)[0]
+        return self.topography_interpolated(x,y)[0]+self.z_range[0]
 
     def Finalize(self):
         self.Move(self.ground_function)
