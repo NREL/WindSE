@@ -49,7 +49,7 @@ function_space:
 
 boundary_condition:
     vel_profile: log
-    max_vel: 4.0
+    max_vel: 8.0
     k: 0.4
 
 problem:
