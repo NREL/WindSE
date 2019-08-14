@@ -159,15 +159,23 @@ class SteadySolver(GenericSolver):
         solver_parameters = {"nonlinear_solver": "snes",
                              "snes_solver": {
                              "linear_solver": "mumps", 
-                             "maximum_iterations": 20,
+                             "maximum_iterations": 40,
                              "error_on_nonconvergence": False,
                              "line_search": "bt",
                              }}
 
-        ### Solve the problem ###
+        ### Start the Solve Process ###
         self.fprint("Solving",special="header")
         start = time.time()
-        # print(self.problem.F)
+        
+        # ### Solve the Baseline Problem ###
+        # solve(self.problem.F_sans_tf == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters, annotate=False)
+
+        # ### Store the Baseline and Assign for the real solve ###
+        # self.up_baseline = self.problem.up_next.copy(deepcopy=True)
+        # self.problem.up_next.assign(self.up_baseline)
+
+        ### Solve the real problem ###
         solve(self.problem.F == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters)
         stop = time.time()
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
@@ -198,7 +206,7 @@ class MultiAngleSolver(SteadySolver):
         # if self.params["domain"]["type"] not in ["circle","cylinder","interpolated"]:
         #     raise ValueError("A circle, cylinder, or interpolated cylinder domain is required for a Multi-Angle Solver")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
-        self.wind_range = self.params["solver"].get("wind_angle_range", None)
+        self.wind_range = self.params["solver"].get("wind_range", None)
         if  self.wind_range is None:
             self.wind_range = [0, 2.0*np.pi]
             self.endpoint = self.params["solver"].get("endpoint", False)
@@ -263,5 +271,5 @@ class MultiAngleSolver(SteadySolver):
 
             u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
 
-            J += abs(dot(T*D*WTGbase*u_d**2.0,u))*dx
+            J += dot(T*D*WTGbase*u_d**2.0,u)*dx
         return J

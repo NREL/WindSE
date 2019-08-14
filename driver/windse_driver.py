@@ -123,7 +123,7 @@ def run_action():
     bc_dict = {"uniform":windse.UniformInflow,
                "power":windse.PowerInflow,
                "log":windse.LogLayerInflow}
-    bc = bc_dict[params["boundary_condition"]["vel_profile"]](dom,fs)
+    bc = bc_dict[params["boundary_condition"]["vel_profile"]](dom,fs,farm)
 
     ### Generate the problem ###
     prob_dict = {"stabilized":windse.StabilizedProblem,

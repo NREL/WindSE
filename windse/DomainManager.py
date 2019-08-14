@@ -374,19 +374,35 @@ class GenericDomain(object):
             float/list: corresponding z coordinates of the ground.
 
         """
-
-        if (isinstance(x,list) and isinstance(y,list)) or (isinstance(x,np.ndarray) and isinstance(y,np.ndarray)):
-            nx = len(x)
-            ny = len(y)
-            if nx != ny:
-                raise ValueError("Length mismatch: len(x)="+repr(nx)+", len(y)="+repr(ny))
-            else:
-                z = np.zeros(nx)
-                for i in range(nx):
-                    z[i] = float(self.ground_function(x[i],y[i]))
-                return z
+##########################
+##########################
+##########################
+##########################
+##########################
+        if isinstance(x,Constant):
+            print("a constant was found")
+            z = self.ground_function(x,y)
+            print(z)
+            print(type(z))
+            return z
+##########################
+##########################
+##########################
+##########################
+##########################
         else:
-            return float(self.ground_function(x,y))
+            if (isinstance(x,list) and isinstance(y,list)) or (isinstance(x,np.ndarray) and isinstance(y,np.ndarray)):
+                nx = len(x)
+                ny = len(y)
+                if nx != ny:
+                    raise ValueError("Length mismatch: len(x)="+repr(nx)+", len(y)="+repr(ny))
+                else:
+                    z = np.zeros(nx)
+                    for i in range(nx):
+                        z[i] = float(self.ground_function(x[i],y[i]))
+                    return z
+            else:
+                return float(self.ground_function(x,y))
 
 class BoxDomain(GenericDomain):
     """
@@ -1185,8 +1201,31 @@ class InterpolatedBoxDomain(BoxDomain):
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
 
     def ground_function(self,x,y):
-        return self.topography_interpolated(x,y)[0]+self.z_range[0]
+###############################################
+###############################################
+###############################################
+###############################################
+###############################################
+###############################################
+        theta=np.pi/4
+        sigma_x = 400.
+        sigma_y = 400.
+        amp=100
+        x0=0
+        y0=0
+        a=np.cos(theta)**2/(2*sigma_x**2) + np.sin(theta)**2/(2*sigma_y**2)
+        b=np.sin(2*theta)/(4*sigma_y**2) - np.sin(2*theta)/(4*sigma_x**2)
+        c=np.cos(theta)**2/(2*sigma_y**2) + np.sin(theta)**2/(2*sigma_x**2)
+        Z = amp*exp( - (a*(x-x0)**2 + 2*b*(x-x0)*(y-y0) + c*(y-y0)**2)**2)
+        return Z
+        # return float(self.topography_interpolated(x,y)[0]+self.z_range[0])
 
+###############################################
+###############################################
+###############################################
+###############################################
+###############################################
+###############################################
     def Finalize(self):
         self.Move(self.ground_function)
         self.finalized = True

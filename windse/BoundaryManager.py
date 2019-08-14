@@ -34,10 +34,11 @@ if main_file != "sphinx-build":
     import math 
 
 class GenericBoundary(object):
-    def __init__(self,dom,fs):
+    def __init__(self,dom,fs,farm):
         self.params = windse_parameters
         self.dom = dom
         self.fs = fs
+        self.farm = farm
         self.ig_first_save = True
         self.height_first_save = True
         self.fprint = self.params.fprint
@@ -46,7 +47,7 @@ class GenericBoundary(object):
         bcs_params = self.params.get("boundary_condition",{})
         self.boundary_names = bcs_params.get("boundary_names", dom.boundary_names)
         self.boundary_types = bcs_params.get("boundary_types", dom.boundary_types)
-        self.vmax = bcs_params.get("max_vel", 8.0)
+        self.HH_vel = bcs_params.get("HH_vel", 8.0)
         self.power = bcs_params.get("power", 0.25)
         self.k = bcs_params.get("k", 0.4)
         self.init_wind = dom.init_wind
@@ -185,8 +186,8 @@ class GenericBoundary(object):
 
 
 class UniformInflow(GenericBoundary):
-    def __init__(self,dom,fs):
-        super(UniformInflow, self).__init__(dom,fs)
+    def __init__(self,dom,fs,farm):
+        super(UniformInflow, self).__init__(dom,fs,farm)
         self.fprint("Setting Up Boundary Conditions",special="header")
         self.fprint("Type: Uniform Inflow")
         for key, values in self.boundary_types.items():
@@ -198,7 +199,7 @@ class UniformInflow(GenericBoundary):
         self.uy = Function(fs.V1)
         if self.dom.dim == 3:
             self.uz = Function(fs.V2)
-        self.reference_velocity = np.full(len(self.ux.vector()[:]),self.vmax)
+        self.reference_velocity = np.full(len(self.ux.vector()[:]),self.HH_vel)
         self.ux.vector()[:] = self.reference_velocity
 
         ux_com, uy_com, uz_com = self.RotateVelocity(self.init_wind)
@@ -252,8 +253,8 @@ class PowerInflow(GenericBoundary):
         * Make the max velocity an input
         * Make the power an input
     """
-    def __init__(self,dom,fs):
-        super(PowerInflow, self).__init__(dom,fs)
+    def __init__(self,dom,fs,farm):
+        super(PowerInflow, self).__init__(dom,fs,farm)
 
         if self.dom.dim != 3:
             raise ValueError("PowerInflow can only be used with 3D domains.")
@@ -277,8 +278,8 @@ class PowerInflow(GenericBoundary):
         self.ux = Function(fs.V0)
         self.uy = Function(fs.V1)
         self.uz = Function(fs.V2)
-        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(dom.z_range[1]-dom.z_range[0])))
-        self.reference_velocity = np.multiply(self.vmax,np.power(scaled_depth,self.power))
+        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-dom.z_range[0])))
+        self.reference_velocity = np.multiply(self.HH_vel,np.power(scaled_depth,self.power))
         ux_com, uy_com, uz_com = self.RotateVelocity(self.init_wind)
 
         self.ux.vector()[:] = ux_com
@@ -305,8 +306,8 @@ class PowerInflow(GenericBoundary):
         self.fprint("Boundary Condition Setup",special="footer")
 
 class LogLayerInflow(GenericBoundary):
-    def __init__(self,dom,fs):
-        super(LogLayerInflow, self).__init__(dom,fs)
+    def __init__(self,dom,fs,farm):
+        super(LogLayerInflow, self).__init__(dom,fs,farm)
 
         if self.dom.dim != 3:
             raise ValueError("LogLayerInflow can only be used with 3D domains.")
@@ -334,7 +335,7 @@ class LogLayerInflow(GenericBoundary):
         self.uy = Function(fs.V1)
         self.uz = Function(fs.V2)
         scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+dom.z_range[0],(dom.z_range[0])))
-        ustar = self.vmax*self.k/np.log(80.0/dom.z_range[0])
+        ustar = self.HH_vel*self.k/np.log(np.mean(farm.HH)/dom.z_range[0])
         self.reference_velocity = np.multiply(ustar/self.k,np.log(scaled_depth))
         ux_com, uy_com, uz_com = self.RotateVelocity(self.init_wind)
 

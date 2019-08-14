@@ -165,6 +165,7 @@ class BaseHeightBlock(Block):
     def recompute_component(self, inputs, block_variable, idx, prepared):
         x = prepared[0]
         y = prepared[1]
+        print("recomputing")
         return backend_BaseHeight(x,y,self.ground)
 
     def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
@@ -173,9 +174,10 @@ class BaseHeightBlock(Block):
         return [x, y]
 
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
+        print("evaluating adj")
         x = prepared[0]
         y = prepared[1]
-        h = dolfin.Constant(1e-5)
+        h = dolfin.Constant(10)
         adj_input = adj_inputs[0]
 
         if idx == 0:

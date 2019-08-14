@@ -176,7 +176,18 @@ class GenericWindFarm(object):
             return [x,y,z]
 
         elif region_type == "circle":
-            center = [sum(self.x)/float(self.numturbs),sum(self.y)/float(self.numturbs)]
+###############################################
+###############################################
+###############################################
+###############################################
+###############################################
+            # center = [sum(self.x)/float(self.numturbs),sum(self.y)/float(self.numturbs)]
+            center = [0,0]
+###############################################
+###############################################
+###############################################
+###############################################
+###############################################
             z_center = (self.ex_z[1]+self.ex_z[0])/2.0
 
             if length is None:
@@ -224,7 +235,14 @@ class GenericWindFarm(object):
         for i in range(self.numturbs):
             self.mx[i].assign(self.x[i])
             self.my[i].assign(self.y[i])
-            self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
+##########################
+##########################
+##########################
+            # self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
+            self.mz[i] = self.dom.Ground(self.mx[i],self.my[i])+float(self.HH[i])
+##########################
+##########################
+##########################
             self.z[i] = float(self.mz[i])
             self.ground[i] = self.z[i] - self.HH[i]
             self.ma[i].assign(self.a[i])
@@ -246,11 +264,26 @@ class GenericWindFarm(object):
         """
         This function calculates the absolute heights of each turbine.
         """
-        self.mz = np.zeros(self.numturbs)
+##########################
+##########################
+##########################
+        self.mz = [] # perhaps making it a float was the problem
+##########################
+##########################
+##########################
         self.z = np.zeros(self.numturbs)
         self.ground = np.zeros(self.numturbs)
         for i in range(self.numturbs):
-            self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
+##########################
+##########################
+##########################
+            # self.mz.append(BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i]))
+            self.mz.append(self.dom.Ground(self.mx[i],self.my[i])+float(self.HH[i]))
+            print(self.mz[i])
+
+##########################
+##########################
+##########################
             self.z[i] = float(self.mz[i])
             self.ground[i] = self.z[i] - self.HH[i]
 
@@ -749,17 +782,29 @@ class ImportedWindFarm(GenericWindFarm):
         raw_data = np.loadtxt(self.path,comments="#")
 
         ### Parse the data ###
-        self.x     = raw_data[:,0] 
-        self.y     = raw_data[:,1]
-        self.HH    = raw_data[:,2]
-        self.yaw   = raw_data[:,3]
-        self.RD    = raw_data[:,4]
-        self.radius = self.RD/2.0
-        self.W     = raw_data[:,5]
-        self.a     = raw_data[:,6]
+        if len(raw_data.shape) > 1:
+            self.x     = raw_data[:,0] 
+            self.y     = raw_data[:,1]
+            self.HH    = raw_data[:,2]
+            self.yaw   = raw_data[:,3]
+            self.RD    = raw_data[:,4]
+            self.radius = self.RD/2.0
+            self.W     = raw_data[:,5]
+            self.a     = raw_data[:,6]
+            self.numturbs = len(self.x)
+
+        else:
+            self.x     = np.array((raw_data[0],))
+            self.y     = np.array((raw_data[1],))
+            self.HH    = np.array((raw_data[2],))
+            self.yaw   = np.array((raw_data[3],))
+            self.RD    = np.array((raw_data[4],))
+            self.radius = np.array((raw_data[4]/2.0,))
+            self.W     = np.array((raw_data[5],))
+            self.a     = np.array((raw_data[6],))
+            self.numturbs = 1
 
         ### Update the options ###
-        self.numturbs = len(self.x)
         self.params["wind_farm"]["numturbs"] = self.numturbs
         self.fprint("Number of Turbines: {:d}".format(self.numturbs))
 

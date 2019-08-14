@@ -67,7 +67,7 @@ class Optimizer(object):
         self.fprint("Define Bounds")
         self.CreateBounds()
 
-        self.get_minimum_distance_constraint_func(self.controls, 2*80.0)
+        self.get_minimum_distance_constraint_func(self.controls, 2*np.mean(self.problem.farm.HH))
 
         self.fprint("Define Optimizing Functional")
         if self.params["solver"]["type"] == "multiangle":
@@ -189,7 +189,7 @@ class Optimizer(object):
             elif "y" in self.names[i]:
                 self.y_val.append(float(m[i]))
 
-        z_val = self.problem.dom.Ground(self.x_val,self.y_val)
+        z_val = self.problem.dom.Ground(self.x_val,self.y_val)+self.problem.farm.HH
 
         ### Create the path names ###
         folder_string = self.params.folder+"/plots/"
@@ -248,7 +248,8 @@ class Optimizer(object):
         # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
         self.fprint("Assigning New Values")
-        self.AssignControls()
+        self.problem.farm.UpdateConstants(m=m_opt,control_types=self.control_types,indexes=self.indexes)
+        # self.AssignControls()
         
         self.fprint("Solving With New Values")
         self.solver.Solve()
@@ -261,8 +262,8 @@ class Optimizer(object):
         
         self.fprint("Beginning Taylor Test",special="header")
 
-        # h = [Constant(10)]*(len(self.controls))
-        h = [Constant(0.001)]*(len(self.controls))
+        h = [Constant(10)]*(len(self.controls))
+        # h = [Constant(0.001)]*(len(self.controls))
 
         conv_rate = taylor_test(self.Jhat, self.init_vals, h)
 
