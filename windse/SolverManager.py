@@ -81,15 +81,21 @@ class GenericSolver(object):
         """
         This function saves the mesh and boundary markers to output/.../solutions/
         """
+        nu_T = project(self.problem.nu_T, self.problem.fs.Q)
+        vel = project(self.problem.u_next, self.problem.fs.V)
+        press = project(self.problem.p_next, self.problem.fs.Q)
         if self.first_save:
-            self.u_file = self.params.Save(self.u_next,"velocity",subfolder="solutions/",val=val)
-            self.p_file = self.params.Save(self.p_next,"pressure",subfolder="solutions/",val=val)
-            self.nuT_file = self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val)
+            self.u_file = self.params.Save(vel,"velocity",subfolder="solutions/",val=val)
+            self.p_file = self.params.Save(press,"pressure",subfolder="solutions/",val=val)
+            self.nuT_file = self.params.Save(nu_T,"eddy_viscosity",subfolder="solutions/",val=val)
+            if "nuT_xml" in self.params.output:
+                self.nuTxml_file = self.params.Save(nu_T,"eddy_viscosity",subfolder="solutions/",val=val,filetype='xml')
             self.first_save = False
         else:
-            self.params.Save(self.u_next,"velocity",subfolder="solutions/",val=val,file=self.u_file)
-            self.params.Save(self.p_next,"pressure",subfolder="solutions/",val=val,file=self.p_file)
-            self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuT_file)
+            self.params.Save(vel,"velocity",subfolder="solutions/",val=val,file=self.u_file)
+            self.params.Save(press,"pressure",subfolder="solutions/",val=val,file=self.p_file)
+            self.params.Save(nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuT_file)
+            self.params.Save(nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuTxml_file)
 
     def ChangeWindAngle(self,theta):
         """
@@ -116,16 +122,24 @@ class SteadySolver(GenericSolver):
         """
 
         ### Save Files before solve ###
-        self.fprint("Saving Input Data",special="header")
-        if "mesh" in self.params.output:
-            self.problem.dom.Save(val=iter_val)
-        if "initial_guess" in self.params.output:
-            self.problem.bd.SaveInitialGuess(val=iter_val)
-        if "height" in self.params.output and self.problem.dom.dim == 3:
-            self.problem.bd.SaveHeight()
-        if "turbine_force" in self.params.output:
-            self.problem.farm.SaveTurbineForce(val=iter_val)
-        self.fprint("Finished",special="footer")
+        save_inputs = ['mesh', 'initial_guess', 'height', 'turbine_force', 'wind_farm']
+        save_inputs_flag = False
+        for input in save_inputs:
+            if input in self.params.output:
+                save_inputs_flag = True
+        if save_inputs_flag:
+            self.fprint("Saving Input Data",special="header")
+            if "mesh" in self.params.output:
+                self.problem.dom.Save(val=iter_val, filetype=self.params.output_type)
+            if "initial_guess" in self.params.output:
+                self.problem.bd.SaveInitialGuess(val=iter_val)
+            if "height" in self.params.output and self.problem.dom.dim == 3:
+                self.problem.bd.SaveHeight()
+            if "turbine_force" in self.params.output:
+                self.problem.farm.SaveTurbineForce(val=iter_val)
+            if "wind_farm" in self.params.output:
+                self.problem.farm.SaveFarm()
+            self.fprint("Finished",special="footer")
 
         ####################################################################
         ### This is the better way to define a nonlinear problem but it
@@ -171,8 +185,8 @@ class SteadySolver(GenericSolver):
         solve(self.problem.F == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters)
         stop = time.time()
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
-        self.u_next,self.p_next = self.problem.up_next.split(True)
-        self.nu_T = project(self.problem.nu_T,self.problem.fs.Q)
+        self.up_next = self.problem.up_next
+        self.u_next,self.p_next = self.up_next.split(True)
 
         ### Save solutions ###
         if "solution" in self.params.output:

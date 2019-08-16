@@ -70,7 +70,7 @@ class GenericDomain(object):
         plt.savefig(file_string)
         plt.show()
 
-    def Save(self,val=0):
+    def Save(self,val=0,filetype="pvd"):
         """
         This function saves the mesh and boundary markers to output/.../mesh/
         """
@@ -96,14 +96,14 @@ class GenericDomain(object):
         # print("Mesh Saved")
 
         if self.first_save:
-            self.mesh_file = self.params.Save(self.mesh,"mesh",subfolder="mesh/",val=val,filetype="pvd")
-            self.bmesh_file   = self.params.Save(self.bmesh,"boundary_mesh",subfolder="mesh/",val=val,filetype="pvd")
-            self.bc_file   = self.params.Save(self.boundary_markers,"facets",subfolder="mesh/",val=val,filetype="pvd")
+            self.mesh_file = self.params.Save(self.mesh,"mesh",subfolder="mesh/",val=val,filetype=filetype)
+            self.bmesh_file   = self.params.Save(self.bmesh,"boundary_mesh",subfolder="mesh/",val=val,filetype=filetype)
+            self.bc_file   = self.params.Save(self.boundary_markers,"facets",subfolder="mesh/",val=val,filetype=filetype)
             self.first_save = False
         else:
-            self.params.Save(self.mesh,"mesh",subfolder="mesh/",val=val,file=self.mesh_file,filetype="pvd")
-            self.params.Save(self.bmesh,"boundary_mesh",subfolder="mesh/",val=val,file=self.bmesh_file,filetype="pvd")
-            self.params.Save(self.boundary_markers,"facets",subfolder="mesh/",val=val,file=self.bc_file,filetype="pvd")
+            self.params.Save(self.mesh,"mesh",subfolder="mesh/",val=val,file=self.mesh_file,filetype=filetype)
+            self.params.Save(self.bmesh,"boundary_mesh",subfolder="mesh/",val=val,file=self.bmesh_file,filetype=filetype)
+            self.params.Save(self.boundary_markers,"facets",subfolder="mesh/",val=val,file=self.bc_file,filetype=filetype)
 
     def Refine(self,num,region=None,region_type=None,cell_markers=None):
         """
@@ -766,7 +766,7 @@ class ImportedDomain(GenericDomain):
         ### Import data from Options ###
         if "path" in self.params["domain"]:
             self.path = self.params["domain"]["path"]
-            self.mesh_path  = self.path + "mesh." + self.filetype
+            self.mesh_path  = os.sep.join([self.path, "mesh." + self.filetype])
             if self.filetype == "xml.gz":
                 self.boundary_path = self.path + "boundaries." + self.filetype
             self.typo_path  = self.path + "topology.txt"

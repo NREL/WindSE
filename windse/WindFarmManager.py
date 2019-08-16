@@ -92,6 +92,21 @@ class GenericWindFarm(object):
             else:
                 self.params.Save(self.tf,"tf",subfolder="functions/",val=val,file=self.tf_file)
 
+    def SaveFarm(self,):
+        out = np.empty([self.numturbs, 7])
+        out[:,0] = self.x
+        out[:,1] = self.y
+        out[:,2] = self.HH
+        out[:,3] = self.yaw
+        out[:,4] = self.RD
+        out[:,5] = self.W
+        out[:,6] = self.a
+
+        subfolder = 'functions'
+        filename = os.sep.join([self.params.folder, subfolder, 'wind_farm.txt'])
+        header = '# x y HH Yaw Diameter Thickness Axial_Induction'
+        np.savetxt(filename, out, header=header)
+
     def GetLocations(self):
         """
         This function gets three lists containing the x, y, and z locations
@@ -188,7 +203,6 @@ class GenericWindFarm(object):
             self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
             self.z[i] = float(self.mz[i])
             self.ground[i] = self.z[i] - self.HH[i]
-
 
     def CreateLists(self):
         """
@@ -325,8 +339,6 @@ class GenericWindFarm(object):
 
         tf_stop = time.time()
         self.fprint("Rotor Discs Created: {:1.2f} s".format(tf_stop-tf_start),special="footer")
-
-
 
     def YawTurbine(self,x,x0,yaw):
         """

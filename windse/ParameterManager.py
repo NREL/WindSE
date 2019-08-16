@@ -150,7 +150,10 @@ class Parameters(dict):
                 file_string = self.folder+subfolder+filename+".xdmf"
                 out = XDMFFile(file_string)
                 out.write(func,val)
-
+            elif filetype == 'xml':
+                file_string = self.folder+subfolder+filename+".xml"
+                out = File(file_string)
+                out << func #(func,val)
             return out
 
         else:
@@ -158,6 +161,8 @@ class Parameters(dict):
                 file << (func,val)
             elif filetype == "xdmf":
                 file.write(func,val)
+            elif filetype == 'xml':
+                file << (func,val)
             return file
 
     def fprint(self,string,tab=None,offset=0,special=None):

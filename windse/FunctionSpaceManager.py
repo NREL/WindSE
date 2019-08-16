@@ -46,7 +46,6 @@ class GenericFunctionSpace(object):
         self.SolutionAssigner = FunctionAssigner(self.W,[self.V,self.Q])
 
 
-
 class LinearFunctionSpace(GenericFunctionSpace):
     """
     The LinearFunctionSpace is made up of a vector function space for velocity
@@ -71,6 +70,7 @@ class LinearFunctionSpace(GenericFunctionSpace):
 
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")
+
 
 class TaylorHoodFunctionSpace(GenericFunctionSpace):
     """

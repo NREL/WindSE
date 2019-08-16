@@ -1,4 +1,4 @@
-""" 
+"""
 This is the init file for WindSE. It handle importing all the
 submodules and initializing the parameters.
 """
@@ -21,7 +21,7 @@ def initialize(loc):
         from windse.dolfin_adjoint_helper import BaseHeight, ReducedFunctional
     else:
         from windse.helper_functions import BaseHeight
-        
+
     global BoxDomain, CylinderDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain
     from windse.DomainManager import BoxDomain, CylinderDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain
 
@@ -45,3 +45,5 @@ def initialize(loc):
     # global CreateAxialControl, CreateAxialBounds, CreateLayoutControl, CreateLayoutBounds, CreateYawControl, CreateYawBounds, SplitSolution, PowerFunctional
     # from windse.OptimizationManager import CreateAxialControl, CreateAxialBounds, CreateLayoutControl, CreateLayoutBounds, CreateYawControl, CreateYawBounds, SplitSolution, PowerFunctional
 
+    global MixingLengthTurbulenceModel, SpecifiedNuT
+    from windse.PhysicsManager import MixingLengthTurbulenceModel, SpecifiedNuT

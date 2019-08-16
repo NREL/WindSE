@@ -25,6 +25,7 @@ if main_file != "sphinx-build":
     if windse_parameters["general"].get("dolfin_adjoint", False):
         from dolfin_adjoint import *
 
+
 class GenericProblem(object):
     """
     A GenericProblem contains on the basic functions required by all problem objects.
@@ -35,22 +36,40 @@ class GenericProblem(object):
         function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
         boundary_conditions (:meth:`windse.BoundaryManager.GenericBoundary`): a windse boundary object.
     """
-    def __init__(self,domain,windfarm,function_space,boundary_data):
-        ### save a reference of option and create local version specifically of domain options ###
+    def __init__(self,domain,windfarm,function_space,boundary_data,turbulence_model):
+        ### Save a reference of option and create local version specifically of domain options ###
         self.params = windse_parameters
         self.dom  = domain
         self.farm = windfarm
         self.fs   = function_space
         self.bd  = boundary_data
-        self.tf_first_save = True
+        self.tm = turbulence_model
+        # self.tf_first_save = True
         self.fprint = self.params.fprint
 
         ### Append the farm ###
         self.params.full_farm = self.farm
 
-        ### add some helper items for dolfin_adjoint_helper.py ###
+        ### Add some helper items for dolfin_adjoint_helper.py ###
         self.params.ground_fx = self.dom.Ground
         self.params.full_hh = self.farm.HH
+
+        ### Fluid property ###
+        self.nu = Constant(0.1)
+
+        ### Turbulence model additional arguments ###
+        self.tm_kwargs = {}
+        if self.tm.model=='mixing_length':
+            self.tm_kwargs['dim'] = self.dom.dim
+            self.tm_kwargs['HH'] = self.farm.HH[0]
+            if self.tm_kwargs['dim']==3:
+                self.tm_kwargs['depth'] = self.bd.depth.vector()[:]
+            else:
+                self.tm_kwargs['depth'] = None
+        elif self.tm.model=='specified_nuT':
+            pass
+        else:
+            raise ValueError('Turbulence model "{}" not implemented.'.format(self.tm.model))
 
     def ChangeWindAngle(self,theta):
         """
@@ -66,86 +85,9 @@ class GenericProblem(object):
         self.bd.RecomputeVelocity(theta)
         self.ComputeFunctional(theta)
 
+        # self.tf.assign(tf_temp)
         adj_stop = time.time()
         self.fprint("Wind Angle Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")
-
-        # self.tf.assign(tf_temp)
-
-class StabilizedProblem(GenericProblem):
-    """
-    The StabilizedProblem setup everything required for solving Navier-Stokes with
-    a stabilization term
-
-    Args:
-        domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
-        windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
-        function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
-        boundary_conditions (:meth:`windse.BoundaryManager.GenericBoundary`): a windse boundary object.
-    """
-    def __init__(self,domain,windfarm,function_space,boundary_conditions):
-        super(StabilizedProblem, self).__init__(domain,windfarm,function_space,boundary_conditions)
-        self.fprint("Setting Up Stabilized Problem",special="header")
-
-
-
-        ### Create Functional ###
-        self.ComputeFunctional()
-
-        self.fprint("Stabilized Problem Setup",special="footer")
-
-    def ComputeFunctional(self,theta=None):
-        ### Create the test/trial/functions ###
-        self.up_next = Function(self.fs.W)
-        self.u_next,self.p_next = split(self.up_next)
-        v,q = TestFunctions(self.fs.W)
-
-
-        ### Set the initial guess ###
-        ### (this will become a separate function.)
-        self.up_next.assign(self.bd.u0)
-
-        ### Create the turbine force ###
-        if theta is not None:
-            self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next,delta_yaw=(theta-self.dom.init_wind))
-        else:
-            self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next)
-
-
-        ### These constants will be moved into the params file ###
-        nu = Constant(0.1)
-        f = Constant((0.0,)*self.dom.dim)
-        vonKarman=0.41
-        lmax=15
-        mlDenom = 8.
-        eps=Constant(0.01)
-
-        self.fprint("Viscosity:                 {:1.2e}".format(float(nu)))
-        self.fprint("Mixing Length Scale:       {:1.2e}".format(float(mlDenom)))
-        self.fprint("Stabilization Coefficient: {:1.2e}".format(float(eps)))
-
-        ### Calculate the stresses and viscosities ###
-        S = sqrt(2*inner(0.5*(grad(self.u_next)+grad(self.u_next).T),0.5*(grad(self.u_next)+grad(self.u_next).T)))
-
-        ### Create l_mix based on distance to the ground ###
-        if self.dom.dim == 3:
-            ### https://doi.org/10.5194/wes-4-127-2019###
-            l_mix = Function(self.fs.Q)
-            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:],(1.+np.divide(vonKarman*self.bd.depth.vector()[:],lmax)))
-        else:
-            l_mix = Constant(self.farm.HH[0]/mlDenom)
-
-        ### Calculate nu_T
-        self.nu_T=l_mix**2.*S
-
-        ### Create the functional ###
-        if self.farm.yaw[0]**2 > 1e-4:
-            self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx
-        else :
-            self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_next[0]**2+self.u_next[1]**2),v)*dx
-
-        ### Add in the Stabilizing term ###
-        stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx
-        self.F += stab
 
 
 class TaylorHoodProblem(GenericProblem):
@@ -158,51 +100,67 @@ class TaylorHoodProblem(GenericProblem):
         function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
         boundary_conditions (:meth:`windse.BoundaryManager.GenericBoundary`): a windse boundary object.
     """
-    def __init__(self,domain,windfarm,function_space,boundary_conditions):
-        super(TaylorHoodProblem, self).__init__(domain,windfarm,function_space,boundary_conditions)
+    def __init__(self,domain,windfarm,function_space,boundary_conditions,turbulence_model):
+        super(TaylorHoodProblem, self).__init__(domain,windfarm,function_space,boundary_conditions,turbulence_model)
         self.fprint("Setting Up Taylor-Hood Problem",special="header")
 
-        ### These constants will be moved into the params file ###
-        nu = Constant(0.1)
-        f = Constant((0.0,)*self.dom.dim)
-        vonKarman=0.41
-        lmax=15
-        mlDenom = 8.
-        eps=Constant(0.01)
+        ### Create Functional ###
+        self.ComputeFunctional()
 
-        self.fprint("Viscosity:           {:1.2e}".format(float(nu)))
-        self.fprint("Mixing Length Scale: {:1.2e}".format(float(mlDenom)))
+        self.fprint("Taylor-Hood Problem Setup",special="footer")
 
+    def ComputeFunctional(self, theta=None):
         ### Create the test/trial/functions ###
         self.up_next = Function(self.fs.W)
-        u_next,p_next = split(self.up_next)
-        v,q = TestFunctions(self.fs.W)
+        self.u_next,self.p_next = split(self.up_next)
+        self.v,self.q = TestFunctions(self.fs.W)
 
         ### Set the initial guess ###
         ### (this will become a separate function.)
         self.up_next.assign(self.bd.u0)
 
-        ### Calculate the stresses and viscosities ###
-        S = sqrt(2.*inner(0.5*(grad(u_next)+grad(u_next).T),0.5*(grad(u_next)+grad(u_next).T)))
-
-        ### Create l_mix based on distance to the ground ###
-        if self.dom.dim == 3:
-            ### https://doi.org/10.5194/wes-4-127-2019###
-            l_mix = Function(self.fs.Q)
-            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:],(1.+np.divide(vonKarman*self.bd.depth.vector()[:],lmax)))
-        else:
-            l_mix = Constant(self.farm.HH[0]/mlDenom)
-
         ### Calculate nu_T
-        self.nu_T=l_mix**2.*S
+        self.nu_T = self.tm.calculate_nut(self.u_next,self.p_next,self.nu, self.fs, **self.tm_kwargs)
 
         ### Create the turbine force ###
-        self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,u_next)
+        if theta is not None:
+            self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next,delta_yaw=(theta-self.dom.init_wind))
+        else:
+            self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next)
 
         ### Create the functional ###
+        f = Constant((0.0,)*self.dom.dim)
         if self.farm.yaw[0]**2 > 1e-4:
-            self.F = inner(grad(u_next)*u_next, v)*dx + (nu+self.nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx
+            self.F = inner(grad(self.u_next)*self.u_next, self.v)*dx + (self.nu+self.nu_T)*inner(grad(self.u_next), grad(self.v))*dx - inner(div(self.v),self.p_next)*dx - inner(div(self.u_next),self.q)*dx - inner(f,self.v)*dx + inner(self.tf,self.v)*dx
         else :
-            self.F = inner(grad(u_next)*u_next, v)*dx + (nu+self.nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(u_next[0]**2+u_next[1]**2),v)*dx
+            self.F = inner(grad(self.u_next)*self.u_next, self.v)*dx + (self.nu+self.nu_T)*inner(grad(self.u_next), grad(self.v))*dx - inner(div(self.v),self.p_next)*dx - inner(div(self.u_next),self.q)*dx - inner(f,self.v)*dx + inner(self.tf*(self.u_next[0]**2+self.u_next[1]**2),self.v)*dx
 
-        self.fprint("Taylor-Hood Problem Setup",special="footer")
+
+class StabilizedProblem(TaylorHoodProblem, GenericProblem):
+    """
+    The StabilizedProblem setup everything required for solving Navier-Stokes with
+    a stabilization term
+
+    Args:
+        domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
+        windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
+        function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
+        boundary_conditions (:meth:`windse.BoundaryManager.GenericBoundary`): a windse boundary object.
+    """
+    def __init__(self,domain,windfarm,function_space,boundary_conditions,turbulence_model):
+        windse_parameters.fprint("Setting Up Stabilized Problem",special="header")
+
+        super(StabilizedProblem, self).__init__(domain,windfarm,function_space,boundary_conditions,turbulence_model)
+
+        self.fprint("Adding stabilization term")
+
+        self.fprint("Stabilized Problem Setup",special="footer")
+
+
+    def ComputeFunctional(self,theta=None):
+        super().ComputeFunctional(theta)
+
+        ### Add in the Stabilizing term ###
+        eps = Constant(0.01)
+        stab = - eps*inner(grad(self.q), grad(self.p_next))*dx - eps*inner(grad(self.q), dot(grad(self.u_next), self.u_next))*dx
+        self.F += stab

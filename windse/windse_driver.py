@@ -1,15 +1,17 @@
 import sys
-import numpy as np
 import os.path as osp
 import argparse
 
+import numpy as np
+
 import windse
 
-ALL_ACTIONS = ("run")
+ALL_ACTIONS = ("run", "cost")
 help_msg = """
 Available commands:
 
     run      run windse with a specified params file
+    cost     run windse with specified eddy viscocity
 
 Type windse <command> --help for usage help on a specific command.
 For example, windse run --help will list all running options.
@@ -25,9 +27,10 @@ def get_action():
     if len(sys.argv) == 1:
         action = 'run'
     elif len(sys.argv)==2:
-        if not sys.argv[1] in ALL_ACTIONS:
+        if sys.argv[1] in ALL_ACTIONS:
+            action = sys.argv.pop(1)
+        else:
             action = 'run'
-        action = sys.argv.pop(1)
     elif len(sys.argv)==3:
         if not sys.argv[1] in ALL_ACTIONS:
             print_usage()
@@ -39,17 +42,20 @@ def get_action():
     return action
 
 ### Run the driver ###
-def run_action():
-    parser = argparse.ArgumentParser(usage="windse run [options] params", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("params", nargs='?', help='path to yaml file containing the WindSE parameters')
-    args = parser.parse_args()
+def run_action(params_loc=None):
+    if params_loc is None:
+        parser = argparse.ArgumentParser(usage="windse run [options] params", formatter_class=argparse.RawTextHelpFormatter)
+        parser.add_argument("params", nargs='?', help='path to yaml file containing the WindSE parameters')
+        args = parser.parse_args()
 
-    ### Check if parameters was provided ###
-    if args.params is None:
-        params_loc = "params.yaml"
-        print("Using default parameter location: ./params.yaml")
+        ### Check if parameters was provided ###
+        if args.params is None:
+            params_loc = "params.yaml"
+            print("Using default parameter location: ./params.yaml")
+        else:
+            params_loc = args.params
+            print("Using parameter location: "+params_loc)
     else:
-        params_loc = args.params
         print("Using parameter location: "+params_loc)
 
     ### Initialize WindSE ###
@@ -109,10 +115,16 @@ def run_action():
                "power":windse.PowerInflow}
     bc = bc_dict[params["boundary_condition"]["vel_profile"]](dom,fs)
 
+    ### Turbulence Model ###
+    tm_dict = {"mixing_length":windse.MixingLengthTurbulenceModel,
+               "specified_nuT":windse.SpecifiedNuT,
+              }
+    tm = tm_dict[params["physics"]["turbulence_model"]]()
+
     ### Generate the problem ###
     prob_dict = {"stabilized":windse.StabilizedProblem,
                  "taylor_hood":windse.TaylorHoodProblem}
-    problem = prob_dict[params["problem"]["type"]](dom,farm,fs,bc)
+    problem = prob_dict[params["problem"]["type"]](dom,farm,fs,bc,tm)
 
     ### Solve ###
     solve_dict = {"steady":windse.SteadySolver,
@@ -127,7 +139,7 @@ def run_action():
     # exit()
 
     ### Perform Optimization ###
-    if params["optimization"]:
+    if "optimization" in params.keys():
         opt=windse.Optimizer(solver)
         if params["optimization"].get("taylor_test",False):
             opt.TaylorTest()
@@ -137,7 +149,7 @@ def run_action():
 
 
 def main():
-    actions = {"run": run_action}
+    actions = {"run": run_action,}
     actions[get_action()]()
 
 if __name__ == "__main__":

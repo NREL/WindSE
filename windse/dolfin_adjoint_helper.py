@@ -13,9 +13,9 @@ def linalg_solve(*args, **kwargs):
     The original function doesn't allow for solver options because it uses
      the::
 
-        dolfin.solve(A,x,b) 
+        dolfin.solve(A,x,b)
 
-    form which doesn't accept keyword arguments. However, It does except 
+    form which doesn't accept keyword arguments. However, It does except
     additional arguments that defined some solver options, which we pass
     in manually
 
@@ -25,16 +25,16 @@ def linalg_solve(*args, **kwargs):
         to get access to all the ksp options.
 
     """
-    return dolfin_adjoint.backend.solve(*args,"mumps") 
+    return dolfin_adjoint.backend.solve(*args,"mumps")
 
 dolfin_adjoint.types.compat.linalg_solve = linalg_solve
 def recompute_component(self, inputs, block_variable, idx, prepared):
-    """This function overrides 
+    """This function overrides
     dolfin_adjoint.solving.SolveBlock.recompute_component
 
-    The original function doesn't account for kwargs in a project so it 
+    The original function doesn't account for kwargs in a project so it
     doesn't pass them to this function. For now, we just supply the
-    solver_parameters manually in this case. 
+    solver_parameters manually in this case.
 
     Todo:
 
@@ -56,7 +56,7 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
 dolfin_adjoint.solving.SolveBlock.recompute_component = recompute_component
 
 def BaseHeight(x,y,ground,**kwargs):
-    '''This is the adjoint version of RelativeHeight. It's goal is to 
+    '''This is the adjoint version of RelativeHeight. It's goal is to
     calculate the height of the turbine's base. At the same time, it creates
     a block that helps propagate the adjoint information.'''
     annotate = annotate_tape(kwargs)
@@ -64,7 +64,7 @@ def BaseHeight(x,y,ground,**kwargs):
         output = backend_BaseHeight(x,y,ground)
     output = create_overloaded_object(output)
 
-    if annotate:        
+    if annotate:
         block = BaseHeightBlock(x, y, ground, output)
 
         tape = get_working_tape()
@@ -75,7 +75,7 @@ def BaseHeight(x,y,ground,**kwargs):
     return output
 
 class BaseHeightBlock(Block):
-    '''This is the Block class that will be used to calculate adjoint 
+    '''This is the Block class that will be used to calculate adjoint
     information for optimizations. '''
     def __init__(self, x, y, ground, output):
         super(BaseHeightBlock, self).__init__()
@@ -122,11 +122,11 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
     windse to inject special function calls.
 
     Args:
-        values ([OverloadedType]): If you have multiple controls this 
+        values ([OverloadedType]): If you have multiple controls this
             should be a list of new values for each control in the order
-            you listed the controls to the constructor. If you have a 
-            single control it can either be a list or a single object. 
-            Each new value should have the same type as the 
+            you listed the controls to the constructor. If you have a
+            single control it can either be a list or a single object.
+            Each new value should have the same type as the
             corresponding control.
 
     Returns:
@@ -196,7 +196,7 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
 # def update_relative_heights(tape):
 #     """This function find the the turbine (x,y,z) control values and updates
 #     the z values according to the updated (x,y) values that are being
-#     optimized. 
+#     optimized.
 
 #     """
 
@@ -242,17 +242,17 @@ class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
 
 
 # def reduced_functional_eval(self, values):
-#     """This function overrides 
+#     """This function overrides
 #     pyadjoint.reduced_functional.ReducedFunctional.__call__() allowing
 #     windse to update the turbine absolute heights after the locations
 #     are updated.
 
 #     Args:
-#         values ([OverloadedType]): If you have multiple controls this 
+#         values ([OverloadedType]): If you have multiple controls this
 #             should be a list of new values for each control in the order
-#             you listed the controls to the constructor. If you have a 
-#             single control it can either be a list or a single object. 
-#             Each new value should have the same type as the 
+#             you listed the controls to the constructor. If you have a
+#             single control it can either be a list or a single object.
+#             Each new value should have the same type as the
 #             corresponding control.
 
 #     Returns:
