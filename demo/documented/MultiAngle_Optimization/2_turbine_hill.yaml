@@ -1,0 +1,62 @@
+# General options
+general: 
+    name: 2_turbine_90_degrees_hill
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: true
+
+wind_farm: 
+    type: imported
+    path: Input_Data/wind_farm.txt 
+
+domain: 
+    #                      # Description           | Units
+    type: box              #
+    x_range: [-1200, 1200] # x-range of the domain | m
+    y_range: [-1200, 1200] # y-range of the domain | m
+    z_range: [0.04, 640]   # z-range of the domain | m
+    nx: 15                 # Number of x-nodes     | -
+    ny: 15                 # Number of y-nodes     | -
+    nz: 3                 # Number of z-nodes      | -
+    interpolated: true 
+    analytic: true
+    gaussian: 
+        center: [0,0]
+        amp: 100
+        theta: 0.78539816339
+        sigma_x: 400
+        sigma_y: 400
+
+
+refine:
+    #                      # Description                  | Units
+    warp_type: smooth      # percent of cells moved       | -
+    warp_strength: 1.2     # percent of cells moved       | -
+    refine_custom: [
+        [1,full],
+        # [1, custom, [[-1200,1200],[-1200,1200],[0,140]]],
+        # [1, circle, 1020]
+    ]
+
+function_space:
+    type: linear
+
+boundary_condition:
+    vel_profile: log
+    HH_vel: 4.0
+    power: 0.25
+    k: 0.4
+
+problem:
+    type: stabilized
+    viscosity: 0.2
+
+solver:
+    type: multiangle
+    wind_range: [0, 1.57079632679]
+    num_wind_angles: 2
+
+optimization:
+    controls: [layout]
+    layout_bounds: [[-720, 720],[-720, 720]] 
+    taylor_test: true
+    optimize: false

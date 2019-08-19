@@ -171,7 +171,7 @@ class GenericDomain(object):
             self.fprint("Region Type: {0}".format("cell_markers"))
         elif region is not None:
             self.fprint("Region Type: {0}".format(region_type))
-            if region_type == "circle":
+            if "circle" in region_type:
                 self.fprint("Circle Radius: {:.2f}".format(region[0][0]))
                 self.fprint("Circle Center: ({:.2f}, {:.2f})".format(region[1][0],region[1][1]))
                 if self.dim == 3:
@@ -207,7 +207,7 @@ class GenericDomain(object):
                 cells_marked = 0
 
                 ### Check if we are refining in a circle ###
-                if region_type == "circle":
+                if "circle" in region_type:
                     radius=region[0][0]
                     for cell in cells(self.mesh):
                         in_circle = (cell.midpoint()[0]-region[1][0])**2.0+(cell.midpoint()[1]-region[1][1])**2.0<=radius**2.0
@@ -362,6 +362,55 @@ class GenericDomain(object):
     def Finalize(self):
         self.finalized = True
 
+    def SetupInterpolatedGround(self):
+        self.fprint("Ground Type: Interpolated From File")
+
+        ### Import data from Options ###
+        if "path" in self.params["domain"]:
+            self.path = self.params["domain"]["path"]
+            self.typo_path  = self.path + "topography.txt"
+        else:
+            self.typo_path  = self.params["domain"]["typo_path"]
+
+        self.fprint("Path: {0}".format(self.typo_path),offset=1)
+
+        ### import ground data
+        self.topography = np.loadtxt(self.typo_path)
+        x_data = self.topography[1:,0]
+        y_data = self.topography[1:,1]
+        z_data = self.topography[1:,2]
+
+        ### generate interpolating function
+        x_data = np.sort(np.unique(x_data))
+        y_data = np.sort(np.unique(y_data))
+        z_data = np.reshape(z_data,(int(self.topography[0,0]),int(self.topography[0,1])))
+        self.topography_interpolated = RectBivariateSpline(x_data,y_data,z_data.T)
+
+    def SetupAnalyticGround(self):
+        self.hill_sigma_x = self.params["domain"]["gaussian"]["sigma_x"]
+        self.hill_sigma_y = self.params["domain"]["gaussian"]["sigma_y"]
+        self.hill_theta = self.params["domain"]["gaussian"].get("theta",0.0)
+        self.hill_amp = self.params["domain"]["gaussian"]["amp"]
+        self.hill_center = self.params["domain"]["gaussian"].get("center",[0.0,0.0])
+        self.hill_x0 = self.hill_center[0]
+        self.hill_y0 = self.hill_center[1]
+        self.fprint("")
+        self.fprint("Ground Type: Gaussian Hill")
+        self.fprint("Hill Center:   ({: .2f}, {: .2f})".format(self.hill_x0,self.hill_y0),offset=1)
+        self.fprint("Hill Rotation:  {: <7.2f}".format(self.hill_theta),offset=1)
+        self.fprint("Hill Amplitude: {: <7.2f}".format(self.hill_amp),offset=1)
+        self.fprint("Hill sigma_x:   {: <7.2f}".format(self.hill_sigma_x),offset=1)
+        self.fprint("Hill sigma_y:   {: <7.2f}".format(self.hill_sigma_y),offset=1)
+        self.hill_a = np.cos(self.hill_theta)**2/(2*self.hill_sigma_x**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_y**2)
+        self.hill_b = np.sin(2*self.hill_theta)/(4*self.hill_sigma_y**2) - np.sin(2*self.hill_theta)/(4*self.hill_sigma_x**2)
+        self.hill_c = np.cos(self.hill_theta)**2/(2*self.hill_sigma_y**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_x**2)
+
+    def GaussianGroundFuncion(self,x,y):
+        return self.hill_amp*exp( - (self.hill_a*(x-self.hill_x0)**2 + 2*self.hill_b*(x-self.hill_x0)*(y-self.hill_y0) + self.hill_c*(y-self.hill_y0)**2)**2)+self.z_range[0]
+
+    def InterplatedGroundFunction(self,x,y):
+        return float(self.topography_interpolated(x,y)[0]+self.z_range[0])
+
     def Ground(self,x,y):
         """
         Ground returns the ground height given an (*x*, *y*) coordinate.
@@ -374,22 +423,9 @@ class GenericDomain(object):
             float/list: corresponding z coordinates of the ground.
 
         """
-##########################
-##########################
-##########################
-##########################
-##########################
         if isinstance(x,Constant):
-            print("a constant was found")
             z = self.ground_function(x,y)
-            print(z)
-            print(type(z))
             return z
-##########################
-##########################
-##########################
-##########################
-##########################
         else:
             if (isinstance(x,list) and isinstance(y,list)) or (isinstance(x,np.ndarray) and isinstance(y,np.ndarray)):
                 nx = len(x)
@@ -1091,17 +1127,11 @@ class ImportedDomain(GenericDomain):
         ### Create the interpolation function for the ground ###
         interp_start = time.time()
         self.fprint("")
-        self.fprint("Building Ground Interpolating Function")
-        self.topography = np.loadtxt(self.typo_path)
-        x_data = self.topography[1:,0]
-        y_data = self.topography[1:,1]
-        z_data = self.topography[1:,2]
-        
-        x_data = np.sort(np.unique(x_data))
-        y_data = np.sort(np.unique(y_data))
-        z_data = np.reshape(z_data,(int(self.topography[0,0]),int(self.topography[0,1])))
+        self.fprint("Building Interpolating Function")
 
-        self.topography_interpolated = RectBivariateSpline(x_data,y_data,z_data.T)
+        self.SetupInterpolatedGround()
+        self.ground_function = self.InterplatedGroundFunction
+
         interp_stop = time.time()
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
         self.fprint("Initial Domain Setup",special="footer")
@@ -1126,32 +1156,18 @@ class InterpolatedCylinderDomain(CylinderDomain):
         # self.__dict__.update(base.__dict__)
 
         interp_start = time.time()
-        self.fprint("")
-        self.fprint("Building Ground Interpolating Function")
+        self.fprint("Building Ground Function",special="header")
 
-        ### Import data from Options ###
-        if "path" in self.params["domain"]:
-            self.path = self.params["domain"]["path"]
-            self.typo_path  = self.path + "topology.txt"
+        self.analytic = self.params["domain"].get("analytic",False)
+        if self.analytic:
+            self.SetupAnalyticGround()
+            self.ground_function = self.GaussianGroundFuncion
         else:
-            self.typo_path  = self.params["domain"]["typo_path"]
+            self.SetupInterpolatedGround()
+            self.ground_function = self.InterplatedGroundFunction
 
-        ### import ground data
-        self.topography = np.loadtxt(self.typo_path)
-        x_data = self.topography[1:,0]
-        y_data = self.topography[1:,1]
-        z_data = self.topography[1:,2]
-
-        ### generate interpolating function
-        x_data = np.sort(np.unique(x_data))
-        y_data = np.sort(np.unique(y_data))
-        z_data = np.reshape(z_data,(int(self.topography[0,0]),int(self.topography[0,1])))
-        self.topography_interpolated = RectBivariateSpline(x_data,y_data,z_data.T)
         interp_stop = time.time()
-        self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
-
-    def ground_function(self,x,y):
-        return self.topography_interpolated(x,y)[0]+self.z_range[0]
+        self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")
 
     def Finalize(self):
         self.Move(self.ground_function)
@@ -1176,56 +1192,19 @@ class InterpolatedBoxDomain(BoxDomain):
         # self.__dict__.update(base.__dict__)
 
         interp_start = time.time()
-        self.fprint("")
-        self.fprint("Building Ground Interpolating Function")
+        self.fprint("Building Ground Function",special="header")
 
-        ### Import data from Options ###
-        if "path" in self.params["domain"]:
-            self.path = self.params["domain"]["path"]
-            self.typo_path  = self.path + "topology.txt"
+        self.analytic = self.params["domain"].get("analytic",False)
+        if self.analytic:
+            self.SetupAnalyticGround()
+            self.ground_function = self.GaussianGroundFuncion
         else:
-            self.typo_path  = self.params["domain"]["typo_path"]
+            self.SetupInterpolatedGround()
+            self.ground_function = self.InterplatedGroundFunction
 
-        ### import ground data
-        self.topography = np.loadtxt(self.typo_path)
-        x_data = self.topography[1:,0]
-        y_data = self.topography[1:,1]
-        z_data = self.topography[1:,2]
-
-        ### generate interpolating function
-        x_data = np.sort(np.unique(x_data))
-        y_data = np.sort(np.unique(y_data))
-        z_data = np.reshape(z_data,(int(self.topography[0,0]),int(self.topography[0,1])))
-        self.topography_interpolated = RectBivariateSpline(x_data,y_data,z_data.T)
         interp_stop = time.time()
-        self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
+        self.fprint("Ground Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")
 
-    def ground_function(self,x,y):
-###############################################
-###############################################
-###############################################
-###############################################
-###############################################
-###############################################
-        theta=np.pi/4
-        sigma_x = 400.
-        sigma_y = 400.
-        amp=100
-        x0=0
-        y0=0
-        a=np.cos(theta)**2/(2*sigma_x**2) + np.sin(theta)**2/(2*sigma_y**2)
-        b=np.sin(2*theta)/(4*sigma_y**2) - np.sin(2*theta)/(4*sigma_x**2)
-        c=np.cos(theta)**2/(2*sigma_y**2) + np.sin(theta)**2/(2*sigma_x**2)
-        Z = amp*exp( - (a*(x-x0)**2 + 2*b*(x-x0)*(y-y0) + c*(y-y0)**2)**2)
-        return Z
-        # return float(self.topography_interpolated(x,y)[0]+self.z_range[0])
-
-###############################################
-###############################################
-###############################################
-###############################################
-###############################################
-###############################################
     def Finalize(self):
         self.Move(self.ground_function)
         self.finalized = True

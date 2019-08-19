@@ -17,8 +17,11 @@ if main_file != "sphinx-build":
     import numpy as np
     from math import ceil
     import shutil
-    from dolfin import File, HDF5File, XDMFFile, MPI, Mesh
+    from dolfin import *
     import sys
+    import ast
+
+    # set_log_level(LogLevel.CRITICAL)
 
 ######################################################
 ### Collect all options and define general options ###
@@ -51,7 +54,23 @@ class Parameters(dict):
         super(Parameters, self).__init__()
         self.current_tab = 0
 
-    def Load(self, loc):
+    def NestedUpdate(self,dic,keys,value):
+        if len(keys) > 1:
+            next_dic = dic.setdefault(keys[0],{})
+            self.NestedUpdate(next_dic,keys[1:],value)
+        elif len(keys) == 1:
+            current_value = dic.get(keys[0],"")
+            if isinstance(current_value,int):
+                dic[keys[0]] = int(value)
+            elif isinstance(current_value,float):
+                dic[keys[0]] = float(value)
+            elif isinstance(current_value,str):
+                dic[keys[0]] = value
+            elif isinstance(current_value,list):
+                dic[keys[0]] = ast.literal_eval(value)
+
+
+    def Load(self, loc,updated_parameters=[]):
         """
         This function loads the parameters from the .yaml file. 
         It should only be assessed once from the :meth:`windse.initialize` function.
@@ -62,7 +81,15 @@ class Parameters(dict):
         """
 
         ### Load the yaml file (requires PyYaml)
-        self.update(yaml.load(open(loc),Loader=yaml.SafeLoader))
+        yaml_file = yaml.load(open(loc),Loader=yaml.SafeLoader)
+
+        ### update any parameters if supplied ###
+        for p in updated_parameters:
+            keys_list = p.split(":")
+            self.NestedUpdate(yaml_file,keys_list[:-1],keys_list[-1])
+
+        ### Set the parameters
+        self.update(yaml_file)
 
         ### Create Instances of the general options ###
         self.name = self["general"].get("name", "Test")
@@ -101,6 +128,10 @@ class Parameters(dict):
         self.fprint("Run Name: {0}".format(self.name))
         self.fprint("Run Time Stamp: {0}".format(fancytimestamp))
         self.fprint("Output Folder: {0}".format(self.folder))
+        if updated_parameters:
+            self.fprint("Updated Parameter:")
+            for i,p in enumerate(updated_parameters):
+                self.fprint("{:d}: {:}".format(i,p),offset=1)
         self.fprint("Parameters Setup", special="footer")
 
     def Read(self):
@@ -211,7 +242,9 @@ class Parameters(dict):
                 string = tabbed+repr(string)
 
             ### Print ###
-            print(string, flush=True)
+            # print(string, flush=True)
+            print(string)
+            sys.stdout.flush()
 
             if special=="header":
                 self.fprint("",tab=tab+1)

@@ -37,6 +37,8 @@ if main_file != "sphinx-build":
         import matplotlib
         matplotlib.use('TKAgg')
     import matplotlib.pyplot as plt
+else:
+    InequalityConstraint = object
 
 class Optimizer(object):
     """
@@ -169,24 +171,25 @@ class Optimizer(object):
         # J=Functional(tf*u[0]**3*dx)
 
         if self.farm.yaw[0]**2 > 1e-4:
-            self.J = assemble(-dot(self.problem.tf,self.solver.u_next),*dx)
+            self.J = assemble(-dot(self.problem.tf,self.solver.u_next)*dx)
         else:
             self.J = assemble(-inner(dot(self.problem.tf,self.solver.u_next),self.solver.u_next[0]**2+self.solver.u_next[1]**2)*dx)
         self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback) 
         self.Jcurrent = self.J
 
     def ListControls(self,m):
-        for i in range(self.farm.numturbs):
-            self.fprint("Turbine {0:} of {1:}: {2: 4.2f}, {3: 4.2f}".format(i,self.farm.numturbs,self.x_val[i],self.y_val[i]))
+        if "layout" in self.control_types:
+            for i in range(self.farm.numturbs):
+                self.fprint("Turbine {0:} of {1:}: {2: 4.2f}, {3: 4.2f}".format(i,self.farm.numturbs,self.x_val[i],self.y_val[i]))
 
     def PlotLayout(self,m,show=False):
         self.x_val = []
         self.y_val = []
 
         for i,val in enumerate(m):
-            if "x" in self.names[i]:
+            if "x_" in self.names[i]:
                 self.x_val.append(float(m[i]))
-            elif "y" in self.names[i]:
+            elif "y_" in self.names[i]:
                 self.y_val.append(float(m[i]))
 
         z_val = self.problem.dom.Ground(self.x_val,self.y_val)+self.problem.farm.HH
@@ -219,17 +222,38 @@ class Optimizer(object):
         if show:
             plt.show()
 
-    def SaveLayout(self,m):
+    def SaveControls(self,m):
 
-        self.problem.farm.UpdateConstants(m=m,control_types=self.control_types,indexes=self.indexes)
-        self.problem.farm.SaveWindFarm(val=self.iteration)
+        folder_string = self.params.folder+"/data/"
+        if not os.path.exists(folder_string): os.makedirs(folder_string)
+
+        if "layout" in self.control_types:
+            self.problem.farm.UpdateConstants(m=m,control_types=self.control_types,indexes=self.indexes)
+            self.problem.farm.SaveWindFarm(val=self.iteration)
+
+        if self.iteration == 0:
+            self.last_m = np.zeros(len(m))
+            for i in range(len(m)):
+                self.last_m[i]=float(m[i])
+            err = 0.0
+            f = open(folder_string+"opt_data.txt",'wb')
+        else:
+            err = np.linalg.norm(m-self.last_m)
+            self.last_m = m
+            f = open(folder_string+"opt_data.txt",'ab')
+
+        output_data = np.concatenate(((self.Jcurrent, err),m))
+
+        np.savetxt(f,[output_data])
+        f.close()
 
     def OptPrintFunction(self,m):
 
         if "layout" in self.control_types:
             self.PlotLayout(m,show=False)
-            self.SaveLayout(m)
-            self.ListControls(m)
+
+        self.SaveControls(m)
+        self.ListControls(m)
         
         self.iteration += 1
 
@@ -281,7 +305,7 @@ class MinimumDistanceConstraint(InequalityConstraint):
 
         self.min_distance = min_distance
         self.m_pos = m_pos
-        print("In mimimum distance constraint")
+        # print("In mimimum distance constraint")
 
     def length(self):
         nconstraints = comb(len(self.m_pos)/2,2.)
@@ -299,14 +323,15 @@ class MinimumDistanceConstraint(InequalityConstraint):
 
         arr = np.array(ieqcons)
 
-        print("In mimimum distance constraint function eval")
+        # print("In mimimum distance constraint function eval")
         # print "distances: ", arr*lengthscale
         numClose = 0
         for i in range(len(arr)):
             if arr[i]<0:
                 # print(arr[i]*lengthscale)
                 numClose +=1
-        print("Number of turbines in violation of spacing constraint:", numClose)
+        if numClose > 1:
+            print("Warning: Number of turbines in violation of spacing constraint: "+repr(numClose))
         return np.array(ieqcons)
 
     def jacobian(self, m):
@@ -325,5 +350,5 @@ class MinimumDistanceConstraint(InequalityConstraint):
                     prime_ieqcons[2 * j + 1] = -2 * (m_pos[2 * i + 1] - m_pos[2 * j + 1])
 
                     ieqcons.append(prime_ieqcons)
-        print("In mimimum distance constraint Jacobian eval")
+        # print("In mimimum distance constraint Jacobian eval")
         return np.array(ieqcons)

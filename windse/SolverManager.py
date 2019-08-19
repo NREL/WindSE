@@ -49,7 +49,9 @@ class GenericSolver(object):
         self.nu_T = self.problem.nu_T
         self.first_save = True
         self.fprint = self.params.fprint
-
+        self.extra_kwarg = {}
+        if self.params["general"].get("dolfin_adjoint", False):
+            self.extra_kwarg["annotate"] = False
 
     def Plot(self):
         """
@@ -79,7 +81,7 @@ class GenericSolver(object):
         """
         This function saves the mesh and boundary markers to output/.../solutions/
         """
-        u,p = self.problem.up_next.split(True,annotate=False)
+        u,p = self.problem.up_next.split(True,**self.extra_kwarg)
         if self.first_save:
             self.u_file = self.params.Save(u,"velocity",subfolder="solutions/",val=val)
             self.p_file = self.params.Save(p,"pressure",subfolder="solutions/",val=val)
@@ -121,7 +123,7 @@ class SteadySolver(GenericSolver):
         if "initial_guess" in self.params.output:
             self.problem.bd.SaveInitialGuess(val=iter_val)
         if "height" in self.params.output and self.problem.dom.dim == 3:
-            self.problem.bd.SaveHeight()
+            self.problem.bd.SaveHeight(val=iter_val)
         if "turbine_force" in self.params.output:
             self.problem.farm.SaveTurbineForce(val=iter_val)
         self.fprint("Finished",special="footer")
@@ -160,7 +162,7 @@ class SteadySolver(GenericSolver):
                              "snes_solver": {
                              "linear_solver": "mumps", 
                              "maximum_iterations": 40,
-                             "error_on_nonconvergence": False,
+                             "error_on_nonconvergence": True,
                              "line_search": "bt",
                              }}
 
@@ -181,7 +183,7 @@ class SteadySolver(GenericSolver):
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
         # self.u_next,self.p_next = self.problem.up_next.split(True)
         self.u_next,self.p_next = split(self.problem.up_next)
-        # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,annotate=False,solver_type='mumps')
+        # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
         self.nu_T = None
 
 
@@ -203,8 +205,8 @@ class MultiAngleSolver(SteadySolver):
 
     def __init__(self,problem):
         super(MultiAngleSolver, self).__init__(problem)
-        # if self.params["domain"]["type"] not in ["circle","cylinder","interpolated"]:
-        #     raise ValueError("A circle, cylinder, or interpolated cylinder domain is required for a Multi-Angle Solver")
+        if self.params["domain"]["type"] in ["imported"]:
+            raise ValueError("Cannot use a Multi-Angle Solver with an "+self.params["domain"]["type"]+" domain.")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
         self.wind_range = self.params["solver"].get("wind_range", None)
         if  self.wind_range is None:
@@ -214,7 +216,7 @@ class MultiAngleSolver(SteadySolver):
             self.endpoint = self.params["solver"].get("endpoint", True)
 
         self.num_wind = self.params["solver"]["num_wind_angles"]
-        self.angles = np.linspace(*self.wind_range,self.num_wind,endpoint=self.endpoint)
+        self.angles = np.linspace(self.wind_range[0],self.wind_range[1],self.num_wind,endpoint=self.endpoint)
 
         #Check if we are optimizing
         if self.params.get("optimization",{}):

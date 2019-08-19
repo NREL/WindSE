@@ -25,6 +25,9 @@ inputs, which can be downloaded from the section header.
     b. :download:`Yaw <demos/Optimization/yaw.yaml>`
     c. :download:`Layout <demos/Optimization/layout.yaml>`
     d. :download:`All <demos/Optimization/all.yaml>`
+5. MultiAngle Optimization (:download:`Input Data <demos/MultiAngle_Optimization/Input_Data.zip>`)
+    a. :download:`2 Turbine Hill  <demos/MultiAngle_Optimization/2_turbine_hill.yaml>`
+    b. :download:`3x3 Skew Hill <demos/MultiAngle_Optimization/3x3_skew.yaml>`
 
 
 Example Driver Files

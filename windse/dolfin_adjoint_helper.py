@@ -98,26 +98,27 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
         # plt.show()
 
         # exit()
-        if hasattr(self, 'solve_iteration'):
-            self.solve_iteration += 1
-        else:
-            # print()
-            # print("but we haven't been here before")
-            self.recompute_set = 0
-            while os.path.isfile(windse_parameters.folder+"debug/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd"):
-                self.recompute_set +=1
-            # print("and that's the "+repr(self.recompute_set)+" time this has happened")
-            # print()
-            self.savefile = dolfin.File(windse_parameters.folder+"debug/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd")
-            self.solve_iteration = 0
-        
-        print(self.recompute_set)
 
         dolfin_adjoint.backend.solve(eq, func, bcs, **self.forward_kwargs)
 
-        u, p = func.split(True)
-        u.rename("velocity","velocity")
-        self.savefile << (u,self.solve_iteration)
+        if "debug" in windse_parameters.output:
+            if hasattr(self, 'solve_iteration'):
+                self.solve_iteration += 1
+            else:
+                # print()
+                # print("but we haven't been here before")
+                self.recompute_set = 0
+                while os.path.isfile(windse_parameters.folder+"debug/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd"):
+                    self.recompute_set +=1
+                # print("and that's the "+repr(self.recompute_set)+" time this has happened")
+                # print()
+                self.savefile = dolfin.File(windse_parameters.folder+"debug/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd")
+                self.solve_iteration = 0
+            
+            
+            u, p = func.split(True)
+            u.rename("velocity","velocity")
+            self.savefile << (u,self.solve_iteration)
 
     return func
 
@@ -165,7 +166,6 @@ class BaseHeightBlock(Block):
     def recompute_component(self, inputs, block_variable, idx, prepared):
         x = prepared[0]
         y = prepared[1]
-        print("recomputing")
         return backend_BaseHeight(x,y,self.ground)
 
     def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):

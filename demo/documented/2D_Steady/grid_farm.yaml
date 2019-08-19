@@ -10,8 +10,8 @@ wind_farm:
     type: grid            #                          |
     ex_x: [-1500, 1500]   # x-extent of the farm     | m
     ex_y: [-1500, 1500]   # y-extent of the farm     | m
-    grid_rows: 6          # Number of rows           | -
-    grid_cols: 6          # Number of columns        | -
+    grid_rows: 5          # Number of rows           | -
+    grid_cols: 5          # Number of columns        | -
     HH: 90                # Hub Height               | m
     RD: 126.0             # Turbine Diameter         | m
     thickness: 10.5       # Effective Thickness      | m

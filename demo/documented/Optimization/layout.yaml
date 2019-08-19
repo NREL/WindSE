@@ -50,5 +50,5 @@ solver:
 optimization:
     controls: [layout]
     layout_bounds: [[-1000, 1000],[-1000, 1000]] # bounds for the layout | m
-    taylor_test: False
-    optimize: True
+    taylor_test: True
+    optimize: False

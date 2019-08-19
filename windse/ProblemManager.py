@@ -107,7 +107,7 @@ class StabilizedProblem(GenericProblem):
 
 
         ### These constants will be moved into the params file ###
-        nu = self.params["problem"].get("viscosity",0.0001)
+        nu = self.params["problem"].get("viscosity",1.0)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
         lmax=15
@@ -141,8 +141,6 @@ class StabilizedProblem(GenericProblem):
         self.F_sans_tf = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx
         # self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_next[0]**2+self.u_next[1]**2),v)*dx 
 
-        print(self.F)
-
         ### Add in the Stabilizing term ###
         # stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
         stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
@@ -172,7 +170,7 @@ class TaylorHoodProblem(GenericProblem):
         self.fprint("Setting Up Taylor-Hood Problem",special="header")
 
         ### These constants will be moved into the params file ###
-        nu = self.params["problem"].get("viscosity",0.0001)
+        nu = self.params["problem"].get("viscosity",1.0)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
         lmax=15
