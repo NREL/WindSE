@@ -38,6 +38,52 @@ if main_file != "sphinx-build":
     parameters["refinement_algorithm"] = "plaza_with_parent_facets"
 
 
+def Elliptical_Grid(x, y, z, radius):
+    #x_hat = x sqrt(1 - y^2/2)
+    #y_hat = y sqrt(1 - x^2/2)
+    x_hat = np.multiply(radius*x,np.sqrt(1.0-np.power(y,2.0)/2.0))
+    y_hat = np.multiply(radius*y,np.sqrt(1.0-np.power(x,2.0)/2.0))
+    z_hat = z
+    return [x_hat, y_hat, z_hat]
+
+def FG_Squircular(x, y, z, radius):
+    #x_hat = x sqrt(x^2 + y^2 - x^2y^2) / sqrt(x^2 + y^2)
+    #y_hat = y sqrt(x^2 + y^2 - x^2y^2) / sqrt(x^2 + y^2)
+    innerp = np.power(x,2.0)+np.power(y,2.0)
+    prod  = np.multiply(np.power(x,2.0),np.power(y,2.0))
+    innerp[innerp==0] = 1 #handle the point (0,0)
+    ratio = np.divide(np.sqrt(np.subtract(innerp,prod)),np.sqrt(innerp))
+
+    x_hat = np.multiply(radius*x,ratio)
+    y_hat = np.multiply(radius*y,ratio)
+    z_hat = z
+    return [x_hat, y_hat, z_hat]
+
+def Simple_Stretching(x, y, z, radius):
+    radii = np.sqrt(np.power(x,2.0)+np.power(y,2.0))
+    radii[radii==0] = 1 #handle the point (0,0)
+    prod  = np.multiply(x,y)
+    x2_ratio = np.divide(np.power(x,2.0),radii)
+    y2_ratio = np.divide(np.power(y,2.0),radii)
+    xy_ratio = np.divide(prod,radii)
+
+    x2_gte_y2 = np.power(x,2.0)>=np.power(y,2.0)
+
+    x_hat = np.zeros(len(x))
+    y_hat = np.zeros(len(y))
+
+    x_hat[x2_gte_y2]  = np.multiply(radius*np.sign(x),x2_ratio)[x2_gte_y2]
+    x_hat[~x2_gte_y2] = np.multiply(radius*np.sign(y),xy_ratio)[~x2_gte_y2]
+
+    y_hat[x2_gte_y2]  = np.multiply(radius*np.sign(x),xy_ratio)[x2_gte_y2]
+    y_hat[~x2_gte_y2] = np.multiply(radius*np.sign(y),y2_ratio)[~x2_gte_y2]
+
+    z_hat = z
+    return [x_hat, y_hat, z_hat]
+
+
+
+
 class GenericDomain(object):
     """
     A GenericDomain contains on the basic functions required by all domain objects
@@ -125,16 +171,16 @@ class GenericDomain(object):
             self.fprint("Region Type: {0}".format("cell_markers"))
         elif region is not None:
             self.fprint("Region Type: {0}".format(region_type))
-            if region_type == "circle":
-                self.fprint("Circle Radius: {:.1f}".format(region[0][0]))
-                self.fprint("Circle Center: ({:.1f}, {:.1f})".format(region[1][0],region[1][1]))
+            if "circle" in region_type:
+                self.fprint("Circle Radius: {:.2f}".format(region[0][0]))
+                self.fprint("Circle Center: ({:.2f}, {:.2f})".format(region[1][0],region[1][1]))
                 if self.dim == 3:
-                    self.fprint("Z Range:       [{:.1f}, {:.1f}]".format(region[2][0],region[2][1]))
+                    self.fprint("Z Range:       [{:.2f}, {:.2f}]".format(region[2][0],region[2][1]))
             else:
-                self.fprint("X Range: [{: .1f}, {: .1f}]".format(region[0][0],region[0][1]))
-                self.fprint("Y Range: [{: .1f}, {: .1f}]".format(region[1][0],region[1][1]))
+                self.fprint("X Range: [{: .2f}, {: .2f}]".format(region[0][0],region[0][1]))
+                self.fprint("Y Range: [{: .2f}, {: .2f}]".format(region[1][0],region[1][1]))
                 if self.dim == 3:
-                    self.fprint("Z Range: [{: .1f}, {: .1f}]".format(region[2][0],region[2][1]))
+                    self.fprint("Z Range: [{: .2f}, {: .2f}]".format(region[2][0],region[2][1]))
         else:
             self.fprint("Region Type: {0}".format("full"))
 
@@ -161,12 +207,13 @@ class GenericDomain(object):
                 cells_marked = 0
 
                 ### Check if we are refining in a circle ###
-                if region_type == "circle":
+                if "circle" in region_type:
                     radius=region[0][0]
                     for cell in cells(self.mesh):
                         in_circle = (cell.midpoint()[0]-region[1][0])**2.0+(cell.midpoint()[1]-region[1][1])**2.0<=radius**2.0
                         if self.dim == 3:
-                            in_z = between(cell.midpoint()[2],tuple(region[2]))
+                            g_z = self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
+                            in_z = between(cell.midpoint()[2],(region[2][0],region[2][1]+g_z))
                             in_region = in_circle and in_z
                         else:
                             in_region = in_circle
@@ -180,7 +227,8 @@ class GenericDomain(object):
                     for cell in cells(self.mesh):
                         in_square = between(cell.midpoint()[0],tuple(region[0])) and between(cell.midpoint()[1],tuple(region[1]))
                         if self.dim == 3:
-                            in_z = between(cell.midpoint()[2],tuple(region[2]))
+                            g_z = self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
+                            in_z = between(cell.midpoint()[2],(region[2][0],region[2][1]+g_z))
                             in_region = in_square and in_z
                         else:
                             in_region = in_square
@@ -213,7 +261,7 @@ class GenericDomain(object):
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
 
-    def Warp(self,h,s):
+    def WarpSplit(self,h,s):
         """
         This function warps the mesh to shift more cells towards the ground. 
         is achieved by spliting the domain in two and moving the cells so 
@@ -256,7 +304,7 @@ class GenericDomain(object):
         self.fprint("Warping Finished: {:1.2f} s".format(warp_stop-warp_start),special="footer")
 
 
-    def WarpNonlinear(self,s):
+    def WarpSmooth(self,s):
         """
         This function warps the mesh to shift more cells towards the ground. 
         The cells are shifted based on the function:
@@ -314,6 +362,55 @@ class GenericDomain(object):
     def Finalize(self):
         self.finalized = True
 
+    def SetupInterpolatedGround(self):
+        self.fprint("Ground Type: Interpolated From File")
+
+        ### Import data from Options ###
+        if "path" in self.params["domain"]:
+            self.path = self.params["domain"]["path"]
+            self.typo_path  = self.path + "topography.txt"
+        else:
+            self.typo_path  = self.params["domain"]["typo_path"]
+
+        self.fprint("Path: {0}".format(self.typo_path),offset=1)
+
+        ### import ground data
+        self.topography = np.loadtxt(self.typo_path)
+        x_data = self.topography[1:,0]
+        y_data = self.topography[1:,1]
+        z_data = self.topography[1:,2]
+
+        ### generate interpolating function
+        x_data = np.sort(np.unique(x_data))
+        y_data = np.sort(np.unique(y_data))
+        z_data = np.reshape(z_data,(int(self.topography[0,0]),int(self.topography[0,1])))
+        self.topography_interpolated = RectBivariateSpline(x_data,y_data,z_data.T)
+
+    def SetupAnalyticGround(self):
+        self.hill_sigma_x = self.params["domain"]["gaussian"]["sigma_x"]
+        self.hill_sigma_y = self.params["domain"]["gaussian"]["sigma_y"]
+        self.hill_theta = self.params["domain"]["gaussian"].get("theta",0.0)
+        self.hill_amp = self.params["domain"]["gaussian"]["amp"]
+        self.hill_center = self.params["domain"]["gaussian"].get("center",[0.0,0.0])
+        self.hill_x0 = self.hill_center[0]
+        self.hill_y0 = self.hill_center[1]
+        self.fprint("")
+        self.fprint("Ground Type: Gaussian Hill")
+        self.fprint("Hill Center:   ({: .2f}, {: .2f})".format(self.hill_x0,self.hill_y0),offset=1)
+        self.fprint("Hill Rotation:  {: <7.2f}".format(self.hill_theta),offset=1)
+        self.fprint("Hill Amplitude: {: <7.2f}".format(self.hill_amp),offset=1)
+        self.fprint("Hill sigma_x:   {: <7.2f}".format(self.hill_sigma_x),offset=1)
+        self.fprint("Hill sigma_y:   {: <7.2f}".format(self.hill_sigma_y),offset=1)
+        self.hill_a = np.cos(self.hill_theta)**2/(2*self.hill_sigma_x**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_y**2)
+        self.hill_b = np.sin(2*self.hill_theta)/(4*self.hill_sigma_y**2) - np.sin(2*self.hill_theta)/(4*self.hill_sigma_x**2)
+        self.hill_c = np.cos(self.hill_theta)**2/(2*self.hill_sigma_y**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_x**2)
+
+    def GaussianGroundFuncion(self,x,y):
+        return self.hill_amp*exp( - (self.hill_a*(x-self.hill_x0)**2 + 2*self.hill_b*(x-self.hill_x0)*(y-self.hill_y0) + self.hill_c*(y-self.hill_y0)**2)**2)+self.z_range[0]
+
+    def InterplatedGroundFunction(self,x,y):
+        return float(self.topography_interpolated(x,y)[0]+self.z_range[0])
+
     def Ground(self,x,y):
         """
         Ground returns the ground height given an (*x*, *y*) coordinate.
@@ -326,19 +423,22 @@ class GenericDomain(object):
             float/list: corresponding z coordinates of the ground.
 
         """
-
-        if (isinstance(x,list) and isinstance(y,list)) or (isinstance(x,np.ndarray) and isinstance(y,np.ndarray)):
-            nx = len(x)
-            ny = len(y)
-            if nx != ny:
-                raise ValueError("Length mismatch: len(x)="+repr(nx)+", len(y)="+repr(ny))
-            else:
-                z = np.zeros(nx)
-                for i in range(nx):
-                    z[i] = float(self.ground_function(x[i],y[i]))
-                return z
+        if isinstance(x,Constant):
+            z = self.ground_function(x,y)
+            return z
         else:
-            return float(self.ground_function(x,y))
+            if (isinstance(x,list) and isinstance(y,list)) or (isinstance(x,np.ndarray) and isinstance(y,np.ndarray)):
+                nx = len(x)
+                ny = len(y)
+                if nx != ny:
+                    raise ValueError("Length mismatch: len(x)="+repr(nx)+", len(y)="+repr(ny))
+                else:
+                    z = np.zeros(nx)
+                    for i in range(nx):
+                        z[i] = float(self.ground_function(x[i],y[i]))
+                    return z
+            else:
+                return float(self.ground_function(x,y))
 
 class BoxDomain(GenericDomain):
     """
@@ -377,10 +477,13 @@ class BoxDomain(GenericDomain):
         self.nz = self.params["domain"]["nz"]
         self.dim = 3
 
+        ### Get the initial wind direction ###
+        self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
+
         ### Print Some stats ###
-        self.fprint("X Range: [{: .1f}, {: .1f}]".format(self.x_range[0],self.x_range[1]))
-        self.fprint("Y Range: [{: .1f}, {: .1f}]".format(self.y_range[0],self.y_range[1]))
-        self.fprint("Z Range: [{: .1f}, {: .1f}]".format(self.z_range[0],self.z_range[1]))
+        self.fprint("X Range: [{: .2f}, {: .2f}]".format(self.x_range[0],self.x_range[1]))
+        self.fprint("Y Range: [{: .2f}, {: .2f}]".format(self.y_range[0],self.y_range[1]))
+        self.fprint("Z Range: [{: .2f}, {: .2f}]".format(self.z_range[0],self.z_range[1]))
 
         ### Create mesh ###
         mesh_start = time.time()
@@ -405,9 +508,10 @@ class BoxDomain(GenericDomain):
         right   = CompiledSubDomain("near(x[1], y1) && on_boundary",y1 = self.y_range[1])
         self.boundary_subdomains = [top,bottom,front,back,left,right]
         self.boundary_names = {"top":1,"bottom":2,"front":3,"back":4,"left":5,"right":6}
-        self.boundary_types = {"inflow":    ["top","front","left","right"],
-                               "no_slip":   ["bottom"],
-                               "no_stress": ["back"]}
+        self.boundary_types = {"inflow":          ["front","left","right"],
+                               "no_slip":         ["bottom"],
+                               "horizontal_slip": ["top"],
+                               "no_stress":       ["back"]}
 
         ### Generate the boundary markers for boundary conditions ###
         self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
@@ -422,6 +526,47 @@ class BoxDomain(GenericDomain):
 
     def ground_function(self,x,y):
         return self.z_range[0]
+
+    def RecomputeBoundaryMarkers(self,theta):
+        mark_start = time.time()
+        self.fprint("")
+        self.fprint("Remarking Boundaries")
+
+        tol = 1e-3
+
+        ### This function rounds to the nearest ordinal direction ###
+        theta45 = round((theta-pi/4.0)/(pi/2))*(pi/2)+pi/4.0
+
+        ### Check if the wind angle is a ordinal direction ###
+        if   near(theta45, 1.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","left"]
+            self.boundary_types["no_stress"] = ["back","right"]
+        elif near(theta45, 3.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["back","left"]
+            self.boundary_types["no_stress"] = ["front","right"]
+        elif near(theta45, 5.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["back","right"]
+            self.boundary_types["no_stress"] = ["front","left"]
+        elif near(theta45, 7.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["top","front","right"]
+            self.boundary_types["no_stress"] = ["back","left"]
+
+        ### Check the special cases that the wind angle is a cardinal direction ###
+        if   near(theta, 0.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","right","left"]
+            self.boundary_types["no_stress"] = ["back"]
+        elif near(theta, 1.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","back","left"]
+            self.boundary_types["no_stress"] = ["right"]
+        elif near(theta, 2.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["back","right","left"]
+            self.boundary_types["no_stress"] = ["front"]
+        elif near(theta, 3.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","back","right"]
+            self.boundary_types["no_stress"] = ["left"]
+
+        mark_stop = time.time()
+        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
 
 class CylinderDomain(GenericDomain):
     """
@@ -465,56 +610,12 @@ class CylinderDomain(GenericDomain):
 
         ### Calculating the boundary of the shadow ###
         angles = np.linspace(0,2.0*np.pi,self.nt+1)
-        self.boundary_line = (self.radius*np.cos(angles),self.radius*np.sin(angles))
+        self.boundary_line = (self.radius*np.cos(angles)+self.center[0],self.radius*np.sin(angles)+self.center[1])
 
-        self.fprint("Radius:        {: .1f}".format(self.radius))
-        self.fprint("Center:       ({: .1f}, {: .1f})".format(self.center[0],self.center[1]))
-        self.fprint("Z Range:      [{: .1f}, {: .1f}]".format(self.z_range[0],self.z_range[1]))
+        self.fprint("Radius:        {: .2f}".format(self.radius))
+        self.fprint("Center:       ({: .2f}, {: .2f})".format(self.center[0],self.center[1]))
+        self.fprint("Z Range:      [{: .2f}, {: .2f}]".format(self.z_range[0],self.z_range[1]))
         self.fprint("Meshing Type:  {0}".format(self.mesh_type))
-
-        def Elliptical_Grid(x, y, z):
-            #x_hat = x sqrt(1 - y^2/2)
-            #y_hat = y sqrt(1 - x^2/2)
-            x_hat = np.multiply(self.radius*x,np.sqrt(1.0-np.power(y,2.0)/2.0))
-            y_hat = np.multiply(self.radius*y,np.sqrt(1.0-np.power(x,2.0)/2.0))
-            z_hat = z
-            return [x_hat, y_hat, z_hat]
-
-        def FG_Squircular(x, y, z):
-            #x_hat = x sqrt(x^2 + y^2 - x^2y^2) / sqrt(x^2 + y^2)
-            #y_hat = y sqrt(x^2 + y^2 - x^2y^2) / sqrt(x^2 + y^2)
-            innerp = np.power(x,2.0)+np.power(y,2.0)
-            prod  = np.multiply(np.power(x,2.0),np.power(y,2.0))
-            innerp[innerp==0] = 1 #handle the point (0,0)
-            ratio = np.divide(np.sqrt(np.subtract(innerp,prod)),np.sqrt(innerp))
-
-            x_hat = np.multiply(self.radius*x,ratio)
-            y_hat = np.multiply(self.radius*y,ratio)
-            z_hat = z
-            return [x_hat, y_hat, z_hat]
-
-        def Simple_Stretching(x, y, z):
-            radii = np.sqrt(np.power(x,2.0)+np.power(y,2.0))
-            radii[radii==0] = 1 #handle the point (0,0)
-            prod  = np.multiply(x,y)
-            x2_ratio = np.divide(np.power(x,2.0),radii)
-            y2_ratio = np.divide(np.power(y,2.0),radii)
-            xy_ratio = np.divide(prod,radii)
-
-            x2_gte_y2 = np.power(x,2.0)>=np.power(y,2.0)
-
-            x_hat = np.zeros(len(x))
-            y_hat = np.zeros(len(y))
-
-            x_hat[x2_gte_y2]  = np.multiply(self.radius*np.sign(x),x2_ratio)[x2_gte_y2]
-            x_hat[~x2_gte_y2] = np.multiply(self.radius*np.sign(y),xy_ratio)[~x2_gte_y2]
-
-            y_hat[x2_gte_y2]  = np.multiply(self.radius*np.sign(x),xy_ratio)[x2_gte_y2]
-            y_hat[~x2_gte_y2] = np.multiply(self.radius*np.sign(y),y2_ratio)[~x2_gte_y2]
-
-            z_hat = z
-            return [x_hat, y_hat, z_hat]
-
 
         mesh_start = time.time()
         self.fprint("")
@@ -552,11 +653,11 @@ class CylinderDomain(GenericDomain):
             
             self.fprint("Morphing Mesh")
             if self.mesh_type == "elliptic":
-                x_hat, y_hat, z_hat = Elliptical_Grid(x, y, z)
+                x_hat, y_hat, z_hat = Elliptical_Grid(x, y, z, self.radius)
             elif self.mesh_type == "squircular":
-                x_hat, y_hat, z_hat = FG_Squircular(x, y, z)
+                x_hat, y_hat, z_hat = FG_Squircular(x, y, z, self.radius)
             elif self.mesh_type == "stretch":
-                x_hat, y_hat, z_hat = Simple_Stretching(x, y, z)
+                x_hat, y_hat, z_hat = Simple_Stretching(x, y, z, self.radius)
 
             x_hat += self.center[0]
             y_hat += self.center[1]
@@ -584,9 +685,10 @@ class CylinderDomain(GenericDomain):
         bottom  = CompiledSubDomain("near(x[2], z0) && on_boundary",z0 = self.z_range[0])
         self.boundary_subdomains = [outflow,inflow,top,bottom]
         self.boundary_names = {"inflow":2,"outflow":1,"top":3,"bottom":4}
-        self.boundary_types = {"inflow":  ["inflow","top"],
-                               "no_stress": ["outflow"],
-                               "no_slip": ["bottom"]}
+        self.boundary_types = {"inflow":          ["inflow"],
+                               "no_stress":       ["outflow"],
+                               "horizontal_slip": ["top"],
+                               "no_slip":         ["bottom"]}
 
         ### Generate the boundary markers for boundary conditions ###
         self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
@@ -609,6 +711,18 @@ class CylinderDomain(GenericDomain):
         ### Define Plane Normal ###
         nom_x = np.cos(theta)
         nom_y = np.sin(theta)
+
+        # ### Define Boundary Subdomains ###
+        # outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1])
+        # inflow  = CompiledSubDomain("x[2] >= z0 && x[2] <= z1 && nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
+        # top     = CompiledSubDomain("near(x[2], z1) && on_boundary",z1 = self.z_range[1])
+        # bottom  = CompiledSubDomain("near(x[2], z0) && on_boundary",z0 = self.z_range[0])
+
+        # ### Generate the boundary markers for boundary conditions ###
+        # self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        # self.boundary_markers.set_all(0)
+        # for i in range(len(self.boundary_subdomains)):
+        #     self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
 
         ### Define center ###
         c0 = self.center[0]
@@ -635,6 +749,159 @@ class CylinderDomain(GenericDomain):
                 self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
             else:
                 self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
+
+        mark_stop = time.time()
+        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
+
+class CircleDomain(GenericDomain):
+    """
+    ADD DOCUMENTATION
+    """
+
+    def __init__(self):
+        super(CircleDomain, self).__init__()
+
+        self.fprint("Generating Circle Domain",special="header")
+
+        ### Initialize values from Options ###
+        self.radius   = self.params["domain"]["radius"]
+        self.center   = self.params["domain"]["center"]
+        self.nt = self.params["domain"]["nt"]
+        self.res = self.params["domain"]["res"]
+        self.mesh_type = self.params["domain"].get("mesh_type","mshr")
+        self.x_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
+        self.y_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
+        self.dim = 2
+
+        ### Get the initial wind direction ###
+        self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
+
+        ### Calculating the boundary of the shadow ###
+        angles = np.linspace(0,2.0*np.pi,self.nt+1)
+        self.boundary_line = (self.radius*np.cos(angles),self.radius*np.sin(angles))
+
+        self.fprint("Radius:        {: .2f}".format(self.radius))
+        self.fprint("Center:       ({: .2f}, {: .2f})".format(self.center[0],self.center[1]))
+        self.fprint("Meshing Type:  {0}".format(self.mesh_type))
+
+        mesh_start = time.time()
+        self.fprint("")
+        if self.mesh_type == "mshr":
+
+            self.fprint("Generating Mesh Using mshr")
+
+            ### Create Mesh ###
+            mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
+            self.mesh = generate_mesh(mshr_circle,self.res)
+
+        else:
+            self.fprint("Generating Rectangle Mesh")
+
+            self.nxy = int(self.nt/4.0)
+
+            ### Create mesh ###
+            start = Point(-1.0, -1.0)
+            stop  = Point( 1.0,  1.0)
+            self.mesh = RectangleMesh(start, stop, int(self.nxy/2.0), int(self.nxy/2.0))
+            self.mesh = refine(self.mesh)
+            x = self.mesh.coordinates()[:,0]
+            y = self.mesh.coordinates()[:,1]
+            
+            self.fprint("Morphing Mesh")
+            if self.mesh_type == "elliptic":
+                x_hat, y_hat, z_hat = Elliptical_Grid(x, y, 0, self.radius)
+            elif self.mesh_type == "squircular":
+                x_hat, y_hat, z_hat = FG_Squircular(x, y, 0, self.radius)
+            elif self.mesh_type == "stretch":
+                x_hat, y_hat, z_hat = Simple_Stretching(x, y, 0, self.radius)
+            else:
+                raise ValueError("Mesh type: "+self.mesh_type+" not recognized")
+
+            x_hat += self.center[0]
+            y_hat += self.center[1]
+
+            xy_hat_coor = np.array([x_hat, y_hat]).transpose()
+            self.mesh.coordinates()[:] = xy_hat_coor
+            self.mesh.bounding_box_tree().build(self.mesh)
+
+        ### Create the boundary mesh ###
+        self.bmesh = BoundaryMesh(self.mesh,"exterior")
+        mesh_stop = time.time()
+        self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
+
+        ### Define Plane Normal ###
+        nom_x = np.cos(self.init_wind)
+        nom_y = np.sin(self.init_wind)
+
+        ### Define Boundary Subdomains ###
+        mark_start = time.time()
+        self.fprint("")
+        self.fprint("Marking Boundaries")
+        outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y)
+        inflow  = CompiledSubDomain("nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, c0=self.center[0], c1=self.center[1])
+        self.boundary_subdomains = [outflow,inflow]
+        self.boundary_names = {"inflow":2,"outflow":1}
+        self.boundary_types = {"inflow":  ["inflow"],
+                               "no_stress": ["outflow"]}
+
+        ### Generate the boundary markers for boundary conditions ###
+        self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        self.boundary_markers.set_all(0)
+        for i in range(len(self.boundary_subdomains)):
+            self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
+
+        mark_stop = time.time()
+        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
+        self.fprint("Initial Domain Setup",special="footer")
+
+    def ground_function(self,x,y):
+        return 0.0
+
+    def RecomputeBoundaryMarkers(self,theta):
+        mark_start = time.time()
+        self.fprint("")
+        self.fprint("Remarking Boundaries")
+
+        ### Define Plane Normal ###
+        nom_x = np.cos(theta)
+        nom_y = np.sin(theta)
+
+        ### Define Boundary Subdomains ###
+        mark_start = time.time()
+        outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y)
+        inflow  = CompiledSubDomain("nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, c0=self.center[0], c1=self.center[1])
+
+        ### Generate the boundary markers for boundary conditions ###
+        self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        self.boundary_markers.set_all(0)
+        for i in range(len(self.boundary_subdomains)):
+            self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
+
+        # ### Define center ###
+        # c0 = self.center[0]
+        # c1 = self.center[1]
+
+        # ### Set Tol ###
+        # tol = 1e-5
+
+        # wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
+        #             + self.boundary_markers.where_equal(self.boundary_names["outflow"])
+
+        # boundary_val_temp = self.boundary_markers.array()
+        # self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        # self.boundary_markers.set_values(boundary_val_temp)
+
+        # for facet_id in wall_facets:
+        #     facet = Facet(self.mesh,facet_id)
+        #     vert_ids = facet.entities(0)
+        #     vert_coords = self.mesh.coordinates()[vert_ids]
+        #     x = vert_coords[:,0]
+        #     y = vert_coords[:,1]
+
+        #     if all(nom_x*(x-c0)+nom_y*(y-c1)<=0+tol):
+        #         self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
+        #     else:
+        #         self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
@@ -673,8 +940,8 @@ class RectangleDomain(GenericDomain):
         self.y_range = self.params["domain"]["y_range"]
         self.nx = self.params["domain"]["nx"]
         self.ny = self.params["domain"]["ny"]
-        self.fprint("X Range: [{: .1f}, {: .1f}]".format(self.x_range[0],self.x_range[1]))
-        self.fprint("Y Range: [{: .1f}, {: .1f}]".format(self.y_range[0],self.y_range[1]))
+        self.fprint("X Range: [{: .2f}, {: .2f}]".format(self.x_range[0],self.x_range[1]))
+        self.fprint("Y Range: [{: .2f}, {: .2f}]".format(self.y_range[0],self.y_range[1]))
         self.dim = 2
 
         ### Create mesh ###
@@ -713,6 +980,47 @@ class RectangleDomain(GenericDomain):
 
     def ground_function(self,x,y):
         return 0.0
+
+    def RecomputeBoundaryMarkers(self,theta):
+        mark_start = time.time()
+        self.fprint("")
+        self.fprint("Remarking Boundaries")
+
+        tol = 1e-3
+
+        ### This function rounds to the nearest ordinal direction ###
+        theta45 = round((theta-pi/4.0)/(pi/2))*(pi/2)+pi/4.0
+
+        ### Check if the wind angle is a ordinal direction ###
+        if   near(theta45, 1.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","left"]
+            self.boundary_types["no_stress"] = ["back","right"]
+        elif near(theta45, 3.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["back","left"]
+            self.boundary_types["no_stress"] = ["front","right"]
+        elif near(theta45, 5.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["back","right"]
+            self.boundary_types["no_stress"] = ["front","left"]
+        elif near(theta45, 7.0*pi/4.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","right"]
+            self.boundary_types["no_stress"] = ["back","left"]
+
+        ### Check the special cases that the wind angle is a cardinal direction ###
+        if   near(theta, 0.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","right","left"]
+            self.boundary_types["no_stress"] = ["back"]
+        elif near(theta, 1.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","back","left"]
+            self.boundary_types["no_stress"] = ["right"]
+        elif near(theta, 2.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["back","right","left"]
+            self.boundary_types["no_stress"] = ["front"]
+        elif near(theta, 3.0*pi/2.0, eps=tol):
+            self.boundary_types["inflow"]    = ["front","back","right"]
+            self.boundary_types["no_stress"] = ["left"]
+
+        mark_stop = time.time()
+        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
 
 class ImportedDomain(GenericDomain):
     """
@@ -809,26 +1117,21 @@ class ImportedDomain(GenericDomain):
             self.boundary_markers = MeshFunction("size_t", self.mesh, self.boundary_path)
         print("Markers Imported")
         self.boundary_names = {"top":1,"bottom":2,"front":3,"back":4,"left":5,"right":6}
-        self.boundary_types = {"inflow":    ["top","front","left","right"],
-                               "no_slip":   ["bottom"],
-                               "no_stress": ["back"]}
+        self.boundary_types = {"inflow":          ["front","left","right"],
+                               "no_slip":         ["bottom"],
+                               "horizontal_slip": ["top"],
+                               "no_stress":       ["back"]}
         mark_stop = time.time()
         self.fprint("Boundary Markers Imported: {:1.2f} s".format(mark_stop-mark_start))
 
         ### Create the interpolation function for the ground ###
         interp_start = time.time()
         self.fprint("")
-        self.fprint("Building Ground Interpolating Function")
-        self.topography = np.loadtxt(self.typo_path)
-        x_data = self.topography[1:,0]
-        y_data = self.topography[1:,1]
-        z_data = self.topography[1:,2]
-        
-        x_data = np.sort(np.unique(x_data))
-        y_data = np.sort(np.unique(y_data))
-        z_data = np.reshape(z_data,(int(self.topography[0,0]),int(self.topography[0,1])))
+        self.fprint("Building Interpolating Function")
 
-        self.topography_interpolated = RectBivariateSpline(x_data,y_data,z_data.T)
+        self.SetupInterpolatedGround()
+        self.ground_function = self.InterplatedGroundFunction
+
         interp_stop = time.time()
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
         self.fprint("Initial Domain Setup",special="footer")
@@ -853,32 +1156,54 @@ class InterpolatedCylinderDomain(CylinderDomain):
         # self.__dict__.update(base.__dict__)
 
         interp_start = time.time()
-        self.fprint("")
-        self.fprint("Building Ground Interpolating Function")
+        self.fprint("Building Ground Function",special="header")
 
-        ### Import data from Options ###
-        if "path" in self.params["domain"]:
-            self.path = self.params["domain"]["path"]
-            self.typo_path  = self.path + "topology.txt"
+        self.analytic = self.params["domain"].get("analytic",False)
+        if self.analytic:
+            self.SetupAnalyticGround()
+            self.ground_function = self.GaussianGroundFuncion
         else:
-            self.typo_path  = self.params["domain"]["typo_path"]
+            self.SetupInterpolatedGround()
+            self.ground_function = self.InterplatedGroundFunction
 
-        ### import ground data
-        self.topography = np.loadtxt(self.typo_path)
-        x_data = self.topography[1:,0]
-        y_data = self.topography[1:,1]
-        z_data = self.topography[1:,2]
-
-        ### generate interpolating function
-        x_data = np.sort(np.unique(x_data))
-        y_data = np.sort(np.unique(y_data))
-        z_data = np.reshape(z_data,(int(self.topography[0,0]),int(self.topography[0,1])))
-        self.topography_interpolated = RectBivariateSpline(x_data,y_data,z_data.T)
         interp_stop = time.time()
-        self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
+        self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")
 
-    def ground_function(self,x,y):
-        return self.topography_interpolated(x,y)[0]
+    def Finalize(self):
+        self.Move(self.ground_function)
+        self.finalized = True
+        self.fprint("")
+        self.fprint("Domain Finalized")
+
+class InterpolatedBoxDomain(BoxDomain):
+    def __init__(self):
+        super(InterpolatedBoxDomain, self).__init__()
+        # self.original_refine = super(InterpolatedCylinderDomain, self).Refine
+        # self.original_move = super(InterpolatedCylinderDomain, self).Move
+
+        # if shape == "cylinder":
+        #     base = CylinderDomain()
+        # elif shape == "box":
+        #     base = BoxDomain()
+        # else:
+        #     raise ValueError(shape+" is not a recognized base type")
+
+        # print(dir(base))
+        # self.__dict__.update(base.__dict__)
+
+        interp_start = time.time()
+        self.fprint("Building Ground Function",special="header")
+
+        self.analytic = self.params["domain"].get("analytic",False)
+        if self.analytic:
+            self.SetupAnalyticGround()
+            self.ground_function = self.GaussianGroundFuncion
+        else:
+            self.SetupInterpolatedGround()
+            self.ground_function = self.InterplatedGroundFunction
+
+        interp_stop = time.time()
+        self.fprint("Ground Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")
 
     def Finalize(self):
         self.Move(self.ground_function)

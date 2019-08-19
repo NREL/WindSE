@@ -22,7 +22,8 @@ wind_farm:
 # Domain Constants for a Box Domain
 domain: 
     #                      # Description           | Units
-    type: interpolated
+    type: cylinder
+    interpolated: true
     path: Input_Data/
     mesh_type: "mshr"
     z_range: [0.04, 630]   # z-range of the domain | m
@@ -54,6 +55,4 @@ problem:
 
 solver:
     type: multiangle
-    init_wind_angle: 0.0
-    final_wind_angle: 4.18879020479
     num_wind_angles: 3

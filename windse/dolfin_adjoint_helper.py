@@ -1,11 +1,22 @@
 import dolfin
 import dolfin_adjoint
 import numpy as np
+from sys import platform
+import os,shutil
+import time
 
 from windse.helper_functions import BaseHeight as backend_BaseHeight
+from windse import windse_parameters
 from pyadjoint.tape import get_working_tape, annotate_tape, stop_annotating
 from pyadjoint.block import Block
 from pyadjoint.overloaded_type import create_overloaded_object
+
+
+### This import improves the plotter functionality on Mac ###
+if platform == 'darwin':
+    import matplotlib
+    matplotlib.use('TKAgg')
+import matplotlib.pyplot as plt
 
 def linalg_solve(*args, **kwargs):
     """This function overrides dolfin_adjoints.compat.linalg_solve.
@@ -28,7 +39,15 @@ def linalg_solve(*args, **kwargs):
     return dolfin_adjoint.backend.solve(*args,"mumps") 
 
 dolfin_adjoint.types.compat.linalg_solve = linalg_solve
+
+shutil.rmtree(windse_parameters.folder+"debug/", ignore_errors=True)
 def recompute_component(self, inputs, block_variable, idx, prepared):
+    file_exists = False
+
+
+    # print()
+    # print("hey Look at me I'm recomputing!")
+    # print()
     """This function overrides 
     dolfin_adjoint.solving.SolveBlock.recompute_component
 
@@ -50,7 +69,57 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
     if not self.forward_kwargs:
         dolfin_adjoint.backend.solve(eq, func, bcs, solver_parameters={'linear_solver': 'mumps'})
     else:
+
+        # print(eq.lhs)
+
+        # exit()
+        # print()
+        # print("Oh man and I'm doing a fancy solve")
+        # print()
+        # test = dolfin.File("tf_x.pvd")
+        # test << eq.lhs.coefficients()[3]
+        # test = dolfin.File("tf_y.pvd")
+        # test << eq.lhs.coefficients()[4]
+        # test = dolfin.File("u0.pvd")
+        # test << eq.lhs.coefficients()[5]
+
+        # bc_dofs = bcs[0].get_boundary_values().keys()
+        # bc_x = []
+        # bc_y = []
+        # for dof in bc_dofs:
+        #     bc_x.append(func.function_space().tabulate_dof_coordinates()[dof][0])
+        #     bc_y.append(func.function_space().tabulate_dof_coordinates()[dof][1])
+
+        # print("Inflow Velocity: " + repr(bcs[0].value()([0.0,0.0])))
+        # print("Initial Condition: " + repr(func([0.0,0.0])))
+        # plt.clf()
+        # plt.scatter(bc_x,bc_y)
+        # plt.savefig("Marker.pdf")
+        # plt.show()
+
+        # exit()
+
         dolfin_adjoint.backend.solve(eq, func, bcs, **self.forward_kwargs)
+
+        if "debug" in windse_parameters.output:
+            if hasattr(self, 'solve_iteration'):
+                self.solve_iteration += 1
+            else:
+                # print()
+                # print("but we haven't been here before")
+                self.recompute_set = 0
+                while os.path.isfile(windse_parameters.folder+"debug/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd"):
+                    self.recompute_set +=1
+                # print("and that's the "+repr(self.recompute_set)+" time this has happened")
+                # print()
+                self.savefile = dolfin.File(windse_parameters.folder+"debug/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd")
+                self.solve_iteration = 0
+            
+            
+            u, p = func.split(True)
+            u.rename("velocity","velocity")
+            self.savefile << (u,self.solve_iteration)
+
     return func
 
 dolfin_adjoint.solving.SolveBlock.recompute_component = recompute_component
@@ -105,9 +174,10 @@ class BaseHeightBlock(Block):
         return [x, y]
 
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
+        print("evaluating adj")
         x = prepared[0]
         y = prepared[1]
-        h = dolfin.Constant(1e-5)
+        h = dolfin.Constant(10)
         adj_input = adj_inputs[0]
 
         if idx == 0:
@@ -117,64 +187,64 @@ class BaseHeightBlock(Block):
 
         return adj_input * adj
 
-class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
-    """This is a special version of the ReducedFunctional class allowing
-    windse to inject special function calls.
+# class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
+#     """This is a special version of the ReducedFunctional class allowing
+#     windse to inject special function calls.
 
-    Args:
-        values ([OverloadedType]): If you have multiple controls this 
-            should be a list of new values for each control in the order
-            you listed the controls to the constructor. If you have a 
-            single control it can either be a list or a single object. 
-            Each new value should have the same type as the 
-            corresponding control.
+#     Args:
+#         values ([OverloadedType]): If you have multiple controls this 
+#             should be a list of new values for each control in the order
+#             you listed the controls to the constructor. If you have a 
+#             single control it can either be a list or a single object. 
+#             Each new value should have the same type as the 
+#             corresponding control.
 
-    Returns:
-        :obj:`OverloadedType`: The computed value. Typically of instance
-            of :class:`AdjFloat`.
+#     Returns:
+#         :obj:`OverloadedType`: The computed value. Typically of instance
+#             of :class:`AdjFloat`.
 
-    """
-    def __init__(self, *args, **kwargs):
-        super(ReducedFunctional, self).__init__(*args, **kwargs)
-        self.iter_complete = False
+#     """
+#     def __init__(self, *args, **kwargs):
+#         super(ReducedFunctional, self).__init__(*args, **kwargs)
+#         self.iter_complete = False
 
-    def __call__(self, values):
-        if self.iter_complete:
-            self.display_output()
-            self.iter_complete = False
+#     def __call__(self, values):
+#         if self.iter_complete:
+#             self.display_output()
+#             self.iter_complete = False
 
 
-        values = dolfin_adjoint.pyadjoint.enlisting.Enlist(values)
-        if len(values) != len(self.controls):
-            raise ValueError("values should be a list of same length as controls.")
+#         values = dolfin_adjoint.pyadjoint.enlisting.Enlist(values)
+#         if len(values) != len(self.controls):
+#             raise ValueError("values should be a list of same length as controls.")
 
-        # Call callback.
-        self.eval_cb_pre(self.controls.delist(values))
+#         # Call callback.
+#         self.eval_cb_pre(self.controls.delist(values))
 
-        for i, value in enumerate(values):
-            self.controls[i].update(value)
+#         for i, value in enumerate(values):
+#             self.controls[i].update(value)
 
-        blocks = self.tape.get_blocks()
-        with self.marked_controls():
-            with dolfin_adjoint.pyadjoint.tape.stop_annotating():
-                for i in range(len(blocks)):
-                    blocks[i].recompute()
+#         blocks = self.tape.get_blocks()
+#         with self.marked_controls():
+#             with dolfin_adjoint.pyadjoint.tape.stop_annotating():
+#                 for i in range(len(blocks)):
+#                     blocks[i].recompute()
 
-        func_value = self.functional.block_variable.checkpoint
+#         func_value = self.functional.block_variable.checkpoint
 
-        # Call callback
-        self.eval_cb_post(func_value, self.controls.delist(values))
+#         # Call callback
+#         self.eval_cb_post(func_value, self.controls.delist(values))
 
-        return func_value
+#         return func_value
 
-    def display_output(self):
-        print("$$$$$$$$$$$$$$$$$")
-        print("$$$$$$$$$$$$$$$$$")
-        print("$$$$$$$$$$$$$$$$$")
-        print("Custom Code Here!")
-        print("$$$$$$$$$$$$$$$$$")
-        print("$$$$$$$$$$$$$$$$$")
-        print("$$$$$$$$$$$$$$$$$")
+#     def display_output(self):
+#         print("$$$$$$$$$$$$$$$$$")
+#         print("$$$$$$$$$$$$$$$$$")
+#         print("$$$$$$$$$$$$$$$$$")
+#         print(dir(self))
+#         print("$$$$$$$$$$$$$$$$$")
+#         print("$$$$$$$$$$$$$$$$$")
+#         print("$$$$$$$$$$$$$$$$$")
 
 
 

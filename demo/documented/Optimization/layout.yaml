@@ -9,8 +9,8 @@ general:
 wind_farm: 
     #                     # Description              | Units
     type: grid            #                          |
-    ex_x: [-750, 750]   # x-extent of the farm     | m
-    ex_y: [-750, 750]   # y-extent of the farm     | m
+    ex_x: [-500, 500]   # x-extent of the farm     | m
+    ex_y: [-500, 500]   # y-extent of the farm     | m
     grid_rows: 3          # Number of rows           | -
     grid_cols: 3          # Number of columns        | -
     HH: 90                # Hub Height               | m
@@ -49,5 +49,6 @@ solver:
 
 optimization:
     controls: [layout]
+    layout_bounds: [[-1000, 1000],[-1000, 1000]] # bounds for the layout | m
     taylor_test: True
     optimize: False

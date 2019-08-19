@@ -21,7 +21,8 @@ wind_farm:
 # Domain Constants for a Box Domain
 domain: 
     #                      # Description           | Units
-    type: interpolated
+    type: cylinder
+    interpolated: true
     path: Input_Data/
     mesh_type: "mshr"
     z_range: [0.04, 630]   # z-range of the domain | m

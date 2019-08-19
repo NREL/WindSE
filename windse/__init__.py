@@ -4,8 +4,7 @@ submodules and initializing the parameters.
 """
 
 from windse.ParameterManager import windse_parameters
-
-def initialize(loc):
+def initialize(loc,updated_parameters=[]):
     """
     This function initializes all the submodules in WindSE.
 
@@ -14,16 +13,17 @@ def initialize(loc):
 
     """
 
-    windse_parameters.Load(loc)
+    windse_parameters.Load(loc,updated_parameters=updated_parameters)
 
-    global BaseHeight, ReducedFunctional
+    global BaseHeight, Optimizer#, ReducedFunctional
     if windse_parameters["general"].get("dolfin_adjoint", False):
-        from windse.dolfin_adjoint_helper import BaseHeight, ReducedFunctional
+        from windse.dolfin_adjoint_helper import BaseHeight#, ReducedFunctional
+        from windse.OptimizationManager import Optimizer
     else:
         from windse.helper_functions import BaseHeight
         
-    global BoxDomain, CylinderDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain
-    from windse.DomainManager import BoxDomain, CylinderDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain
+    global BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain
+    from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain
 
     global GridWindFarm, RandomWindFarm, ImportedWindFarm
     from windse.WindFarmManager import GridWindFarm, RandomWindFarm, ImportedWindFarm
@@ -31,17 +31,12 @@ def initialize(loc):
     global LinearFunctionSpace, TaylorHoodFunctionSpace
     from windse.FunctionSpaceManager import LinearFunctionSpace, TaylorHoodFunctionSpace
 
-    global PowerInflow, UniformInflow
-    from windse.BoundaryManager import PowerInflow, UniformInflow
+    global PowerInflow, UniformInflow, LogLayerInflow
+    from windse.BoundaryManager import PowerInflow, UniformInflow, LogLayerInflow
 
     global StabilizedProblem, TaylorHoodProblem
     from windse.ProblemManager import StabilizedProblem, TaylorHoodProblem
 
     global SteadySolver, MultiAngleSolver
     from windse.SolverManager import SteadySolver, MultiAngleSolver
-
-    global Optimizer
-    from windse.OptimizationManager import Optimizer
-    # global CreateAxialControl, CreateAxialBounds, CreateLayoutControl, CreateLayoutBounds, CreateYawControl, CreateYawBounds, SplitSolution, PowerFunctional
-    # from windse.OptimizationManager import CreateAxialControl, CreateAxialBounds, CreateLayoutControl, CreateLayoutBounds, CreateYawControl, CreateYawBounds, SplitSolution, PowerFunctional
 
