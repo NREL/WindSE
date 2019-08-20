@@ -184,7 +184,7 @@ class GenericWindFarm(object):
             if region_type == "farm_circle":
                 center = [sum(self.x)/float(self.numturbs),sum(self.y)/float(self.numturbs)]
             else:
-                center = [sum(self.dom.x_range)/2.0,sum(self.dom.y_range)]
+                center = [sum(self.dom.x_range)/2.0,sum(self.dom.y_range)/2.0]
 
             z_center = (self.ex_z[1]+self.ex_z[0])/2.0
 

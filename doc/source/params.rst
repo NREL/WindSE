@@ -380,8 +380,9 @@ velocity profile.::
         boundary_names: <dict>
         boundary_types: <dict>
         vel_profile:    <str>
-        max_vel:        <float>
+        HH_vel:         <float>
         power:          <float>
+        k:              <float>
 
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
 | Option                 | Description                                                                                   | Required     | Default    |
@@ -392,13 +393,19 @@ velocity profile.::
 | ``boundary_types``     | A dictionary for defining boundary conditions                                                 | no           | See Below  |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
 | ``vel_profile``        | | Sets the velocity profile. Choices:                                                         | yes          | None       |
-|                        | |   "uniform": constant velocity of :math:`u_{max}`                                           |              |            |
-|                        | |   "power": a power profile of :math:`u_x=u_{max} \left( \frac{z-z_0}{z_1-z_0} \right)^{p}`  |              |            |
+|                        | |   "uniform": constant velocity of :math:`u_{HH}`                                            |              |            |
+|                        | |   "power": a power profile                                                                  |              |            |
+|                        | |   "log": log layer profile                                                                  |              |            |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
-| ``max_vel``            | The value for :math:`u_{max}` in m/s                                                          | no           | 8.0        |
+| ``HH_vel``             | The velocity at hub height, :math:`u_{HH}`, in m/s.                                           | no           | 8.0        |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
-| ``power``              | The value for :math:`p`                                                                       | no           | 0.25       |
+| ``power``              | The power used in the power flow law                                                          | no           | 0.25       |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
+| ``k``                  | The constant used in the log layer flow                                                       | no           | 0.4        |
++------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
+
+..
+    of :math:`u_x=u_{max} \left( \frac{z-z_0}{z_1-z_0} \right)^{p}`
 
 If you are importing a mesh, you can specify the boundary markers using ``names`` and ``types``.
 The default for these two are
@@ -512,9 +519,10 @@ This section lists the optimization options. If you are planning on doing
 optimization make sure to set ``dolfin_adjoint`` to True.::
 
     optimization:
-        controls:    <str list>
-        taylor_test: <bool>
-        optimize:    <bool>
+        controls:     <str list>
+        layout_bounds <float list>
+        taylor_test:  <bool>
+        optimize:     <bool>
 
 +------------------------+----------------------------------------------------------+-------------+--------------+
 | Option                 | Description                                              | Required    | Default      |
@@ -526,5 +534,8 @@ optimization make sure to set ``dolfin_adjoint`` to True.::
 | ``taylor_test``        | | Performs a test to check the derivatives. Good         | no          | True         |
 |                        | | results have a convergence rate around 2.0             |             |              |
 +------------------------+----------------------------------------------------------+-------------+--------------+
-| ``final_wind_angle``   | Maximize power output using the controls                 | no          | False        |
+| ``optimize``           | | Optimize the given controls using the power output as  | no          | True         |
+|                        | | the objective function using SLSQP from scipy.         |             |              |
++------------------------+----------------------------------------------------------+-------------+--------------+
+| ``layout_bounds``      | The bounding box for the layout optimization             | no          | wind_farm_ex |
 +------------------------+----------------------------------------------------------+-------------+--------------+

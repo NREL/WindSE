@@ -34,9 +34,8 @@ num_demos = len(demos)
 if len(sys.argv) > 1:
     test_list = [int(i) for i in sys.argv[1:]]
 else:
-    test_list = range(num_demos)
+    test_list = range(1,num_demos+1)
 num_tests = len(test_list)
-
 
 success_counter = 0
 failed_test = []
