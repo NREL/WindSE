@@ -537,5 +537,5 @@ optimization make sure to set ``dolfin_adjoint`` to True.::
 | ``optimize``           | | Optimize the given controls using the power output as  | no          | True         |
 |                        | | the objective function using SLSQP from scipy.         |             |              |
 +------------------------+----------------------------------------------------------+-------------+--------------+
-| ``layout_bounds``      | The bounding box for the layout optimization             | no          | wind_farm_ex |
+| ``layout_bounds``      | The bounding box for the layout optimization             | no          | wind_farm    |
 +------------------------+----------------------------------------------------------+-------------+--------------+

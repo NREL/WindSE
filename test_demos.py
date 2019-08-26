@@ -2,7 +2,6 @@ import windse_driver
 import glob, os, sys
 import traceback
 
-
 demo_path = "demo/documented/"
 
 ### Get all yaml files in the documented folder ###
@@ -43,6 +42,8 @@ test_results = []
 for i, (demo_path, demo_name) in enumerate(demos):
 
     if i+1 in test_list:
+        header_string = "========== Testing {:2d} of {:2d}: {:} ==========".format(i+1,num_demos,demo_name)
+        sys.stdout.write("\x1b]2;"+header_string+"\x07")
         print("========================= Testing {:2d} of {:2d}: =========================".format(i+1,num_demos))
         print()
         print("Demo:     "+demo_path+"/"+demo_name)
