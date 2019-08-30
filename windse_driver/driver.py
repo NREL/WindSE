@@ -127,7 +127,7 @@ def run_action(params_loc=None):
 
     ### Finalize the Domain ###
     dom.Finalize()
-    
+
     ### Function Space ###
     func_dict = {"linear":windse.LinearFunctionSpace,
                  "taylor_hood":windse.TaylorHoodFunctionSpace}

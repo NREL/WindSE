@@ -6,8 +6,8 @@ general:
 
 wind_farm: 
     type: imported
-    path: Input_Data/wind_farm.txt 
-
+    path: Input_Data/wind_farm.txt
+    
 domain: 
     #                      # Description           | Units
     type: box              #

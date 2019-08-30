@@ -102,9 +102,12 @@ class StabilizedProblem(GenericProblem):
         ### Create the turbine force ###
         if theta is not None:
             self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next,delta_yaw=(theta-self.dom.init_wind))
+            # self.tf1, self.tf2, self.tf3 = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next,delta_yaw=(theta-self.dom.init_wind))
         else:
             self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next)
-
+            # self.tf1, self.tf2, self.tf3 = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next)
+            
+        # self.tf = self.tf1*self.u_next[0]**2+self.tf2*self.u_next[1]**2+self.tf3*self.u_next[0]*self.u_next[1]
 
         ### These constants will be moved into the params file ###
         nu = self.params["problem"].get("viscosity",1.0)
@@ -206,8 +209,12 @@ class TaylorHoodProblem(GenericProblem):
         ### Create the turbine force ###
         if theta is not None:
             self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next,delta_yaw=(theta-self.dom.init_wind))
+            # self.tf1, self.tf2, self.tf3 = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next,delta_yaw=(theta-self.dom.init_wind))
         else:
             self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next)
+            # self.tf1, self.tf2, self.tf3 = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next)
+            
+        # self.tf = self.tf1*self.u_next[0]**2+self.tf2*self.u_next[1]**2+self.tf3*self.u_next[0]*self.u_next[1]
 
         ### Create the functional ###
         self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 

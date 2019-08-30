@@ -441,6 +441,9 @@ class GenericWindFarm(object):
         self.fprint("Calculating Turbine Force",special="header")
         x=SpatialCoordinate(mesh)
         tf=0
+        tf1=0
+        tf2=0
+        tf3=0
         for i in range(self.numturbs):
             x0 = [self.mx[i],self.my[i],self.mz[i]]
             yaw = self.myaw[i]+delta_yaw
@@ -475,7 +478,10 @@ class GenericWindFarm(object):
 
             # compute disk averaged velocity in yawed case and don't project
             u_d = u_next[0]*cos(yaw) + u_next[1]*sin(yaw)
-            tf += F*T*D*WTGbase*u_d**2
+            tf  += F*T*D*WTGbase*u_d**2
+            # tf1 += F*T*D*WTGbase * cos(yaw)**2#*u_d**2
+            # tf2 += F*T*D*WTGbase * sin(yaw)**2#*u_d**2
+            # tf3 += F*T*D*WTGbase * cos(yaw) * sin(yaw)#*u_d**2
 
         ### Project Turbine Force to save on Assemble time ###
         self.fprint("Projecting Turbine Force")
@@ -483,6 +489,7 @@ class GenericWindFarm(object):
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
+        # return (tf1, tf2, tf3)
         return tf
 
     # def TurbineForce2D(self,fs,mesh):

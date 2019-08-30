@@ -24,7 +24,7 @@ wind_farm:
 domain: 
     #                      # Description           | Units
     type: box              #                       |
-    x_range: [-1500, 700] # x-range of the domain | m
+    x_range: [-1200, 1200] # x-range of the domain | m
     y_range: [-1200, 1200] # y-range of the domain | m
     z_range: [0.04, 640]   # z-range of the domain | m
     nx: 15                 # Number of x-nodes     | -
@@ -47,7 +47,7 @@ refine:
     refine_custom: [
         [1,full],
         # [1, custom, [[-1200,1200],[-1200,1200],[0,140]]],
-        # [1, circle, 1020]
+        [1, circle, 1020]
     ]
 
 function_space:
@@ -55,7 +55,7 @@ function_space:
 
 boundary_condition:
     vel_profile: log
-    HH_vel: 4.0
+    HH_vel: 8.0
     power: 0.25
     k: 0.4
 
