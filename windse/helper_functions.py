@@ -3,8 +3,8 @@ from dolfin import Constant
 
 # current_tab = windse_parameters.current_tab
 
-def BaseHeight(x,y,ground):
-    return Constant(ground(float(x),float(y)))
+def BaseHeight(x,y,ground,dx=0,dy=0):
+    return Constant(ground(float(x),float(y),dx=dx,dy=dx))
 
 # def fprint(self,string,tab=None,offset=0,special=None):
 #     """

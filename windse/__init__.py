@@ -37,6 +37,6 @@ def initialize(loc,updated_parameters=[]):
     global StabilizedProblem, TaylorHoodProblem
     from windse.ProblemManager import StabilizedProblem, TaylorHoodProblem
 
-    global SteadySolver, MultiAngleSolver
-    from windse.SolverManager import SteadySolver, MultiAngleSolver
+    global SteadySolver, MultiAngleSolver, TimeSeriesSolver
+    from windse.SolverManager import SteadySolver, MultiAngleSolver, TimeSeriesSolver
 

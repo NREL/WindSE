@@ -212,6 +212,7 @@ class GenericDomain(object):
                     for cell in cells(self.mesh):
                         in_circle = (cell.midpoint()[0]-region[1][0])**2.0+(cell.midpoint()[1]-region[1][1])**2.0<=radius**2.0
                         if self.dim == 3:
+                            # g_z = 0.0#self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
                             g_z = self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
                             in_z = between(cell.midpoint()[2],(region[2][0],region[2][1]+g_z))
                             in_region = in_circle and in_z
@@ -227,6 +228,7 @@ class GenericDomain(object):
                     for cell in cells(self.mesh):
                         in_square = between(cell.midpoint()[0],tuple(region[0])) and between(cell.midpoint()[1],tuple(region[1]))
                         if self.dim == 3:
+                            # g_z = 0.0#self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
                             g_z = self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
                             in_z = between(cell.midpoint()[2],(region[2][0],region[2][1]+g_z))
                             in_region = in_square and in_z
@@ -286,10 +288,15 @@ class GenericDomain(object):
             z1 = self.y_range[1]
             z_ind = 1
 
+        # h1 = 60
+        # h2 = 160
+
         z = copy.deepcopy(self.mesh.coordinates()[:,z_ind])
         # cubic_spline = interp1d([z0,a-r,a+r,z1],[z0,a-(1-s)*r,a+(1-s)*r,z1])
-        cubic_spline = interp1d([z0,h+s*(z1-(h)),z1],[z0,h,z1],fill_value=(z0,z1),bounds_error=False)
+        cubic_spline = interp1d([z0,h+s*(z1-h),z1],[z0,h,z1],fill_value=(z0,z1),bounds_error=False)
+        # cubic_spline = interp1d([z0,h1-s*(z0+h1),h2+s*(z1-h2),z1],[z0,h1,h2,z1],fill_value=(z0,z1),bounds_error=False)
 
+        # plt.figure()
         # x = np.linspace(z0,z1,100)
         # y = cubic_spline(x)
         # plt.plot(x,y)
@@ -405,13 +412,17 @@ class GenericDomain(object):
         self.hill_b = np.sin(2*self.hill_theta)/(4*self.hill_sigma_y**2) - np.sin(2*self.hill_theta)/(4*self.hill_sigma_x**2)
         self.hill_c = np.cos(self.hill_theta)**2/(2*self.hill_sigma_y**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_x**2)
 
-    def GaussianGroundFuncion(self,x,y):
+    def GaussianGroundFuncion(self,x,y,dx=0,dy=0):
         return self.hill_amp*exp( - (self.hill_a*(x-self.hill_x0)**2 + 2*self.hill_b*(x-self.hill_x0)*(y-self.hill_y0) + self.hill_c*(y-self.hill_y0)**2)**2)+self.z_range[0]
 
-    def InterplatedGroundFunction(self,x,y):
-        return float(self.topography_interpolated(x,y)[0]+self.z_range[0])
+    def InterplatedGroundFunction(self,x,y,dx=0,dy=0):
+        if dx == 0 and dy == 0:
+            return float(self.topography_interpolated(x,y)[0]+self.z_range[0])
+        else:
+            return float(self.topography_interpolated(x,y,dx=dx,dy=dy)[0])
 
-    def Ground(self,x,y):
+
+    def Ground(self,x,y,dx=0,dy=0):
         """
         Ground returns the ground height given an (*x*, *y*) coordinate.
 
@@ -423,8 +434,9 @@ class GenericDomain(object):
             float/list: corresponding z coordinates of the ground.
 
         """
+
         if isinstance(x,Constant):
-            z = self.ground_function(x,y)
+            z = self.ground_function(x,y,dx=dx,dy=dy)
             return z
         else:
             if (isinstance(x,list) and isinstance(y,list)) or (isinstance(x,np.ndarray) and isinstance(y,np.ndarray)):
@@ -435,10 +447,10 @@ class GenericDomain(object):
                 else:
                     z = np.zeros(nx)
                     for i in range(nx):
-                        z[i] = float(self.ground_function(x[i],y[i]))
+                        z[i] = float(self.ground_function(x[i],y[i],dx=dx,dy=dy))
                     return z
             else:
-                return float(self.ground_function(x,y))
+                return float(self.ground_function(x,y,dx=dx,dy=dy))
 
 class BoxDomain(GenericDomain):
     """
@@ -524,8 +536,11 @@ class BoxDomain(GenericDomain):
 
         self.fprint("Initial Domain Setup",special="footer")
 
-    def ground_function(self,x,y):
-        return self.z_range[0]
+    def ground_function(self,x,y,dx=0,dy=0):
+        if dx == 0 and dy == 0:
+            return 0.0
+        else:
+            return 0.0
 
     def RecomputeBoundaryMarkers(self,theta):
         mark_start = time.time()
@@ -625,16 +640,19 @@ class CylinderDomain(GenericDomain):
             self.res = self.params["domain"]["res"]
 
             ### Create Mesh ###
-            mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
-            mshr_domain = Extrude2D(mshr_circle,self.z_range[1]-self.z_range[0])
-            # top    = Point(0.0,0.0,self.z_range[1])
-            # bottom = Point(0.0,0.0,self.z_range[0])
-            # mshr_domain = Cylinder(top,bottom,self.radius,self.radius,self.nt)
+            # mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
+            # mshr_domain = Extrude2D(mshr_circle,self.z_range[1]-self.z_range[0])
+            top    = Point(self.center[0],self.center[1],self.z_range[1])
+            bottom = Point(self.center[0],self.center[1],self.z_range[0])
+            mshr_domain = Cylinder(top,bottom,self.radius,self.radius,self.nt)
             self.mesh = generate_mesh(mshr_domain,self.res)
+            self.mesh = refine(self.mesh)
+            self.mesh = refine(self.mesh)
+            # self.mesh = refine(self.mesh)
 
-            z = self.mesh.coordinates()[:,2]+self.z_range[0]
-            self.mesh.coordinates()[:,2] = z
-            self.mesh.bounding_box_tree().build(self.mesh)
+            # z = self.mesh.coordinates()[:,2]#+self.z_range[0]
+            # self.mesh.coordinates()[:,2] = z
+            # self.mesh.bounding_box_tree().build(self.mesh)
 
         else:
             self.fprint("Generating Box Mesh")
@@ -700,8 +718,11 @@ class CylinderDomain(GenericDomain):
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
         self.fprint("Initial Domain Setup",special="footer")
 
-    def ground_function(self,x,y):
-        return self.z_range[0]
+    def ground_function(self,x,y,dx=0,dy=0):
+        if dx == 0 and dy == 0:
+            return self.z_range[0]
+        else:
+            return 0.0
 
     def RecomputeBoundaryMarkers(self,theta):
         mark_start = time.time()
@@ -1136,9 +1157,6 @@ class ImportedDomain(GenericDomain):
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
         self.fprint("Initial Domain Setup",special="footer")
 
-    def ground_function(self,x,y):
-        return self.topography_interpolated(x,y)[0]
-
 class InterpolatedCylinderDomain(CylinderDomain):
     def __init__(self):
         super(InterpolatedCylinderDomain, self).__init__()
@@ -1201,6 +1219,13 @@ class InterpolatedBoxDomain(BoxDomain):
         else:
             self.SetupInterpolatedGround()
             self.ground_function = self.InterplatedGroundFunction
+
+
+        print(self.topography_interpolated(480,0,dx=1))
+        print(self.topography_interpolated(480,0,dy=1))
+
+        print(self.InterplatedGroundFunction(480,0,dx=1))
+        print(self.InterplatedGroundFunction(480,0,dy=1))
 
         interp_stop = time.time()
         self.fprint("Ground Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")

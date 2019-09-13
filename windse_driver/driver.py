@@ -128,11 +128,16 @@ def run_action(params_loc=None):
     ### Finalize the Domain ###
     dom.Finalize()
 
+    # dom.Save()
+    # exit()
     ### Function Space ###
     func_dict = {"linear":windse.LinearFunctionSpace,
                  "taylor_hood":windse.TaylorHoodFunctionSpace}
     fs = func_dict[params["function_space"]["type"]](dom)
 
+    # dom.Save()
+    # exit()
+    
     ### Setup Boundary Conditions ###
     bc_dict = {"uniform":windse.UniformInflow,
                "power":windse.PowerInflow,
@@ -146,7 +151,8 @@ def run_action(params_loc=None):
 
     ### Solve ###
     solve_dict = {"steady":windse.SteadySolver,
-                  "multiangle":windse.MultiAngleSolver}
+                  "multiangle":windse.MultiAngleSolver,
+                  "importedvelocity":windse.TimeSeriesSolver}
     solver = solve_dict[params["solver"]["type"]](problem)
     solver.Solve()
 

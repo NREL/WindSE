@@ -92,6 +92,15 @@ class GenericSolver(object):
             self.params.Save(p,"pressure",subfolder="solutions/",val=val,file=self.p_file)
             # self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuT_file)
 
+    def ChangeWindSpeed(self,speed):
+        """
+        This function recomputes all necessary components for a new wind direction
+
+        Args: 
+            theta (float): The new wind angle in radians
+        """
+        self.problem.ChangeWindSpeed(speed)
+
     def ChangeWindAngle(self,theta):
         """
         This function recomputes all necessary components for a new wind direction
@@ -125,7 +134,7 @@ class SteadySolver(GenericSolver):
         if "height" in self.params.output and self.problem.dom.dim == 3:
             self.problem.bd.SaveHeight(val=iter_val)
         if "turbine_force" in self.params.output:
-            self.problem.farm.SaveTurbineForce(val=iter_val)
+            self.problem.farm.SaveRotorDisks(val=iter_val)
         self.fprint("Finished",special="footer")
 
         ####################################################################
@@ -171,7 +180,7 @@ class SteadySolver(GenericSolver):
         start = time.time()
         
         # ### Solve the Baseline Problem ###
-        # solve(self.problem.F_sans_tf == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters, annotate=False)
+        # solve(self.problem.F_sans_tf == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters, **self.extra_kwarg)
 
         # ### Store the Baseline and Assign for the real solve ###
         # self.up_baseline = self.problem.up_next.copy(deepcopy=True)
@@ -192,6 +201,21 @@ class SteadySolver(GenericSolver):
             self.fprint("Saving Solution",special="header")
             self.Save(val=iter_val)
             self.fprint("Finished",special="footer")
+
+        self.fprint("Speed Percent of Inflow Speed")
+        ps = []
+        for i in range(6):
+            HH = self.problem.farm.HH[0]
+            RD = self.problem.farm.RD[0]
+            x_val = (i+1)*RD
+            vel = self.problem.up_next([x_val,0,HH])
+            vel = vel[0:3]
+            nom = np.linalg.norm(vel)
+            perc = nom/self.problem.bd.HH_vel
+            ps.append(perc)
+            self.fprint("Speed Percent at ("+repr(int(x_val))+", 0, "+repr(HH)+"): "+repr(perc))
+        print(ps)
+
 
 class MultiAngleSolver(SteadySolver):
     """
@@ -229,9 +253,98 @@ class MultiAngleSolver(SteadySolver):
         for i, theta in enumerate(self.angles):
             self.fprint("Performing Solve {:d} of {:d}".format(i+1,len(self.angles)),special="header")
             self.fprint("Wind Angle: "+repr(theta))
-            if i > 0 or not near(theta,self.wind_range[0]):
+            if i > 0 or not near(theta,self.problem.dom.init_wind):
                 self.ChangeWindAngle(theta)
             self.orignal_solve(iter_val=theta)
+
+            if self.optimizing:
+                # self.J += assemble(-dot(self.problem.tf,self.u_next)*dx)
+                # if self.problem.farm.yaw[0]**2 > 1e-4:
+                #     self.J += assemble(-dot(self.problem.tf,self.u_next),*dx)
+                # else:
+                # self.J += assemble(-inner(dot(self.problem.tf,self.u_next),self.u_next[0]**2+self.u_next[1]**2)*dx)
+                self.J += -self.CalculatePowerFunctional((theta-self.problem.dom.init_wind)) 
+                # print(self.J)
+            self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
+
+    def CalculatePowerFunctional(self,delta_yaw):
+        self.fprint("Computing Power Functional")
+
+        x=SpatialCoordinate(self.problem.dom.mesh)
+        J=0.
+        for i in range(self.problem.farm.numturbs):
+
+            mx = self.problem.farm.mx[i]
+            my = self.problem.farm.my[i]
+            mz = self.problem.farm.mz[i]
+            x0 = [mx,my,mz]
+            W = self.problem.farm.W[i]*1.0
+            R = self.problem.farm.RD[i]/2.0 
+            ma = self.problem.farm.ma[i]
+            yaw = self.problem.farm.myaw[i]+delta_yaw
+            u = self.u_next
+
+            WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
+
+            ### Rotate and Shift the Turbine ###
+            xs = self.problem.farm.YawTurbine(x,x0,yaw)
+
+            ### Create the function that represents the Thickness of the turbine ###
+            T = exp(-pow((xs[0]/W),6.0))#/(T_norm*W)
+
+            ### Create the function that represents the Disk of the turbine
+            D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))#/(D_norm*R**2.0)
+
+            u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
+
+            J += dot(T*D*WTGbase*u_d**2.0,u)*dx
+        return J
+
+class TimeSeriesSolver(SteadySolver):
+    """
+    This solver will solve the problem using the steady state solver for every
+    angle in angles.
+
+    Args: 
+        problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
+        angles (list): A list of wind inflow directions.
+    """ 
+
+    def __init__(self,problem):
+        super(TimeSeriesSolver, self).__init__(problem)
+        if self.params["domain"]["type"] in ["imported"]:
+            raise ValueError("Cannot use a Multi-Angle Solver with an "+self.params["domain"]["type"]+" domain.")
+        self.orignal_solve = super(TimeSeriesSolver, self).Solve
+        self.velocity_path = self.params["solver"]["velocity_path"]
+
+
+        raw_data = np.loadtxt(self.velocity_path,comments="#")
+        self.times = raw_data[:,0]
+        self.speeds = raw_data[:,1]
+        self.angles = raw_data[:,2]
+        self.num_solve = len(self.speeds)
+
+        #Check if we are optimizing
+        if self.params.get("optimization",{}):
+            self.optimizing = True
+            self.J = 0
+        else:
+            self.optimizing = False
+
+    def Solve(self):
+        for i in range(self.num_solve):
+            time  = self.times[i]
+            theta = self.angles[i]
+            speed = self.speeds[i]
+            self.fprint("Performing Solve {:d} of {:d}".format(i+1,len(self.angles)),special="header")
+            self.fprint("Time: "+repr(time))
+            self.fprint("Wind Angle: "+repr(theta))
+            self.fprint("Wind Speed: "+repr(speed))
+            if i > 0 or not near(speed,self.problem.bd.HH_vel):
+                self.ChangeWindSpeed(speed)
+            if i > 0 or not near(theta,self.problem.dom.init_wind):
+                self.ChangeWindAngle(theta)
+            self.orignal_solve(iter_val=time)
 
             if self.optimizing:
                 # self.J += assemble(-dot(self.problem.tf,self.u_next)*dx)

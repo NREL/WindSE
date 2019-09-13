@@ -68,6 +68,14 @@ class GenericProblem(object):
 
         # self.tf.assign(tf_temp)
 
+    def ChangeWindSpeed(self,speed):
+        adj_start = time.time()
+        self.fprint("Adjusting Wind Speed",special="header")
+        self.fprint("New Speed: {:1.8f} m/s".format(speed))
+        self.bd.HH_vel = speed
+        adj_stop = time.time()
+        self.fprint("Wind Speed Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")
+
 class StabilizedProblem(GenericProblem):
     """
     The StabilizedProblem setup everything required for solving Navier-Stokes with 
@@ -132,7 +140,7 @@ class StabilizedProblem(GenericProblem):
         else:
             l_mix = Constant(self.farm.HH[0]/mlDenom)
         # l_mix = Expression("x[2]/8.",degree=2)
-
+        
         ### Calculate nu_T
         self.nu_T=l_mix**2.*S
 
@@ -141,13 +149,13 @@ class StabilizedProblem(GenericProblem):
         #     self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
         # else :
         self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
-        self.F_sans_tf = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx
+        self.F_sans_tf =  (1.0)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx
         # self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_next[0]**2+self.u_next[1]**2),v)*dx 
 
         ### Add in the Stabilizing term ###
         # stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
         stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
-        stab_sans_tf = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
+        stab_sans_tf = - eps*inner(grad(q), grad(self.p_next))*dx 
         self.F += stab
         self.F_sans_tf += stab
         self.fprint("Stabilized Problem Setup",special="footer")

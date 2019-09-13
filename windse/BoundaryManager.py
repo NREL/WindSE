@@ -94,14 +94,14 @@ class GenericBoundary(object):
         self.fprint("Boundary Conditions Applied",offset=1)
         self.fprint("")
 
-    def RotateVelocity(self,theta):
-        length = len(self.reference_velocity)
+    def PrepareVelocity(self,theta):
+        length = len(self.unit_reference_velocity)
         ux_com = np.zeros(length)
         uy_com = np.zeros(length)
         uz_com = np.zeros(length)
 
         for i in range(length):
-            v = self.reference_velocity[i]
+            v = self.HH_vel * self.unit_reference_velocity[i]
             ux_com[i] = math.cos(theta)*v
             uy_com[i] = math.sin(theta)*v
             if self.dom.dim == 3:
@@ -110,7 +110,7 @@ class GenericBoundary(object):
 
     def RecomputeVelocity(self,theta):
         self.fprint("Recomputing Velocity")
-        ux_com, uy_com, uz_com = self.RotateVelocity(theta)
+        ux_com, uy_com, uz_com = self.PrepareVelocity(theta)
 
         self.ux = Function(self.fs.V0)
         self.uy = Function(self.fs.V1)
@@ -199,10 +199,10 @@ class UniformInflow(GenericBoundary):
         self.uy = Function(fs.V1)
         if self.dom.dim == 3:
             self.uz = Function(fs.V2)
-        self.reference_velocity = np.full(len(self.ux.vector()[:]),self.HH_vel)
-        self.ux.vector()[:] = self.reference_velocity
+        self.unit_reference_velocity = np.full(len(self.ux.vector()[:]),1.0)
+        self.ux.vector()[:] = self.unit_reference_velocity
 
-        ux_com, uy_com, uz_com = self.RotateVelocity(self.init_wind)
+        ux_com, uy_com, uz_com = self.PrepareVelocity(self.init_wind)
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com
         if self.dom.dim == 3:
@@ -278,9 +278,10 @@ class PowerInflow(GenericBoundary):
         self.ux = Function(fs.V0)
         self.uy = Function(fs.V1)
         self.uz = Function(fs.V2)
-        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-dom.z_range[0])))
-        self.reference_velocity = np.multiply(self.HH_vel,np.power(scaled_depth,self.power))
-        ux_com, uy_com, uz_com = self.RotateVelocity(self.init_wind)
+        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-0.0)))
+        self.unit_reference_velocity = np.power(scaled_depth,self.power)
+        # self.reference_velocity = np.multiply(self.HH_vel,np.power(scaled_depth,self.power))
+        ux_com, uy_com, uz_com = self.PrepareVelocity(self.init_wind)
 
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com
@@ -335,9 +336,9 @@ class LogLayerInflow(GenericBoundary):
         self.uy = Function(fs.V1)
         self.uz = Function(fs.V2)
         scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+dom.z_range[0],(dom.z_range[0])))
-        ustar = self.HH_vel*self.k/np.log(np.mean(farm.HH)/dom.z_range[0])
-        self.reference_velocity = np.multiply(ustar/self.k,np.log(scaled_depth))
-        ux_com, uy_com, uz_com = self.RotateVelocity(self.init_wind)
+        ustar = self.k/np.log(np.mean(farm.HH)/dom.z_range[0])
+        self.unit_reference_velocity = np.multiply(ustar/self.k,np.log(scaled_depth))
+        ux_com, uy_com, uz_com = self.PrepareVelocity(self.init_wind)
 
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com

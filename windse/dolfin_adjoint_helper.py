@@ -177,13 +177,20 @@ class BaseHeightBlock(Block):
         print("evaluating adj")
         x = prepared[0]
         y = prepared[1]
-        h = dolfin.Constant(10)
+        # h = dolfin.Constant(10)
         adj_input = adj_inputs[0]
 
+        # print((float(x),float(y)))
+        # print(self.ground(x,y))
+        # print((self.ground(x,y,dx=1),self.ground(x,y,dy=1)))
+
         if idx == 0:
-            adj = (self.ground(x+h,y)-self.ground(x-h,y))/(2*h)
+            adj = self.ground(x,y,dx=1)
+            # adj = (self.ground(x+h,y)-self.ground(x-h,y))/(2*h)
         elif idx == 1:
-            adj = (self.ground(x,y+h)-self.ground(x,y-h))/(2*h)
+            adj = self.ground(x,y,dy=1)
+            # adj = (self.ground(x,y+h)-self.ground(x,y-h))/(2*h)
+
 
         return adj_input * adj
 
