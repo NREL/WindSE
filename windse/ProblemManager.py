@@ -110,7 +110,7 @@ class StabilizedProblem(GenericProblem):
         # self.tf = self.tf1*self.u_next[0]**2+self.tf2*self.u_next[1]**2+self.tf3*self.u_next[0]*self.u_next[1]
 
         ### These constants will be moved into the params file ###
-        nu = self.params["problem"].get("viscosity",1.0)
+        nu = self.params["problem"].get("viscosity",.1)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
         lmax=15

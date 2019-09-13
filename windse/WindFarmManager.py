@@ -40,7 +40,7 @@ class GenericWindFarm(object):
     def __init__(self, dom):
         ### save a reference of option and create local version specifically of domain options ###
         self.params = windse_parameters
-        self.force = self.params["wind_farm"].get("force","constant")
+        self.force = self.params["wind_farm"].get("force","sine")
         self.analytic = self.params["domain"].get("analytic",False)
         self.dom = dom
         self.tf_first_save = True
@@ -459,22 +459,22 @@ class GenericWindFarm(object):
             xs = self.YawTurbine(x,x0,yaw)
 
             ### Create the function that represents the Thickness of the turbine ###
-            # T_norm = 1.902701539733748
-            T = exp(-pow((xs[0]/W),6.0))#/(T_norm*W)
+            T_norm = 1.902701539733748
+            T = exp(-pow((xs[0]/W),6.0))/(T_norm*W)
 
             ### Create the function that represents the Disk of the turbine
-            # D_norm = 2.884512175878827
-            D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))#/(D_norm*R**2.0)
+            D_norm = 2.884512175878827
+            D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
 
             ### Create the function that represents the force ###
-            if self.force == "constant":
-                A = np.pi*R**2
-                C_t = 4./3.
-                beta = A*W*2.
-                F = 0.5*C_t*A/beta*ma/(1.-ma)
-            elif self.force == "sine":
+            # if self.force == "constant":
+            #     A = np.pi*R**2
+            #     C_t = 4./3.
+            #     beta = A*W*2.
+            #     F = 0.5*C_t*A/beta*ma/(1.-ma)
+            if self.force == "sine":
                 r = sqrt(xs[1]**2.0+xs[2]**2)
-                F = 4.*0.5*(pi*R**2.0)*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5) #* 1/(.81831)
+                F = 4.*0.5*(pi*R**2.0)*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5)/(.81831)
 
             # compute disk averaged velocity in yawed case and don't project
             u_d = u_next[0]*cos(yaw) + u_next[1]*sin(yaw)
