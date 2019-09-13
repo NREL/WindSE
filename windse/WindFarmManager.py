@@ -121,7 +121,7 @@ class GenericWindFarm(object):
     def __init__(self, dom):
         ### save a reference of option and create local version specifically of domain options ###
         self.params = windse_parameters
-        self.force = self.params["wind_farm"].get("force_type","constant")
+        self.force = self.params["wind_farm"].get("force","sine")
         self.analytic = self.params["domain"].get("analytic",False)
         self.dom = dom
         self.rd_first_save = True
@@ -563,18 +563,10 @@ class GenericWindFarm(object):
             ### Create the function that represents the force ###
             if self.force == "constant":
                 C_t = 4./3.
-                # A = np.pi*R**2
-                # beta = A*W*2.
-                # F = 0.5*C_t*A/beta*ma/(1.-ma)
                 F = 0.5*A*C_t*ma/(1.-ma)
             elif self.force == "sine":
                 r = sqrt(xs[1]**2.0+xs[2]**2)
-                F = 4.*0.5*A*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5) #* 1/(.81831)
-
-            ### Normalize ###
-            # F = F/(W*R*R)
-            # F = F/(W*T_norm)
-            # F = 64*F
+                F = 4.*0.5*A*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5)/(.81831)
 
             # compute disk averaged velocity in yawed case and don't project
             u_d = u_next[0]*cos(yaw) + u_next[1]*sin(yaw)
