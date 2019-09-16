@@ -202,19 +202,19 @@ class SteadySolver(GenericSolver):
             self.Save(val=iter_val)
             self.fprint("Finished",special="footer")
 
-        self.fprint("Speed Percent of Inflow Speed")
-        ps = []
-        for i in range(6):
-            HH = self.problem.farm.HH[0]
-            RD = self.problem.farm.RD[0]
-            x_val = (i+1)*RD
-            vel = self.problem.up_next([x_val,0,HH])
-            vel = vel[0:3]
-            nom = np.linalg.norm(vel)
-            perc = nom/self.problem.bd.HH_vel
-            ps.append(perc)
-            self.fprint("Speed Percent at ("+repr(int(x_val))+", 0, "+repr(HH)+"): "+repr(perc))
-        print(ps)
+        # self.fprint("Speed Percent of Inflow Speed")
+        # ps = []
+        # for i in range(6):
+        #     HH = self.problem.farm.HH[0]
+        #     RD = self.problem.farm.RD[0]
+        #     x_val = (i+1)*RD
+        #     vel = self.problem.up_next([x_val,0,HH])
+        #     vel = vel[0:3]
+        #     nom = np.linalg.norm(vel)
+        #     perc = nom/self.problem.bd.HH_vel
+        #     ps.append(perc)
+        #     self.fprint("Speed Percent at ("+repr(int(x_val))+", 0, "+repr(HH)+"): "+repr(perc))
+        # print(ps)
 
 
 class MultiAngleSolver(SteadySolver):
