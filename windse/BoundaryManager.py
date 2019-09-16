@@ -278,7 +278,7 @@ class PowerInflow(GenericBoundary):
         self.ux = Function(fs.V0)
         self.uy = Function(fs.V1)
         self.uz = Function(fs.V2)
-        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-0.0)))
+        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-dom.z_range[0])))
         self.unit_reference_velocity = np.power(scaled_depth,self.power)
         # self.reference_velocity = np.multiply(self.HH_vel,np.power(scaled_depth,self.power))
         ux_com, uy_com, uz_com = self.PrepareVelocity(self.init_wind)
