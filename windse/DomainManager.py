@@ -538,7 +538,7 @@ class BoxDomain(GenericDomain):
 
     def ground_function(self,x,y,dx=0,dy=0):
         if dx == 0 and dy == 0:
-            return dom.z_range[0]
+            return self.z_range[0]
         else:
             return 0.0
 
