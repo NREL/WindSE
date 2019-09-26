@@ -142,11 +142,13 @@ class GenericDomain(object):
             self.mesh_file = self.params.Save(self.mesh,"mesh",subfolder="mesh/",val=val,filetype="pvd")
             self.bmesh_file   = self.params.Save(self.bmesh,"boundary_mesh",subfolder="mesh/",val=val,filetype="pvd")
             self.bc_file   = self.params.Save(self.boundary_markers,"facets",subfolder="mesh/",val=val,filetype="pvd")
+            # self.mr_file   = self.params.Save(self.mesh_radius,"mesh_radius",subfolder="mesh/",val=val,filetype="pvd")
             self.first_save = False
         else:
             self.params.Save(self.mesh,"mesh",subfolder="mesh/",val=val,file=self.mesh_file,filetype="pvd")
             self.params.Save(self.bmesh,"boundary_mesh",subfolder="mesh/",val=val,file=self.bmesh_file,filetype="pvd")
             self.params.Save(self.boundary_markers,"facets",subfolder="mesh/",val=val,file=self.bc_file,filetype="pvd")
+            # self.params.Save(self.mesh_radius,"mesh_radius",subfolder="mesh/",val=val,file=self.mr_file,filetype="pvd")
 
     def Refine(self,num,region=None,region_type=None,cell_markers=None):
         """
@@ -293,7 +295,7 @@ class GenericDomain(object):
 
         z = copy.deepcopy(self.mesh.coordinates()[:,z_ind])
         # cubic_spline = interp1d([z0,a-r,a+r,z1],[z0,a-(1-s)*r,a+(1-s)*r,z1])
-        cubic_spline = interp1d([z0,h+s*(z1-h),z1],[z0,h,z1],fill_value=(z0,z1),bounds_error=False)
+        cubic_spline = interp1d([z0,z0+s*(z1-z0),z1],[z0,h,z1],fill_value=(z0,z1),bounds_error=False)
         # cubic_spline = interp1d([z0,h1-s*(z0+h1),h2+s*(z1-h2),z1],[z0,h1,h2,z1],fill_value=(z0,z1),bounds_error=False)
 
         # plt.figure()
@@ -304,9 +306,12 @@ class GenericDomain(object):
         # exit()
 
         self.fprint("Moving Nodes")
-        z = cubic_spline(z)
-        self.mesh.coordinates()[:,z_ind]=z
+        z_new = cubic_spline(z)
+        print(np.linalg.norm(z-z_new))
+        self.mesh.coordinates()[:,z_ind]=z_new
         self.mesh.bounding_box_tree().build(self.mesh)
+        self.bmesh = BoundaryMesh(self.mesh,"exterior")
+
         warp_stop = time.time()
         self.fprint("Warping Finished: {:1.2f} s".format(warp_stop-warp_start),special="footer")
 
@@ -336,6 +341,7 @@ class GenericDomain(object):
         z1 = z0 + (z1 - z0)*((z-z0)/(z1-z0))**s
         self.mesh.coordinates()[:,2]=z1
         self.mesh.bounding_box_tree().build(self.mesh)
+        self.bmesh = BoundaryMesh(self.mesh,"exterior")
 
         warp_stop = time.time()
         self.fprint("Warping Finished: {:1.2f} s".format(warp_stop-warp_start),special="footer")
@@ -367,7 +373,15 @@ class GenericDomain(object):
         self.fprint("Mesh Moved: {:1.2f} s".format(move_stop-move_start),special="footer")
 
     def Finalize(self):
+        # self.ComputeCellRadius()
         self.finalized = True
+
+    # def ComputeCellRadius(self):
+    #     self.mesh_radius = MeshFunction("double", self.mesh, self.mesh.topology().dim())
+    #     for cell in cells(self.mesh):
+    #         self.mesh_radius.set_value(cell.index(),cell.h())
+    #         # self.mesh_radius.set_value(cell.index(),cell.inradius())
+    #         # self.mesh_radius.set_value(cell.index(),cell.circumradius())
 
     def SetupInterpolatedGround(self):
         self.fprint("Ground Type: Interpolated From File")
@@ -512,12 +526,12 @@ class BoxDomain(GenericDomain):
         mark_start = time.time()
         self.fprint("")
         self.fprint("Marking Boundaries")
-        top     = CompiledSubDomain("near(x[2], z1) && on_boundary",z1 = self.z_range[1])
-        bottom  = CompiledSubDomain("near(x[2], z0) && on_boundary",z0 = self.z_range[0])
-        front   = CompiledSubDomain("near(x[0], x0) && on_boundary",x0 = self.x_range[0])
-        back    = CompiledSubDomain("near(x[0], x1) && on_boundary",x1 = self.x_range[1])
-        left    = CompiledSubDomain("near(x[1], y0) && on_boundary",y0 = self.y_range[0])
-        right   = CompiledSubDomain("near(x[1], y1) && on_boundary",y1 = self.y_range[1])
+        top     = CompiledSubDomain("near(x[2], z1, tol) && on_boundary",z1 = self.z_range[1], tol = 1e-10)
+        bottom  = CompiledSubDomain("near(x[2], z0, tol) && on_boundary",z0 = self.z_range[0], tol = 1e-10)
+        front   = CompiledSubDomain("near(x[0], x0, tol) && on_boundary",x0 = self.x_range[0], tol = 1e-10)
+        back    = CompiledSubDomain("near(x[0], x1, tol) && on_boundary",x1 = self.x_range[1], tol = 1e-10)
+        left    = CompiledSubDomain("near(x[1], y0, tol) && on_boundary",y0 = self.y_range[0], tol = 1e-10)
+        right   = CompiledSubDomain("near(x[1], y1, tol) && on_boundary",y1 = self.y_range[1], tol = 1e-10)
         self.boundary_subdomains = [top,bottom,front,back,left,right]
         self.boundary_names = {"top":1,"bottom":2,"front":3,"back":4,"left":5,"right":6}
         self.boundary_types = {"inflow":          ["front","left","right"],
@@ -538,7 +552,18 @@ class BoxDomain(GenericDomain):
 
     def ground_function(self,x,y,dx=0,dy=0):
         if dx == 0 and dy == 0:
-            return 0.0
+            #################
+            #################
+            #################
+            #################
+            #################
+            return self.z_range[0]
+            # return 0.0
+            #################
+            #################
+            #################
+            #################
+            #################
         else:
             return 0.0
 

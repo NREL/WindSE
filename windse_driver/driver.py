@@ -5,6 +5,10 @@ import os.path as osp
 import argparse
 import sys
 
+# import os
+# os.environ['OMP_NUM_THREADS'] = '1'
+
+
 ALL_ACTIONS = ("run")
 help_msg = """
 Available commands:
@@ -103,7 +107,6 @@ def run_action(params_loc=None):
         turbine_num    = params["refine"].get("turbine_num",0)
         turbine_factor = params["refine"].get("turbine_factor",1.0)
 
-
         if warp_type == "smooth":
             dom.WarpSmooth(warp_strength)
         elif warp_type == "split":
@@ -117,7 +120,8 @@ def run_action(params_loc=None):
                 else:
                     region = farm.CalculateFarmRegion(refine_data[1],length=refine_data[2])
                     dom.Refine(refine_data[0],region=region,region_type=refine_data[1])
-        else:
+        
+        if farm_num > 0:
             region = farm.CalculateFarmRegion(farm_type,farm_factor,length=farm_radius)
             dom.Refine(farm_num,region=region,region_type=farm_type)
 

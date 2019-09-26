@@ -181,7 +181,7 @@ class TaylorHoodProblem(GenericProblem):
         self.fprint("Setting Up Taylor-Hood Problem",special="header")
 
         ### These constants will be moved into the params file ###
-        nu = self.params["problem"].get("viscosity",1.0)
+        nu = self.params["problem"].get("viscosity",0.1)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
         lmax=15

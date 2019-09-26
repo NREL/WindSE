@@ -154,11 +154,11 @@ class GenericWindFarm(object):
         if hasattr(self.dom,"boundary_line"):
             plt.plot(*self.dom.boundary_line,c="k")
         plt.plot(ex_list_x,ex_list_y,c="r")
-        p=plt.scatter(self.x,self.y,c=self.z)
+        p=plt.scatter(self.x,self.y,c=self.z,cmap="coolwarm",edgecolors=(0, 0, 0, 1))
         plt.xlim(self.dom.x_range[0],self.dom.x_range[1])
         plt.ylim(self.dom.y_range[0],self.dom.y_range[1])
         clb = plt.colorbar(p)
-        clb.ax.set_ylabel('Hub Height')
+        clb.ax.set_ylabel('Hub Elevation')
 
         plt.title("Location of the Turbines")
         plt.savefig(file_string)

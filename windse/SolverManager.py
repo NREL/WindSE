@@ -52,6 +52,19 @@ class GenericSolver(object):
         self.extra_kwarg = {}
         if self.params["general"].get("dolfin_adjoint", False):
             self.extra_kwarg["annotate"] = False
+        self.save_power = self.params["solver"].get("save_power",False)
+
+        #Check if we are optimizing
+        if self.params.get("optimization",{}):
+            self.optimizing = True
+            self.J = 0
+        else:
+            self.optimizing = False
+
+        #Check if we need to save the power output
+        if self.save_power:
+            self.J = 0
+            self.J_saved = False
 
     def Plot(self):
         """
@@ -110,6 +123,62 @@ class GenericSolver(object):
         """
         self.problem.ChangeWindAngle(theta)
         
+    def CalculatePowerFunctional(self,delta_yaw = 0.0):
+        self.fprint("Computing Power Functional")
+
+        x=SpatialCoordinate(self.problem.dom.mesh)
+        J=0.
+        J_list=np.zeros(self.problem.farm.numturbs+1)
+        for i in range(self.problem.farm.numturbs):
+
+            mx = self.problem.farm.mx[i]
+            my = self.problem.farm.my[i]
+            mz = self.problem.farm.mz[i]
+            x0 = [mx,my,mz]
+            W = self.problem.farm.W[i]*1.0
+            R = self.problem.farm.RD[i]/2.0 
+            ma = self.problem.farm.ma[i]
+            yaw = self.problem.farm.myaw[i]+delta_yaw
+            u = self.u_next
+            A = pi*R**2.0
+
+            WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
+
+            ### Rotate and Shift the Turbine ###
+            xs = self.problem.farm.YawTurbine(x,x0,yaw)
+
+            ### Create the function that represents the Thickness of the turbine ###
+            T_norm = 1.855438667500383
+            T = exp(-pow((xs[0]/W),6.0))/(T_norm*W)
+
+            ### Create the function that represents the Disk of the turbine
+            D_norm = 2.914516237206873
+            D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
+
+            u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
+
+            J += dot(A*T*D*WTGbase*u_d**2.0,u)*dx
+
+            if self.save_power:
+                J_list[i] = assemble(dot(A*T*D*WTGbase*u_d**2.0,u)*dx)
+        
+        if self.save_power:
+            J_list[-1]=assemble(J)
+
+            folder_string = self.params.folder+"/data/"
+            if not os.path.exists(folder_string): os.makedirs(folder_string)
+
+            if self.J_saved:
+                f = open(folder_string+"power_data.txt",'ab')
+            else:
+                f = open(folder_string+"power_data.txt",'wb')
+                self.J_saved = True
+
+            np.savetxt(f,[J_list])
+            f.close()
+
+        return J
+
 class SteadySolver(GenericSolver):
     """
     This solver is for solving the steady state problem
@@ -202,19 +271,26 @@ class SteadySolver(GenericSolver):
             self.Save(val=iter_val)
             self.fprint("Finished",special="footer")
 
-        self.fprint("Speed Percent of Inflow Speed")
-        ps = []
-        for i in range(6):
-            HH = self.problem.farm.HH[0]
-            RD = self.problem.farm.RD[0]
-            x_val = (i+1)*RD
-            vel = self.problem.up_next([x_val,0,HH])
-            vel = vel[0:3]
-            nom = np.linalg.norm(vel)
-            perc = nom/self.problem.bd.HH_vel
-            ps.append(perc)
-            self.fprint("Speed Percent at ("+repr(int(x_val))+", 0, "+repr(HH)+"): "+repr(perc))
-        print(ps)
+        ### calculate the power for each turbine ###
+        ###################################
+        ### Fix how angle is transfered ###
+        ###################################
+        if self.optimizing or self.save_power:
+            self.J += -self.CalculatePowerFunctional((iter_val-self.problem.dom.init_wind)) 
+
+        # self.fprint("Speed Percent of Inflow Speed")
+        # ps = []
+        # for i in range(6):
+        #     HH = self.problem.farm.HH[0]
+        #     RD = self.problem.farm.RD[0]
+        #     x_val = (i+1)*RD
+        #     vel = self.problem.up_next([x_val,0,HH])
+        #     vel = vel[0:3]
+        #     nom = np.linalg.norm(vel)
+        #     perc = nom/self.problem.bd.HH_vel
+        #     ps.append(perc)
+        #     self.fprint("Speed Percent at ("+repr(int(x_val))+", 0, "+repr(HH)+"): "+repr(perc))
+        # print(ps)
 
 
 class MultiAngleSolver(SteadySolver):
@@ -242,13 +318,6 @@ class MultiAngleSolver(SteadySolver):
         self.num_wind = self.params["solver"]["num_wind_angles"]
         self.angles = np.linspace(self.wind_range[0],self.wind_range[1],self.num_wind,endpoint=self.endpoint)
 
-        #Check if we are optimizing
-        if self.params.get("optimization",{}):
-            self.optimizing = True
-            self.J = 0
-        else:
-            self.optimizing = False
-
     def Solve(self):
         for i, theta in enumerate(self.angles):
             self.fprint("Performing Solve {:d} of {:d}".format(i+1,len(self.angles)),special="header")
@@ -256,49 +325,7 @@ class MultiAngleSolver(SteadySolver):
             if i > 0 or not near(theta,self.problem.dom.init_wind):
                 self.ChangeWindAngle(theta)
             self.orignal_solve(iter_val=theta)
-
-            if self.optimizing:
-                # self.J += assemble(-dot(self.problem.tf,self.u_next)*dx)
-                # if self.problem.farm.yaw[0]**2 > 1e-4:
-                #     self.J += assemble(-dot(self.problem.tf,self.u_next),*dx)
-                # else:
-                # self.J += assemble(-inner(dot(self.problem.tf,self.u_next),self.u_next[0]**2+self.u_next[1]**2)*dx)
-                self.J += -self.CalculatePowerFunctional((theta-self.problem.dom.init_wind)) 
-                # print(self.J)
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
-
-    def CalculatePowerFunctional(self,delta_yaw):
-        self.fprint("Computing Power Functional")
-
-        x=SpatialCoordinate(self.problem.dom.mesh)
-        J=0.
-        for i in range(self.problem.farm.numturbs):
-
-            mx = self.problem.farm.mx[i]
-            my = self.problem.farm.my[i]
-            mz = self.problem.farm.mz[i]
-            x0 = [mx,my,mz]
-            W = self.problem.farm.W[i]*1.0
-            R = self.problem.farm.RD[i]/2.0 
-            ma = self.problem.farm.ma[i]
-            yaw = self.problem.farm.myaw[i]+delta_yaw
-            u = self.u_next
-
-            WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
-
-            ### Rotate and Shift the Turbine ###
-            xs = self.problem.farm.YawTurbine(x,x0,yaw)
-
-            ### Create the function that represents the Thickness of the turbine ###
-            T = exp(-pow((xs[0]/W),6.0))#/(T_norm*W)
-
-            ### Create the function that represents the Disk of the turbine
-            D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))#/(D_norm*R**2.0)
-
-            u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
-
-            J += dot(T*D*WTGbase*u_d**2.0,u)*dx
-        return J
 
 class TimeSeriesSolver(SteadySolver):
     """
@@ -324,13 +351,6 @@ class TimeSeriesSolver(SteadySolver):
         self.angles = raw_data[:,2]
         self.num_solve = len(self.speeds)
 
-        #Check if we are optimizing
-        if self.params.get("optimization",{}):
-            self.optimizing = True
-            self.J = 0
-        else:
-            self.optimizing = False
-
     def Solve(self):
         for i in range(self.num_solve):
             time  = self.times[i]
@@ -346,45 +366,5 @@ class TimeSeriesSolver(SteadySolver):
                 self.ChangeWindAngle(theta)
             self.orignal_solve(iter_val=time)
 
-            if self.optimizing:
-                # self.J += assemble(-dot(self.problem.tf,self.u_next)*dx)
-                # if self.problem.farm.yaw[0]**2 > 1e-4:
-                #     self.J += assemble(-dot(self.problem.tf,self.u_next),*dx)
-                # else:
-                # self.J += assemble(-inner(dot(self.problem.tf,self.u_next),self.u_next[0]**2+self.u_next[1]**2)*dx)
-                self.J += -self.CalculatePowerFunctional((theta-self.problem.dom.init_wind)) 
-                # print(self.J)
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
 
-    def CalculatePowerFunctional(self,delta_yaw):
-        self.fprint("Computing Power Functional")
-
-        x=SpatialCoordinate(self.problem.dom.mesh)
-        J=0.
-        for i in range(self.problem.farm.numturbs):
-
-            mx = self.problem.farm.mx[i]
-            my = self.problem.farm.my[i]
-            mz = self.problem.farm.mz[i]
-            x0 = [mx,my,mz]
-            W = self.problem.farm.W[i]*1.0
-            R = self.problem.farm.RD[i]/2.0 
-            ma = self.problem.farm.ma[i]
-            yaw = self.problem.farm.myaw[i]+delta_yaw
-            u = self.u_next
-
-            WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
-
-            ### Rotate and Shift the Turbine ###
-            xs = self.problem.farm.YawTurbine(x,x0,yaw)
-
-            ### Create the function that represents the Thickness of the turbine ###
-            T = exp(-pow((xs[0]/W),6.0))#/(T_norm*W)
-
-            ### Create the function that represents the Disk of the turbine
-            D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))#/(D_norm*R**2.0)
-
-            u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
-
-            J += dot(T*D*WTGbase*u_d**2.0,u)*dx
-        return J
