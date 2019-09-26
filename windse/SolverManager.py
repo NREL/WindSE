@@ -367,4 +367,3 @@ class TimeSeriesSolver(SteadySolver):
             self.orignal_solve(iter_val=time)
 
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
-

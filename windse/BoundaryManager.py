@@ -278,7 +278,7 @@ class PowerInflow(GenericBoundary):
         self.ux = Function(fs.V0)
         self.uy = Function(fs.V1)
         self.uz = Function(fs.V2)
-
+        
         #################
         #################
         #################
