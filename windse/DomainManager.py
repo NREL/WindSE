@@ -20,6 +20,7 @@ if main_file != "sphinx-build":
     from sys import platform
     import numpy as np
     from scipy.interpolate import interp2d, interp1d,RectBivariateSpline
+    import shutil
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -392,6 +393,9 @@ class GenericDomain(object):
             self.typo_path  = self.path + "topography.txt"
         else:
             self.typo_path  = self.params["domain"]["typo_path"]
+
+        ### Copy Files to input folder ###
+        shutil.copy(self.typo_path,self.params.folder+"input_files/")
 
         self.fprint("Path: {0}".format(self.typo_path),offset=1)
 
@@ -1126,6 +1130,11 @@ class ImportedDomain(GenericDomain):
             if self.filetype == "xml.gz":
                 self.boundary_path = self.params["domain"]["bound_path"]
             self.typo_path  = self.params["domain"]["typo_path"]
+
+        ### Copy Files to input folder ###
+        shutil.copy(self.mesh_path,self.params.folder+"input_files/")
+        if self.filetype == "xml.gz":
+            shutil.copy(self.boundary_path,self.params.folder+"input_files/")
 
         ### Create the mesh ###
         mesh_start = time.time()

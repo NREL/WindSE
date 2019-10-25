@@ -111,13 +111,14 @@ class Parameters(dict):
 
         ### Make sure folder exists ###
         if not os.path.exists(self.folder): os.makedirs(self.folder)
+        if not os.path.exists(self.folder+"input_files/"): os.makedirs(self.folder+"input_files/")
         
         ### Setup the logger ###
         self.log = self.folder+"log.txt"
         sys.stdout = Logger(self.log)
 
         ### Copy params file to output folder ###
-        shutil.copy(loc,self.folder)
+        shutil.copy(loc,self.folder+"input_files/")
 
         ### Create checkpoint if required ###
         # if self.save_file_type == "hdf5":

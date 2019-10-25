@@ -211,6 +211,7 @@ class Optimizer(object):
             plt.plot(*self.problem.dom.boundary_line,c="k")
         plt.plot(ex_list_x,ex_list_y,c="r")
         p=plt.scatter(self.x_val,self.y_val,c=z_val,cmap="coolwarm",edgecolors=(0, 0, 0, 1))
+        # p=plt.scatter(self.x_val,self.y_val,c="k",s=70)
         # p=plt.scatter(self.x_val,self.y_val,c=range(self.farm.numturbs))
         plt.xlim(self.problem.dom.x_range[0],self.problem.dom.x_range[1])
         plt.ylim(self.problem.dom.y_range[0],self.problem.dom.y_range[1])
@@ -218,7 +219,7 @@ class Optimizer(object):
         clb.ax.set_ylabel('Hub Elevation')
 
         plt.title("Power Output: {: 5.2f}".format(-self.Jcurrent))
-        plt.savefig(file_string)
+        plt.savefig(file_string, transparent=True)
         if show:
             plt.show()
 

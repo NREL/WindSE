@@ -16,6 +16,7 @@ if main_file != "sphinx-build":
     from sys import platform
     import math
     import time
+    import shutil
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters, BaseHeight
@@ -155,13 +156,14 @@ class GenericWindFarm(object):
             plt.plot(*self.dom.boundary_line,c="k")
         plt.plot(ex_list_x,ex_list_y,c="r")
         p=plt.scatter(self.x,self.y,c=self.z,cmap="coolwarm",edgecolors=(0, 0, 0, 1))
+        # p=plt.scatter(self.x,self.y,c="k",s=70)
         plt.xlim(self.dom.x_range[0],self.dom.x_range[1])
         plt.ylim(self.dom.y_range[0],self.dom.y_range[1])
         clb = plt.colorbar(p)
         clb.ax.set_ylabel('Hub Elevation')
 
         plt.title("Location of the Turbines")
-        plt.savefig(file_string)
+        plt.savefig(file_string, transparent=True)
         if show:
             plt.show()
 
@@ -703,6 +705,7 @@ class GridWindFarm(GenericWindFarm):
         self.axial = [self.params["wind_farm"]["axial"]]*self.numturbs
         self.radius = self.RD[0]/2.0
         self.jitter = self.params["wind_farm"].get("jitter",0.0)
+        self.seed = self.params["wind_farm"].get("seed",None)
 
         self.ex_x = self.params["wind_farm"]["ex_x"]
         self.ex_y = self.params["wind_farm"]["ex_y"]
@@ -712,7 +715,9 @@ class GridWindFarm(GenericWindFarm):
         self.fprint("Number of Rows:     {:d}".format(self.grid_rows))
         self.fprint("Number of Columns:  {:d}".format(self.grid_cols))
         self.fprint("Number of Turbines: {:d}".format(self.numturbs))
-        self.fprint("Amount of Jitter:   {: 1.2f}".format(self.jitter))
+        if self.jitter > 0.0:
+            self.fprint("Amount of Jitter:   {: 1.2f}".format(self.jitter))
+            self.fprint("Random Seed: " + repr(self.seed))
         self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0],self.ex_x[1]))
         self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0],self.ex_y[1]))
 
@@ -727,6 +732,8 @@ class GridWindFarm(GenericWindFarm):
 
         ### Apply Jitter ###
         if self.jitter > 0.0:
+            if self.seed is not None:
+                np.random.seed(self.seed)
             self.x += np.random.randn(self.numturbs)*self.jitter
             self.y += np.random.randn(self.numturbs)*self.jitter
 
@@ -855,6 +862,9 @@ class ImportedWindFarm(GenericWindFarm):
         ### Import the data from path ###
         self.path = self.params["wind_farm"]["path"]
         raw_data = np.loadtxt(self.path,comments="#")
+
+        ### Copy Files to input folder ###
+        shutil.copy(self.path,self.params.folder+"input_files/")
 
         ### Parse the data ###
         if len(raw_data.shape) > 1:
