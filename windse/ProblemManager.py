@@ -203,3 +203,162 @@ class TaylorHoodProblem(GenericProblem):
             self.F = inner(grad(u_next)*u_next, v)*dx + (nu+self.nu_T)*inner(grad(u_next), grad(v))*dx - inner(div(v),p_next)*dx - inner(div(u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(u_next[0]**2+u_next[1]**2),v)*dx 
     
         self.fprint("Taylor-Hood Problem Setup",special="footer")
+
+class UnsteadyProblem(GenericProblem):
+    """
+    The UnsteadyProblem sets up everything required for solving Navier-Stokes using
+    a fractional-step method with an adaptive timestep size
+
+    Args: 
+        domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
+        windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
+        function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
+        boundary_conditions (:meth:`windse.BoundaryManager.GenericBoundary`): a windse boundary object.
+    """
+    def __init__(self, domain, windfarm, function_space, boundary_conditions):
+        super(UnsteadyProblem, self).__init__(domain, windfarm, function_space, boundary_conditions)
+        self.fprint("Setting Up Unsteady Problem", special="header")
+
+        # ================================================================
+
+        # Define fluid properties
+        # FIXME: These should probably be set in params.yaml input filt
+        mu = 1/10000
+        rho = 1
+        mu_c = Constant(mu)
+        rho_c = Constant(rho)
+
+        # Define time step size (this value is used only for step 1 if adaptive timestepping is used)
+        # FIXME: change variable name to avoid confusion within dolfin adjoint
+        self.dt = 0.1*self.dom.mesh.hmin()/self.bd.vmax
+        self.dt_c  = Constant(self.dt)
+
+        self.fprint("Viscosity: {:1.2e}".format(float(mu)))
+        self.fprint("Density:   {:1.2e}".format(float(rho)))
+
+        # Define trial and test functions for velocity
+        u = TrialFunction(self.fs.V)
+        v = TestFunction(self.fs.V)
+
+        # Define trial and test functions for pressure
+        p = TrialFunction(self.fs.Q)
+        q = TestFunction(self.fs.Q)
+
+        # Define functions for velocity solutions
+        # >> _k = current (step k)
+        # >> _k1 = previous (step k-1)
+        # >> _k2 = double previous (step k-2)
+        self.u_k = Function(self.fs.V)
+        self.u_k1 = Function(self.fs.V)
+        self.u_k2 = Function(self.fs.V)
+
+        # Specify an initial condition for the velocity field, if using
+        use_initial_velocity = True
+
+        if use_initial_velocity:
+            # FIXME: These should be obtained from self.bd.bcs
+            vmax = self.bd.vmax
+            theta = 0
+
+            use_log_profile = True
+
+            if self.dom.dim == 2:
+                if use_log_profile:
+                    inflow = Expression(('x[1] > 0 ? vmax*std::log(x[1]/0.01)/std::log(ph/0.01) : 0', '0'), 
+                        degree = 2, vmax = vmax, ph = self.farm.HH[0])
+                elif theta > 0:
+                    inflow = Expression(('ux', 'uy'), degree = 2, ux = vmax*np.cos(theta), uy = vmax*np.sin(theta))
+                else:
+                    inflow = Expression(('ux', '0'), degree = 2, ux = vmax)
+
+            elif self.dom.dim == 3:
+                if use_log_profile:
+                    inflow = Expression(('x[2] > 0 ? vmax*std::log(x[2]/0.01)/std::log(ph/0.01) : 0', '0', '0'), 
+                        degree = 2, vmax = vmax, ph = self.farm.HH[0])
+                elif theta > 0:
+                    inflow = Expression(('ux', 'uy', '0'), degree = 2, ux = vmax*np.cos(theta), uy = vmax*np.sin(theta))
+                else:
+                    inflow = Expression(('ux', '0', '0'), degree = 2, ux = vmax)
+
+
+            # Seed previous velocity fields with the chosen initial condition
+            self.u_k1.interpolate(inflow)
+            self.u_k2.interpolate(inflow)
+
+        # Define functions for pressure solutions
+        # >> _k = current (step k)
+        # >> _k1 = previous (step k-1)
+        self.p_k  = Function(self.fs.Q)
+        self.p_k1 = Function(self.fs.Q)
+
+        # ================================================================
+
+        # Crank-Nicolson velocity
+        U_CN  = 0.5*(u + self.u_k1)
+
+        # Adams-Bashforth projected velocity
+        U_AB = 1.5*self.u_k1 - 0.5*self.u_k2
+
+        # ================================================================
+
+        # Calculate eddy viscosity, if using
+        use_eddy_viscosity = True
+
+        if use_eddy_viscosity:
+            # Define filter scale
+            filter_scale = CellVolume(self.dom.mesh)**(1.0/self.dom.dim)
+
+            # Strain rate tensor, 0.5*(du_i/dx_j + du_j/dx_i)
+            Sij = sym(nabla_grad(U_AB))
+
+            # sqrt(Sij*Sij)
+            strainMag = (2.0*inner(Sij, Sij))**0.5
+
+            # Smagorinsky constant, typically around 0.17
+            Cs = 0.17
+
+            # Eddy viscosity
+            self.nu_T = Cs**2 * filter_scale**2 * strainMag
+        else:
+            self.nu_T = Constant(0)
+
+        # ================================================================
+
+        # FIXME: This up_next function is only present to avoid errors  
+        # during assignments in GenericSolver.__init__
+
+        # Create the combined function space
+        self.up_next = Function(self.fs.W)
+
+        # Create the turbine force
+        # FIXME: Should this be set by a numpy array operation or a fenics function?
+        # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
+        self.tf = Function(self.fs.V)
+
+        # self.u_k2.vector()[:] = 0.0
+        # self.u_k1.vector()[:] = 0.0
+
+
+        # ================================================================
+
+        # Define variational problem for step 1: tentative velocity
+        F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
+           + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
+           + (mu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
+           + dot(nabla_grad(self.p_k1), v)*dx \
+           - dot(-self.tf, v)*dx
+
+        self.a1 = lhs(F1)
+        self.L1 = rhs(F1)
+
+        # Define variational problem for step 2: pressure correction
+        self.a2 = dot(nabla_grad(p), nabla_grad(q))*dx
+        self.L2 = dot(nabla_grad(self.p_k1), nabla_grad(q))*dx - (1.0/self.dt_c)*div(self.u_k)*q*dx
+
+        # Define variational problem for step 3: velocity update
+        self.a3 = dot(u, v)*dx
+        self.L3 = dot(self.u_k, v)*dx - self.dt_c*dot(nabla_grad(self.p_k - self.p_k1), v)*dx
+    
+        # ================================================================
+
+        self.fprint("Unsteady Problem Setup",special="footer")

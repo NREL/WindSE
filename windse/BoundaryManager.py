@@ -43,7 +43,8 @@ class GenericBoundary(object):
         self.fprint = self.params.fprint
 
         ### Check if boundary information is given in the params file ###
-        bcs_params = self.params.get("boundary_conditions",{})
+        # bcs_params = self.params.get("boundary_conditions",{}) # FIXME: should this be '...condition'?
+        bcs_params = self.params.get("boundary_condition",{})
         self.boundary_names = bcs_params.get("boundary_names", dom.boundary_names)
         self.boundary_types = bcs_params.get("boundary_types", dom.boundary_types)
         self.vmax = bcs_params.get("max_vel", 8.0)

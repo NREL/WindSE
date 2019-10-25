@@ -34,11 +34,11 @@ def initialize(loc):
     global PowerInflow, UniformInflow
     from windse.BoundaryManager import PowerInflow, UniformInflow
 
-    global StabilizedProblem, TaylorHoodProblem
-    from windse.ProblemManager import StabilizedProblem, TaylorHoodProblem
+    global StabilizedProblem, TaylorHoodProblem, UnsteadyProblem
+    from windse.ProblemManager import StabilizedProblem, TaylorHoodProblem, UnsteadyProblem
 
-    global SteadySolver, MultiAngleSolver
-    from windse.SolverManager import SteadySolver, MultiAngleSolver
+    global SteadySolver, UnsteadySolver, MultiAngleSolver
+    from windse.SolverManager import SteadySolver, UnsteadySolver, MultiAngleSolver
 
     global Optimizer
     from windse.OptimizationManager import Optimizer
