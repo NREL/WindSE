@@ -1,0 +1,74 @@
+# General options
+general: 
+    name: 3x3_skew_hill      # Name of the output folder
+    preappend_datetime: false  # Place the date and time before the folder name
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: true
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                     # Description              | Units
+    type: grid            #                          |
+    jitter: false         #                          |
+    ex_x: [-760, 760]     # x-extent of the farm     | m
+    ex_y: [-760, 760]     # y-extent of the farm     | m
+    grid_rows: 3          # Number of rows           | -
+    grid_cols: 3          # Number of columns        | -
+    HH: 80                # Hub Height               | m
+    RD: 80.0              # Turbine Diameter         | m
+    thickness: 20         # Effective Thickness      | m
+    yaw: 0.0              # Yaw                      | rads
+    axial: 0.33           # Axial Induction          | -
+
+# Domain Constants for a Box Domain
+domain: 
+    #                      # Description           | Units
+    type: box              #                       |
+    x_range: [-1200, 1200] # x-range of the domain | m
+    y_range: [-1200, 1200] # y-range of the domain | m
+    z_range: [0.04, 640]   # z-range of the domain | m
+    nx: 15                 # Number of x-nodes     | -
+    ny: 15                 # Number of y-nodes     | -
+    nz: 3                 # Number of z-nodes      | -
+    interpolated: true 
+    analytic: true
+    gaussian: 
+        center: [0,0]
+        amp: 100
+        theta: 0.78539816339
+        sigma_x: 200
+        sigma_y: 400
+
+
+refine:
+    #                      # Description                  | Units
+    warp_type: smooth      # percent of cells moved       | -
+    warp_strength: 1.2     # percent of cells moved       | -
+    refine_custom: [
+        [1,full],
+        # [1, custom, [[-1200,1200],[-1200,1200],[0,140]]],
+        [1, circle, 1020]
+    ]
+
+function_space:
+    type: linear
+
+boundary_condition:
+    vel_profile: log
+    HH_vel: 8.0
+    power: 0.25
+    k: 0.4
+
+problem:
+    type: stabilized
+    viscosity: 0.2
+
+solver:
+    type: multiangle
+    num_wind_angles: 4
+
+optimization:
+    controls: [layout]
+    layout_bounds: [[-720, 720],[-720, 720]] 
+    taylor_test: true
+    optimize: false

@@ -16,8 +16,12 @@ if main_file != "sphinx-build":
     import datetime
     import numpy as np
     from math import ceil
-    from dolfin import File, HDF5File, XDMFFile, MPI, Mesh
+    import shutil
+    from dolfin import *
     import sys
+    import ast
+
+    # set_log_level(LogLevel.CRITICAL)
 
 ######################################################
 ### Collect all options and define general options ###
@@ -50,7 +54,23 @@ class Parameters(dict):
         super(Parameters, self).__init__()
         self.current_tab = 0
 
-    def Load(self, loc):
+    def NestedUpdate(self,dic,keys,value):
+        if len(keys) > 1:
+            next_dic = dic.setdefault(keys[0],{})
+            self.NestedUpdate(next_dic,keys[1:],value)
+        elif len(keys) == 1:
+            current_value = dic.get(keys[0],"")
+            if isinstance(current_value,int):
+                dic[keys[0]] = int(value)
+            elif isinstance(current_value,float):
+                dic[keys[0]] = float(value)
+            elif isinstance(current_value,str):
+                dic[keys[0]] = value
+            elif isinstance(current_value,list):
+                dic[keys[0]] = ast.literal_eval(value)
+
+
+    def Load(self, loc,updated_parameters=[]):
         """
         This function loads the parameters from the .yaml file. 
         It should only be assessed once from the :meth:`windse.initialize` function.
@@ -61,7 +81,15 @@ class Parameters(dict):
         """
 
         ### Load the yaml file (requires PyYaml)
-        self.update(yaml.load(open(loc),Loader=yaml.SafeLoader))
+        yaml_file = yaml.load(open(loc),Loader=yaml.SafeLoader)
+
+        ### update any parameters if supplied ###
+        for p in updated_parameters:
+            keys_list = p.split(":")
+            self.NestedUpdate(yaml_file,keys_list[:-1],keys_list[-1])
+
+        ### Set the parameters
+        self.update(yaml_file)
 
         ### Create Instances of the general options ###
         self.name = self["general"].get("name", "Test")
@@ -83,10 +111,14 @@ class Parameters(dict):
 
         ### Make sure folder exists ###
         if not os.path.exists(self.folder): os.makedirs(self.folder)
+        if not os.path.exists(self.folder+"input_files/"): os.makedirs(self.folder+"input_files/")
         
         ### Setup the logger ###
         self.log = self.folder+"log.txt"
         sys.stdout = Logger(self.log)
+
+        ### Copy params file to output folder ###
+        shutil.copy(loc,self.folder+"input_files/")
 
         ### Create checkpoint if required ###
         # if self.save_file_type == "hdf5":
@@ -97,6 +129,10 @@ class Parameters(dict):
         self.fprint("Run Name: {0}".format(self.name))
         self.fprint("Run Time Stamp: {0}".format(fancytimestamp))
         self.fprint("Output Folder: {0}".format(self.folder))
+        if updated_parameters:
+            self.fprint("Updated Parameter:")
+            for i,p in enumerate(updated_parameters):
+                self.fprint("{:d}: {:}".format(i,p),offset=1)
         self.fprint("Parameters Setup", special="footer")
 
     def Read(self):
@@ -129,7 +165,13 @@ class Parameters(dict):
         """
         self.fprint("Saving: {0}".format(filename))
 
+        # if not isinstance(init_func,Function):
+        #     func = Function(func)
+        # else:
+        #     func = init_func
+
         ### Name the function in the meta data, This should probably be done at creation
+        old_filename = func.name()
         func.rename(filename,filename)
 
         if filetype == "default":
@@ -148,6 +190,7 @@ class Parameters(dict):
                 out = XDMFFile(file_string)
                 out.write(func,val)
 
+            func.rename(old_filename,old_filename)
             return out
 
         else:
@@ -155,6 +198,8 @@ class Parameters(dict):
                 file << (func,val)
             elif filetype == "xdmf":
                 file.write(func,val)
+
+            func.rename(old_filename,old_filename)
             return file
 
     def fprint(self,string,tab=None,offset=0,special=None):
@@ -188,16 +233,17 @@ class Parameters(dict):
             ### Apply Offset if provided ###
             tab += offset
 
-            ### Create Tabbed string
+            ### Create Tabbed string ###
             tabbed = "|    "*tab
 
-            ### Apply Tabbed string
+            ### Apply Tabbed string ###
             if isinstance(string,str):
                 string = tabbed+string
             else:
                 string = tabbed+repr(string)
 
-            ### Print
+            ### Print ###
+            # print(string, flush=True)
             print(string)
             sys.stdout.flush()
 

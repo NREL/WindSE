@@ -1643,7 +1643,8 @@ def diff(infile='-', outfile='-', txt2code=True, **keyw):
                                       fromfile=oldname, tofile=newname)
     for line in delta:
         is_different = True
-        print(line, end=" ")
+        # print(line, end=" ")
+        print(line)
     if not is_different:
         print(oldname)
         print(newname)

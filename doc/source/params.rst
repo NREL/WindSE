@@ -28,7 +28,7 @@ This section is for options about the run itself. The basic format is::
 | ``output``             | | Determines which functions to save.               | no       | ["solution"]          |
 |                        | | Select any combination of the following:          |          |                       |
 |                        | |   "mesh", "initial_guess", "height",              |          |                       |
-|                        | |   "turbine_force", "solution"                     |          |                       |
+|                        | |   "turbine_force", "solution", "debug"            |          |                       |
 +------------------------+-----------------------------------------------------+----------+-----------------------+
 | ``output_type``        | Output format: "pvd" or "xdmf".                     | no       | "pvd"                 |
 +------------------------+-----------------------------------------------------+----------+-----------------------+
@@ -43,30 +43,38 @@ Domain Options
 This section will define all the parameters for the domain::
 
     domain: 
-        type:       <str>
-        path:       <str>
-        mesh_path:  <str>
-        typo_path:  <str>
-        bound_path: <str>
-        filetype:   <str>
-        x_range:    <float list>
-        y_range:    <float list>
-        z_range:    <float list>
-        nx:         <int>
-        ny:         <int>
-        nz:         <int>
-        mesh_type:  <str>
-        center:     <float list>
-        radius:     <float>
-        nt:         <int>
-        res:        <int>
+        type:         <str>
+        path:         <str>
+        mesh_path:    <str>
+        typo_path:    <str>
+        bound_path:   <str>
+        filetype:     <str>
+        x_range:      <float list>
+        y_range:      <float list>
+        z_range:      <float list>
+        nx:           <int>
+        ny:           <int>
+        nz:           <int>
+        mesh_type:    <str>
+        center:       <float list>
+        radius:       <float>
+        nt:           <int>
+        res:          <int>
+        interpolated: <bool>
+        analytic:     <bool>
+        gaussian: 
+            center:   <float list>
+            amp:      <float>
+            sigma_x:  <float>
+            sigma_y:  <float>
+            theta:    <float>
 
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | Option                 | Description                                   | Required (for)     | Default     | Units       |
 +========================+===============================================+====================+=============+=============+
 | ``type``               | | Sets the shape/dimension of the mesh.       | yes                | None        | \-          |
 |                        | | Choices:                                    |                    |             |             |
-|                        | |   "rectangle", "box", "cylinder",           |                    |             |             |
+|                        | |   "rectangle", "box", "cylinder", "circle"  |                    |             |             |
 |                        | |   "imported", "interpolated"                |                    |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``path``               | Folder of the mesh data to import             | | yes or ``*_path``|             | \-          |
@@ -74,15 +82,13 @@ This section will define all the parameters for the domain::
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``mesh_path``          | | Location of specific mesh file              | | no               |             | \-          |
 |                        | | Default file name: "mesh"                   | | "imported"       | ``path``    |             |
-|                        |                                               | | "interpolated"   |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``typo_path``          | | Location of specific topology file          | | no               |             | \-          |
 |                        | | Default file name: "topology.txt"           | | "imported"       | ``path``    |             |
-|                        | | Note: Only file required by "interpolated"  | | "interpolated"   |             |             |
+|                        | | Note: Only file required by "interpolated"  |                    |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``bound_path``         | | Location of specific boundary marker data   | | no               |             | \-          |
 |                        | | Default file name: "boundaries"             | | "imported"       | ``path``    |             |
-|                        |                                               | | "interpolated"   |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``filetype``           | file type for imported mesh: "xml.gz", "h5"   | | no               | "xml.gz"    | \-          |
 |                        |                                               | | "imported"       |             |             |
@@ -95,7 +101,6 @@ This section will define all the parameters for the domain::
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``z_range``            | List of two floats defining the z range       | | "box"            | None        | m           |
 |                        |                                               | | "cylinder"       |             |             |
-|                        |                                               | | "interpolated"   |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``nx``                 | The number of nodes in the x direction        | | "rectangle"      | None        | \-          |
 |                        |                                               | | "box"            |             |             |
@@ -105,27 +110,48 @@ This section will define all the parameters for the domain::
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``nz``                 | The number of nodes in the x direction        | | "box"            | None        | \-          |
 |                        |                                               | | "cylinder"       |             |             |
-|                        |                                               | | "interpolated"   |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``mesh_type``          | | The meshing type when generating a          | | "cylinder"       | "mshr"      | \-          |
-|                        | | cylindric domain.                           | | "interpolated"   |             |             |
+|                        | | cylindric domain.                           | | "circle"         |             |             |
 |                        | | Choices:                                    |                    |             |             |
 |                        | |   "mshr", "elliptic", "squircular",         |                    |             |             |
 |                        | |   "stretch"                                 |                    |             |             |
 |                        | | Note: ``nz`` doesn't work with "mshr"       |                    |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``center``             | A 2D list indicating the center of the base   | | "cylinder"       | None        | m           |
-|                        |                                               | | "interpolated"   |             |             |
+|                        |                                               | | "circle"         |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``radius``             | The radius of the cylinder                    | | "cylinder"       | None        | m           |
-|                        |                                               | | "interpolated"   |             |             |
+|                        |                                               | | "circle"         |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``nt``                 | | The number of radial segments to            | | "cylinder"       | None        | \-          |
-|                        | | approximate the cylinder                    | | "interpolated"   |             |             |
+|                        | | approximate the cylinder                    | | "circle"         |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``res``                | | The resolution of the mesh. It should be    | | "cylinder"       | None        | \-          |
-|                        | | less than ``nt``.                           | | "interpolated"   |             |             |
+|                        | | less than ``nt``.                           | | "circle"         |             |             |
 |                        | | Note: ``res`` only works with "mshr"        |                    |             |             |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+| ``interpolated``       | |Indicate if the topography is interpoalted   | | no               |             | \-          |
+|                        | |from file or function.                       | | "box"            | False       |             |
+|                        |                                               | | "cylinder"       |             |             |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+| ``analytic``           | |Indicates if the interpolated function is    | "interpolated"     |             | \-          |
+|                        | |analytic.                                    |                    | False       |             |
+|                        |                                               |                    |             |             |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+| ``gaussian``           | | If analytic is true, a Gaussian hill will   | | "interpolated"   | None        | \-          |
+|                        | | be created using the following parameters.  | | "analytic"       |             |             |
+|                        | | Note: requires interpolated and analytic.   |                    |             |             |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+| ``center``             | The center point of the gaussian hill.        | no                 | [0.0,0.0]   | m           |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+| ``amp``                | The amplitude of the hill.                    | yes                | None        | m           |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+| ``sigma_x``            | The extent of the hill in the x direction.    | yes                | None        | m           |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+| ``sigma_y``            | The extent of the hill in the y direction.    | yes                | None        | m           |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+| ``theta``              | The rotation of the hill.                     | no                 | 0.0         | rad         |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 
 To import a domain, three files are required: 
@@ -168,6 +194,7 @@ This section will define all the parameters for the wind farm::
         ex_y:      <float list>
         grid_rows: <int>
         grid_cols: <int>
+        jitter:    <float>
         numturbs:  <int>
         seed:      <int>
         HH:        <float>
@@ -196,6 +223,9 @@ This section will define all the parameters for the wind farm::
 | ``grid_rows``          | The number of turbines in the x direction     | "grid"             | None    | \-          |
 +------------------------+-----------------------------------------------+--------------------+---------+-------------+
 | ``grid_cols``          | The number of turbines in the y direction     | "grid"             | None    | \-          |
++------------------------+-----------------------------------------------+--------------------+---------+-------------+
+| ``jitter``             | | Displaces turbines in a random direction    | | no               | 0.0     | m           |
+|                        | | by this amount                              | | "grid"           |         |             |
 +------------------------+-----------------------------------------------+--------------------+---------+-------------+
 | ``numturbs``           | The total number of turbines                  | "random"           | None    | \-          |
 +------------------------+-----------------------------------------------+--------------------+---------+-------------+
@@ -237,11 +267,16 @@ ways to maximize the efficiency of the number DOFs. None of these options
 are required. There are three types of mesh manipulation: warp, farm refine,
 turbine refine. Warp shifts more cell towards the ground, refining the farm
 refines within the farm extents, and refining the turbines refines within
-the rotor diameter of a turbine.
+the rotor diameter of a turbine. When choosing to warp, a "smooth" warp will 
+shift the cells smoothly towards the ground based on the strength. A "split"
+warp will attempt to create two regions, a high density region near the 
+ground and a low density region near the top
 
 The options are::
 
     refine:
+        warp_type:      <str>
+        warp_strength:  <float>
         warp_percent:   <float>
         warp_height:    <float>
         farm_num:       <int>
@@ -249,19 +284,31 @@ The options are::
         farm_factor:    <float>
         turbine_num:    <int>
         turbine_factor: <float>
+        refine_custom:  <list list>
 
 +------------------------+-----------------------------------------------+
 | Option                 | Description                                   |
 +========================+===============================================+
-| ``warp_percent``       | | The percent of the cell moved below the     |
-|                        | | warp height                                 |
+| ``warp_type``          | | Choose to warp the mesh to place more cells |
+|                        | | near the ground. Choices:                   |
+|                        | |   "smooth", "split"                         |
 +------------------------+-----------------------------------------------+
-| ``warp_height``        | The height the cell are moved below           |
+| ``warp_strength``      | | The higher the strength the more cells      |
+|                        | | moved towards the ground. Requires: "smooth"|
++------------------------+-----------------------------------------------+
+| ``warp_percent``       | | The percent of the cell moved below the     |
+|                        | | warp height. Requires: "split"              |
++------------------------+-----------------------------------------------+
+| ``warp_height``        | | The height the cell are moved below         |
+|                        | | Requires: "split"                           |
 +------------------------+-----------------------------------------------+
 | ``farm_num``           | Number of farm refinements                    |
 +------------------------+-----------------------------------------------+
 | ``farm_type``          | | The shape of the refinement around the farm |
-|                        | | Choices: "square", "circle"                 |
+|                        | | Choices: "square", "circle", "farm_circle"  |
+|                        | | "square" and "circle" are centered at the   |
+|                        | | center of the domain, whereas, "farm_circle"|
+|                        | | is centered at the farm                     |
 +------------------------+-----------------------------------------------+
 | ``farm_factor``        | | A scaling factor to make the refinement     |
 |                        | | area larger or smaller                      |
@@ -271,7 +318,34 @@ The options are::
 | ``turbine_factor``     | | A scaling factor to make the refinement     |
 |                        | | area larger or smaller                      |
 +------------------------+-----------------------------------------------+
+| ``refine_custom``      | | This is a way to define multiple refinements|
+|                        | | in a specific order allowing for more       |
+|                        | | complex refinement options. Example below   |
++------------------------+-----------------------------------------------+
 
+To use the "refine_custom" option create a list of where each element defines
+refinement based on a list of parameters. Example::
+
+    refine_custom: [
+        [2,full],
+        [1, custom, [[-1200,1200],[-1200,1200],[0,140]]],
+        [1, circle, 1020]
+        [1, farm_circle, 1020]
+        [1, square, 500]
+    ] 
+
+For each refinement, the first option indicates how many time this specific
+refinement will happen. The second option indicates the type of refinement:
+"full", "square", "circle", "farm_circle", "custom". The last option 
+indicates the extent of the refinement. 
+
+The example up above will result in five refinements:
+
+    1. Two full refinements
+    2. One custom refinement bounded by the box: [[-1200,1200],[-1200,1200],[0,140]]
+    3. One circle centered at the center of the domain with radius 1020 m
+    4. One circle centered at the center of the farm with radius 1020 m 
+    5. One square centered at the center of the farm with side length 500 m
 
 
 Function Space Options
@@ -306,8 +380,9 @@ velocity profile.::
         boundary_names: <dict>
         boundary_types: <dict>
         vel_profile:    <str>
-        max_vel:        <float>
+        HH_vel:         <float>
         power:          <float>
+        k:              <float>
 
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
 | Option                 | Description                                                                                   | Required     | Default    |
@@ -318,13 +393,19 @@ velocity profile.::
 | ``boundary_types``     | A dictionary for defining boundary conditions                                                 | no           | See Below  |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
 | ``vel_profile``        | | Sets the velocity profile. Choices:                                                         | yes          | None       |
-|                        | |   "uniform": constant velocity of :math:`u_{max}`                                           |              |            |
-|                        | |   "power": a power profile of :math:`u_x=u_{max} \left( \frac{z-z_0}{z_1-z_0} \right)^{p}`  |              |            |
+|                        | |   "uniform": constant velocity of :math:`u_{HH}`                                            |              |            |
+|                        | |   "power": a power profile                                                                  |              |            |
+|                        | |   "log": log layer profile                                                                  |              |            |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
-| ``max_vel``            | The value for :math:`u_{max}` in m/s                                                          | no           | 8.0        |
+| ``HH_vel``             | The velocity at hub height, :math:`u_{HH}`, in m/s.                                           | no           | 8.0        |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
-| ``power``              | The value for :math:`p`                                                                       | no           | 0.25       |
+| ``power``              | The power used in the power flow law                                                          | no           | 0.25       |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
+| ``k``                  | The constant used in the log layer flow                                                       | no           | 0.4        |
++------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
+
+..
+    of :math:`u_x=u_{max} \left( \frac{z-z_0}{z_1-z_0} \right)^{p}`
 
 If you are importing a mesh, you can specify the boundary markers using ``names`` and ``types``.
 The default for these two are
@@ -405,32 +486,30 @@ This section lists the solver options::
 
     solver:
         type:             <str>
-        init_wind_angle:  <float>
-        final_wind_angle: <float>
+        wind_range:       <float list>
+        endpoint:         <bool>
         num_wind_angles:  <int>
 
-+------------------------+----------------------------------------------------------+-------------------+--------------+
-| Option                 | Description                                              | Required (for)    | Default      |
-|                        |                                                          |                   |              |
-+========================+==========================================================+===================+==============+
-| ``type``               | | Sets the solver type. Choices:                         | yes               | None         |
-|                        | |   "steady": solves for the steady state solution       |                   |              |
-|                        | |   "multiangle": iterates through inflow angles         |                   |              |
-+------------------------+----------------------------------------------------------+-------------------+--------------+
-| ``init_wind_angle``    | Set the initial wind angle in rads                       | | no              | 0.0          |
-|                        |                                                          | | "multiangle"    |              |
-+------------------------+----------------------------------------------------------+-------------------+--------------+
-| ``final_wind_angle``   | Set the final wind angle in rads                         | | no              | :math:`2\pi` |
-|                        |                                                          | | "multiangle"    |              |
-+------------------------+----------------------------------------------------------+-------------------+--------------+
-| ``num_wind_angles``    | Sets the number of angles                                | | yes             | None         |
-|                        |                                                          | | "multiangle"    |              |
-+------------------------+----------------------------------------------------------+-------------------+--------------+
++------------------------+----------------------------------------------------------+-------------------+---------------------+
+| Option                 | Description                                              | Required (for)    | Default             |
+|                        |                                                          |                   |                     |
++========================+==========================================================+===================+=====================+
+| ``type``               | | Sets the solver type. Choices:                         | yes               | None                |
+|                        | |   "steady": solves for the steady state solution       |                   |                     |
+|                        | |   "multiangle": iterates through inflow angles         |                   |                     |
++------------------------+----------------------------------------------------------+-------------------+---------------------+
+| ``wind_range``         | The start and end angles to sweep over                   | | no              | [0.0, :math:`2\pi`] |
+|                        |                                                          | | "multiangle"    |                     |
++------------------------+----------------------------------------------------------+-------------------+---------------------+
+| ``endpoint``           | Should the end point be included in the run              | | no              | False               |
+|                        |                                                          | | "multiangle"    |                     |
++------------------------+----------------------------------------------------------+-------------------+---------------------+
+| ``num_wind_angles``    | Sets the number of angles                                | | yes             | None                |
+|                        |                                                          | | "multiangle"    |                     |
++------------------------+----------------------------------------------------------+-------------------+---------------------+
 
 The "multiangle" solver uses the steady solver to solve the RANS formulation.
-Additionally, the "multiangle" solver must use either a "cylinder" or 
-"interpolated" domain.
-
+Currently, the "multiangle" solver does not support imported domains. 
 
 
 Optimization Options
@@ -440,9 +519,10 @@ This section lists the optimization options. If you are planning on doing
 optimization make sure to set ``dolfin_adjoint`` to True.::
 
     optimization:
-        controls:    <str list>
-        taylor_test: <bool>
-        optimize:    <bool>
+        controls:     <str list>
+        layout_bounds <float list>
+        taylor_test:  <bool>
+        optimize:     <bool>
 
 +------------------------+----------------------------------------------------------+-------------+--------------+
 | Option                 | Description                                              | Required    | Default      |
@@ -454,5 +534,8 @@ optimization make sure to set ``dolfin_adjoint`` to True.::
 | ``taylor_test``        | | Performs a test to check the derivatives. Good         | no          | True         |
 |                        | | results have a convergence rate around 2.0             |             |              |
 +------------------------+----------------------------------------------------------+-------------+--------------+
-| ``final_wind_angle``   | Maximize power output using the controls                 | no          | False        |
+| ``optimize``           | | Optimize the given controls using the power output as  | no          | True         |
+|                        | | the objective function using SLSQP from scipy.         |             |              |
++------------------------+----------------------------------------------------------+-------------+--------------+
+| ``layout_bounds``      | The bounding box for the layout optimization             | no          | wind_farm    |
 +------------------------+----------------------------------------------------------+-------------+--------------+
