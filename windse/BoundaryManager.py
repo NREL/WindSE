@@ -64,33 +64,49 @@ class GenericBoundary(object):
         self.fprint("Applying Boundary Conditions",offset=1)
 
         ### Assemble boundary conditions ###
-        bcs_eqns = []
+        bcu_eqns = []
+        bcp_eqns = []
         for bc_type, bs in self.boundary_types.items():
             if bc_type == "inflow":
                 for b in bs:
-                    bcs_eqns.append([self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
+                    bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
+                    bcp_eqns.append([self.fs.Q, self.fs.W.sub(1), self.zero, self.boundary_names[b]])
 
             elif bc_type == "no_slip":
                 for b in bs:
-                    bcs_eqns.append([self.fs.W.sub(0), self.zeros, self.boundary_names[b]])
+                    bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.zeros, self.boundary_names[b]])
 
-            elif bc_type == "horizontal_slip":
+            elif bc_type == "free_slip":
+                temp_list = list(self.boundary_names.keys()) # get ordered list
                 for b in bs:
-                    bcs_eqns.append([self.fs.W.sub(0).sub(2), self.zero, self.boundary_names[b]])
+                    dim = math.floor(temp_list.index(b)/2.0) # get dim based on order
+                    bcu_eqns.append([self.fs.V.sub(dim), self.fs.W.sub(0).sub(dim), self.zero, self.boundary_names[b]])
+                    print(b,dim)
 
             elif bc_type == "no_stress":
                 for b in bs:
-                    bcs_eqns.append([None, None, self.boundary_names[b]])
+                    bcu_eqns.append([None, None, None, self.boundary_names[b]])
 
             else:
                 raise ValueError(bc_type+" is not a recognized boundary type")
-
+        bcs_eqns = bcu_eqns+bcp_eqns
 
         ### Set the boundary conditions ###
+        self.bcu = []
+        for i in range(len(bcu_eqns)):
+            if bcu_eqns[i][0] is not None:
+                self.bcu.append(DirichletBC(bcu_eqns[i][0], bcu_eqns[i][2], self.dom.boundary_markers, bcu_eqns[i][3]))
+
+        self.bcp = []
+        for i in range(len(bcp_eqns)):
+            if bcp_eqns[i][0] is not None:
+                self.bcp.append(DirichletBC(bcp_eqns[i][0], bcp_eqns[i][2], self.dom.boundary_markers, bcp_eqns[i][3]))
+
         self.bcs = []
         for i in range(len(bcs_eqns)):
             if bcs_eqns[i][0] is not None:
-                self.bcs.append(DirichletBC(bcs_eqns[i][0], bcs_eqns[i][1], self.dom.boundary_markers, bcs_eqns[i][2]))
+                self.bcs.append(DirichletBC(bcs_eqns[i][1], bcs_eqns[i][2], self.dom.boundary_markers, bcs_eqns[i][3]))
+
         self.fprint("Boundary Conditions Applied",offset=1)
         self.fprint("")
 
