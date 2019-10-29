@@ -34,6 +34,7 @@ domain:
 
 refine:
     #                      # Description                  | Units
+    warp_type: split       # percent of cells moved       | -
     warp_percent: 0.75     # percent of cells moved       | -
     warp_height: 250       # move cell below this value   | m
     farm_num: 2            # number of farm refinements   | -
