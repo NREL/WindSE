@@ -70,7 +70,6 @@ class GenericBoundary(object):
             if bc_type == "inflow":
                 for b in bs:
                     bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
-                    bcp_eqns.append([self.fs.Q, self.fs.W.sub(1), self.zero, self.boundary_names[b]])
 
             elif bc_type == "no_slip":
                 for b in bs:
@@ -81,15 +80,15 @@ class GenericBoundary(object):
                 for b in bs:
                     dim = math.floor(temp_list.index(b)/2.0) # get dim based on order
                     bcu_eqns.append([self.fs.V.sub(dim), self.fs.W.sub(0).sub(dim), self.zero, self.boundary_names[b]])
-                    print(b,dim)
 
             elif bc_type == "no_stress":
                 for b in bs:
                     bcu_eqns.append([None, None, None, self.boundary_names[b]])
+                    bcp_eqns.append([self.fs.Q, self.fs.W.sub(1), self.zero, self.boundary_names[b]])
 
             else:
                 raise ValueError(bc_type+" is not a recognized boundary type")
-        bcs_eqns = bcu_eqns+bcp_eqns
+        bcs_eqns = bcu_eqns#+bcp_eqns
 
         ### Set the boundary conditions ###
         self.bcu = []

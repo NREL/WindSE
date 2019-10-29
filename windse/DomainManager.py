@@ -315,7 +315,6 @@ class GenericDomain(object):
 
         self.fprint("Moving Nodes")
         z_new = cubic_spline(z)
-        print(np.linalg.norm(z-z_new))
         self.mesh.coordinates()[:,z_ind]=z_new
         self.mesh.bounding_box_tree().build(self.mesh)
         self.bmesh = BoundaryMesh(self.mesh,"exterior")
