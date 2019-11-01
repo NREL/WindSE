@@ -443,7 +443,7 @@ class TurbSimInflow(LogLayerInflow):
         # Iterate and fine the boundary IDs
         self.boundaryIDs = []
         for k, pos in enumerate(self.V0_coords):
-            if pos[0] < self.problem.dom.x_range[0] + tol:
+            if pos[0] < self.dom.x_range[0] + tol:
                 self.boundaryIDs.append(k)
 
         self.UpdateVelocity(0.0)
@@ -462,9 +462,9 @@ class TurbSimInflow(LogLayerInflow):
             xi = np.array([pos[2], pos[1], simTime])
 
             # Get the interpolated value at this point
-            self.ux.vector()[linID] = self.interp_u(xi)
-            self.uy.vector()[linID] = self.interp_v(xi)
-            self.uz.vector()[linID] = self.interp_w(xi)
+            self.ux.vector()[k] = self.interp_u(xi)
+            self.uy.vector()[k] = self.interp_v(xi)
+            self.uz.vector()[k] = self.interp_w(xi)
 
         ### Assigning Velocity
         self.bc_velocity = Function(self.fs.V)

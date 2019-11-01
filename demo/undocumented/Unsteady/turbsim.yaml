@@ -36,6 +36,11 @@ function_space:
 boundary_condition:
     vel_profile: turbsim
     turbsim_path: Input_Data/turbsim/
+    boundary_types: 
+        inflow:    ["front"]
+        no_slip:   ["bottom"]
+        free_slip: ["top","right","left"]
+        no_stress: ["back"]
 
 problem:
     type: unsteady
