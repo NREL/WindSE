@@ -145,16 +145,19 @@ def run_action(params_loc=None):
     ### Setup Boundary Conditions ###
     bc_dict = {"uniform":windse.UniformInflow,
                "power":windse.PowerInflow,
-               "log":windse.LogLayerInflow}
+               "log":windse.LogLayerInflow,
+               "turbsim":windse.TurbSimInflow}
     bc = bc_dict[params["boundary_condition"]["vel_profile"]](dom,fs,farm)
 
     ### Generate the problem ###
     prob_dict = {"stabilized":windse.StabilizedProblem,
-                 "taylor_hood":windse.TaylorHoodProblem}
+                 "taylor_hood":windse.TaylorHoodProblem,
+                 "unsteady":windse.UnsteadyProblem}
     problem = prob_dict[params["problem"]["type"]](dom,farm,fs,bc)#,opt=opt)
 
     ### Solve ###
     solve_dict = {"steady":windse.SteadySolver,
+                  "unsteady":windse.UnsteadySolver,
                   "multiangle":windse.MultiAngleSolver,
                   "importedvelocity":windse.TimeSeriesSolver}
     solver = solve_dict[params["solver"]["type"]](problem)

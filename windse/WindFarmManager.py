@@ -383,7 +383,15 @@ class GenericWindFarm(object):
 
             cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
 
-            radius = radius_multiplyer*np.array(self.RD)/2.0
+
+            expand_turbine_radius = False
+
+            if expand_turbine_radius:
+                radius = (num-i)*radius_multiplyer*np.array(self.RD)/2.0
+            else:
+                radius = radius_multiplyer*np.array(self.RD)/2.0
+
+
             if self.dom.dim == 3:
                 turb_x = np.array(self.x)
                 turb_x = np.tile(turb_x,(4,1)).T
@@ -416,6 +424,19 @@ class GenericWindFarm(object):
 
                 ### For each turbine, find which vertex is closet using squared distance
                 min_r = np.min(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)
+
+
+                downstream_teardrop_shape = False
+
+                if downstream_teardrop_shape:
+                    min_arg = np.argmin(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)
+                    min_arg = np.argmin(min_arg)
+
+                    if np.any(turb_x[min_arg] < x):
+                        min_r = np.min(np.power(turb_x-x/2.0,2.0)+np.power(turb_y-y,2.0),axis=1)
+                    else:
+                        min_r = np.min(np.power(turb_x-x*2.0,2.0)+np.power(turb_y-y,2.0),axis=1)
+
 
                 in_circle = min_r<=radius**2.0
                 if self.dom.dim == 3:

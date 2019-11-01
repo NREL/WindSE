@@ -32,6 +32,8 @@ if main_file != "sphinx-build":
         from dolfin_adjoint import *  
 
     import math 
+    from scipy.interpolate import RegularGridInterpolator
+
 
 class GenericBoundary(object):
     def __init__(self,dom,fs,farm):
@@ -154,6 +156,9 @@ class GenericBoundary(object):
 
         self.SetupBoundaries()
 
+    def UpdateVelocity(self, simTime):
+        pass
+
     def SaveInitialGuess(self,val=0):
         """
         This function saves the turbine force if exists to output/.../functions/
@@ -198,6 +203,8 @@ class GenericBoundary(object):
         for i in range(len(V_coords)):
             z_dist_V_val[i] = V_coords[i,2]-self.dom.Ground(V_coords[i,0],V_coords[i,1])
         self.depth_V.vector()[:]=z_dist_V_val
+
+        self.V0_coords = self.fs.V0.tabulate_dof_coordinates()
 
 
 class UniformInflow(GenericBoundary):
@@ -398,5 +405,84 @@ class LogLayerInflow(GenericBoundary):
         self.SetupBoundaries()
         self.fprint("Boundary Condition Setup",special="footer")
 
-# class LogLayerInflow(object):
-#     def __init__(self,dom,fs):
+class TurbSimInflow(LogLayerInflow):
+    def __init__(self,dom,fs,farm):
+        super(TurbSimInflow, self).__init__(dom,fs,farm)
+
+        ### Get the path for turbsim data ###
+        self.turbsim_path = self.params["boundary_condition"].get("turbsim_path",None)
+        if self.turbsim_path is None:
+            raise ValueError("Please provide the path to the turbsim data")
+        self.tFinal = self.params["solver"].get("final_time",1)
+
+        ### Load Turbsim Data ###
+        uTotal = np.load(self.turbsim_path+'turb_u.npy')
+        vTotal = np.load(self.turbsim_path+'turb_v.npy')
+        wTotal = np.load(self.turbsim_path+'turb_w.npy')
+
+        ### Extract number of data points ###
+        ny = np.shape(uTotal)[1]
+        nz = np.shape(uTotal)[0]
+        nt = np.shape(uTotal)[2]
+
+        ### Create the data bounds ###
+        y = np.linspace(self.dom.y_range[0], self.dom.y_range[1], ny)
+        z = np.linspace(self.dom.z_range[0], self.dom.z_range[1], nz)
+        t = np.linspace(0.0, self.tFinal, nt)
+
+        ### Build interpolating functions ###
+        self.interp_u = RegularGridInterpolator((z, y, t), uTotal)
+        self.interp_v = RegularGridInterpolator((z, y, t), vTotal)
+        self.interp_w = RegularGridInterpolator((z, y, t), wTotal)
+
+        ### Locate Boundary DOFS indexes ###
+        # Define tolerance
+        tol = 1e-6
+
+        ##### FIX MAKE WORK FOR ALL BOUNDARY INFLOW ####
+        # Iterate and fine the boundary IDs
+        self.boundaryIDs = []
+        for k, pos in enumerate(self.V0_coords):
+            if pos[0] < self.problem.dom.x_range[0] + tol:
+                self.boundaryIDs.append(k)
+
+        self.UpdateVelocity(0.0)
+
+    def UpdateVelocity(self, simTime):
+
+        # Define tolerance
+        tol = 1e-6
+
+        # Interpolate a value at each boundary coordinate
+        for k in self.boundaryIDs:
+            # Get the position corresponding to this boundary id
+            pos = self.V0_coords[k, :]
+
+            # The interpolation point specifies a 3D (z, y, time) point
+            xi = np.array([pos[2], pos[1], simTime])
+
+            # Get the interpolated value at this point
+            self.ux.vector()[linID] = self.interp_u(xi)
+            self.uy.vector()[linID] = self.interp_v(xi)
+            self.uz.vector()[linID] = self.interp_w(xi)
+
+        ### Assigning Velocity
+        self.bc_velocity = Function(self.fs.V)
+        if self.dom.dim == 3:
+            self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
+        else:
+            self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy])
+
+        self.SetupBoundaries()
+
+
+
+
+
+
+
+
+
+
+
+
