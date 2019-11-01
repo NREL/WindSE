@@ -384,7 +384,7 @@ class GenericWindFarm(object):
             cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
 
 
-            expand_turbine_radius = True
+            expand_turbine_radius = False
 
             if expand_turbine_radius:
                 radius = (num-i)*radius_multiplyer*np.array(self.RD)/2.0
@@ -426,7 +426,7 @@ class GenericWindFarm(object):
                 min_r = np.min(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)
 
 
-                downstream_teardrop_shape = True
+                downstream_teardrop_shape = False
 
                 if downstream_teardrop_shape:
                     min_arg = np.argmin(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)

@@ -15,6 +15,7 @@ if main_file != "sphinx-build":
     from sys import platform
     import time
     import numpy as np
+    from scipy.interpolate import RegularGridInterpolator
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -323,7 +324,7 @@ class UnsteadySolver(GenericSolver):
         # Define the final simulation time
         # FIXME: This should also be set in params.yaml input file
         # tFinal = 6000.0
-        tFinal = 50.0
+        tFinal = 900.0
 
         # Start a counter for the total simulation time
         simTime = 0.0
@@ -334,7 +335,7 @@ class UnsteadySolver(GenericSolver):
         # ================================================================
 
         # Specify how frequently to save output files
-        saveInterval = 10.0
+        saveInterval = 1.0
 
         # Start a counter for the number of saved files
         saveCount = 0
@@ -368,7 +369,10 @@ class UnsteadySolver(GenericSolver):
         self.fprint("Calculating Boundary Conditions")
 
         # FIXME: This should use the boundary information in self.problem.bd.bcs
-        bcu, bcp = self.GetBoundaryConditions(0.0)
+        # bcu, bcp = self.GetBoundaryConditions(0.0)
+        self.problem.dom.RecomputeBoundaryMarkers(0.0)
+        bcu = self.problem.bd.bcu
+        bcp = self.problem.bd.bcp
 
         # ================================================================
 
@@ -400,13 +404,18 @@ class UnsteadySolver(GenericSolver):
 
         start = time.time()
 
+        interp_u, interp_v, interp_w, boundaryIDs = self.initializeInterpolator(tFinal)
+
         while simTime < tFinal:
             # Get boundary conditions specific to this timestep
             # bcu, bcp = self.GetBoundaryConditions(simTime/tFinal)
             # bcu = self.modifyInletVelocity(simTime, bcu)
 
             # Update the turbine force
+            # self.problem.tf = self.problem.farm.TurbineForce_numpy(None,None,None)
             self.UpdateTurbineForce(simTime, 1) # Single turbine
+            bcu = self.updateInletVelocityFromFile2(simTime, bcu, interp_u, interp_v, interp_w, boundaryIDs)
+
             # self.UpdateTurbineForce(simTime, 2) # Dubs
 
             # Record the "old" max velocity (before this update)
@@ -500,7 +509,7 @@ class UnsteadySolver(GenericSolver):
     def AdjustTimestepSize(self, saveInterval, simTime, u_max, u_max_k1):
 
         # Set the CFL target (0.2 is a good value for stability and speed, YMMV)
-        cfl_target = 0.2
+        cfl_target = 0.02
 
         # Enforce a minimum timestep size
         dt_min = 0.01
@@ -655,6 +664,98 @@ class UnsteadySolver(GenericSolver):
                                    [   0.0,     0.0, 1.0]])
 
         return A_rotation
+
+    # ================================================================
+
+
+    def initializeInterpolator(self, tFinal):
+
+        debugging = False
+
+        if debugging:
+            uTotal = np.load('pyturbsim_outputs/turb_u_analytical.npy')
+            vTotal = np.load('pyturbsim_outputs/turb_v_analytical.npy')
+            wTotal = np.load('pyturbsim_outputs/turb_w_analytical.npy')
+        else:
+            uTotal = np.load('pyturbsim_outputs/turb_u.npy')
+            vTotal = np.load('pyturbsim_outputs/turb_v.npy')
+            wTotal = np.load('pyturbsim_outputs/turb_w.npy')
+
+
+        ny = np.shape(uTotal)[1]
+        nz = np.shape(uTotal)[0]
+        nt = np.shape(uTotal)[2]
+
+        y = np.linspace(self.problem.dom.y_range[0], self.problem.dom.y_range[1], ny)
+        z = np.linspace(self.problem.dom.z_range[0], self.problem.dom.z_range[1], nz)
+
+        tStart = 0.0
+        t = np.linspace(tStart, tFinal, nt)
+
+        interp_u = RegularGridInterpolator((z, y, t), uTotal)
+        interp_v = RegularGridInterpolator((z, y, t), vTotal)
+        interp_w = RegularGridInterpolator((z, y, t), wTotal)
+
+        # Define tolerance
+        tol = 1e-6
+
+        # Define a function to identify the left wall
+        def left_wall(x, on_boundary):
+            return on_boundary and x[0] < self.problem.dom.x_range[0] + tol
+
+        # Get the coordinates using the vector funtion space, V
+        coords = self.problem.fs.V.tabulate_dof_coordinates()
+        coords = np.copy(coords[0::self.problem.dom.dim, :])
+
+        boundaryIDs = []
+
+        for k, pos in enumerate(coords):
+            if pos[0] < self.problem.dom.x_range[0] + tol:
+                boundaryIDs.append(k)
+
+        return interp_u, interp_v, interp_w, boundaryIDs
+
+    # ================================================================
+
+
+    def updateInletVelocityFromFile2(self, simTime, bcu, interp_u, interp_v, interp_w, boundaryIDs):
+
+        # Define tolerance
+        tol = 1e-6
+
+        # # Define a function to identify the left wall
+        # def left_wall(x, on_boundary):
+        #     return on_boundary and x[0] < self.problem.dom.x_range[0] + tol
+
+        # Get the coordinates using the vector funtion space, V
+        coords = self.problem.fs.V.tabulate_dof_coordinates()
+        coords = np.copy(coords[0::self.problem.dom.dim, :])
+
+        # Create a function representing the inlet velocity
+        vel_inlet_func = Function(self.problem.fs.V)
+
+        # Interpolate a value at each boundary coordinate
+        for k in boundaryIDs:
+            # Get the position corresponding to this boundary id
+            pos = coords[k, :]
+
+            # Convert to a linear ID
+            linID = 3*k
+
+            # The interpolation point specifies a 3D (z, y, time) point
+            xi = np.array([pos[2], pos[1], simTime])
+
+            # Get the interpolated value at this point
+            vel_inlet_func.vector()[linID] = interp_u(xi)
+            vel_inlet_func.vector()[linID+1] = interp_v(xi)
+            vel_inlet_func.vector()[linID+2] = interp_w(xi)
+
+        # Update the inlet velocity
+        bcu[0] = DirichletBC(self.problem.fs.V, vel_inlet_func, self.problem.dom.boundary_markers, 1)
+        # bcu[0] = DirichletBC(self.problem.fs.V, vel_inlet_func, left_wall)
+
+
+        return bcu
 
     # ================================================================
 
@@ -893,127 +994,6 @@ class UnsteadySolver(GenericSolver):
 
         return bcu
 
-    # ================================================================
-
-    def GetBoundaryConditions(self, simTime):
-        # FIXME: This whole function should be deleted and its output
-        # replaced with values already present in self.problem.bd.bcs
-
-        # Define tolerance
-        tol = 1e-6
-
-        # Identify all the walls of the computational domain
-        rad = (self.problem.dom.y_range[1] - self.problem.dom.y_range[0])/self.problem.dom.ny
-        def single_fixed_pt(x, on_boundary):
-            return on_boundary and x[0] < self.problem.dom.x_range[0]+tol and -1.1*rad < x[1] < 1.1*rad
-
-
-        def left_wall(x, on_boundary):
-            return on_boundary and x[0] < self.problem.dom.x_range[0] + tol
-        def right_wall(x, on_boundary):
-            return on_boundary and x[0] > self.problem.dom.x_range[1] - tol
-        def bottom_wall(x, on_boundary):
-            return on_boundary and x[1] < self.problem.dom.y_range[0] + tol
-        def top_wall(x, on_boundary):
-            return on_boundary and x[1] > self.problem.dom.y_range[1] - tol
-        if self.problem.dom.dim == 3:
-            def back_wall(x, on_boundary):
-                return on_boundary and x[2] < self.problem.dom.z_range[0] + tol
-            def front_wall(x, on_boundary):
-                return on_boundary and x[2] > self.problem.dom.z_range[1] - tol
-
-        # Build a list with the boundary conditions for velocity
-        bcu = []
-
-        # Get the max_vel value from the input parameters
-        HH_vel = self.problem.bd.HH_vel
-
-        use_variable_bc = False
-        free_slip = True
-
-        if use_variable_bc:
-            # simTime in the range [0, 1] since it's divided by tFinal
-            theta = np.pi/4.0 + np.pi/9.0*np.sin(simTime*2.0*np.pi)
-
-            if theta < 0 or theta > 2.0*np.pi:
-                theta = theta % (2.0*np.pi)
-
-            # theta = np.pi/18.0
-            ux = HH_vel*np.cos(theta)
-            uy = HH_vel*np.sin(theta)
-
-
-            # print(ux, uy)
-
-            if theta < np.pi/2.0:
-                # left and bottom
-                bcu.append(DirichletBC(self.problem.fs.V, Constant((ux, uy)), left_wall))
-                bcu.append(DirichletBC(self.problem.fs.V, Constant((ux, uy)), bottom_wall))
-            elif theta < np.pi:
-                # bottom and right
-                bcu.append(DirichletBC(self.problem.fs.V, Constant((ux, uy)), bottom_wall))
-                bcu.append(DirichletBC(self.problem.fs.V, Constant((ux, uy)), right_wall))
-            elif theta < 3.0*np.pi/2.0:
-                # right and top
-                bcu.append(DirichletBC(self.problem.fs.V, Constant((ux, uy)), right_wall))
-                bcu.append(DirichletBC(self.problem.fs.V, Constant((ux, uy)), top_wall))
-            else:
-                # top and left
-                bcu.append(DirichletBC(self.problem.fs.V, Constant((ux, uy)), top_wall))
-                bcu.append(DirichletBC(self.problem.fs.V, Constant((ux, uy)), left_wall))
-
-        else:
-            if self.problem.dom.dim == 2:
-                bcu.append(DirichletBC(self.problem.fs.V, Constant((HH_vel, 0)), left_wall))
-                #bcu.append(DirichletBC(self.problem.fs.V, Constant((HH_vel, 0)), right_wall))
-                bcu.append(DirichletBC(self.problem.fs.V, Constant((HH_vel, 0)), bottom_wall))
-                bcu.append(DirichletBC(self.problem.fs.V, Constant((HH_vel, 0)), top_wall))
-
-            elif self.problem.dom.dim == 3:
-                if free_slip:
-                    inflow = Expression(('x[2] > 0 ? HH_vel*std::log(x[2]/0.01)/std::log(ph/0.01) : 0', '0', '0'), 
-                        degree = 2, HH_vel = HH_vel, ph = float(self.problem.farm.HH[0]))
-
-                    # bcu.append(DirichletBC(self.problem.fs.V.sub(0), Constant(HH_vel), left_wall))
-                    bcu.append(DirichletBC(self.problem.fs.V, inflow, left_wall))
-                    # bcu.append(DirichletBC(self.problem.fs.V.sub(0), Constant(0), rightW))
-                    bcu.append(DirichletBC(self.problem.fs.V.sub(1), Constant(0), bottom_wall))
-                    bcu.append(DirichletBC(self.problem.fs.V.sub(1), Constant(0), top_wall))
-                    bcu.append(DirichletBC(self.problem.fs.V.sub(2), Constant(0), back_wall))
-                    bcu.append(DirichletBC(self.problem.fs.V.sub(2), Constant(0), front_wall))
-                else:
-                    bcu.append(DirichletBC(self.problem.fs.V, Constant((HH_vel, 0, 0)), left_wall))
-                    # bcu.append(DirichletBC(self.problem.fs.V, Constant((HH_vel, 0, 0)), right_wall))
-                    bcu.append(DirichletBC(self.problem.fs.V, Constant((HH_vel, 0, 0)), bottom_wall))
-                    bcu.append(DirichletBC(self.problem.fs.V, Constant((HH_vel, 0, 0)), top_wall))
-                    bcu.append(DirichletBC(self.problem.fs.V, Constant((HH_vel, 0, 0)), back_wall))
-                    bcu.append(DirichletBC(self.problem.fs.V, Constant((HH_vel, 0, 0)), front_wall))
-
-        # Build a list with the boundary conditions for pressure
-        bcp = []
-
-
-        if use_variable_bc:
-            if theta < np.pi/2.0:
-                # left and bottom
-                bcp.append(DirichletBC(self.problem.fs.Q, Constant(0), right_wall))
-                bcp.append(DirichletBC(self.problem.fs.Q, Constant(0), top_wall))
-            elif theta < np.pi:
-                # bottom and right
-                bcp.append(DirichletBC(self.problem.fs.Q, Constant(0), top_wall))
-                bcp.append(DirichletBC(self.problem.fs.Q, Constant(0), left_wall))
-            elif theta < 3.0*np.pi/2.0:
-                # right and top
-                bcp.append(DirichletBC(self.problem.fs.Q, Constant(0), left_wall))
-                bcp.append(DirichletBC(self.problem.fs.Q, Constant(0), bottom_wall))
-            else:
-                # top and left
-                bcp.append(DirichletBC(self.problem.fs.Q, Constant(0), bottom_wall))
-                bcp.append(DirichletBC(self.problem.fs.Q, Constant(0), right_wall))
-        else:
-            bcp.append(DirichletBC(self.problem.fs.Q, Constant(0), right_wall))
-
-        return bcu, bcp
 
 # ================================================================
 

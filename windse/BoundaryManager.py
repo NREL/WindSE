@@ -32,6 +32,8 @@ if main_file != "sphinx-build":
         from dolfin_adjoint import *  
 
     import math 
+    from scipy.interpolate import RegularGridInterpolator
+
 
 class GenericBoundary(object):
     def __init__(self,dom,fs,farm):
@@ -70,7 +72,6 @@ class GenericBoundary(object):
             if bc_type == "inflow":
                 for b in bs:
                     bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
-                    bcp_eqns.append([self.fs.Q, self.fs.W.sub(1), self.zero, self.boundary_names[b]])
 
             elif bc_type == "no_slip":
                 for b in bs:
@@ -81,15 +82,16 @@ class GenericBoundary(object):
                 for b in bs:
                     dim = math.floor(temp_list.index(b)/2.0) # get dim based on order
                     bcu_eqns.append([self.fs.V.sub(dim), self.fs.W.sub(0).sub(dim), self.zero, self.boundary_names[b]])
-                    print(b,dim)
+                    # print(b,dim)
 
             elif bc_type == "no_stress":
                 for b in bs:
                     bcu_eqns.append([None, None, None, self.boundary_names[b]])
+                    bcp_eqns.append([self.fs.Q, self.fs.W.sub(1), self.zero, self.boundary_names[b]])
 
             else:
                 raise ValueError(bc_type+" is not a recognized boundary type")
-        bcs_eqns = bcu_eqns+bcp_eqns
+        bcs_eqns = bcu_eqns#+bcp_eqns
 
         ### Set the boundary conditions ###
         self.bcu = []
@@ -399,5 +401,226 @@ class LogLayerInflow(GenericBoundary):
         self.SetupBoundaries()
         self.fprint("Boundary Condition Setup",special="footer")
 
-# class LogLayerInflow(object):
-#     def __init__(self,dom,fs):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def updateInletVelocityFromFile(self, saveCount, bcu):
+        
+        # Define tolerance
+        tol = 1e-6
+
+        # Define a function to identify the left wall
+        def left_wall(x, on_boundary):
+            return on_boundary and x[0] < self.problem.dom.x_range[0] + tol
+
+        # Load each of the PyTurbSim outputs (saved as numpy arrays)
+        uTotal = np.load('pyturbsim_outputs/turb_u.npy')
+        vTotal = np.load('pyturbsim_outputs/turb_v.npy')
+        wTotal = np.load('pyturbsim_outputs/turb_w.npy')
+        y = np.load('pyturbsim_outputs/turb_y.npy')
+        z = np.load('pyturbsim_outputs/turb_z.npy')
+
+
+        DEBUGGING = False
+
+        # Rescale y and z values to match existing domain
+        # print(' og z = ', z)
+        y = np.linspace(self.problem.dom.y_range[0], self.problem.dom.y_range[1], len(y))
+        z = np.linspace(self.problem.dom.z_range[0], self.problem.dom.z_range[1], len(z))
+
+        if DEBUGGING:
+            y = np.array([self.problem.dom.y_range[0], self.problem.dom.y_range[1]])
+            z = np.array([self.problem.dom.z_range[0], self.problem.dom.z_range[1]])
+
+        # print('new z = ', z)
+        # print('saveCount = ', saveCount)
+
+        # Check to see if we have enough turbulence slices
+        if saveCount > np.shape(uTotal)[2] - 1:
+            raise ValueError("Ran out of turbulent inflow files! Run PyTurbSim with longer tFinal.")
+
+
+        # Extract a single slice of u, v, and w data
+        u = uTotal[:, :, saveCount]
+        v = vTotal[:, :, saveCount]
+        w = wTotal[:, :, saveCount]
+
+        if DEBUGGING:
+            u = np.array([[0.5, 0.0],
+                          [0.0, 1.0]])
+            v = np.array([[0.0, 0.0], [0.0, 0.0]])
+            w = np.array([[0.0, 0.0], [0.0, 0.0]])
+
+        # Get the coordinates using the vector funtion space, V
+        coords = self.problem.fs.V.tabulate_dof_coordinates()
+        coords = np.copy(coords[0::self.problem.dom.dim, :])
+
+        # Create a function representing the inlet velocity
+        vel_inlet_func = Function(self.problem.fs.V)
+
+        # Create an array and vector to hold the u, v, w values at each grid point
+        vel_inlet_array = np.zeros(np.shape(coords))
+        vel_inlet_vector = np.zeros(np.size(vel_inlet_array))
+
+        # For each coordinate, determine if it's on the boundary
+        for k, xi in enumerate(coords):
+            if xi[0] < self.problem.dom.x_range[0] + tol:
+
+                # Get the interpolated value at this point
+                ui = self.bilinearInterp(xi[1], xi[2], y, z, [u, v, w])
+
+                # Assign this value to the corresponding spot in the velocity array
+                vel_inlet_array[k, :] = ui
+
+        # Riffle-shuffle the array elements into a FEniCS friendly vector
+        for k in range(self.problem.dom.dim):
+            vel_inlet_vector[k::self.problem.dom.dim] = vel_inlet_array[:, k]
+
+        # Assign the function the vector of values
+        vel_inlet_func.vector()[:] = vel_inlet_vector
+
+        # Update the inlet velocity
+        bcu[0] = DirichletBC(self.problem.fs.V, vel_inlet_func, left_wall)
+
+
+        return bcu
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class TurbSimInflow(LogLayerInflow):
+    def __init__(self,dom,fs,farm):
+        super(TurbSimInflow, self).__init__(dom,fs,farm)
+
+        startTime = 0.0
+        stopTime = 1.0
+
+        # Load each of the PyTurbSim outputs (saved as numpy arrays)
+        uTotal = np.load('pyturbsim_outputs/turb_u.npy')
+        vTotal = np.load('pyturbsim_outputs/turb_v.npy')
+        wTotal = np.load('pyturbsim_outputs/turb_w.npy')
+
+        y = np.load('pyturbsim_outputs/turb_y.npy')
+        z = np.load('pyturbsim_outputs/turb_z.npy')
+        t = np.linspace(startTime, stopTime, uTotal.shape[-1])
+
+
+        TurbSimVel = np.array([uTotal,vTotal,wTotal])
+
+        test = RegularGridInterpolator((y,z,t),uTotal )
+        exit()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -145,7 +145,8 @@ def run_action(params_loc=None):
     ### Setup Boundary Conditions ###
     bc_dict = {"uniform":windse.UniformInflow,
                "power":windse.PowerInflow,
-               "log":windse.LogLayerInflow}
+               "log":windse.LogLayerInflow,
+               "turbsim":windse.TurbSimInflow}
     bc = bc_dict[params["boundary_condition"]["vel_profile"]](dom,fs,farm)
 
     ### Generate the problem ###
