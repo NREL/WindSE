@@ -3,7 +3,6 @@ general:
     name: TurbSim_Inflow      # Name of the output folder
     preappend_datetime: false  # Place the date and time before the folder name
     output: ["mesh","initial_guess","height","turbine_force","solution"]
-    dolfin_adjoint: true
 
 # Wind Farm constants for a grid farm
 wind_farm: 
