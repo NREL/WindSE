@@ -7,33 +7,47 @@ import pyts.api as pyts_api
 import pyts.io.main as pyts
 import numpy as np
 
-# Define some variables for the PyTurbSim run:
-refht = 100
-ustar = .15
-Uref = 8
+# Domain Params:
+H   = 200 # Height of the domain (m)
+L   = 160 # Width of the domain (m)
+ny  = 10  # Grid point is the y direction (<30)
+nz  = 10  # Grid point is the z direction (<30)
+T   = 100 # Final Time (s)
+dt  = 0.5 # Time step size (s)
+tol = 1   # Buffer between ground and grid (>0)
+
+# Physics Params:
+Zref = 32.1 # Hub height (m)
+Uref = 8.0  # Velocity at hub height (m/s)
+Z0   = 0.04 # Roughness height (m)
+k    = 0.4  # von Karman constant (-)
+Ri   = 0.0  # Richardson Number stability parameter (-)
+
+# Calculate the friction velocity
+Ustar = Uref*k/np.log(Zref/Z0)
 
 # First we initialize a PyTurbSim 'run' object:
 tsr = pyts_api.tsrun()
 
 # Next we give this run object a grid:
 tsr.grid = pyts_api.tsGrid(
-    center = refht, ny = 15, nz = 15, height = 200, width = 160, time_sec = 1000, dt = 0.5)
+    center = H/2.0+tol, ny = ny, nz = nz, height = H, width = L, time_sec = T, dt = dt)
 
 # Now we define a mean 'profile model',
-prof_model = pyts_api.profModels.h2l(Uref, refht, ustar)
+prof_model = pyts_api.profModels.log(Uref, Zref, Z0, Ri)
 # and assign it to the run object,
 tsr.prof = prof_model
 # These two steps can be completed in one as:
 #tsr.profModel=pyts.profModels.h2l(U,refht,ustar)
 
 # Next we define and assign a 'spectral model' to the run object,
-tsr.spec = pyts_api.specModels.tidal(ustar, refht)
+tsr.spec = pyts_api.specModels.smooth(Ustar, Ri)
 
 # ... and define/assign a 'coherence model',
 tsr.cohere = pyts_api.cohereModels.nwtc()
 
 # ... and define/assign a 'stress model',
-tsr.stress = pyts_api.stressModels.tidal(ustar, refht)
+tsr.stress = pyts_api.stressModels.tidal(Ustar, H/2.0)
 
 # Now simply 'call' the run oject to produce the TurbSim output.
 turbsim_output = tsr()
