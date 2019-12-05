@@ -416,28 +416,55 @@ class GenericDomain(object):
         y_data = np.sort(np.unique(y_data))
         z_data = np.reshape(z_data,(int(self.topography[0,0]),int(self.topography[0,1])))
         self.topography_interpolated = RectBivariateSpline(x_data,y_data,z_data.T)
+        self.ground_function = self.InterplatedGroundFunction
 
     def SetupAnalyticGround(self):
-        self.hill_sigma_x = self.params["domain"]["gaussian"]["sigma_x"]
-        self.hill_sigma_y = self.params["domain"]["gaussian"]["sigma_y"]
-        self.hill_theta = self.params["domain"]["gaussian"].get("theta",0.0)
-        self.hill_amp = self.params["domain"]["gaussian"]["amp"]
-        self.hill_center = self.params["domain"]["gaussian"].get("center",[0.0,0.0])
-        self.hill_x0 = self.hill_center[0]
-        self.hill_y0 = self.hill_center[1]
-        self.fprint("")
-        self.fprint("Ground Type: Gaussian Hill")
-        self.fprint("Hill Center:   ({: .2f}, {: .2f})".format(self.hill_x0,self.hill_y0),offset=1)
-        self.fprint("Hill Rotation:  {: <7.2f}".format(self.hill_theta),offset=1)
-        self.fprint("Hill Amplitude: {: <7.2f}".format(self.hill_amp),offset=1)
-        self.fprint("Hill sigma_x:   {: <7.2f}".format(self.hill_sigma_x),offset=1)
-        self.fprint("Hill sigma_y:   {: <7.2f}".format(self.hill_sigma_y),offset=1)
-        self.hill_a = np.cos(self.hill_theta)**2/(2*self.hill_sigma_x**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_y**2)
-        self.hill_b = np.sin(2*self.hill_theta)/(4*self.hill_sigma_y**2) - np.sin(2*self.hill_theta)/(4*self.hill_sigma_x**2)
-        self.hill_c = np.cos(self.hill_theta)**2/(2*self.hill_sigma_y**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_x**2)
+        if self.params["domain"].get("gaussian",False):
+            self.hill_sigma_x = self.params["domain"]["gaussian"]["sigma_x"]
+            self.hill_sigma_y = self.params["domain"]["gaussian"]["sigma_y"]
+            self.hill_theta = self.params["domain"]["gaussian"].get("theta",0.0)
+            self.hill_amp = self.params["domain"]["gaussian"]["amp"]
+            self.hill_center = self.params["domain"]["gaussian"].get("center",[0.0,0.0])
+            self.hill_x0 = self.hill_center[0]
+            self.hill_y0 = self.hill_center[1]
+            self.fprint("")
+            self.fprint("Ground Type: Gaussian Hill")
+            self.fprint("Hill Center:   ({: .2f}, {: .2f})".format(self.hill_x0,self.hill_y0),offset=1)
+            self.fprint("Hill Rotation:  {: <7.2f}".format(self.hill_theta),offset=1)
+            self.fprint("Hill Amplitude: {: <7.2f}".format(self.hill_amp),offset=1)
+            self.fprint("Hill sigma_x:   {: <7.2f}".format(self.hill_sigma_x),offset=1)
+            self.fprint("Hill sigma_y:   {: <7.2f}".format(self.hill_sigma_y),offset=1)
+            self.hill_a = np.cos(self.hill_theta)**2/(2*self.hill_sigma_x**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_y**2)
+            self.hill_b = np.sin(2*self.hill_theta)/(4*self.hill_sigma_y**2) - np.sin(2*self.hill_theta)/(4*self.hill_sigma_x**2)
+            self.hill_c = np.cos(self.hill_theta)**2/(2*self.hill_sigma_y**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_x**2)
+            self.ground_function = self.GaussianGroundFuncion
+        elif self.params["domain"].get("plane",False):
+            self.plane_x0 = self.params["domain"]["plane"].get("intercept",[0.0,0.0,0.0])
+            self.plane_mx = self.params["domain"]["plane"]["mx"]
+            self.plane_my = self.params["domain"]["plane"]["my"]
+            self.ground_function = self.PlaneGroundFuncion
+            self.fprint("")
+            self.fprint("Ground Type: Plane")
+            self.fprint("Intercept: ({: .2f}, {: .2f}, {: .2f})".format(*self.plane_x0),offset=1)
+            self.fprint("X Slope:     {: <7.6f}".format(self.plane_mx),offset=1)
+            self.fprint("Y Slope:     {: <7.6f}".format(self.plane_my),offset=1)
+        else:
+            raise ValueError("Incorrect analytic ground function specified")
+
 
     def GaussianGroundFuncion(self,x,y,dx=0,dy=0):
         return self.hill_amp*exp( - (self.hill_a*(x-self.hill_x0)**2 + 2*self.hill_b*(x-self.hill_x0)*(y-self.hill_y0) + self.hill_c*(y-self.hill_y0)**2)**2)+self.z_range[0]
+
+    def PlaneGroundFuncion(self,x,y,dx=0,dy=0):
+        if dx == 1:
+            val = self.plane_mx
+        elif dy == 1:
+            val = self.plane_my
+        elif abs(dx)+abs(dy) >=2:
+            val = 0
+        else:
+            val = (self.plane_mx*(x-self.plane_x0[0])+self.plane_my*(y-self.plane_x0[1]))+self.plane_x0[2]
+        return val
 
     def InterplatedGroundFunction(self,x,y,dx=0,dy=0):
         if dx == 0 and dy == 0:
@@ -1183,7 +1210,6 @@ class ImportedDomain(GenericDomain):
         self.fprint("Building Interpolating Function")
 
         self.SetupInterpolatedGround()
-        self.ground_function = self.InterplatedGroundFunction
 
         interp_stop = time.time()
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
@@ -1211,10 +1237,8 @@ class InterpolatedCylinderDomain(CylinderDomain):
         self.analytic = self.params["domain"].get("analytic",False)
         if self.analytic:
             self.SetupAnalyticGround()
-            self.ground_function = self.GaussianGroundFuncion
         else:
             self.SetupInterpolatedGround()
-            self.ground_function = self.InterplatedGroundFunction
 
         interp_stop = time.time()
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")
@@ -1247,17 +1271,8 @@ class InterpolatedBoxDomain(BoxDomain):
         self.analytic = self.params["domain"].get("analytic",False)
         if self.analytic:
             self.SetupAnalyticGround()
-            self.ground_function = self.GaussianGroundFuncion
         else:
             self.SetupInterpolatedGround()
-            self.ground_function = self.InterplatedGroundFunction
-
-
-        print(self.topography_interpolated(480,0,dx=1))
-        print(self.topography_interpolated(480,0,dy=1))
-
-        print(self.InterplatedGroundFunction(480,0,dx=1))
-        print(self.InterplatedGroundFunction(480,0,dy=1))
 
         interp_stop = time.time()
         self.fprint("Ground Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")

@@ -8,13 +8,13 @@ import pyts.io.main as pyts
 import numpy as np
 
 # Domain Params:
-H   = 200 # Height of the domain (m)
-L   = 160 # Width of the domain (m)
-ny  = 10  # Grid point is the y direction (<30)
-nz  = 10  # Grid point is the z direction (<30)
-T   = 100 # Final Time (s)
-dt  = 0.5 # Time step size (s)
-tol = 1   # Buffer between ground and grid (>0)
+H   = 200  # Height of the domain (m)
+L   = 160  # Width of the domain (m)
+ny  = 15   # Grid point is the y direction (<30)
+nz  = 15   # Grid point is the z direction (<30)
+T   = 1000 # Final Time (s)
+dt  = 0.5  # Time step size (s)
+tol = 0.1  # Buffer between ground and grid (>0)
 
 # Physics Params:
 Zref = 32.1 # Hub height (m)
@@ -34,14 +34,14 @@ tsr.grid = pyts_api.tsGrid(
     center = H/2.0+tol, ny = ny, nz = nz, height = H, width = L, time_sec = T, dt = dt)
 
 # Now we define a mean 'profile model',
-prof_model = pyts_api.profModels.log(Uref, Zref, Z0, Ri)
+prof_model = pyts_api.profModels.h2l(Uref, Zref, Ustar)
 # and assign it to the run object,
 tsr.prof = prof_model
 # These two steps can be completed in one as:
 #tsr.profModel=pyts.profModels.h2l(U,refht,ustar)
 
 # Next we define and assign a 'spectral model' to the run object,
-tsr.spec = pyts_api.specModels.smooth(Ustar, Ri)
+tsr.spec = pyts_api.specModels.tidal(Ustar, H/2.0)
 
 # ... and define/assign a 'coherence model',
 tsr.cohere = pyts_api.cohereModels.nwtc()
@@ -85,3 +85,22 @@ turb_y_fp.close()
 turb_z_fp = open(fn_z, 'w+')
 np.save(turb_z_fp, a.z)
 turb_z_fp.close()
+
+
+
+
+
+
+import matplotlib
+matplotlib.use('TKAgg')
+import matplotlib.pyplot as plt
+
+mag = np.sqrt(np.power(a.u,2.0)+np.power(a.v,2.0),np.power(a.w,2.0))
+
+p = plt.contourf(a.y,a.z,np.mean(mag,2),32)
+plt.colorbar(p)
+plt.show()
+
+p = plt.contour(a.y,a.z,mag[:,:,-25],32)
+plt.colorbar(p)
+plt.show()

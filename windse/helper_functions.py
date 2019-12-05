@@ -6,6 +6,8 @@ from dolfin import Constant
 def BaseHeight(x,y,ground,dx=0,dy=0):
     return Constant(ground(float(x),float(y),dx=dx,dy=dx))
 
+# def TurbineForce(func, x, y, yaw, axial, HH, W, R, RD)
+
 # def fprint(self,string,tab=None,offset=0,special=None):
 #     """
 #     This is just a fancy print function that will tab according to where

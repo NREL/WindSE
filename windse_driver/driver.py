@@ -175,7 +175,7 @@ def run_action(params_loc=None):
         if params["optimization"].get("taylor_test",False):
             opt.TaylorTest()
 
-        if params["optimization"].get("optimize",True):
+        if params["optimization"].get("optimize",False):
             opt.Optimize()
 
     tock = time.time()

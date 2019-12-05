@@ -174,7 +174,6 @@ class BaseHeightBlock(Block):
         return [x, y]
 
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
-        print("evaluating adj")
         x = prepared[0]
         y = prepared[1]
         # h = dolfin.Constant(10)

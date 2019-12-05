@@ -72,7 +72,7 @@ class Optimizer(object):
         self.get_minimum_distance_constraint_func(self.controls, 2*np.mean(self.problem.farm.HH))
 
         self.fprint("Define Optimizing Functional")
-        if self.params["solver"]["type"] == "multiangle":
+        if self.solver.J:
             self.J = assemble(self.solver.J)
             self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
             self.Jcurrent = self.J
@@ -138,8 +138,8 @@ class Optimizer(object):
 
         if "yaw" in self.control_types:
             for i in range(self.farm.numturbs):
-                lower_bounds.append(Constant(-pi/4.))
-                upper_bounds.append(Constant(pi/4.))
+                lower_bounds.append(Constant(0.0))
+                upper_bounds.append(Constant(25*pi/180.0))
 
         if "axial" in self.control_types:
             for i in range(self.farm.numturbs):
@@ -148,91 +148,95 @@ class Optimizer(object):
 
         self.bounds = [lower_bounds,upper_bounds]
 
-    def AssignControls(self):
-        if "layout" in self.control_types:
-            self.farm.mx = self.controls[self.indexes[0]]
-            self.farm.my = self.controls[self.indexes[1]]
-        if "yaw" in self.control_types:
-            self.farm.myaw = self.controls[self.indexes[2]]
-        if "axial" in self.control_types:
-            self.farm.ma = self.controls[self.indexes[3]]
+    # def PowerFunctional(self):
+    #     """
+    #     Creates the power functional that will be optimized
 
+    #     Args:
+    #         tf (dolfin.Function): Turbine Force function
+    #         u (dolfin.Function): Velocity vector.
+    #     """
+    #     #how to handle rotation?
+    #     # J=Functional(tf*u[0]**3*dx)
 
-
-    def PowerFunctional(self):
-        """
-        Creates the power functional that will be optimized
-
-        Args:
-            tf (dolfin.Function): Turbine Force function
-            u (dolfin.Function): Velocity vector.
-        """
-        #how to handle rotation?
-        # J=Functional(tf*u[0]**3*dx)
-
-        if self.farm.yaw[0]**2 > 1e-4:
-            self.J = assemble(-dot(self.problem.tf,self.solver.u_next)*dx)
-        else:
-            self.J = assemble(-inner(dot(self.problem.tf,self.solver.u_next),self.solver.u_next[0]**2+self.solver.u_next[1]**2)*dx)
-        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback) 
-        self.Jcurrent = self.J
+    #     if self.farm.yaw[0]**2 > 1e-4:
+    #         self.J = assemble(-dot(self.problem.tf,self.solver.u_next)*dx)
+    #     else:
+    #         self.J = assemble(-inner(dot(self.problem.tf,self.solver.u_next),self.solver.u_next[0]**2+self.solver.u_next[1]**2)*dx)
+    #     self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback) 
+    #     self.Jcurrent = self.J
 
     def ListControls(self,m):
         if "layout" in self.control_types:
             for i in range(self.farm.numturbs):
-                self.fprint("Turbine {0:} of {1:}: {2: 4.2f}, {3: 4.2f}".format(i,self.farm.numturbs,self.x_val[i],self.y_val[i]))
+                self.fprint("Location Turbine {0:} of {1:}: {2: 4.2f}, {3: 4.2f}".format(i+1,self.farm.numturbs,self.farm.x[i],self.farm.y[i]))
 
-    def PlotLayout(self,m,show=False):
-        self.x_val = []
-        self.y_val = []
+        if "yaw" in self.control_types:
+            for i in range(self.farm.numturbs):
+                self.fprint("Yaw Turbine {0:} of {1:}: {2: 4.6f}".format(i+1,self.farm.numturbs,self.farm.yaw[i]))
 
-        for i,val in enumerate(m):
-            if "x_" in self.names[i]:
-                self.x_val.append(float(m[i]))
-            elif "y_" in self.names[i]:
-                self.y_val.append(float(m[i]))
+    # def PlotLayout(self,m,show=False):
+    #     self.x_val = []
+    #     self.y_val = []
 
-        z_val = self.problem.dom.Ground(self.x_val,self.y_val)+self.problem.farm.HH
+    #     for i,val in enumerate(m):
+    #         if "x_" in self.names[i]:
+    #             self.x_val.append(float(m[i]))
+    #         elif "y_" in self.names[i]:
+    #             self.y_val.append(float(m[i]))
 
-        ### Create the path names ###
-        folder_string = self.params.folder+"/plots/"
-        file_string = self.params.folder+"/plots/wind_farm_step_"+repr(self.iteration)+".pdf"
+    #     z_val = self.problem.dom.Ground(self.x_val,self.y_val)+self.problem.farm.HH
 
-        ### Check if folder exists ###
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
+    #     ### Create the path names ###
+    #     folder_string = self.params.folder+"/plots/"
+    #     file_string = self.params.folder+"/plots/wind_farm_step_"+repr(self.iteration)+".pdf"
 
-        ### Create a list that outlines the extent of the farm ###
-        ex_list_x = [self.layout_bounds[0][0],self.layout_bounds[0][1],self.layout_bounds[0][1],self.layout_bounds[0][0],self.layout_bounds[0][0]]
-        ex_list_y = [self.layout_bounds[1][0],self.layout_bounds[1][0],self.layout_bounds[1][1],self.layout_bounds[1][1],self.layout_bounds[1][0]]
+    #     ### Check if folder exists ###
+    #     if not os.path.exists(folder_string): os.makedirs(folder_string)
 
-        ### Generate and Save Plot ###
-        plt.clf()
-        if hasattr(self.problem.dom,"boundary_line"):
-            plt.plot(*self.problem.dom.boundary_line,c="k")
-        plt.plot(ex_list_x,ex_list_y,c="r")
-        p=plt.scatter(self.x_val,self.y_val,c=z_val,cmap="coolwarm",edgecolors=(0, 0, 0, 1))
-        # p=plt.scatter(self.x_val,self.y_val,c="k",s=70)
-        # p=plt.scatter(self.x_val,self.y_val,c=range(self.farm.numturbs))
-        plt.xlim(self.problem.dom.x_range[0],self.problem.dom.x_range[1])
-        plt.ylim(self.problem.dom.y_range[0],self.problem.dom.y_range[1])
-        clb = plt.colorbar(p)
-        clb.ax.set_ylabel('Hub Elevation')
+    #     ### Create a list that outlines the extent of the farm ###
+    #     ex_list_x = [self.layout_bounds[0][0],self.layout_bounds[0][1],self.layout_bounds[0][1],self.layout_bounds[0][0],self.layout_bounds[0][0]]
+    #     ex_list_y = [self.layout_bounds[1][0],self.layout_bounds[1][0],self.layout_bounds[1][1],self.layout_bounds[1][1],self.layout_bounds[1][0]]
 
-        plt.title("Power Output: {: 5.2f}".format(-self.Jcurrent))
-        plt.savefig(file_string, transparent=True)
-        if show:
-            plt.show()
+    #     ### Generate and Save Plot ###
+    #     plt.clf()
+    #     if hasattr(self.problem.dom,"boundary_line"):
+    #         plt.plot(*self.problem.dom.boundary_line,c="k")
+    #     plt.plot(ex_list_x,ex_list_y,c="r")
 
-        exit()
+    #     for i in range(self.numturbs):
+    #         blade_n = [np.cos(self.yaw[i]),np.sin(self.yaw[i])]
+    #         rr = self.RD[i]/2.0
+    #         blade_x = [self.x[i]+rr*blade_n[1],self.x[i]-rr*blade_n[1]]
+    #         blade_y = [self.y[i]-rr*blade_n[0],self.y[i]+rr*blade_n[0]]
+    #         plt.plot(blade_x,blade_y,c='k',linewidth=2,zorder=1)
+
+
+
+    #     p=plt.scatter(self.x,self.y,c=self.z,cmap="coolwarm",edgecolors=(0, 0, 0, 1),s=20,zorder=2)
+
+
+
+    #     p=plt.scatter(self.x_val,self.y_val,c=z_val,cmap="coolwarm",edgecolors=(0, 0, 0, 1))
+    #     # p=plt.scatter(self.x_val,self.y_val,c="k",s=70)
+    #     # p=plt.scatter(self.x_val,self.y_val,c=range(self.farm.numturbs))
+    #     plt.xlim(self.problem.dom.x_range[0],self.problem.dom.x_range[1])
+    #     plt.ylim(self.problem.dom.y_range[0],self.problem.dom.y_range[1])
+    #     clb = plt.colorbar(p)
+    #     clb.ax.set_ylabel('Hub Elevation')
+
+    #     plt.title("Power Output: {: 5.2f}".format(-self.Jcurrent))
+    #     plt.savefig(file_string, transparent=True)
+    #     if show:
+    #         plt.show()
 
     def SaveControls(self,m):
 
         folder_string = self.params.folder+"/data/"
         if not os.path.exists(folder_string): os.makedirs(folder_string)
 
-        if "layout" in self.control_types:
-            self.problem.farm.UpdateConstants(m=m,control_types=self.control_types,indexes=self.indexes)
-            self.problem.farm.SaveWindFarm(val=self.iteration)
+        self.problem.farm.UpdateConstants(m=m,control_types=self.control_types,indexes=self.indexes)
+        self.problem.farm.SaveWindFarm(val=self.iteration)
 
         if self.iteration == 0:
             self.last_m = np.zeros(len(m))
@@ -252,11 +256,20 @@ class Optimizer(object):
 
     def OptPrintFunction(self,m):
 
-        if "layout" in self.control_types:
-            self.PlotLayout(m,show=False)
+        print()
+        print()
+        for d in self.Jhat.derivative():
+            print(float(d))
+        print()
+        print()
+
+        # if "layout" in self.control_types:
+        #     self.PlotLayout(m,show=False)
 
         self.SaveControls(m)
         self.ListControls(m)
+
+        self.problem.farm.Plot(filename="wind_farm_step_"+repr(self.iteration),power=-self.Jcurrent)
         
         self.iteration += 1
 
@@ -271,7 +284,10 @@ class Optimizer(object):
 
         self.fprint("Beginning Optimization",special="header")
 
-        m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+        if "layout" in self.control_types:
+            m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+        else:
+            m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
         # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
         self.fprint("Assigning New Values")
@@ -289,8 +305,11 @@ class Optimizer(object):
         
         self.fprint("Beginning Taylor Test",special="header")
 
-        h = [Constant(10)]*(len(self.controls))
-        # h = [Constant(0.001)]*(len(self.controls))
+        h = []
+        print(self.bounds)
+        for i,c in enumerate(self.controls):
+            print(max(abs(float(self.bounds[0][i])),abs(float(self.bounds[1][i]))))
+            h.append(Constant(0.01*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
 
         conv_rate = taylor_test(self.Jhat, self.init_vals, h)
 

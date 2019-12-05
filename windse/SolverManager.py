@@ -143,7 +143,7 @@ class GenericSolver(object):
             u = self.u_next
             A = pi*R**2.0
 
-            WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
+            WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=yaw,degree=1)
 
             ### Rotate and Shift the Turbine ###
             xs = self.problem.farm.YawTurbine(x,x0,yaw)
@@ -278,6 +278,7 @@ class SteadySolver(GenericSolver):
         ###################################
         if self.optimizing or self.save_power:
             self.J += -self.CalculatePowerFunctional((iter_val-self.problem.dom.init_wind)) 
+            # self.J += -dot(self.problem.farm.rotor_disks,self.u_next)*dx
 
         # self.fprint("Speed Percent of Inflow Speed")
         # ps = []
