@@ -201,7 +201,6 @@ class GenericWindFarm(object):
         output = np.array([self.x, self.y, self.HH, self.yaw, self.RD, self.W, self.a])
         np.savetxt(file_string,output.T,header=head_str)
 
-
     def SaveRotorDisks(self,val=0):
         """
         This function saves the turbine force if exists to output/.../functions/

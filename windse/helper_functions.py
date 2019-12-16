@@ -6,51 +6,73 @@ from dolfin import Constant
 def BaseHeight(x,y,ground,dx=0,dy=0):
     return Constant(ground(float(x),float(y),dx=dx,dy=dx))
 
-# def TurbineForce(func, x, y, yaw, axial, HH, W, R, RD)
+def ConstantForce(x,turbines,dfd=None):
+    ''' Returns a numpy vector corresponding to a scaler function space'''
+    if dfd is None:
+        return "Function Evaluation"
+    elif dfd == "layout_x":
+        return "Derivative with respect to x"
+    elif dfd == "layout_y":
+        return "Derivative with respect to y"
+    elif dfd == "yaw":
+        return "Derivative with respect to yaw"
+    
+    ...
 
-# def fprint(self,string,tab=None,offset=0,special=None):
-#     """
-#     This is just a fancy print function that will tab according to where
-#     we are in the solve
+    else:
+    raise ValueError("Unknown derivative: "+dfd)
 
-#     Args:
-#         string (str): the string for printing
+def DiskKernal(x,turbines,dfd=None):
+    ''' Returns a numpy vector corresponding to a scaler function space'''
+    if dfd is None:
+        return "Function Evaluation"
+    elif dfd == "layout_x":
+        return "Derivative with respect to x"
+    elif dfd == "layout_y":
+        return "Derivative with respect to y"
+    elif dfd == "yaw":
+        return "Derivative with respect to yaw"
+    
+    ...
 
-#     :Keyword Arguments:
-#         * **tab** (*int*): the tab level
+    else:
+    raise ValueError("Unknown derivative: "+dfd)
 
-#     """
-#     ### Check Processor ###
-#     rank = 0
-#     if rank == 0:
-#         ### Check if tab length has been overridden
-#         if tab is None:
-#             tab = self.current_tab
-        
-#         ### Check if we are starting or ending a section
-#         if special=="header":
-#             self.current_tab += 1
-#             self.fprint("",tab=tab)
-#         elif special =="footer":
-#             self.current_tab -= 1
-#             tab -= 1
-#             self.fprint("",tab=tab+1)
+def ActuatorDisk(x,turbines,force,space_kernal,dfd=None):
+    ''' Returns a numpy vector corresponding to a vector function space '''
+    if dfd is None:
+        val = force(x,turbines)*space_kernal(x,turbines)
+    else:
+        val = force(x,turbines)*space_kernal(x,turbines,dfd=dfd) + force(x,turbines,dfd=dfd)*space_kernal(x,turbines)
 
-#         ### Apply Offset if provided ###
-#         tab += offset
+    return convert_scaler_to_vector(val,yaw)
 
-#         ### Create Tabbed string
-#         tabbed = "|    "*tab
+def TurbineForces(x,turbines,actuator,dfd=None):
+    ''' Returns a numpy vector corresponding to a vector function space '''
 
-#         ### Apply Tabbed string
-#         if isinstance(string,str):
-#             string = tabbed+string
-#         else:
-#             string = tabbed+repr(string)
+    if dfd is None:
+        tf1 = actuator(x,turbines,force,space_kernal)*cos(yaw)**2
+        tf2 = actuator(x,turbines,force,space_kernal)*sin(yaw)**2
+        tf3 = actuator(x,turbines,force,space_kernal)*cos(yaw)*sin(yaw)
+    elif dfd == "yaw":
+        tf1 = actuator(x,turbines,force,space_kernal,dfd=dfd)*cos(yaw)**2       + actuator(x,turbines,force,space_kernal)*(-2)*sin(yaw)     
+        tf2 = actuator(x,turbines,force,space_kernal,dfd=dfd)*sin(yaw)**2       + actuator(x,turbines,force,space_kernal)*2*cos(yaw)     
+        tf3 = actuator(x,turbines,force,space_kernal,dfd=dfd)*cos(yaw)*sin(yaw) + actuator(x,turbines,force,space_kernal)*(cos(2*yaw))
+    else:
+        tf1 = actuator(x,turbines,force,space_kernal,dfd=dfd)*cos(yaw)**2      
+        tf2 = actuator(x,turbines,force,space_kernal,dfd=dfd)*sin(yaw)**2      
+        tf3 = actuator(x,turbines,force,space_kernal,dfd=dfd)*cos(yaw)*sin(yaw)
 
-#         ### Print
-#         print(string)
-#         # sys.stdout.flush()
+    return [tf1,tf2,tf3]
 
-#         if special=="header":
-#             self.fprint("",tab=tab+1)
+def CalculateTurbineForces(x,turbines,actuator,force,space_kernal,dfd=None,df_index=None):
+    if dfd is None:
+        for i in range(turbines.n):
+            tf1_temp,tf2_temp,tf3_temp = TurbineForces(x,turbines,ActuatorDisk,ConstantForce,DiskKernal,dfd=dfd)
+            tf1 = tf1_temp
+            tf2 = tf2_temp
+            tf3 = tf3_temp
+    else:
+        tf1,tf2,tf3 = TurbineForces(x,turbines[df_index],ActuatorDisk,ConstantForce,DiskKernal,dfd=dfd)
+
+    return numpy_to_function(tf1,tf2,tf3)
