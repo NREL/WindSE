@@ -188,16 +188,16 @@ class GenericWindFarm(object):
         np.savetxt(file_string,output.T,header=head_str)
 
 
-    def SaveRotorDisks(self,val=0):
+    def SaveActuatorDisks(self,val=0):
         """
         This function saves the turbine force if exists to output/.../functions/
         """
-        if isinstance(self.rotor_disks,Function):
+        if isinstance(self.actuator_disks,Function):
             if self.rd_first_save:
-                self.rd_file = self.params.Save(self.rotor_disks,"rotor_disks",subfolder="functions/",val=val)
+                self.rd_file = self.params.Save(self.actuator_disks,"actuator_disks",subfolder="functions/",val=val)
                 self.rd_first_save = False
             else:
-                self.params.Save(self.rotor_disks,"rotor_disks",subfolder="functions/",val=val,file=self.rd_file)
+                self.params.Save(self.actuator_disks,"actuator_disks",subfolder="functions/",val=val,file=self.rd_file)
 
     def GetLocations(self):
         """
@@ -522,7 +522,7 @@ class GenericWindFarm(object):
         self.fprint("Calculating Turbine Force",special="header")
 
         tf1, tf2, tf3, rotor_disks = TurbineForceNumpy([self.x,self.y,self.z],self.yaw,self.a,self.W,self.RD,fs,inflow_angle=delta_yaw,force_type=self.force)
-        self.rotor_disks = rotor_disks
+        self.actuator_disks = rotor_disks
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
@@ -600,8 +600,8 @@ class GenericWindFarm(object):
 
         ### Project Turbine Force to save on Assemble time ###
         self.fprint("Projecting Turbine Force")
-        self.rotor_disks = None
-        # self.rotor_disks = project(tf,fs.V,solver_type='mumps',**self.extra_kwarg)
+        # self.actuator_disks = None
+        self.actuator_disks = project(tf,fs.V,solver_type='mumps',**self.extra_kwarg)
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")

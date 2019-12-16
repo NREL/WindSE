@@ -204,7 +204,7 @@ class SteadySolver(GenericSolver):
         if "height" in self.params.output and self.problem.dom.dim == 3:
             self.problem.bd.SaveHeight(val=iter_val)
         if "turbine_force" in self.params.output:
-            self.problem.farm.SaveRotorDisks(val=iter_val)
+            self.problem.farm.SaveActuatorDisks(val=iter_val)
         self.fprint("Finished",special="footer")
 
         ####################################################################

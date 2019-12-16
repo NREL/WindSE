@@ -1252,13 +1252,6 @@ class InterpolatedBoxDomain(BoxDomain):
             self.SetupInterpolatedGround()
             self.ground_function = self.InterplatedGroundFunction
 
-
-        print(self.topography_interpolated(480,0,dx=1))
-        print(self.topography_interpolated(480,0,dy=1))
-
-        print(self.InterplatedGroundFunction(480,0,dx=1))
-        print(self.InterplatedGroundFunction(480,0,dy=1))
-
         interp_stop = time.time()
         self.fprint("Ground Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")
 
