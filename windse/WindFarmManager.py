@@ -592,7 +592,7 @@ class GenericWindFarm(object):
                 F = 4.*0.5*A*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5)/(.81831)
 
             # compute disk averaged velocity in yawed case and don't project
-            u_d = u_next[0]*cos(yaw) + u_next[1]*sin(yaw)
+            u_d = u_next[0]*cos(yaw) -u_next[1]*sin(yaw)
             tf  += F*T*D*WTGbase*u_d**2
             # tf1 += F*T*D*WTGbase * cos(yaw)**2#*u_d**2
             # tf2 += F*T*D*WTGbase * sin(yaw)**2#*u_d**2
