@@ -138,12 +138,12 @@ class GenericSolver(object):
             x0 = [mx,my,mz]
             W = self.problem.farm.W[i]*1.0
             R = self.problem.farm.RD[i]/2.0 
-            ma = self.problem.farm.ma[i]
             yaw = self.problem.farm.myaw[i]+delta_yaw
+            ma = self.problem.farm.ma[i]
             u = self.u_next
             A = pi*R**2.0
 
-            # WTGbase = Expression(("cos(yaw)","-sin(yaw)","0.0"),yaw=float(yaw),degree=1)
+            WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
 
             ### Rotate and Shift the Turbine ###
             xs = self.problem.farm.YawTurbine(x,x0,yaw)
@@ -156,20 +156,34 @@ class GenericSolver(object):
             D_norm = 2.914516237206873
             D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
 
-            u_d = u[0]*cos(yaw) - u[1]*sin(yaw)
+            u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
 
-            # J += dot(A*T*D*WTGbase*u_d**2.0,u)*dx
-            J += A*T*D*u_d**3.0*dx
+            ### Create the function that represents the force ###
+            if self.problem.farm.force == "constant":
+                F = 4.*0.5*ma/(1.-ma)*A
+            elif self.problem.farm.force == "sine":
+                r = sqrt(xs[1]**2.0+xs[2]**2)
+                F = 4.*0.5*A*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5)/(.81831)
+
+
+            J += F*T*D*u_d**3.0*dx
+            # J += A*T*D*u_d*(u[0]*cos(yaw))**2*dx
+            # J += 4.*0.5*ma/(1.-ma)*A*T*D*dot(WTGbase,u)**2.0*inner(u,u)**.5*dx
+
+
+
             # J += A*T*D*u_d**2.0*u[0]*dx
-            # J += A*T*D*dot(WTGbase,u)**2.0*u_d*dx
+            # J += dot(A*T*D*WTGbase*u_d**2.0,u)*dx
 
 
 
             if self.save_power:
+                J_list[i] = assemble(F*T*D*u_d**3.0*dx)
+                # J_list[i] = assemble(A*T*D*u_d*(u[0]*cos(yaw))**2*dx)
+                # J_list[i] = assemble(4.*0.5*ma/(1.-ma)*A*T*D*dot(WTGbase,u)**2.0*inner(u,u)**.5*dx)
+
                 # J_list[i] = assemble(dot(A*T*D*WTGbase*u_d**2.0,u)*dx)
-                J_list[i] = assemble(A*T*D*u_d**3.0*dx)
                 # J_list[i] = assemble(A*T*D*u_d**2.0*u[0]*dx)
-                # J_list[i] = assemble(A*T*D*dot(WTGbase,u)**2.0*u_d*dx)
 
 
 
