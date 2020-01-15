@@ -49,7 +49,7 @@ class GenericBoundary(object):
         bcs_params = self.params.get("boundary_condition",{})
         self.boundary_names = bcs_params.get("boundary_names", dom.boundary_names)
         self.boundary_types = bcs_params.get("boundary_types", dom.boundary_types)
-        self.HH_vel = bcs_params.get("HH_vel", 8.0)
+        self.HH_vel = bcs_params.get("HH_vel", 8.0)*self.dom.xscale
         self.power = bcs_params.get("power", 0.25)
         self.k = bcs_params.get("k", 0.4)
         self.init_wind = dom.init_wind
@@ -141,6 +141,8 @@ class GenericBoundary(object):
 
         ### Assigning Velocity
         self.bc_velocity = Function(self.fs.V)
+        self.bc_velocity.rename("bc_velocity","bc_velocity")
+        
         if self.dom.dim == 3:
             self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
         else:
@@ -163,6 +165,9 @@ class GenericBoundary(object):
         """
         This function saves the turbine force if exists to output/.../functions/
         """
+        self.bc_velocity.vector()[:]=self.bc_velocity.vector()[:]/self.dom.xscale
+        self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]/self.dom.xscale
+
         if self.ig_first_save:
             self.u0_file = self.params.Save(self.bc_velocity,"u0",subfolder="functions/",val=val)
             self.p0_file = self.params.Save(self.bc_pressure,"p0",subfolder="functions/",val=val)
@@ -170,11 +175,16 @@ class GenericBoundary(object):
         else:
             self.params.Save(self.bc_velocity,"u0",subfolder="functions/",val=val,file=self.u0_file)
             self.params.Save(self.bc_pressure,"p0",subfolder="functions/",val=val,file=self.p0_file)
+        self.bc_velocity.vector()[:]=self.bc_velocity.vector()[:]*self.dom.xscale
+        self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]*self.dom.xscale
 
     def SaveHeight(self,val=0):
         """
         This function saves the turbine force if exists to output/.../functions/
         """
+        self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]/self.dom.xscale
+        self.height.vector()[:]=self.height.vector()[:]/self.dom.xscale
+        self.depth.vector()[:]=self.depth.vector()[:]/self.dom.xscale
         if self.height_first_save:
             self.height_file = self.params.Save(self.height,"height",subfolder="functions/",val=val)
             self.depth_file = self.params.Save(self.depth,"depth",subfolder="functions/",val=val)
@@ -182,6 +192,9 @@ class GenericBoundary(object):
         else:
             self.params.Save(self.height,"height",subfolder="functions/",val=val,file=self.height_file)
             self.params.Save(self.depth,"depth",subfolder="functions/",val=val,file=self.depth_file)
+        self.height.vector()[:]=self.height.vector()[:]*self.dom.xscale
+        self.depth.vector()[:]=self.depth.vector()[:]*self.dom.xscale
+        self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]*self.dom.xscale
 
     def CalculateHeights(self):
         ### Calculate the distance to the ground for the Q function space ###

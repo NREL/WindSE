@@ -4,8 +4,10 @@ import numpy as np
 from sys import platform
 import os,shutil
 import time
+import copy
 
 from windse.helper_functions import BaseHeight as backend_BaseHeight
+from windse.helper_functions import CalculateCombinedTurbineForces as backend_CalculateCombinedTurbineForces
 from windse import windse_parameters
 from pyadjoint.tape import get_working_tape, annotate_tape, stop_annotating
 from pyadjoint.block import Block
@@ -192,6 +194,133 @@ class BaseHeightBlock(Block):
 
 
         return adj_input * adj
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def CalculateCombinedTurbineForces(x,farm,fs,**kwargs):
+    '''This is the adjoint version of RelativeHeight. It's goal is to 
+    calculate the height of the turbine's base. At the same time, it creates
+    a block that helps propagate the adjoint information.'''
+    annotate = annotate_tape(kwargs)
+    with stop_annotating():
+        outputs = backend_CalculateCombinedTurbineForces(x,farm,fs,**kwargs)
+
+    for i in range(3):
+        outputs[i] = create_overloaded_object(outputs[i])
+
+    if annotate:        
+        for i in range(3):
+            block = TurbineForceBlock(x,farm,fs,outputs[i],**kwargs)
+
+            tape = get_working_tape()
+            tape.add_block(block)
+
+            block.add_output(outputs[i].block_variable)
+            block.tf_output_index = i
+
+    return outputs
+
+class TurbineForceBlock(Block):
+    '''This is the Block class that will be used to calculate adjoint 
+    information for optimizations. '''
+    def __init__(self, x,farm,fs,output,**kwargs):
+        super(TurbineForceBlock, self).__init__()
+        self.x = x
+        self.farm = farm
+        self.fs = fs
+        self.output = output
+        self.inflow_angle = copy.copy(farm.inflow_angle)
+        self.save_actuator = kwargs.get('save_actuator',False)
+        for i in range(self.farm.numturbs):
+            self.farm.mx[i].block_variable.tag = ("x",i)
+            self.add_dependency(self.farm.mx[i].block_variable)
+
+            self.farm.my[i].block_variable.tag = ("y",i)
+            self.add_dependency(self.farm.my[i].block_variable)
+
+            self.farm.myaw[i].block_variable.tag = ("yaw",i)
+            self.add_dependency(self.farm.myaw[i].block_variable)
+
+            self.farm.ma[i].block_variable.tag = ("a",i)
+            self.add_dependency(self.farm.ma[i].block_variable)
+
+    def __str__(self):
+        return "TurbineForceBlock"
+
+    def prepare_recompute_component(self, inputs, relevant_outputs):
+        ### update the new controls inside the windfarm ###
+        x = inputs[0::4]
+        y = inputs[1::4]
+        yaw = inputs[2::4]
+        a = inputs[3::4]
+        self.farm.inflow_angle = self.inflow_angle
+        self.farm.UpdateControls(x=x,y=y,yaw=yaw,a=a)
+
+        prepared = backend_CalculateCombinedTurbineForces(self.x,self.farm,self.fs)
+        return prepared
+
+    def recompute_component(self, inputs, block_variable, idx, prepared):
+        return prepared[self.tf_output_index]
+
+    def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
+        ### update the new controls inside the windfarm ###
+        x = inputs[0::4]
+        y = inputs[1::4]
+        yaw = inputs[2::4]
+        a = inputs[3::4]
+        self.farm.inflow_angle = self.inflow_angle
+        self.farm.UpdateControls(x=x,y=y,yaw=yaw,a=a)
+
+    def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
+
+        ### Get the control type and turbine index ###
+        name, turb_idx = block_variable.tag
+        print(name,turb_idx,self.tf_output_index)
+
+        ### calculate the derivative ###
+        dtf = backend_CalculateCombinedTurbineForces(self.x,self.farm,self.fs,dfd=name,df_index=turb_idx)
+
+        ### Apply derivative to previous in tape ###
+        adj_input = adj_inputs[0]
+        adj_output = adj_input.inner(dtf[self.tf_output_index].vector())
+
+        return adj_output
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # class ReducedFunctional(dolfin_adjoint.ReducedFunctional):
 #     """This is a special version of the ReducedFunctional class allowing

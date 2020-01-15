@@ -24,6 +24,7 @@ if main_file != "sphinx-build":
     import numpy as np
     import copy
     from sys import platform
+    import time
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -54,9 +55,10 @@ class Optimizer(object):
         self.problem = solver.problem
         self.farm = solver.problem.farm
         self.fprint = self.params.fprint
+        self.Sx = self.problem.dom.xscale
 
         self.control_types = self.params["optimization"]["controls"]
-        self.layout_bounds = self.params["optimization"].get("layout_bounds",[self.farm.ex_x,self.farm.ex_y])
+        self.layout_bounds = np.array(self.params["optimization"].get("layout_bounds",[np.array(self.farm.ex_x)/self.Sx,np.array(self.farm.ex_y)/self.Sx]))*self.Sx
 
         self.iteration = 0
 
@@ -74,7 +76,16 @@ class Optimizer(object):
         self.fprint("Define Optimizing Functional")
         if self.solver.J:
             self.J = assemble(self.solver.J)
+            test = Constant(self.J)
+            test.rename("J","J")
             self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
+
+            # print(dir(self.J))
+            # print(dir(self.Jhat))
+            # tape = get_working_tape()
+            # tape.visualise()
+            # exit()
+
             self.Jcurrent = self.J
         else:
             self.PowerFunctional()
@@ -235,10 +246,23 @@ class Optimizer(object):
         folder_string = self.params.folder+"/data/"
         if not os.path.exists(folder_string): os.makedirs(folder_string)
 
-        self.problem.farm.UpdateConstants(m=m,control_types=self.control_types,indexes=self.indexes)
+
+        new_values = {}
+        m_f = np.array(m,dtype=float)
+        if "layout" in self.control_types:
+            new_values["x"]   = m_f[self.indexes[0]]
+            new_values["y"]   = m_f[self.indexes[1]]
+        if "yaw" in self.control_types:
+            new_values["yaw"] = m_f[self.indexes[2]]
+        if "axial" in self.control_types:
+            new_values["a"]   = m_f[self.indexes[3]]
+
+        self.problem.farm.UpdateControls(**new_values)
         self.problem.farm.SaveWindFarm(val=self.iteration)
 
         if self.iteration == 0:
+
+            #### ADD HEADER ####
             self.last_m = np.zeros(len(m))
             for i in range(len(m)):
                 self.last_m[i]=float(m[i])
@@ -256,13 +280,20 @@ class Optimizer(object):
 
     def OptPrintFunction(self,m):
 
+        # tape = get_working_tape()
+        # tape.visualise()
+        tick = time.time()
         print()
         print()
         for d in self.Jhat.derivative():
             print(float(d))
         print()
         print()
+        tock = time.time()
+        self.fprint("Derivatives Calculated: {:1.2f} s".format(tock-tick))
+        exit()
 
+        # exit()
         # if "layout" in self.control_types:
         #     self.PlotLayout(m,show=False)
 
@@ -284,6 +315,9 @@ class Optimizer(object):
 
         self.fprint("Beginning Optimization",special="header")
 
+
+
+
         if "layout" in self.control_types:
             m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
         else:
@@ -291,7 +325,16 @@ class Optimizer(object):
         # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
         self.fprint("Assigning New Values")
-        self.problem.farm.UpdateConstants(m=m_opt,control_types=self.control_types,indexes=self.indexes)
+        new_values = {}
+        m_f = np.array(m_opt,dtype=float)
+        if "layout" in self.control_types:
+            new_values["x"]   = m_f[self.indexes[0]]
+            new_values["y"]   = m_f[self.indexes[1]]
+        if "yaw" in self.control_types:
+            new_values["yaw"] = m_f[self.indexes[2]]
+        if "axial" in self.control_types:
+            new_values["a"]   = m_f[self.indexes[3]]
+        self.problem.farm.UpdateControls(**new_values)
         # self.AssignControls()
         
         self.fprint("Solving With New Values")
@@ -306,9 +349,7 @@ class Optimizer(object):
         self.fprint("Beginning Taylor Test",special="header")
 
         h = []
-        print(self.bounds)
         for i,c in enumerate(self.controls):
-            print(max(abs(float(self.bounds[0][i])),abs(float(self.bounds[1][i]))))
             h.append(Constant(0.01*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
 
         conv_rate = taylor_test(self.Jhat, self.init_vals, h)
@@ -319,6 +360,8 @@ class Optimizer(object):
         self.fprint("")
 
         self.fprint("Taylor Test Finished",special="footer")
+
+
 
         return conv_rate
 
