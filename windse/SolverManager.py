@@ -35,8 +35,12 @@ if main_file != "sphinx-build":
     parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'        
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
-    parameters['form_compiler']['representation'] = 'quadrature'
-    parameters['form_compiler']['quadrature_degree'] = windse_parameters["wind_farm"].get("turbine_degree",6)
+    if windse_parameters["wind_farm"].get("turbine_method","dolfin") == "numpy":
+        parameters['form_compiler']['quadrature_degree'] = windse_parameters["wind_farm"].get("turbine_degree",4)
+        parameters['form_compiler']['representation'] = 'tsfc'
+    else:
+        parameters['form_compiler']['quadrature_degree'] = 6
+        parameters['form_compiler']['representation'] = 'uflacs'
     print("Quadrature Degree: " + repr(parameters['form_compiler']['quadrature_degree']))
 
 class GenericSolver(object):
@@ -134,7 +138,8 @@ class GenericSolver(object):
         tf = self.problem.tf1*self.u_next[0]**2+self.problem.tf2*self.u_next[1]**2+self.problem.tf3*self.u_next[0]*self.u_next[1]
         J = dot(tf,self.u_next)*dx
         # J = (self.problem.tf1[0]+self.problem.tf1[1]+self.problem.tf2[0]+self.problem.tf2[1]+self.problem.tf3[0]+self.problem.tf3[1])*dx
-        # J = (self.problem.tf1[0])*dx
+        # XValues = SpatialCoordinate(self.problem.dom.mesh)
+        # J = (self.problem.tf1[0]*(XValues[0]+XValues[1]+300.0)/1000.0)*dx
         # print(assemble(J))
         # exit()
 
@@ -142,13 +147,14 @@ class GenericSolver(object):
             J_list=np.zeros(self.problem.farm.numturbs+1)
             J_list[-1]=assemble(J,**self.extra_kwarg)
 
-            for i in range(self.problem.farm.numturbs):
-                yaw = self.problem.farm.myaw[i]+inflow_angle
-                tf1 = self.problem.farm.actuator_disks_list[i] * cos(yaw)**2
-                tf2 = self.problem.farm.actuator_disks_list[i] * sin(yaw)**2
-                tf3 = self.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
-                tf = tf1*self.u_next[0]**2+tf2*self.u_next[1]**2+tf3*self.u_next[0]*self.u_next[1]
-                J_list[i] = assemble(dot(tf,self.u_next)*dx,**self.extra_kwarg)
+            if self.problem.farm.actuator_disks_list is not None:
+                for i in range(self.problem.farm.numturbs):
+                    yaw = self.problem.farm.myaw[i]+inflow_angle
+                    tf1 = self.problem.farm.actuator_disks_list[i] * cos(yaw)**2
+                    tf2 = self.problem.farm.actuator_disks_list[i] * sin(yaw)**2
+                    tf3 = self.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
+                    tf = tf1*self.u_next[0]**2+tf2*self.u_next[1]**2+tf3*self.u_next[0]*self.u_next[1]
+                    J_list[i] = assemble(dot(tf,self.u_next)*dx,**self.extra_kwarg)
 
 
             folder_string = self.params.folder+"/data/"

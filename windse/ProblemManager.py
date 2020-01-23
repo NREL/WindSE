@@ -165,10 +165,6 @@ class StabilizedProblem(GenericProblem):
         ### Calculate nu_T
         self.nu_T=l_mix**2.*S
 
-        print(assemble(dot(self.tf,self.u_next)*dx))
-        # exit()
-
-
         ### Create the functional ###
         # if self.farm.yaw[0]**2 > 1e-4:
         #     self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 

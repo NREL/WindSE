@@ -25,6 +25,7 @@ if main_file != "sphinx-build":
     import copy
     from sys import platform
     import time
+    from memory_profiler import memory_usage
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -279,19 +280,21 @@ class Optimizer(object):
         f.close()
 
     def OptPrintFunction(self,m):
-
         # tape = get_working_tape()
         # tape.visualise()
-        tick = time.time()
-        print()
-        print()
-        for d in self.Jhat.derivative():
-            print(float(d))
-        print()
-        print()
-        tock = time.time()
-        self.fprint("Derivatives Calculated: {:1.2f} s".format(tock-tick))
-        exit()
+        # exit()
+
+
+
+        # mem0=memory_usage()[0]
+        # tick = time.time()
+        # mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True)
+        # for d in der:
+        #     print(float(d))
+        # tock = time.time()
+        # self.fprint("Time Elapsed: {:1.2f} s".format(tock-tick))
+        # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
+        # exit()
 
         # exit()
         # if "layout" in self.control_types:

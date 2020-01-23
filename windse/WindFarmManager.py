@@ -19,7 +19,7 @@ if main_file != "sphinx-build":
     import shutil
 
     ### Import the cumulative parameters ###
-    from windse import windse_parameters, BaseHeight, CalculateCombinedTurbineForces
+    from windse import windse_parameters, BaseHeight, CalculateDiskTurbineForces
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters["general"].get("dolfin_adjoint", False):
@@ -130,6 +130,7 @@ class GenericWindFarm(object):
         self.fprint = self.params.fprint
         self.extra_kwarg = {}
         if self.params["general"].get("dolfin_adjoint", False):
+            self.control_types = self.params["optimization"]["controls"]
             self.extra_kwarg["annotate"] = False
 
     def Plot(self,show=False,filename="wind_farm",power=None):
@@ -559,8 +560,10 @@ class GenericWindFarm(object):
 
         self.inflow_angle = inflow_angle
         x = fs.tf_V0.tabulate_dof_coordinates().T
-        # x = np.array([[5.0],[25.0],[100.0]])
-        tf1, tf2, tf3, actuator_disks = CalculateCombinedTurbineForces(x, self, fs, save_actuator=True)
+        [tf1, tf2, tf3], sparse_ids, actuator_array = CalculateDiskTurbineForces(x, self, fs, save_actuators=True)
+        self.fprint("Quadrature DOFS: {:d}".format(fs.tf_V.dim()))
+        self.fprint("Turbine DOFs:    {:d}".format(len(sparse_ids)))
+        self.fprint("Compression:     {:1.4f} %".format(len(sparse_ids)/fs.tf_V.dim()*100))
 
         ### Rename for Identification ###
         tf1.rename("tf1","tf1")
@@ -568,10 +571,18 @@ class GenericWindFarm(object):
         tf3.rename("tf3","tf3")
 
         ### Construct the actuator disks for post processing ###
-        self.actuator_disks_list = actuator_disks
+        # self.actuator_disks_list = actuator_disks
         self.actuator_disks = Function(fs.tf_V)
-        for actuator_disk in actuator_disks:
-            self.actuator_disks.vector()[:] += actuator_disk.vector()[:]
+        self.actuator_disks.vector()[:] = np.sum(actuator_array,axis=1)
+        self.fprint("Projecting Turbine Force")
+        self.actuator_disks = project(self.actuator_disks,fs.V,solver_type='mumps',**self.extra_kwarg)
+        
+        self.actuator_disks_list = []
+        for i in range(self.numturbs):
+            temp = Function(fs.tf_V)
+            temp.vector()[:] = actuator_array[:,i]
+            self.actuator_disks_list.append(temp)
+
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
@@ -664,6 +675,9 @@ class GenericWindFarm(object):
         ### Save the actuator disks for post processing ###
         self.fprint("Projecting Turbine Force")
         self.actuator_disks = project(rd,fs.V,solver_type='mumps',**self.extra_kwarg)
+        # tf1 = project(tf1,fs.V,solver_type='mumps')
+        # tf2 = project(tf2,fs.V,solver_type='mumps')
+        # tf3 = project(tf3,fs.V,solver_type='mumps')
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")

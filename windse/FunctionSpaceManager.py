@@ -48,6 +48,8 @@ class GenericFunctionSpace(object):
             tf_V = VectorElement("Quadrature",self.mesh.ufl_cell(),degree=self.tf_degree,quad_scheme="default")
             self.tf_V = FunctionSpace(self.mesh, tf_V)
             self.tf_V0 = self.tf_V.sub(0).collapse() 
+            self.fprint("Quadrature DOFS: {:d}".format(self.tf_V.dim()))
+
             # self.tf_V1 = self.tf_V.sub(1).collapse()
 
             # if self.dim == 3: 
@@ -75,9 +77,9 @@ class LinearFunctionSpace(GenericFunctionSpace):
 
         self.SetupSubspaces()
 
-        self.fprint("Velocity DOFS: {:d}".format(self.V.dim()))
-        self.fprint("Pressure DOFS: {:d}".format(self.Q.dim()))
-        self.fprint("Total DOFS:    {:d}".format(self.W.dim()))
+        self.fprint("Velocity DOFS:   {:d}".format(self.V.dim()))
+        self.fprint("Pressure DOFS:   {:d}".format(self.Q.dim()))
+        self.fprint("Total DOFS:      {:d}".format(self.W.dim()))
         
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")
