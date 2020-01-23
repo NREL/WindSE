@@ -61,7 +61,7 @@ def Transform(x,x0,HH,yaw,ground,dfd=None):
 
     return [xrot,yrot,zrot]
 
-def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,sparse_ids=None,sparse_RDs=1.5):
+def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,sparse_ids=None,sparse_RDs=1.5,tfs=None):
     
     ### Collect the relevant turbine data ###
     x0 = np.array([wind_farm.mx,wind_farm.my,wind_farm.mz],dtype=float)
@@ -131,13 +131,14 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
         n2 = np.sin(yaw)**2
         n3 = 2.0*np.cos(yaw)*np.sin(yaw)
 
-        ### Initialize the output ###
-        tf1  = Function(fs.tf_V)
-        tf2  = Function(fs.tf_V)
-        tf3  = Function(fs.tf_V)
+        if tfs is None:
+            ### Initialize the output ###
+            tf1  = Function(fs.tf_V)
+            tf2  = Function(fs.tf_V)
+            tf3  = Function(fs.tf_V)
+            tfs = [tf1,tf2,tf3]
 
         ### Fill the output
-        tfs = [tf1,tf2,tf3]
         n=[n1,n2,n3]
         temp = np.zeros((N*dim))
         for i in range(3):

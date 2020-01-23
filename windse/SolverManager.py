@@ -464,6 +464,9 @@ class UnsteadySolver(GenericSolver):
 
             # Update the turbine force
             # self.problem.tf = self.problem.farm.TurbineForce_numpy(None,None,None)
+            # _, _, _, _, _, = CalculateDiskTurbineForces(x, self, fs, tfs=[self.problem.tf1,self.problem.tf2,self.problem.tf3])
+            # self.tf = self.tf1*self.u_next[0]**2+self.tf2*self.u_next[1]**2+self.tf3*self.u_next[0]*self.u_next[1]
+            # self.tf = self.ComputeTurbineForce(theta)
             self.UpdateTurbineForce(simTime, 1) # Single turbine
             self.problem.bd.UpdateVelocity(simTime)
 

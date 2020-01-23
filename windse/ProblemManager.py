@@ -49,7 +49,7 @@ class GenericProblem(object):
         self.params.ground_fx = self.dom.Ground
         self.params.full_hh = self.farm.HH
 
-    def ComputeTurbineForce(self,theta):
+    def ComputeTurbineForce(self,u,theta):
 
         ### Compute the relative yaw angle ###
         if theta is not None:
@@ -67,7 +67,7 @@ class GenericProblem(object):
             raise ValueError("Unknown turbine method: "+self.farm.turbine_method)
         
         ### Convolve TF with u ###
-        tf = self.tf1*self.u_next[0]**2+self.tf2*self.u_next[1]**2+self.tf3*self.u_next[0]*self.u_next[1]
+        tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
 
         return tf
 
@@ -132,7 +132,7 @@ class StabilizedProblem(GenericProblem):
         self.up_next.assign(self.bd.u0)
 
         ### Create the turbine force ###
-        self.tf = self.ComputeTurbineForce(theta)
+        self.tf = self.ComputeTurbineForce(self.u_next,theta)
 
         ### These constants will be moved into the params file ###
         nu = self.params["problem"].get("viscosity",.1)
@@ -237,7 +237,7 @@ class TaylorHoodProblem(GenericProblem):
         self.nu_T=l_mix**2.*S
 
         ### Create the turbine force ###
-        self.tf = self.ComputeTurbineForce(theta)
+        self.tf = self.ComputeTurbineForce(self.u_next,theta)
 
         ### Create the functional ###
         self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
@@ -259,6 +259,10 @@ class UnsteadyProblem(GenericProblem):
         super(UnsteadyProblem, self).__init__(domain, windfarm, function_space, boundary_conditions)
         self.fprint("Setting Up Unsteady Problem", special="header")
 
+        ### Create Functional ###
+        self.ComputeFunctional()
+
+    def ComputeFunctional(self,theta=None):
         # ================================================================
 
         # Define fluid properties
@@ -347,7 +351,9 @@ class UnsteadyProblem(GenericProblem):
         # Create the turbine force
         # FIXME: Should this be set by a numpy array operation or a fenics function?
         # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
-        self.tf = Function(self.fs.V)
+        # self.tf = Function(self.fs.V)
+        self.tf = self.ComputeTurbineForce(self.u_k,theta)
+
 
         # self.u_k2.vector()[:] = 0.0
         # self.u_k1.vector()[:] = 0.0
