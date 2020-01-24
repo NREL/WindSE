@@ -547,9 +547,11 @@ class GenericWindFarm(object):
             A = pi*R**2.0 
             ma = self.ma[i]
             if self.dom.dim == 3:
-                WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
+                # WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=yaw,degree=1)
+                WTGbase = as_vector((cos(yaw),sin(yaw),0.0))
             else:
-                WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=float(yaw),degree=1)
+                # WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=yaw,degree=1)
+                WTGbase = as_vector((cos(yaw),sin(yaw)))
 
             ### Rotate and Shift the Turbine ###
             xs = self.YawTurbine(x,x0,yaw)

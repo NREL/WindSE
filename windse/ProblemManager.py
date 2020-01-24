@@ -119,9 +119,9 @@ class StabilizedProblem(GenericProblem):
 
         ### These constants will be moved into the params file ###
         nu = self.params["problem"].get("viscosity",.1)
+        lmax = self.params["problem"].get("lmax",15)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
-        lmax=15
         mlDenom = 8.
         eps=Constant(1.0)
 
@@ -182,9 +182,9 @@ class TaylorHoodProblem(GenericProblem):
 
         ### These constants will be moved into the params file ###
         nu = self.params["problem"].get("viscosity",0.1)
+        lmax = self.params["problem"].get("lmax",15)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
-        lmax=15
         mlDenom = 8.
         eps=Constant(0.01)
 

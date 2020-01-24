@@ -202,6 +202,7 @@ This section will define all the parameters for the wind farm::
         thickness: <float>
         yaw:       <float>
         axial:     <float>
+        force:     <str>
 
 +------------------------+-----------------------------------------------+--------------------+---------+-------------+
 | Option                 | Description                                   | Required (for)     | Default | Units       |
@@ -229,8 +230,8 @@ This section will define all the parameters for the wind farm::
 +------------------------+-----------------------------------------------+--------------------+---------+-------------+
 | ``numturbs``           | The total number of turbines                  | "random"           | None    | \-          |
 +------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``seed``               | | The random seed used to generate the farm.  | | no               | None    | \-          |
-|                        | | Useful for repeating random runs            | | "random"         |         |             |
+| ``seed``               | | The random seed used to generate/jitter the | | no               | None    | \-          |
+|                        | | farm. Useful for repeating random runs      | | "random"         |         |             |
 +------------------------+-----------------------------------------------+--------------------+---------+-------------+
 | ``HH``                 | The hub height of the turbine from ground     | | "grid"           | None    | m           |
 |                        |                                               | | "random"         |         |             |
@@ -246,6 +247,9 @@ This section will define all the parameters for the wind farm::
 +------------------------+-----------------------------------------------+--------------------+---------+-------------+
 | ``axial``              | The axial induction factor                    | | "grid"           | None    | \-          |
 |                        |                                               | | "random"         |         |             |
++------------------------+-----------------------------------------------+--------------------+---------+-------------+
+| ``force``              | | the radial distribution of force            | no                 | "sine"  | \-          |
+|                        | | Choices: "sine", "constant"                 |                    |         |             |
 +------------------------+-----------------------------------------------+--------------------+---------+-------------+
 
 To import a wind farm, create a .txt file with this formatting::
@@ -312,6 +316,9 @@ The options are::
 +------------------------+-----------------------------------------------+
 | ``farm_factor``        | | A scaling factor to make the refinement     |
 |                        | | area larger or smaller                      |
++------------------------+-----------------------------------------------+
+| ``farm_radius``        | | Similar to ``farm_factor``, except defines  |
+|                        | | an exact length                             |
 +------------------------+-----------------------------------------------+
 | ``turbine_num``        | Number of turbine refinements                 |
 +------------------------+-----------------------------------------------+
@@ -465,7 +472,9 @@ Problem Options
 This section describes the problem options::
 
     problem:
-        type: <str>
+        type:      <str>
+        viscosity: <float>
+        lmax:      <float>
 
 +------------------------+--------------------------------------------------------------+--------------+---------+
 | Option                 | Description                                                  | Required     | Default |
@@ -474,6 +483,12 @@ This section describes the problem options::
 | ``type``               | | Sets the variational form use. Choices:                    | yes          | None    |
 |                        | |   "taylor_hood": Standard RANS formulation                 |              |         |
 |                        | |   "stabilized": Adds a term to stabilize P1xP1 formulations|              |         |
++------------------------+--------------------------------------------------------------+--------------+---------+
+| ``viscosity``          | Kinematic Viscosity                                          | no           | 0.1     |
+|                        |                                                              |              |         |
++------------------------+--------------------------------------------------------------+--------------+---------+
+| ``lmax``               | Turbulence length scale                                      | no           | 15.0    |
+|                        |                                                              |              |         |
 +------------------------+--------------------------------------------------------------+--------------+---------+
 
 
@@ -489,6 +504,7 @@ This section lists the solver options::
         wind_range:       <float list>
         endpoint:         <bool>
         num_wind_angles:  <int>
+        save_power:       <bool>
 
 +------------------------+----------------------------------------------------------+-------------------+---------------------+
 | Option                 | Description                                              | Required (for)    | Default             |
@@ -506,6 +522,9 @@ This section lists the solver options::
 +------------------------+----------------------------------------------------------+-------------------+---------------------+
 | ``num_wind_angles``    | Sets the number of angles                                | | yes             | None                |
 |                        |                                                          | | "multiangle"    |                     |
++------------------------+----------------------------------------------------------+-------------------+---------------------+
+| ``save_power``         | Save the power for each turbine to a text file in        | no                | False               |
+|                        | output/``name``/data/                                    |                   |                     |
 +------------------------+----------------------------------------------------------+-------------------+---------------------+
 
 The "multiangle" solver uses the steady solver to solve the RANS formulation.
@@ -531,7 +550,7 @@ optimization make sure to set ``dolfin_adjoint`` to True.::
 | ``controls``           | | Sets the parameters to optimize. Choose Any:           | yes         | None         |
 |                        | |   "yaw", "axial", "layout"                             |             |              |
 +------------------------+----------------------------------------------------------+-------------+--------------+
-| ``taylor_test``        | | Performs a test to check the derivatives. Good         | no          | True         |
+| ``taylor_test``        | | Performs a test to check the derivatives. Good         | no          | False        |
 |                        | | results have a convergence rate around 2.0             |             |              |
 +------------------------+----------------------------------------------------------+-------------+--------------+
 | ``optimize``           | | Optimize the given controls using the power output as  | no          | True         |
