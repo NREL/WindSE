@@ -1,0 +1,67 @@
+# General options
+general: 
+    name: MultiAngle_Solve      # Name of the output folder
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+
+# Wind Farm Parameters:
+wind_farm: 
+
+    ########################## Grid Wind Farm #########################
+    type: grid            #                          |
+    grid_rows: 3          # Number of rows           | -
+    grid_cols: 3          # Number of columns        | -
+    ex_x: [-500, 500]     # x-extent of the farm     | m
+    ex_y: [-500, 500]     # y-extent of the farm     | m
+    HH: 90                # Hub Height               | m
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 20.0       # Effective Thickness      | m
+    yaw: 0.0              # Yaw                      | rads
+    axial: 0.33           # Axial Induction          | -
+    jitter: 50            # Randomly perturb turbines| m
+    seed: 8675309         # random seed for repeats  | -
+    force: constant       # radial force distribution| -
+    ###################################################################
+
+# Domain Parameters: Uncomment a set to change domain shape
+domain: 
+    
+    ######################## Rectangle Domain #########################
+    type: box              #                       |
+    x_range: [-1200, 1200] # x-range of the domain | m
+    y_range: [-1200, 1200] # y-range of the domain | m
+    z_range: [0.04, 640]   # z-range of the domain | m
+    nx: 12                 # Number of x-nodes     | -
+    ny: 12                 # Number of y-nodes     | -
+    nz: 10                 # Number of z-nodes      | -
+    interpolated: true 
+    typo_path: Input_Data/skew_typo.txt
+    ###################################################################
+
+
+
+refine:
+    warp_type: split
+    warp_percent: 0.85     # percent of cells moved       | -
+    warp_height: 200       # move cell below this value   | m
+    refine_custom: [
+        [2, circle, 850]
+    ]
+    turbine_num: 1         # number of turbine refinements| -
+    turbine_factor: 1.25   # turbine radius multiplier    | -
+    
+function_space:
+    type: linear
+
+boundary_condition:
+    vel_profile: log
+    HH_vel: 8.0
+    k: 0.4
+
+problem:
+    type: stabilized
+    viscosity: 0.2
+
+solver:
+    type: multiangle
+    num_wind_angles: 3
+    save_power: true

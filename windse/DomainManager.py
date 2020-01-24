@@ -308,7 +308,6 @@ class GenericDomain(object):
 
         self.fprint("Moving Nodes")
         z_new = cubic_spline(z)
-        print(np.linalg.norm(z-z_new))
         self.mesh.coordinates()[:,z_ind]=z_new
         self.mesh.bounding_box_tree().build(self.mesh)
         self.bmesh = BoundaryMesh(self.mesh,"exterior")
@@ -817,7 +816,6 @@ class CircleDomain(GenericDomain):
         self.radius   = self.params["domain"]["radius"]
         self.center   = self.params["domain"]["center"]
         self.nt = self.params["domain"]["nt"]
-        self.res = self.params["domain"]["res"]
         self.mesh_type = self.params["domain"].get("mesh_type","mshr")
         self.x_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
         self.y_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
@@ -838,6 +836,7 @@ class CircleDomain(GenericDomain):
         self.fprint("")
         if self.mesh_type == "mshr":
 
+            self.res = self.params["domain"]["res"]
             self.fprint("Generating Mesh Using mshr")
 
             ### Create Mesh ###
@@ -904,7 +903,7 @@ class CircleDomain(GenericDomain):
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
         self.fprint("Initial Domain Setup",special="footer")
 
-    def ground_function(self,x,y):
+    def ground_function(self,x,y,dx=0,dy=0):
         return 0.0
 
     def RecomputeBoundaryMarkers(self,theta):
@@ -1028,7 +1027,7 @@ class RectangleDomain(GenericDomain):
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
         self.fprint("Initial Domain Setup",special="footer")
 
-    def ground_function(self,x,y):
+    def ground_function(self,x,y,dx=0,dy=0):
         return 0.0
 
     def RecomputeBoundaryMarkers(self,theta):
@@ -1253,13 +1252,6 @@ class InterpolatedBoxDomain(BoxDomain):
         else:
             self.SetupInterpolatedGround()
             self.ground_function = self.InterplatedGroundFunction
-
-
-        print(self.topography_interpolated(480,0,dx=1))
-        print(self.topography_interpolated(480,0,dy=1))
-
-        print(self.InterplatedGroundFunction(480,0,dx=1))
-        print(self.InterplatedGroundFunction(480,0,dy=1))
 
         interp_stop = time.time()
         self.fprint("Ground Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")
