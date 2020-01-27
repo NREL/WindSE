@@ -223,8 +223,6 @@ class Optimizer(object):
         if show:
             plt.show()
 
-        exit()
-
     def SaveControls(self,m):
 
         folder_string = self.params.folder+"/data/"
