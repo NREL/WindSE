@@ -131,12 +131,12 @@ This section will define all the parameters for the domain::
 |                        | | less than ``nt``.                           | | "circle"         |             |             |
 |                        | | Note: ``res`` only works with "mshr"        |                    |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
-| ``interpolated``       | |Indicate if the topography is interpoalted   | | no               |             | \-          |
-|                        | |from file or function.                       | | "box"            | False       |             |
+| ``interpolated``       | | Indicate if the topography is interpoalted  | | no               |             | \-          |
+|                        | | from file or function.                      | | "box"            | False       |             |
 |                        |                                               | | "cylinder"       |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
-| ``analytic``           | |Indicates if the interpolated function is    | "interpolated"     |             | \-          |
-|                        | |analytic.                                    |                    | False       |             |
+| ``analytic``           | | Indicates if the interpolated function is   | "interpolated"     |             | \-          |
+|                        | | analytic.                                   |                    | False       |             |
 |                        |                                               |                    |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``gaussian``           | | If analytic is true, a Gaussian hill will   | | "interpolated"   | None        | \-          |
