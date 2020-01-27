@@ -472,9 +472,10 @@ Problem Options
 This section describes the problem options::
 
     problem:
-        type:      <str>
-        viscosity: <float>
-        lmax:      <float>
+        type:          <str>
+        viscosity:     <float>
+        lmax:          <float>
+        use_25d_model: <bool>
 
 +------------------------+--------------------------------------------------------------+--------------+---------+
 | Option                 | Description                                                  | Required     | Default |
@@ -490,6 +491,10 @@ This section describes the problem options::
 | ``lmax``               | Turbulence length scale                                      | no           | 15.0    |
 |                        |                                                              |              |         |
 +------------------------+--------------------------------------------------------------+--------------+---------+
+| ``use_25d_model``      | | Option to enable a small amount of compressibility to mimic| no           | False   |
+|                        | | the effect of a 3D, out-of-plane flow solution in a 2D     | "2D only"    |         |
+|                        | | model.                                                     |              |         |
++------------------------+--------------------------------------------------------------+--------------+---------+
 
 
 
@@ -500,11 +505,13 @@ Solver Options
 This section lists the solver options::
 
     solver:
-        type:             <str>
-        wind_range:       <float list>
-        endpoint:         <bool>
-        num_wind_angles:  <int>
-        save_power:       <bool>
+        type:              <str>
+        wind_range:        <float list>
+        endpoint:          <bool>
+        num_wind_angles:   <int>
+        save_power:        <bool>
+        nonlinear_solver:  <str>
+        newton_relaxation: <float>
 
 +------------------------+----------------------------------------------------------+-------------------+---------------------+
 | Option                 | Description                                              | Required (for)    | Default             |
@@ -525,6 +532,13 @@ This section lists the solver options::
 +------------------------+----------------------------------------------------------+-------------------+---------------------+
 | ``save_power``         | Save the power for each turbine to a text file in        | no                | False               |
 |                        | output/``name``/data/                                    |                   |                     |
++------------------------+----------------------------------------------------------+-------------------+---------------------+
+| ``nonlinear_solver``   | | Specify the nonlinear solver type. Choices:            | no                | "snes"              |
+|                        | |   "newton": uses the standard newton solver            |                   |                     |
+|                        | |   "snes": PETSc SNES solver                            |                   |                     |
++------------------------+----------------------------------------------------------+-------------------+---------------------+
+| ``newton_relaxation``  | Set the relaxation parameter if using newton solver      | | no              | 1.0                 |
+|                        |                                                          | | "newton"        |                     |
 +------------------------+----------------------------------------------------------+-------------------+---------------------+
 
 The "multiangle" solver uses the steady solver to solve the RANS formulation.

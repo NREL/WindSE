@@ -85,7 +85,10 @@ boundary_condition:
     max_vel: 8.0
 
 problem:
+    use_25d_model: True
     type: taylor_hood
 
 solver:
+    nonlinear_solver: newton
+    newton_relaxation: 0.9
     type: steady

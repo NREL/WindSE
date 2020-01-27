@@ -156,8 +156,24 @@ class StabilizedProblem(GenericProblem):
         # stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
         stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
         # stab_sans_tf = - eps*inner(grad(q), grad(self.p_next))*dx 
+
         self.F += stab
         # self.F_sans_tf += stab
+
+        use_25d = self.params["problem"].get("use_25d_model", False)
+
+        if use_25d and self.dom.dim == 2 :
+            if self.dom.dim == 3:
+                raise ValueError("The 2.5D model requires a 2D simulation.")
+
+            self.fprint("Using 2.5D model")
+            dudx = Dx(self.u_next[0], 0)
+            dvdy = Dx(self.u_next[1], 1)
+
+            term25 = (sin(self.dom.init_wind)*dudx*q + cos(self.dom.init_wind)*dvdy*q)*dx
+
+            self.F -= term25
+
         self.fprint("Stabilized Problem Setup",special="footer")
 
 
@@ -227,4 +243,18 @@ class TaylorHoodProblem(GenericProblem):
         ### Create the functional ###
         self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
     
+        use_25d = self.params["problem"].get("use_25d_model", False)
+
+        if use_25d:
+            if self.dom.dim == 3:
+                raise ValueError("The 2.5D model requires a 2D simulation.")
+
+            self.fprint("Using 2.5D model")
+            dudx = Dx(self.u_next[0], 0)
+            dvdy = Dx(self.u_next[1], 1)
+
+            term25 = (sin(self.dom.init_wind)*dudx*q + cos(self.dom.init_wind)*dvdy*q)*dx
+
+            self.F -= term25
+
         self.fprint("Taylor-Hood Problem Setup",special="footer")

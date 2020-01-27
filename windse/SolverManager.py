@@ -235,14 +235,34 @@ class SteadySolver(GenericSolver):
         ####################################################################
 
 
-        # ### Add some helper functions to solver options ###
-        solver_parameters = {"nonlinear_solver": "snes",
-                             "snes_solver": {
-                             "linear_solver": "mumps", 
-                             "maximum_iterations": 40,
-                             "error_on_nonconvergence": True,
-                             "line_search": "bt",
-                             }}
+        nonlinear_solver = self.params["solver"].get("nonlinear_solver", "snes")
+        relaxation = self.params["solver"].get("newton_relaxation", 1.0)
+
+        self.fprint("Solving with {0}".format(nonlinear_solver))
+        if nonlinear_solver == "newton":
+            self.fprint("Relaxation parameter = {: 1.2f}".format(relaxation))
+
+            newton_options = {"relaxation_parameter": relaxation,
+                              "maximum_iterations": 40,
+                              "linear_solver": "mumps",
+                              "absolute_tolerance": 1e-6,
+                              "relative_tolerance": 1e-5}
+        
+            solver_parameters = {"nonlinear_solver": "newton",
+                                 "newton_solver": newton_options}
+
+        elif nonlinear_solver == "snes":
+            # ### Add some helper functions to solver options ###
+            solver_parameters = {"nonlinear_solver": "snes",
+                                 "snes_solver": {
+                                 "linear_solver": "mumps", 
+                                 "maximum_iterations": 40,
+                                 "error_on_nonconvergence": True,
+                                 "line_search": "bt",
+                                 }}
+                                 
+        else:
+            raise ValueError("Unknown nonlinear solver type: {0}".format(nonlinear_solver))
 
         ### Start the Solve Process ###
         self.fprint("Solving",special="header")
