@@ -40,7 +40,7 @@ domain:
 
     ######## Additionally, uncomment this for complex terrain #########
     # interpolated: true 
-    # typo_path: Input_Data/skew_typo.txt
+    # terrain_path: Input_Data/skew_terrain.txt
     ###################################################################
 
 

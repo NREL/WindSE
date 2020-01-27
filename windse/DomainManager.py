@@ -389,17 +389,17 @@ class GenericDomain(object):
         ### Import data from Options ###
         if "path" in self.params["domain"]:
             self.path = self.params["domain"]["path"]
-            self.typo_path  = self.path + "topography.txt"
+            self.terrain_path  = self.path + "topography.txt"
         else:
-            self.typo_path  = self.params["domain"]["typo_path"]
+            self.terrain_path  = self.params["domain"]["terrain_path"]
 
         ### Copy Files to input folder ###
-        shutil.copy(self.typo_path,self.params.folder+"input_files/")
+        shutil.copy(self.terrain_path,self.params.folder+"input_files/")
 
-        self.fprint("Path: {0}".format(self.typo_path),offset=1)
+        self.fprint("Path: {0}".format(self.terrain_path),offset=1)
 
         ### import ground data
-        self.topography = np.loadtxt(self.typo_path)
+        self.topography = np.loadtxt(self.terrain_path)
         x_data = self.topography[1:,0]
         y_data = self.topography[1:,1]
         z_data = self.topography[1:,2]
@@ -1123,12 +1123,12 @@ class ImportedDomain(GenericDomain):
             self.mesh_path  = self.path + "mesh." + self.filetype
             if self.filetype == "xml.gz":
                 self.boundary_path = self.path + "boundaries." + self.filetype
-            self.typo_path  = self.path + "topology.txt"
+            self.terrain_path  = self.path + "topology.txt"
         else:
             self.mesh_path = self.params["domain"]["mesh_path"]
             if self.filetype == "xml.gz":
                 self.boundary_path = self.params["domain"]["bound_path"]
-            self.typo_path  = self.params["domain"]["typo_path"]
+            self.terrain_path  = self.params["domain"]["terrain_path"]
 
         ### Copy Files to input folder ###
         shutil.copy(self.mesh_path,self.params.folder+"input_files/")

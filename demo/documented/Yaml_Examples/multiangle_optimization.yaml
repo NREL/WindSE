@@ -36,7 +36,7 @@ domain:
     nz: 3                 # Number of z-nodes      | -
     scaled: false
     interpolated: true 
-    typo_path: Input_Data/skew_typo.txt
+    terrain_path: Input_Data/skew_terrain.txt
     ###################################################################
 
 
