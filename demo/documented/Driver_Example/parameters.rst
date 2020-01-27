@@ -78,3 +78,15 @@ properties of the turbines:
   * ``HH``: The hub height relative to the ground
   * ``RD``: The rotor diameter
   * ``thickness``: The effective thickness of the rotor used for calculating the turbine force
+
+Other Required Parameters:
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Additionally, we need to specify a few parameters that are required for some checks.
+These options are not actually used within the custom driver::
+
+  problem:
+    type: taylor-hood
+
+  solver:
+    type: taylor-hood

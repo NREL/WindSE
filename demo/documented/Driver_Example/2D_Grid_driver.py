@@ -9,7 +9,7 @@ farm.Plot(False)
 
 fs = windse.TaylorHoodFunctionSpace(dom)
 
-bc = windse.UniformInflow(dom,fs)
+bc = windse.UniformInflow(dom,fs,farm)
 
 problem = windse.TaylorHoodProblem(dom,farm,fs,bc)
 solver = windse.SteadySolver(problem)

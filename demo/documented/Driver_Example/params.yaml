@@ -25,3 +25,9 @@ domain:
     y_range: [-2500, 2500]        # y-range of the domain | m
     nx: 200                 # Number of x-nodes     | -
     ny: 200                 # Number of y-nodes     | -
+
+problem:
+    type: taylor-hood
+
+solver:
+    type: taylor-hood
