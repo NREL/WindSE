@@ -22,13 +22,13 @@ These examples show how you build a custom driver if desired. Check the :doc:`ap
 for details on the available functions.
 
 1. Constructing a Gridded Wind Farm on a 2D rectangular domain: :doc:`2D_Grid
-   <demos/Driver_Example/2D_Grid_driver.py.rst>`.
+   <demos/Driver_Example/2D_Grid_driver.py>`.
 
 
-.. All Demos
-.. ---------
-.. .. toctree::
-..    :maxdepth: 1
+All Demos
+---------
+.. toctree::
+   :maxdepth: 1
 
-..    demos/Driver_Example/2D_Grid.py.rst
+   demos/Driver_Example/2D_Grid_driver.py.rst
 
