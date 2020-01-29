@@ -581,8 +581,8 @@ class GenericWindFarm(object):
 
         ### Project Turbine Force to save on Assemble time ###
         self.fprint("Projecting Turbine Force")
-        self.rotor_disks = None
-        # self.rotor_disks = project(tf,fs.V,solver_type='mumps',**self.extra_kwarg)
+        # self.rotor_disks = None
+        self.rotor_disks = project(tf,fs.V,solver_type='mumps',**self.extra_kwarg)
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
