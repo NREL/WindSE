@@ -122,11 +122,10 @@ class StabilizedProblem(GenericProblem):
         lmax = self.params["problem"].get("lmax",15)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
-        mlDenom = 8.
         eps=Constant(1.0)
 
         self.fprint("Viscosity:                 {:1.2e}".format(float(nu)))
-        self.fprint("Mixing Length Scale:       {:1.2e}".format(float(mlDenom)))
+        self.fprint("Max Mixing Length:       {:1.2e}".format(float(lmax)))
         self.fprint("Stabilization Coefficient: {:1.2e}".format(float(eps)))
 
         ### Calculate the stresses and viscosities ###
@@ -138,8 +137,7 @@ class StabilizedProblem(GenericProblem):
             l_mix = Function(self.fs.Q)
             l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:],(1.+np.divide(vonKarman*self.bd.depth.vector()[:],lmax)))
         else:
-            l_mix = Constant(self.farm.HH[0]/mlDenom)
-        # l_mix = Expression("x[2]/8.",degree=2)
+            l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/lmax)))
         
         ### Calculate nu_T
         self.nu_T=l_mix**2.*S
@@ -201,11 +199,10 @@ class TaylorHoodProblem(GenericProblem):
         lmax = self.params["problem"].get("lmax",15)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
-        mlDenom = 8.
         eps=Constant(0.01)
 
         self.fprint("Viscosity:           {:1.2e}".format(float(nu)))
-        self.fprint("Mixing Length Scale: {:1.2e}".format(float(mlDenom)))
+        self.fprint("Max Mixing Length:       {:1.2e}".format(float(lmax)))
 
         ### Create the test/trial/functions ###
         self.up_next = Function(self.fs.W)
@@ -225,7 +222,7 @@ class TaylorHoodProblem(GenericProblem):
             l_mix = Function(self.fs.Q)
             l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:],(1.+np.divide(vonKarman*self.bd.depth.vector()[:],lmax)))
         else:
-            l_mix = Constant(self.farm.HH[0]/mlDenom)
+            l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/lmax)))
 
         ### Calculate nu_T
         self.nu_T=l_mix**2.*S

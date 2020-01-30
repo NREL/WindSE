@@ -141,29 +141,52 @@ class GenericSolver(object):
             yaw = self.problem.farm.myaw[i]+delta_yaw
             u = self.u_next
             A = pi*R**2.0
+            C_tprime = 4*ma/(1-ma)
 
-            WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
 
             ### Rotate and Shift the Turbine ###
             xs = self.problem.farm.YawTurbine(x,x0,yaw)
 
+            if self.problem.dom.dim == 3:
+                # WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=yaw,degree=1)
+                WTGbase = as_vector((cos(yaw),sin(yaw),0.0))
+
+                ### Create the function that represents the Disk of the turbine
+                D_norm = 2.914516237206873
+                D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
+            else:
+                # WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=yaw,degree=1)
+                WTGbase = as_vector((cos(yaw),sin(yaw)))
+                ### Create the function that represents the Disk of the turbine
+                D_norm = 1.916571364345665
+                D = exp(-pow((pow((xs[1]/R),2)),6.0))/(D_norm*R**2.0)
+
             ### Create the function that represents the Thickness of the turbine ###
             T_norm = 1.855438667500383
             T = exp(-pow((xs[0]/W),6.0))/(T_norm*W)
-
-            ### Create the function that represents the Disk of the turbine
-            D_norm = 2.914516237206873
-            D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
-
+            
+            ### Create the function that represents the force ###
+            if self.problem.farm.force == "constant":
+                F = 0.5*A*C_tprime
+            elif self.problem.farm.force == "sine":
+                r = sqrt(xs[1]**2.0+xs[2]**2)
+                F = 0.5*A*C_tprime*(r/R*sin(pi*r/R)+0.5)/(.81831)
+            
             u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
 
-            J += dot(A*T*D*WTGbase*u_d**2.0,u)*dx
+            # J += dot(A*T*D*WTGbase*u_d**2.0,u)*dx
+            # J += dot(F*T*D*WTGbase*u_d**2.0,u)*dx
+            # J += 0.5*A*C_tprime*((F*T*D*u_d*dx)/(F*T*D*dx))**3
+
+
 
             if self.save_power:
-                J_list[i] = assemble(dot(A*T*D*WTGbase*u_d**2.0,u)*dx)
+                # J_list[i] = assemble(dot(F*T*D*WTGbase*u_d**2.0,u)*dx)
+                J_list[i] = 0.5*A*C_tprime*(assemble(F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
+
         
         if self.save_power:
-            J_list[-1]=assemble(J)
+            J_list[-1]=np.sum(J_list[:-1])
 
             folder_string = self.params.folder+"/data/"
             if not os.path.exists(folder_string): os.makedirs(folder_string)
@@ -177,7 +200,7 @@ class GenericSolver(object):
             np.savetxt(f,[J_list])
             f.close()
 
-        return J
+        return J_list[-1]
 
 class SteadySolver(GenericSolver):
     """
