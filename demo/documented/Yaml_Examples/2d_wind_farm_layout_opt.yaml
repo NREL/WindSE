@@ -101,4 +101,5 @@ optimization:
     controls: [layout]
     layout_bounds: [[-720, 720],[-720, 720]] 
     taylor_test: False
-    optimize: True
+    optimize: False
+    gradient: True

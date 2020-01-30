@@ -172,6 +172,13 @@ class Optimizer(object):
         self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback) 
         self.Jcurrent = self.J
 
+    def Gradient(self):
+        """
+        Returns a gradient of the objective function
+        """
+        dJdma= compute_gradient(self.J, self.controls)
+        print([float(dd) for dd in dJdma])
+
     def ListControls(self,m):
         if "layout" in self.control_types:
             for i in range(self.farm.numturbs):
