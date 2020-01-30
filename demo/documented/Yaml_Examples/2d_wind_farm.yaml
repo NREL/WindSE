@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: 2D_Wind_Farm      # Name of the output folder
+    name: 2_5D_Wind_Farm      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution"]
 
 # Wind Farm Parameters: Uncomment a set to change the type of wind farm
@@ -9,7 +9,7 @@ wind_farm:
     ####################### Imported Wind Farm #######################
     type: imported                   #                          |
     path: Input_Data/wind_farm.txt   # location of wind farm    | -
-    force: sine                      # radial force distribution| -
+    force: constant                      # radial force distribution| -
     ###################################################################
 
 
@@ -49,13 +49,13 @@ wind_farm:
 # Domain Parameters: Uncomment a set to change domain shape
 domain: 
     
-    ######################## Rectangle Domain #########################
+    # ####################### Rectangle Domain #########################
     # type: rectangle                              |
     # x_range: [-1200, 1200] # x-range of the domain | m
-    # y_range: [-1200, 1200] # y-range of the domain | m
-    # nx: 100                # Number of x-nodes     | -
+    # y_range: [-400, 400] # y-range of the domain | m
+    # nx: 300                # Number of x-nodes     | -
     # ny: 100                # Number of y-nodes     | -
-    ###################################################################
+    # ##################################################################
     
 
     ########################### Circle Domain #########################
@@ -64,16 +64,16 @@ domain:
     radius: 1200            # x-range of the domain | m
     center: [0.0, 0.0]      # y-range of the domain | m
     nt: 72                  # segments around circle| -
-    res: 50                 # resolution for mshr   | -
+    res: 72                 # resolution for mshr   | -
     ###################################################################
 
 
 
 refine:
     #                      # Description                  | Units
-    farm_num: 1            # number of farm refinements   | -
-    farm_type: square      # type of refinement at farm   | -
-    farm_factor: 1.5       # farm radius multiplier       | -
+    # farm_num: 1            # number of farm refinements   | -
+    # farm_type: square      # type of refinement at farm   | -
+    # farm_factor: 1.25       # farm radius multiplier       | -
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.25   # turbine radius multiplier    | -
 
@@ -87,8 +87,11 @@ boundary_condition:
 problem:
     use_25d_model: True
     type: taylor_hood
+    viscosity: 5
+    lmax: 50
 
 solver:
     nonlinear_solver: newton
     newton_relaxation: 0.9
     type: steady
+    save_power: true
