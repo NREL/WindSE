@@ -1,33 +1,34 @@
 # General options
 general: 
-    name: 2_5D_Wind_Farm      # Name of the output folder
+    name: 2_5D_Wind_Farm_Layout      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: true
 
 # Wind Farm Parameters: Uncomment a set to change the type of wind farm
 wind_farm: 
 
-    ####################### Imported Wind Farm #######################
-    type: imported                   #                          |
-    path: Input_Data/wind_farm.txt   # location of wind farm    | -
-    force: constant                      # radial force distribution| -
-    ###################################################################
+    # ####################### Imported Wind Farm #######################
+    # type: imported                   #                          |
+    # path: Input_Data/wind_farm.txt   # location of wind farm    | -
+    # force: constant                      # radial force distribution| -
+    # ###################################################################
 
 
-    ########################## Grid Wind Farm #########################
-    # type: grid            #                          |
-    # grid_rows: 4          # Number of rows           | -
-    # grid_cols: 4          # Number of columns        | -
-    # ex_x: [-600, 600]     # x-extent of the farm     | m
-    # ex_y: [-600, 600]     # y-extent of the farm     | m
-    # HH: 90                # Hub Height               | m
-    # RD: 126.0             # Turbine Diameter         | m
-    # thickness: 20.0       # Effective Thickness      | m
-    # yaw: 0.0              # Yaw                      | rads
-    # axial: 0.33           # Axial Induction          | -
-    # jitter: 50            # Randomly perturb turbines| m
-    # seed: 8675309         # random seed for repeats  | -
-    # force: constant       # radial force distribution| -
-    ###################################################################
+    ######################### Grid Wind Farm #########################
+    type: grid            #                          |
+    grid_rows: 3          # Number of rows           | -
+    grid_cols: 3          # Number of columns        | -
+    ex_x: [-882, 882]     # x-extent of the farm     | m
+    ex_y: [-882, 882]     # y-extent of the farm     | m
+    HH: 90                # Hub Height               | m
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 12.0       # Effective Thickness      | m
+    yaw: 0.0              # Yaw                      | rads
+    axial: 0.25           # Axial Induction          | -
+    jitter: 0            # Randomly perturb turbines| m
+    seed: 8675309         # random seed for repeats  | -
+    force: constant       # radial force distribution| -
+    ##################################################################
 
 
     ########################## Grid Wind Farm #########################
@@ -61,7 +62,7 @@ domain:
     ########################### Circle Domain #########################
     type: circle                                  
     mesh_type: mshr         # squircular, elliptic, stretch
-    radius: 1200            # x-range of the domain | m
+    radius: 1500            # x-range of the domain | m
     center: [0.0, 0.0]      # y-range of the domain | m
     nt: 50                  # segments around circle| -
     res: 50                 # resolution for mshr   | -
@@ -95,3 +96,9 @@ solver:
     newton_relaxation: 0.9
     type: steady
     save_power: true
+
+optimization:
+    controls: [layout]
+    layout_bounds: [[-720, 720],[-720, 720]] 
+    taylor_test: False
+    optimize: True

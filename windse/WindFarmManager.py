@@ -551,34 +551,48 @@ class GenericWindFarm(object):
             ### Rotate and Shift the Turbine ###
             xs = self.YawTurbine(x,x0,yaw)
 
+            ### Create the function that represents the Thickness of the turbine ###
+            # T_norm = 1.855438667500383
+            # T = exp(-pow((xs[0]/W),6.0))/(T_norm*W)
+            T = exp(-pow((xs[0]/W),6.0))
+
             if self.dom.dim == 3:
                 # WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=yaw,degree=1)
                 WTGbase = as_vector((cos(yaw),sin(yaw),0.0))
 
                 ### Create the function that represents the Disk of the turbine
-                D_norm = 2.914516237206873
-                D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
+                # D_norm = 2.914516237206873
+                # D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
+                D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))
+
+                    ### Create the function that represents the force ###
+                if self.force == "constant":
+                    F = 0.5*A*C_tprime
+                elif self.force == "sine":
+                    r = sqrt(xs[1]**2.0+xs[2]**2)
+                    F = 0.5*A*C_tprime*(r/R*sin(pi*r/R)+0.5)/(.81831)
             else:
                 # WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=yaw,degree=1)
                 WTGbase = as_vector((cos(yaw),sin(yaw)))
                 ### Create the function that represents the Disk of the turbine
-                D_norm = 1.916571364345665
-                D = exp(-pow((pow((xs[1]/R),2)),6.0))/(D_norm*R**2.0)
+                # D_norm = 1.916571364345665
+                # D = exp(-pow((pow((xs[1]/R),2)),6.0))/(D_norm*R**2.0)
+                D = exp(-pow((pow((xs[1]/R),2)),6.0))
 
-            ### Create the function that represents the Thickness of the turbine ###
-            T_norm = 1.855438667500383
-            T = exp(-pow((xs[0]/W),6.0))/(T_norm*W)
+                    ### Create the function that represents the force ###
+                if self.force == "constant":
+                    F = 0.5*self.RD[i]*C_tprime
+                elif self.force == "sine":
+                    r = sqrt(xs[1]**2.0+xs[2]**2)
+                    F = 0.5*self.RD[i]*C_tprime*(r/R*sin(pi*r/R)+0.5)/(.81831)
+                    # F = 0.5*self.RD[i]*C_tprime*(r/R*sin(pi*r/R)+0.5)/(2.97348)
 
-            ### Create the function that represents the force ###
-            if self.force == "constant":
-                F = 0.5*A*C_tprime
-            elif self.force == "sine":
-                r = sqrt(xs[1]**2.0+xs[2]**2)
-                F = 0.5*A*C_tprime*(r/R*sin(pi*r/R)+0.5)/(.81831)
+
+            volNormalization = assemble(T*D*dx)
 
             # compute disk averaged velocity in yawed case and don't project
             u_d = u_next[0]*cos(yaw) + u_next[1]*sin(yaw)
-            tf  += F*T*D*WTGbase*u_d**2
+            tf  += F*T*D/volNormalization*WTGbase*u_d**2
 
         ### Project Turbine Force to save on Assemble time ###
         self.fprint("Projecting Turbine Force")

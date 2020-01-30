@@ -167,13 +167,8 @@ class Optimizer(object):
             tf (dolfin.Function): Turbine Force function
             u (dolfin.Function): Velocity vector.
         """
-        #how to handle rotation?
-        # J=Functional(tf*u[0]**3*dx)
-
-        if self.farm.yaw[0]**2 > 1e-4:
-            self.J = assemble(-dot(self.problem.tf,self.solver.u_next)*dx)
-        else:
-            self.J = assemble(-inner(dot(self.problem.tf,self.solver.u_next),self.solver.u_next[0]**2+self.solver.u_next[1]**2)*dx)
+      
+        self.J = assemble(-(dot(self.problem.tf,self.solver.u_next))*dx)
         self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback) 
         self.Jcurrent = self.J
 
@@ -270,7 +265,8 @@ class Optimizer(object):
         self.fprint("Beginning Optimization",special="header")
 
         if "layout" in self.control_types:
-            m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+            # m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+            m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
         else:
             m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
         # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
