@@ -16,6 +16,7 @@ if main_file != "sphinx-build":
     import time
     import numpy as np
     from scipy.interpolate import RegularGridInterpolator
+    # from memory_profiler import memory_usage
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -35,12 +36,9 @@ if main_file != "sphinx-build":
     parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'        
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
-    if windse_parameters["wind_farm"].get("turbine_method","dolfin") == "numpy":
-        parameters['form_compiler']['quadrature_degree'] = windse_parameters["wind_farm"].get("turbine_degree",4)
-        parameters['form_compiler']['representation'] = 'tsfc'
-    else:
-        parameters['form_compiler']['quadrature_degree'] = 6
-        parameters['form_compiler']['representation'] = 'uflacs'
+    parameters['form_compiler']['representation'] = 'tsfc'
+
+    parameters['form_compiler']['quadrature_degree'] = windse_parameters["wind_farm"].get("turbine_degree",6)
     print("Quadrature Degree: " + repr(parameters['form_compiler']['quadrature_degree']))
 
 class GenericSolver(object):
@@ -312,9 +310,13 @@ class SteadySolver(GenericSolver):
         # self.problem.up_next.assign(self.up_baseline)
 
         ### Solve the real problem ###
+        # mem0=memory_usage()[0]
+        # mem_out, _ = memory_usage((solve,(self.problem.F == 0, self.problem.up_next, self.problem.bd.bcs),{"solver_parameters": solver_parameters}),max_usage=True,retval=True,max_iterations=1)
         solve(self.problem.F == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters)
         stop = time.time()
+
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
+        # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
         # self.u_next,self.p_next = self.problem.up_next.split(True)
         self.u_next,self.p_next = split(self.problem.up_next)
         # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)

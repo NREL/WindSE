@@ -95,7 +95,7 @@ def run_action(params_loc=None):
 
     ### Move and refine the mesh
     if "refine" in params.keys():
-        if params["domain"].get("scaled",True):
+        if params["domain"].get("scaled",False):
             Sx = 1.0e-3
         else:
             Sx = 1.0

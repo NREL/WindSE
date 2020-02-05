@@ -77,7 +77,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
 
     ### Calculate relevant dofs that will be nonzero ###
     if sparse_ids is None:
-        print("recalc sparse")
+        # print("recalc sparse")
         ### Create the bounding box for each turbine ###
         bounding_limit = [sparse_RDs*R]*dim
         bl = x0-bounding_limit

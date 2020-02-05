@@ -54,19 +54,23 @@ def linalg_solve(*args, **kwargs):
 
     """
     return dolfin_adjoint.backend.solve(*args,"mumps") 
-
 dolfin_adjoint.types.compat.linalg_solve = linalg_solve
 
-# def assemble_adjoint_value(form, **kwargs):
-#     """Wrapper that assembles a matrix with boundary conditions"""
-#     bcs = kwargs.pop("bcs", ())
-#     print(form)
-#     result = dolfin_adjoint.backend.assemble(form,form_compiler_parameters={'representation': 'uflacs'})
-#     for bc in bcs:
-#         bc.apply(result)
-#     return result
 
-# dolfin_adjoint.types.compat.assemble_adjoint_value = assemble_adjoint_value
+
+def assemble_adjoint_value(form, **kwargs):
+    """Wrapper that assembles a matrix with boundary conditions"""
+    bcs = kwargs.pop("bcs", ())
+    # print(form)
+    if windse_parameters["wind_farm"].get("turbine_method","dolfin") == "numpy":
+        rep = 'tsfc'
+    else:
+        rep = 'uflacs'
+    result = dolfin_adjoint.backend.assemble(form,form_compiler_parameters={'representation': rep})
+    for bc in bcs:
+        bc.apply(result)
+    return result
+dolfin_adjoint.types.compat.assemble_adjoint_value = assemble_adjoint_value
 
 
 
@@ -331,7 +335,7 @@ class TurbineForceBlock(Block):
         new_x = np.array(x,dtype=float)
         new_y = np.array(y,dtype=float)
         moved = max(max(abs(new_x-self.old_x)),max(abs(new_y-self.old_y)))
-        print(moved,self.move_tol, moved > self.move_tol)
+        # print(moved,self.move_tol, moved > self.move_tol)
         if moved > self.move_tol:
             self.sparse_ids = None
         self.old_x = new_x

@@ -96,7 +96,7 @@ class GenericDomain(object):
         self.first_save = True
         self.finalized = False
         self.fprint = self.params.fprint
-        if self.params["domain"].get("scaled",True):
+        if self.params["domain"].get("scaled",False):
             self.xscale = 1.0e-3
         else:
             self.xscale = 1.0

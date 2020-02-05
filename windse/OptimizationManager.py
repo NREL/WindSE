@@ -288,7 +288,7 @@ class Optimizer(object):
 
         # mem0=memory_usage()[0]
         # tick = time.time()
-        # mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True)
+        # mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True,max_iterations=1)
         # for d in der:
         #     print(float(d))
         # tock = time.time()

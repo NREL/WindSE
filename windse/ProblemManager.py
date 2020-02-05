@@ -17,6 +17,7 @@ if main_file != "sphinx-build":
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
+    # from memory_profiler import memory_usage
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters["general"].get("dolfin_adjoint", False):
@@ -132,6 +133,10 @@ class StabilizedProblem(GenericProblem):
         self.up_next.assign(self.bd.u0)
 
         ### Create the turbine force ###
+
+        # mem0=memory_usage()[0]
+        # mem_out, self.tf = memory_usage((self.ComputeTurbineForce,(self.u_next,theta),{}),max_usage=True,retval=True,max_iterations=1)
+        # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
         self.tf = self.ComputeTurbineForce(self.u_next,theta)
 
         ### These constants will be moved into the params file ###
