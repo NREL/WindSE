@@ -127,6 +127,7 @@ def run_action(params_loc=None):
 
 
         if turbine_num > 0:
+            # print('yo', turbine_num)
             farm.RefineTurbines(turbine_num,turbine_factor) 
 
     ### Finalize the Domain ###

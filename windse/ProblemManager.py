@@ -224,9 +224,29 @@ class TaylorHoodProblem(GenericProblem):
             
         # self.tf = self.tf1*self.u_next[0]**2+self.tf2*self.u_next[1]**2+self.tf3*self.u_next[0]*self.u_next[1]
 
-        ### Create the functional ###
         self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
-    
+
+        use_25d_model = True
+
+        ### Create the functional ###
+        if use_25d_model:
+            # ugrad = grad(self.u_next)
+
+            # yaw = np.pi/8
+            # dvdy = as_matrix([[sin(yaw)*ugrad[0, 0],           0],
+            #                   [          0, cos(yaw)*ugrad[1, 1]]])
+
+            # print(type(dvdy))
+            # print(dir(dvdy))
+            # print(dvdy)
+
+            dudx = Dx(self.u_next[0], 0)
+            dvdy = Dx(self.u_next[1], 1)
+
+            term25 = (sin(self.dom.init_wind)*dudx*q + cos(self.dom.init_wind)*dvdy*q)*dx
+
+            self.F -= term25
+
         self.fprint("Taylor-Hood Problem Setup",special="footer")
 
 class UnsteadyProblem(GenericProblem):

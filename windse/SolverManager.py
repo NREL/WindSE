@@ -143,7 +143,10 @@ class GenericSolver(object):
             u = self.u_next
             A = pi*R**2.0
 
-            WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
+            if self.problem.dom.dim == 2:
+                WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=float(yaw),degree=1)
+            else:
+                WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
 
             ### Rotate and Shift the Turbine ###
             xs = self.problem.farm.YawTurbine(x,x0,yaw)
@@ -157,6 +160,9 @@ class GenericSolver(object):
             D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
 
             u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
+            
+            # print(np.shape(u))
+            # print(np.shape(A*T*D*WTGbase*u_d**2.0))
 
             J += dot(A*T*D*WTGbase*u_d**2.0,u)*dx
 
@@ -204,13 +210,15 @@ class SteadySolver(GenericSolver):
         if "height" in self.params.output and self.problem.dom.dim == 3:
             self.problem.bd.SaveHeight(val=iter_val)
         if "turbine_force" in self.params.output:
+            # print('yo')
+            # self.problem.farm.SaveTurbineForce(val=iter_val)
             self.problem.farm.SaveRotorDisks(val=iter_val)
         self.fprint("Finished",special="footer")
 
         ####################################################################
         ### This is the better way to define a nonlinear problem but it 
         ### doesn't play nice with dolfin_adjoint
-        # ### Define Jacobian ###
+        ### Define Jacobian ###
         # dU = TrialFunction(self.problem.fs.W)
         # J  = derivative(self.problem.F,  self.problem.up_next, dU)
 
@@ -219,7 +227,33 @@ class SteadySolver(GenericSolver):
         # nonlinear_solver  = NonlinearVariationalSolver(nonlinear_problem)
 
         # ### Set some parameters ###
-        # solver_parameters = nonlinear_solver.parameters
+        # solver_parameters = nonlinear_solver.parameters['newton_solver']['linear_solver'] = 'gmres'
+
+        # # nonlinear_solver.ksp().setGMRESRestart(40)
+
+        # def print_nested_dict(d, indent):
+        #     for key, value in d.items():
+        #         if hasattr(value, 'items'):
+        #             for i in range(indent):
+        #                 print('\t', end = '')
+        #             print(key, ":")
+        #             indent += 1
+        #             print_nested_dict(value, indent)
+        #             indent -= 1
+        #         else:
+        #             for i in range(indent):
+        #                 print('\t', end = '')
+        #             print(key, ":", value)
+
+        # nonlinear_solver.parameters
+        # print_nested_dict(nonlinear_solver.parameters, 0)
+        # exit()
+
+
+
+        # print(type(solver_parameters))
+
+        # info(solver_parameters)
         # solver_parameters["nonlinear_solver"] = "snes"
         # solver_parameters["snes_solver"]["linear_solver"] = "mumps"
         # solver_parameters["snes_solver"]["maximum_iterations"] = 50
@@ -235,15 +269,41 @@ class SteadySolver(GenericSolver):
         # self.fprint("Converged Successfully: {0}".format(converged))
         ####################################################################
 
+        use_fast_solver = True
 
-        # ### Add some helper functions to solver options ###
-        solver_parameters = {"nonlinear_solver": "snes",
-                             "snes_solver": {
-                             "linear_solver": "mumps", 
-                             "maximum_iterations": 40,
-                             "error_on_nonconvergence": True,
-                             "line_search": "bt",
-                             }}
+        if use_fast_solver:
+            # ### Add some helper functions to solver options ###
+
+
+            krylov_options = {"absolute_tolerance": 9e-3,
+                              "relative_tolerance": 9e-1,
+                              "maximum_iterations": 5000}
+
+            newton_options = {"relaxation_parameter": 0.9,
+                              "maximum_iterations": 20,
+                              "linear_solver": "mumps",
+                              # "preconditioner": "none",
+                              "absolute_tolerance": 1e-6,
+                              "relative_tolerance": 1e-5,
+                              "krylov_solver": krylov_options}
+
+            solver_parameters = {"nonlinear_solver": "newton",
+                                 "newton_solver": newton_options}
+                                 # {'ksp_gmres_restart': 100}
+
+        else:
+            solver_parameters = {"nonlinear_solver": "snes",
+                                 "snes_solver": {
+                                 "absolute_tolerance": 1e-6,
+                                 "relative_tolerance": 1e-5,
+                                 "linear_solver": "mumps", 
+                                 "maximum_iterations": 40,
+                                 "error_on_nonconvergence": True,
+                                 "line_search": "bt", # Should this should be changed to "basic"?
+                                 # "line_search": "basic",
+                                 }}
+
+
 
         ### Start the Solve Process ###
         self.fprint("Solving",special="header")
@@ -324,7 +384,7 @@ class UnsteadySolver(GenericSolver):
         # Define the final simulation time
         # FIXME: This should also be set in params.yaml input file
         # tFinal = 6000.0
-        tFinal = self.params["solver"].get("final_time",1)
+        tFinal = self.params["solver"].get("final_time", 1)
         
         # Start a counter for the total simulation time
         simTime = 0.0
@@ -412,7 +472,12 @@ class UnsteadySolver(GenericSolver):
 
             # Update the turbine force
             # self.problem.tf = self.problem.farm.TurbineForce_numpy(None,None,None)
-            self.UpdateTurbineForce(simTime, 1) # Single turbine
+            self.UpdateTurbineForce(simTime, 1) # Single turbine, disk actuator
+            t1 = time.time()
+            # self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
+            t2 = time.time()
+            # print(t2-t1)
+
             self.problem.bd.UpdateVelocity(simTime)
 
             # self.UpdateTurbineForce(simTime, 2) # Dubs
@@ -459,7 +524,7 @@ class UnsteadySolver(GenericSolver):
 
 
             # Adjust the timestep size, dt, for a balance of simulation speed and stability
-            save_next_timestep = self.AdjustTimestepSize(saveInterval, simTime, u_max, u_max_k1)
+            save_next_timestep = self.AdjustTimestepSize(save_next_timestep, saveInterval, simTime, u_max, u_max_k1)
 
             # After changing timestep size, A1 must be reassembled
             # FIXME: This may be unnecessary (or could be sped up by changing only the minimum amount necessary)
@@ -481,10 +546,12 @@ class UnsteadySolver(GenericSolver):
         if self.first_save:
             self.velocity_file = self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime)
             self.pressure_file   = self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime)
+            self.turb_force_file   = self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime)
             self.first_save = False
         else:
             self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime,file=self.velocity_file)
             self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime,file=self.pressure_file)
+            self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
 
         # # Save velocity files (pointer in fp[0])
         # self.problem.u_k.rename('Velocity', 'Velocity')
@@ -515,7 +582,7 @@ class UnsteadySolver(GenericSolver):
 
     # ================================================================
 
-    def AdjustTimestepSize(self, saveInterval, simTime, u_max, u_max_k1):
+    def AdjustTimestepSize(self, save_next_timestep, saveInterval, simTime, u_max, u_max_k1):
 
         # Set the CFL target (0.2 is a good value for stability and speed, YMMV)
         cfl_target = 0.2
@@ -542,7 +609,7 @@ class UnsteadySolver(GenericSolver):
         time_remaining = saveInterval - (simTime % saveInterval)
 
         # If the new timestep would jump past a save point, modify the new timestep size
-        if dt_new + dt_min >= time_remaining:
+        if not save_next_timestep and dt_new + dt_min >= time_remaining:
             dt_new = time_remaining
             save_next_timestep = True
         else:
@@ -555,6 +622,135 @@ class UnsteadySolver(GenericSolver):
         # float(self.problem.dt_c) # to get the regular ol' variable
 
         return save_next_timestep
+
+    # ================================================================
+
+    def UpdateActuatorLineForce(self, simTime):
+        coords = self.problem.fs.V.tabulate_dof_coordinates()
+        coords = np.copy(coords[0::self.problem.dom.dim, :])
+
+        # Set up the turbine geometry
+        num_blades = 3
+        theta_vec = np.linspace(0, 2.0*np.pi, num_blades+1)
+        theta_vec = theta_vec[0:num_blades]
+
+        # print(theta_vec)
+
+        # Lift and drag coefficient (could be an array and you interpolate the value based on R)
+        cl = 1.0
+        cd = 2.0
+
+        rho = 1
+
+        u_inf = 8
+
+        # Blade length (turbine radius)
+        L = 13.5
+
+        # Chord length
+        c = L/20
+
+        # Number of blade evaluation sections
+        num_blade_segments = 50
+        rdim = np.linspace(0, L, num_blade_segments)
+        zdim = 0.0 + np.zeros(num_blade_segments)
+        xblade = np.vstack((np.zeros(num_blade_segments), rdim, zdim))
+
+        # Width of individual blade segment
+        w = rdim[1] - rdim[0]
+
+        # Width of Gaussian
+        eps = 2.5*c
+
+        tf_vec = np.zeros(np.size(coords))
+
+
+
+
+        RPM = 15.0
+        period = 60.0/RPM
+        theta_offset = simTime/period*2.0*np.pi
+
+        tip_speed = np.pi*2*L*RPM/60
+
+        blade_vel = np.linspace(0.0, tip_speed, num_blade_segments)
+
+
+        constant_vel_mag = True
+
+        if constant_vel_mag:
+            # Lift and drag force (calculated outside loop since cl, cd, u_inf, and c assumed constant)
+            lift = 0.5*cl*rho*u_inf**2*c*w
+            drag = 0.5*cd*rho*u_inf**2*c*w
+
+            # Save time by moving calculation out of loop
+            L1 = lift/(eps**3 * np.pi**1.5)
+            D1 = drag/(eps**3 * np.pi**1.5)
+        else:
+            # Lift and drag force (calculated outside loop since cl, cd, u_inf, and c assumed constant)
+            u_inf = u_inf**2 + blade_vel**2
+            lift = 0.5*cl*rho*c*w*u_inf
+            drag = 0.5*cd*rho*c*w*u_inf
+
+            # Save time by moving calculation out of loop
+            L1 = lift/(eps**3 * np.pi**1.5)
+            D1 = drag/(eps**3 * np.pi**1.5)
+
+
+
+        for theta_0 in theta_vec:
+            theta = theta_0 + theta_offset
+            
+            # Create rotation matrix for this turbine blade
+            rotA = np.array([[1, 0, 0],
+                             [0, np.cos(theta), -np.sin(theta)],
+                             [0, np.sin(theta), np.cos(theta)]])
+
+            # Rotate the entire [x; y; z] matrix using this matrix
+            xblade_rotated = np.dot(rotA, xblade)
+            xblade_rotated[2, :] += 32.1
+
+            use_vectorized_calculation = True
+
+            if use_vectorized_calculation:
+                coordsLinear = np.copy(coords.reshape(-1, 1))
+
+                xblade_rotated_full = np.tile(xblade_rotated, (np.shape(coords)[0], 1))
+
+                dx_full = (coordsLinear - xblade_rotated_full)**2
+
+                dist2 = dx_full[0::self.problem.dom.dim] + \
+                dx_full[1::self.problem.dom.dim] + \
+                dx_full[2::self.problem.dom.dim]
+
+                total_dist2_lift = np.sum(L1*np.exp(-dist2/eps**2), axis = 1)
+                total_dist2_drag = np.sum(D1*np.exp(-dist2/eps**2), axis = 1)
+
+                tf_vec[0::self.problem.dom.dim] += -total_dist2_drag
+                tf_vec[1::self.problem.dom.dim] += total_dist2_lift*np.sin(theta)
+                tf_vec[2::self.problem.dom.dim] += -total_dist2_lift*np.cos(theta)
+
+            else:
+                for k, x in enumerate(coords):
+                    # Flip row into column
+                    xT = x.reshape(-1, 1)
+
+                    # Subtract this 3x1 point from the 3xN array of rotated turbine segments
+                    dx = (xT - xblade_rotated)**2
+                    mag = np.sum(dx, axis = 0)
+
+                    # Add up the contribution from each blade segment
+                    lift_sum = np.sum(L1*np.exp(-mag/eps**2))
+                    drag_sum = np.sum(D1*np.exp(-mag/eps**2))
+
+                    # Store the individual vector components using linear index
+                    tf_vec[3*k+0] += -drag_sum
+                    tf_vec[3*k+1] += lift_sum*np.sin(theta)
+                    tf_vec[3*k+2] += -lift_sum*np.cos(theta)
+                
+        tf_vec[np.abs(tf_vec) < 1e-12] = 0.0
+
+        self.problem.tf.vector()[:] = tf_vec
 
     # ================================================================
 
@@ -817,7 +1013,10 @@ class MultiAngleSolver(SteadySolver):
             self.endpoint = self.params["solver"].get("endpoint", True)
 
         self.num_wind = self.params["solver"]["num_wind_angles"]
+        self.angle_offset = self.params["solver"].get("angle_offset", 0.0)
+
         self.angles = np.linspace(self.wind_range[0],self.wind_range[1],self.num_wind,endpoint=self.endpoint)
+        self.angles += self.angle_offset
 
     def Solve(self):
         for i, theta in enumerate(self.angles):
