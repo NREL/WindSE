@@ -766,6 +766,7 @@ class CylinderDomain(GenericDomain):
         # inflow  = CompiledSubDomain("x[2] >= z0 && x[2] <= z1 && nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
         # top     = CompiledSubDomain("near(x[2], z1) && on_boundary",z1 = self.z_range[1])
         # bottom  = CompiledSubDomain("near(x[2], z0) && on_boundary",z0 = self.z_range[0])
+        # self.boundary_subdomains = [outflow,inflow,top,bottom]
 
         # ### Generate the boundary markers for boundary conditions ###
         # self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
@@ -919,6 +920,7 @@ class CircleDomain(GenericDomain):
         mark_start = time.time()
         outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y)
         inflow  = CompiledSubDomain("nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, c0=self.center[0], c1=self.center[1])
+        self.boundary_subdomains = [outflow,inflow]
 
         ### Generate the boundary markers for boundary conditions ###
         self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
@@ -952,8 +954,8 @@ class CircleDomain(GenericDomain):
         #     else:
         #         self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
 
-        mark_stop = time.time()
-        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
+        # mark_stop = time.time()
+        # self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
 
 class RectangleDomain(GenericDomain):
     """
