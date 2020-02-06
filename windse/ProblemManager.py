@@ -272,9 +272,10 @@ class UnsteadyProblem(GenericProblem):
 
         # Define fluid properties
         # FIXME: These should probably be set in params.yaml input filt
-        mu = 1/10000
+        # nu = 1/10000
+        nu = self.params["problem"].get("viscosity", .1)
         rho = 1
-        mu_c = Constant(mu)
+        nu_c = Constant(nu)
         rho_c = Constant(rho)
 
         # Define time step size (this value is used only for step 1 if adaptive timestepping is used)
@@ -282,7 +283,7 @@ class UnsteadyProblem(GenericProblem):
         self.dt = 0.1*self.dom.mesh.hmin()/self.bd.HH_vel
         self.dt_c  = Constant(self.dt)
 
-        self.fprint("Viscosity: {:1.2e}".format(float(mu)))
+        self.fprint("Viscosity: {:1.2e}".format(float(nu)))
         self.fprint("Density:   {:1.2e}".format(float(rho)))
 
         # Define trial and test functions for velocity
@@ -369,7 +370,7 @@ class UnsteadyProblem(GenericProblem):
         # Define variational problem for step 1: tentative velocity
         F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
-           + (mu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
+           + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
            + dot(nabla_grad(self.p_k1), v)*dx \
            - dot(-self.tf, v)*dx
 

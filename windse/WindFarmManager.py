@@ -145,6 +145,7 @@ class GenericWindFarm(object):
         """
         This function saves the turbine force if exists to output/.../functions/
         """
+
         self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]/self.dom.xscale
         if hasattr(self.actuator_disks,"_cpp_object"):
             if self.rd_first_save:
@@ -152,6 +153,7 @@ class GenericWindFarm(object):
                 self.rd_first_save = False
             else:
                 self.params.Save(self.actuator_disks,"actuator_disks",subfolder="functions/",val=val,file=self.rd_file)
+
         self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]*self.dom.xscale
 
     def CalculateExtents(self):
@@ -429,7 +431,6 @@ class GenericWindFarm(object):
             temp = Function(fs.tf_V)
             temp.vector()[:] = actuator_array[:,i]
             self.actuator_disks_list.append(temp)
-
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")

@@ -132,7 +132,7 @@ class GenericSolver(object):
             theta (float): The new wind angle in radians
         """
         self.problem.ChangeWindAngle(theta)
-    
+
     def CalculatePowerFunctional(self,inflow_angle = 0.0):
         tf = self.problem.tf1*self.u_next[0]**2+self.problem.tf2*self.u_next[1]**2+self.problem.tf3*self.u_next[0]*self.u_next[1]
         J = dot(tf,self.u_next)*dx
@@ -154,7 +154,6 @@ class GenericSolver(object):
                     tf3 = self.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
                     tf = tf1*self.u_next[0]**2+tf2*self.u_next[1]**2+tf3*self.u_next[0]*self.u_next[1]
                     J_list[i] = assemble(dot(tf,self.u_next)*dx,**self.extra_kwarg)
-
 
             folder_string = self.params.folder+"/data/"
             if not os.path.exists(folder_string): os.makedirs(folder_string)
@@ -401,13 +400,16 @@ class UnsteadySolver(GenericSolver):
 
         # Generate file pointers for saved output
         # FIXME: This should use the .save method
-        fp = []
-        fp.append(File("%s/timeSeries/velocity.pvd" % (self.problem.dom.params.folder)))
-        fp.append(File("%s/timeSeries/pressure.pvd" % (self.problem.dom.params.folder)))
-        fp.append(File("%s/timeSeries/nu_T.pvd" % (self.problem.dom.params.folder)))
+        # fp = []
+        # fp.append(File("%s/timeSeries/velocity.pvd" % (self.problem.dom.params.folder)))
+        # fp.append(File("%s/timeSeries/pressure.pvd" % (self.problem.dom.params.folder)))
+        # fp.append(File("%s/timeSeries/nu_T.pvd" % (self.problem.dom.params.folder)))
 
-        if "turbine_force" in self.params.output:
-            fp.append(File("%s/timeSeries/turbineForce.pvd" % (self.problem.dom.params.folder)))
+        # if "turbine_force" in self.params.output:
+        #     fp.append(File("%s/timeSeries/turbineForce.pvd" % (self.problem.dom.params.folder)))
+
+        # Save first timestep (create file pointers for first call)
+        self.SaveTimeSeries(simTime)
 
         self.fprint("Saving Input Data",special="header")
         if "mesh" in self.params.output:
@@ -512,7 +514,9 @@ class UnsteadySolver(GenericSolver):
                 simTime = saveInterval*saveCount
 
                 # Save output files
-                self.SaveTimeSeries(fp, simTime)
+                # self.SaveTimeSeries(fp, simTime)
+                self.SaveTimeSeries(simTime)
+
 
             # Adjust the timestep size, dt, for a balance of simulation speed and stability
             save_next_timestep = self.AdjustTimestepSize(saveInterval, simTime, u_max, u_max_k1)
@@ -532,33 +536,41 @@ class UnsteadySolver(GenericSolver):
 
     # ================================================================
 
-    def SaveTimeSeries(self, fp, simTime):
+    def SaveTimeSeries(self, simTime):
 
-        # Save velocity files (pointer in fp[0])
-        self.problem.u_k.rename('Velocity', 'Velocity')
-        fp[0] << (self.problem.u_k, simTime)
-
-        # Save pressure files (pointer in fp[1])
-        self.problem.p_k.rename('Pressure', 'Pressure')
-        fp[1] << (self.problem.p_k, simTime)
-
-        # Save eddy viscosity files (pointer in fp[2])
-        # nu_T_val = project(self.problem.nu_T, self.problem.fs.Q, solver_type='gmres')
-        # nu_T_val.rename('nu_T', 'nu_T')
-        # fp[2] << (nu_T_val, simTime)
-
-        # Save turbine force files (pointer in fp[3])
-        # if "turbine_force" in self.params.output:
-
-        workaround = False
-
-        if workaround:
-            tf_value = project(self.problem.tf, self.problem.fs.V, solver_type='gmres')
-            tf_value.rename('Turbine_Force', 'Turbine_Force')
-            fp[3] << (tf_value, simTime)
+        if self.first_save:
+            self.velocity_file = self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime)
+            self.pressure_file   = self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime)
+            self.first_save = False
         else:
-            self.problem.tf.rename('Turbine_Force', 'Turbine_Force')
-            fp[3] << (self.problem.tf, simTime)
+            self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime,file=self.velocity_file)
+            self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime,file=self.pressure_file)
+
+        # # Save velocity files (pointer in fp[0])
+        # self.problem.u_k.rename('Velocity', 'Velocity')
+        # fp[0] << (self.problem.u_k, simTime)
+
+        # # Save pressure files (pointer in fp[1])
+        # self.problem.p_k.rename('Pressure', 'Pressure')
+        # fp[1] << (self.problem.p_k, simTime)
+
+        # # Save eddy viscosity files (pointer in fp[2])
+        # # nu_T_val = project(self.problem.nu_T, self.problem.fs.Q, solver_type='gmres')
+        # # nu_T_val.rename('nu_T', 'nu_T')
+        # # fp[2] << (nu_T_val, simTime)
+
+        # # Save turbine force files (pointer in fp[3])
+        # # if "turbine_force" in self.params.output:
+
+        # workaround = False
+
+        # if workaround:
+        #     tf_value = project(self.problem.tf, self.problem.fs.V, solver_type='gmres')
+        #     tf_value.rename('Turbine_Force', 'Turbine_Force')
+        #     fp[3] << (tf_value, simTime)
+        # else:
+        #     self.problem.tf.rename('Turbine_Force', 'Turbine_Force')
+        #     fp[3] << (self.problem.tf, simTime)
 
 
     # ================================================================
