@@ -25,10 +25,11 @@ def run_driver(params_loc=None):
         raise NameError("paramters doesn't contain any optimization options")
 
 def run_model(params_loc=None):
-    params = initialize_driver(params_loc=params_loc)
+    params = initialize_analysis(params_loc=params_loc)
     problem = setup_problem(params)
+    # print('\n\n type problem :', type(problem), '\n')
     solver = solve_problem(params, problem)
-    # solver = None
+    # print('\n\n type problem :', type(problem), '\n')
 
     return params, problem, solver
 
@@ -146,6 +147,7 @@ def setup_problem(params):
                  "taylor_hood":windse.TaylorHoodProblem}
     problem = prob_dict[params["problem"]["type"]](dom,farm,fs,bc)#,opt=opt)
 
+    print('type', type(problem))
     return problem
 
 def solve_problem(params, problem):

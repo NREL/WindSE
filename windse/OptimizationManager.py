@@ -2,7 +2,7 @@
 The OptimizationManager submodule contains all the required function for
 optimizing via dolfin-adjoint. To use dolfin-adjoin set::
 
-    general: 
+    general:
         dolfin_adjoint: True
 
 in the param.yaml file.
@@ -14,6 +14,7 @@ Todo:
 
 import __main__
 import os
+import numpy as np
 
 ### Get the name of program importing this package ###
 main_file = os.path.basename(__main__.__file__)
@@ -43,8 +44,8 @@ else:
 class Optimizer(object):
     """
     A GenericProblem contains on the basic functions required by all problem objects.
-    
-    Args: 
+
+    Args:
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
     def __init__(self, solver):
@@ -56,16 +57,17 @@ class Optimizer(object):
         self.fprint = self.params.fprint
 
         self.control_types = self.params["optimization"]["controls"]
+        print('control type:', self.control_types)
         self.layout_bounds = self.params["optimization"].get("layout_bounds",[self.farm.ex_x,self.farm.ex_y])
 
         self.iteration = 0
 
         self.fprint("Setting Up Optimizer",special="header")
-        
+
         self.fprint("Controls: {0}".format(self.control_types))
         self.CreateControls()
- 
-        
+
+
         self.fprint("Define Bounds")
         self.CreateBounds()
 
@@ -87,7 +89,7 @@ class Optimizer(object):
         self.fprint("Optimizer Setup",special="footer")
 
     def ReducedFunctionalCallback(self, j, m):
-        self.Jcurrent = j 
+        self.Jcurrent = j
 
     def CreateControls(self):
         self.controls = []
@@ -167,9 +169,9 @@ class Optimizer(object):
             tf (dolfin.Function): Turbine Force function
             u (dolfin.Function): Velocity vector.
         """
-      
+
         self.J = assemble(-(dot(self.problem.tf,self.solver.u_next))*dx)
-        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback) 
+        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
         self.Jcurrent = self.J
 
     def Gradient(self):
@@ -177,7 +179,12 @@ class Optimizer(object):
         Returns a gradient of the objective function
         """
         dJdma= compute_gradient(self.J, self.controls)
-        print([float(dd) for dd in dJdma])
+        gradient_list = [float(dd) for dd in dJdma] # Gradient given in a list from Fenics
+        # print(dJdma)
+        gradient_list = np.array(dJdma, dtype=np.float)
+        print(gradient_list)
+
+        return np.asarray(gradient_list)
 
     def ListControls(self,m):
         if "layout" in self.control_types:
@@ -257,7 +264,7 @@ class Optimizer(object):
 
         self.SaveControls(m)
         self.ListControls(m)
-        
+
         self.iteration += 1
 
     def get_minimum_distance_constraint_func(self, m_pos, min_distance=200):
@@ -281,7 +288,7 @@ class Optimizer(object):
         self.fprint("Assigning New Values")
         self.problem.farm.UpdateConstants(m=m_opt,control_types=self.control_types,indexes=self.indexes)
         # self.AssignControls()
-        
+
         self.fprint("Solving With New Values")
         self.solver.Solve()
 
@@ -290,7 +297,7 @@ class Optimizer(object):
         return m_opt
 
     def TaylorTest(self):
-        
+
         self.fprint("Beginning Taylor Test",special="header")
 
         h = [Constant(10)]*(len(self.controls))
@@ -320,7 +327,7 @@ class MinimumDistanceConstraint(InequalityConstraint):
 
     def function(self, m):
         ieqcons = []
-        
+
         m_pos = m
 
         for i in range(int(len(m_pos) / 2)):
@@ -343,7 +350,7 @@ class MinimumDistanceConstraint(InequalityConstraint):
 
     def jacobian(self, m):
         ieqcons = []
-        
+
         m_pos = m
 
         for i in range(int(len(m_pos) / 2)):
