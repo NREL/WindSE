@@ -286,15 +286,15 @@ class Optimizer(object):
 
 
 
-        # mem0=memory_usage()[0]
-        # tick = time.time()
-        # mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True,max_iterations=1)
-        # for d in der:
-        #     print(float(d))
-        # tock = time.time()
-        # self.fprint("Time Elapsed: {:1.2f} s".format(tock-tick))
-        # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
-        # exit()
+        mem0=memory_usage()[0]
+        tick = time.time()
+        mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True,max_iterations=1)
+        for d in der:
+            print(float(d))
+        tock = time.time()
+        self.fprint("Time Elapsed: {:1.2f} s".format(tock-tick))
+        self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
+        exit()
 
         # exit()
         # if "layout" in self.control_types:

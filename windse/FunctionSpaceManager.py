@@ -27,7 +27,11 @@ class GenericFunctionSpace(object):
         self.fprint = self.params.fprint
         self.dim = dom.dim
         self.mesh = dom.mesh
-        self.tf_degree = self.params["wind_farm"].get("turbine_degree",1)
+        self.tf_space = self.params["wind_farm"].get("turbine_space","Quadrature")
+        if self.tf_space == "Quadrature":
+            self.tf_degree = self.params["wind_farm"].get("turbine_degree",6)
+        else:
+            self.tf_degree = self.params["wind_farm"].get("turbine_degree",1)
 
     def SetupSubspaces(self):
         self.V = self.W.sub(0).collapse()
@@ -45,19 +49,10 @@ class GenericFunctionSpace(object):
 
         ### Create Function Spaces for numpy turbine force ###
         if self.params["wind_farm"].get("turbine_method","numpy") == "numpy":
-            tf_V = VectorElement("Quadrature",self.mesh.ufl_cell(),degree=self.tf_degree,quad_scheme="default")
+            tf_V = VectorElement(self.tf_space,self.mesh.ufl_cell(),degree=self.tf_degree,quad_scheme="default")
             self.tf_V = FunctionSpace(self.mesh, tf_V)
             self.tf_V0 = self.tf_V.sub(0).collapse() 
             self.fprint("Quadrature DOFS: {:d}".format(self.tf_V.dim()))
-
-            # self.tf_V1 = self.tf_V.sub(1).collapse()
-
-            # if self.dim == 3: 
-            #     self.tf_V2 = self.tf_V.sub(2).collapse()
-            #     self.tf_Assigner = FunctionAssigner(self.tf_V,[self.tf_V0,self.tf_V1,self.tf_V2])
-            # else:
-            #     self.tf_Assigner = FunctionAssigner(self.tf_V,[self.tf_V0,self.tf_V1])
-
 
 class LinearFunctionSpace(GenericFunctionSpace):
     """

@@ -37,9 +37,10 @@ if main_file != "sphinx-build":
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
     parameters['form_compiler']['representation'] = 'tsfc'
-
-    parameters['form_compiler']['quadrature_degree'] = windse_parameters["wind_farm"].get("turbine_degree",6)
-    print("Quadrature Degree: " + repr(parameters['form_compiler']['quadrature_degree']))
+    if windse_parameters["wind_farm"].get("turbine_space",None) == "Quadrature":
+        parameters['form_compiler']['quadrature_degree'] = windse_parameters["wind_farm"].get("turbine_degree",6)
+    else:
+        parameters['form_compiler']['quadrature_degree'] = 6
 
 class GenericSolver(object):
     """

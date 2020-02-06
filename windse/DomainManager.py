@@ -100,6 +100,7 @@ class GenericDomain(object):
             self.xscale = 1.0e-3
         else:
             self.xscale = 1.0
+        self.ground_ref = self.params["domain"].get("ground_reference", 0.0)
 
     def Plot(self):
         """
@@ -475,7 +476,7 @@ class GenericDomain(object):
 
     def InterplatedGroundFunction(self,x,y,dx=0,dy=0):
         if dx == 0 and dy == 0:
-            return float(self.topography_interpolated(x,y)[0]+self.z_range[0])
+            return float(self.topography_interpolated(x,y)[0]+self.ground_ref)
         else:
             return float(self.topography_interpolated(x,y,dx=dx,dy=dy)[0])
 
@@ -596,18 +597,7 @@ class BoxDomain(GenericDomain):
 
     def ground_function(self,x,y,dx=0,dy=0):
         if dx == 0 and dy == 0:
-            #################
-            #################
-            #################
-            #################
-            #################
-            return self.z_range[0]
-            # return 0.0
-            #################
-            #################
-            #################
-            #################
-            #################
+            return self.ground_ref
         else:
             return 0.0
 
@@ -786,7 +776,7 @@ class CylinderDomain(GenericDomain):
 
     def ground_function(self,x,y,dx=0,dy=0):
         if dx == 0 and dy == 0:
-            return self.z_range[0]
+            return self.ground_ref
         else:
             return 0.0
 

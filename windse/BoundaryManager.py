@@ -320,7 +320,7 @@ class PowerInflow(GenericBoundary):
         #################
         #################
         #################
-        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-dom.z_range[0])))
+        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-dom.ground_ref)))
         # scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-0.0)))
         #################
         #################
@@ -384,14 +384,14 @@ class LogLayerInflow(GenericBoundary):
         self.ux = Function(fs.V0)
         self.uy = Function(fs.V1)
         self.uz = Function(fs.V2)
-        if dom.z_range[0] == 0:
-            scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+0.01,0.01))
-            ustar = self.k/np.log(np.mean(farm.HH)/0.01)
-        elif dom.z_range[0] <= 0:
+        if dom.ground_ref == 0:
+            scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+0.0001,0.0001))
+            ustar = self.k/np.log(np.mean(farm.HH)/0.0001)
+        elif dom.ground_ref <= 0:
             raise ValueError("Log profile cannot be used with negative z values")
         else:
-            scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+dom.z_range[0],(dom.z_range[0])))
-            ustar = self.k/np.log(np.mean(farm.HH)/dom.z_range[0])
+            scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+dom.ground_ref,(dom.ground_ref)))
+            ustar = self.k/np.log(np.mean(farm.HH)/dom.ground_ref)
         self.unit_reference_velocity = np.multiply(ustar/self.k,np.log(scaled_depth))
         ux_com, uy_com, uz_com = self.PrepareVelocity(self.init_wind)
 
