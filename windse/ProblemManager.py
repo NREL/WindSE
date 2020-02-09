@@ -141,17 +141,16 @@ class StabilizedProblem(GenericProblem):
 
         ### These constants will be moved into the params file ###
         nu = self.params["problem"].get("viscosity",.1)
+        lmax = self.params["problem"].get("lmax",15)
         f = Constant((0.0,)*self.dom.dim)
         f.rename("f","f")
         
         vonKarman=0.41
-        lmax=15
-        mlDenom = 8.
         eps=Constant(1.0)
         eps.rename("eps","eps")
 
         self.fprint("Viscosity:                 {:1.2e}".format(float(nu)))
-        self.fprint("Mixing Length Scale:       {:1.2e}".format(float(mlDenom)))
+        self.fprint("Max Mixing Length:       {:1.2e}".format(float(lmax)))
         self.fprint("Stabilization Coefficient: {:1.2e}".format(float(eps)))
 
         ### Calculate the stresses and viscosities ###
@@ -163,7 +162,7 @@ class StabilizedProblem(GenericProblem):
             l_mix = Function(self.fs.Q)
             l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:]/Sx,(1.+np.divide(vonKarman*self.bd.depth.vector()[:]/Sx,lmax)))
         else:
-            l_mix = Constant((self.farm.HH[0]/Sx)/mlDenom)
+            l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/lmax)))
         # l_mix = Expression("x[2]/8.",degree=2)
         l_mix.rename("l_mix","l_mix")
         
@@ -183,8 +182,24 @@ class StabilizedProblem(GenericProblem):
         # stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
         stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
         # stab_sans_tf = - eps*inner(grad(q), grad(self.p_next))*dx 
+
         self.F += stab
         # self.F_sans_tf += stab
+
+        use_25d = self.params["problem"].get("use_25d_model", False)
+
+        if use_25d and self.dom.dim == 2 :
+            if self.dom.dim == 3:
+                raise ValueError("The 2.5D model requires a 2D simulation.")
+
+            self.fprint("Using 2.5D model")
+            dudx = Dx(self.u_next[0], 0)
+            dvdy = Dx(self.u_next[1], 1)
+
+            term25 = (sin(self.dom.init_wind)*dudx*q + cos(self.dom.init_wind)*dvdy*q)*dx
+
+            self.F -= term25
+
         self.fprint("Stabilized Problem Setup",special="footer")
 
 
@@ -209,14 +224,13 @@ class TaylorHoodProblem(GenericProblem):
 
         ### These constants will be moved into the params file ###
         nu = self.params["problem"].get("viscosity",0.1)
+        lmax = self.params["problem"].get("lmax",15)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
-        lmax=15
-        mlDenom = 8.
         eps=Constant(0.01)
 
         self.fprint("Viscosity:           {:1.2e}".format(float(nu)))
-        self.fprint("Mixing Length Scale: {:1.2e}".format(float(mlDenom)))
+        self.fprint("Max Mixing Length:       {:1.2e}".format(float(lmax)))
 
         ### Create the test/trial/functions ###
         self.up_next = Function(self.fs.W)
@@ -236,7 +250,7 @@ class TaylorHoodProblem(GenericProblem):
             l_mix = Function(self.fs.Q)
             l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:],(1.+np.divide(vonKarman*self.bd.depth.vector()[:],lmax)))
         else:
-            l_mix = Constant(self.farm.HH[0]/mlDenom)
+            l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/lmax)))
 
         ### Calculate nu_T
         self.nu_T=l_mix**2.*S
@@ -247,6 +261,20 @@ class TaylorHoodProblem(GenericProblem):
         ### Create the functional ###
         self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
     
+        use_25d = self.params["problem"].get("use_25d_model", False)
+
+        if use_25d:
+            if self.dom.dim == 3:
+                raise ValueError("The 2.5D model requires a 2D simulation.")
+
+            self.fprint("Using 2.5D model")
+            dudx = Dx(self.u_next[0], 0)
+            dvdy = Dx(self.u_next[1], 1)
+
+            term25 = (sin(self.dom.init_wind)*dudx*q + cos(self.dom.init_wind)*dvdy*q)*dx
+
+            self.F -= term25
+
         self.fprint("Taylor-Hood Problem Setup",special="footer")
 
 class UnsteadyProblem(GenericProblem):

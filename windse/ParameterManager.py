@@ -20,6 +20,7 @@ if main_file != "sphinx-build":
     from dolfin import *
     import sys
     import ast
+    import difflib
 
     # set_log_level(LogLevel.CRITICAL)
 
@@ -57,11 +58,14 @@ class Parameters(dict):
     def __init__(self):
         super(Parameters, self).__init__()
         self.current_tab = 0
+        self.windse_path = os.path.dirname(os.path.realpath(__file__))
+        self.defaults = yaml.load(open(self.windse_path+"/default_parameters.yaml"),Loader=yaml.SafeLoader)
+        self.update(self.defaults)
 
-    def NestedUpdate(self,dic,keys,value):
+    def TerminalUpdate(self,dic,keys,value):
         if len(keys) > 1:
             next_dic = dic.setdefault(keys[0],{})
-            self.NestedUpdate(next_dic,keys[1:],value)
+            self.TerminalUpdate(next_dic,keys[1:],value)
         elif len(keys) == 1:
             current_value = dic.get(keys[0],"")
             if isinstance(current_value,int):
@@ -73,6 +77,31 @@ class Parameters(dict):
             elif isinstance(current_value,list):
                 dic[keys[0]] = ast.literal_eval(value)
 
+    def CheckParameters(self,updates,defaults,out_string=""):
+        default_keys = defaults.keys()
+        for key in updates.keys():
+            if key not in default_keys:
+                suggestion = difflib.get_close_matches(key, default_keys, n=1)
+                if suggestion:
+                    raise AttributeError(out_string + key + " is not a valid parameter, did you mean: "+suggestion[0])
+                else:
+                    raise AttributeError(out_string + key + " is not a valid parameter")
+            elif isinstance(updates[key],dict):
+                in_string =out_string + key + ":"
+                self.CheckParameters(updates[key],defaults[key],out_string=in_string)
+
+    def NestedUpdate(self,dic,subdic=None):
+        if subdic is None:
+            target_dic = self
+        else:
+            target_dic = subdic
+
+        for key, value in dic.items():
+            if isinstance(value,dict):
+                target_dic[key] = self.NestedUpdate(value,subdic=target_dic[key])
+            else:
+                target_dic[key] = value
+        return target_dic
 
     def Load(self, loc,updated_parameters=[]):
         """
@@ -90,19 +119,18 @@ class Parameters(dict):
         ### update any parameters if supplied ###
         for p in updated_parameters:
             keys_list = p.split(":")
-            self.NestedUpdate(yaml_file,keys_list[:-1],keys_list[-1])
+            self.TerminalUpdate(yaml_file,keys_list[:-1],keys_list[-1])
 
-        ### Set the parameters
-        self.update(yaml_file)
+        ### Check for incorrect parameters ###
+        self.CheckParameters(yaml_file,self.defaults)
+        print("Parameter Check Passed")
+
+        ### Set the parameters ###
+        self.update(self.NestedUpdate(yaml_file))
 
         ### Create Instances of the general options ###
-        self.name = self["general"].get("name", "Test")
-        self.preappend_datetime = self["general"].get("preappend_datetime", False)
-        self.output_type = self["general"].get("output_type", "pvd")
-        self.dolfin_adjoint = self["general"].get("dolfin_adjoint", False)
-        self.output = self["general"].get("output", ["solution"])
-
-        ### Print some stats ###
+        for key, value in self["general"].items():
+            setattr(self,key,value)
 
         ### Set up the folder Structure ###
         timestamp=datetime.datetime.today().strftime('%Y%m%d_%H%M%S')

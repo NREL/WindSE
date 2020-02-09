@@ -17,6 +17,7 @@ if main_file != "sphinx-build":
     import math
     import time
     import shutil
+    from scipy.special import gamma
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters, BaseHeight, CalculateDiskTurbineForces
@@ -429,7 +430,7 @@ class GenericWindFarm(object):
         self.actuator_disks_list = []
         for i in range(self.numturbs):
             temp = Function(fs.tf_V)
-            temp.vector()[:] = actuator_array[:,i]
+            temp.vector()[:] = np.array(actuator_array[:,i])
             self.actuator_disks_list.append(temp)
 
         tf_stop = time.time()
@@ -476,56 +477,53 @@ class GenericWindFarm(object):
             yaw = self.myaw[i]+inflow_angle
             W = self.W[i]*1.0
             R = self.RD[i]/2.0
-            A = pi*R**2.0 
             ma = self.ma[i]
-            if self.dom.dim == 3:
-                # WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
-                WTGbase = as_vector((cos(yaw),sin(yaw),0.0))
-            else:
-                # WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=float(yaw),degree=1)
-                WTGbase = as_vector((cos(yaw),sin(yaw)))
-            # WTGbase.rename("WTGbase","WTGbase")
+            C_tprime = 4*ma/(1-ma)
 
+            ### Set up some dim dependent values ###
+            S_norm = (2.0+pi)/(2.0*pi)
+            T_norm = 2.0*gamma(7.0/6.0)
+            if self.dom.dim == 3:
+                WTGbase = as_vector((cos(yaw),sin(yaw),0.0))
+                A = pi*R**2.0 
+                D_norm = pi*gamma(4.0/3.0)
+            else:
+                WTGbase = as_vector((cos(yaw),sin(yaw)))
+                A = 2*R 
+                D_norm = 2.0*gamma(7.0/6.0)
 
             ### Rotate and Shift the Turbine ###
             xs = self.YawTurbine(x,x0,yaw)
 
             ### Create the function that represents the Thickness of the turbine ###
-            T_norm = 1.855438667500383
-            T = exp(-pow((xs[0]/W),6.0))/(T_norm*W)
+            T = exp(-pow((xs[0]/W),6.0))
 
             ### Create the function that represents the Disk of the turbine
-            D_norm = 2.914516237206873
-            D = exp(-pow((pow((xs[1]/R),2.0)+pow((xs[2]/R),2.0)),6.0))/(D_norm*R**2.0)
+            r = sqrt(xs[1]**2.0+xs[2]**2.0)/R
+            D = exp(-pow(r,6.0))
 
             ### Create the function that represents the force ###
             if self.force == "constant":
-                F = 4*0.5*A*ma/(1.-ma)
+                F = 0.5*A*C_tprime
             elif self.force == "sine":
-                r = sqrt(pow(xs[1],2.0)+pow(xs[2],2.0))
-                F = 4.*0.5*A*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5)/(.81831)
+                F = 0.5*A*C_tprime*(r*sin(pi*r)+0.5)/S_norm
+
+            ### Calculate normalization constant ###
+            volNormalization = T_norm*D_norm*W*R**(self.dom.dim-1)
+            # volNormalization = assemble(T*D*dx)
+            # print(volNormalization_a,volNormalization,volNormalization/(W*R**(self.dom.dim-1)),T_norm*D_norm)
 
             # compute disk averaged velocity in yawed case and don't project
-            self.actuator_disks_list.append(F*T*D*WTGbase)
-            rd  += F*T*D*WTGbase
-            tf1 += F*T*D*WTGbase * cos(yaw)**2
-            tf2 += F*T*D*WTGbase * sin(yaw)**2
-            tf3 += F*T*D*WTGbase * 2.0 * cos(yaw) * sin(yaw)
-
-            # W=0.02
-            # WTGbase2 = Function(fs.V0)
-            # WTGbase2.vector()[:] = 1.0
-            # WTGbase2.rename("WTGbase2","WTGbase2")
-            # tf1 += exp(-(xs[0]/W)**6.0)*WTGbase2*WTGbase*cos(yaw)**2
-            # tf2 += exp(-(xs[0]/W)**6.0)*WTGbase2*WTGbase*sin(yaw)**2
-            # tf3 += exp(-(xs[0]/W)**6.0)*WTGbase2*WTGbase*2.0 * cos(yaw) * sin(yaw)
+            self.actuator_disks_list.append(F*T*D*WTGbase/volNormalization)
+            rd  += F*T*D*WTGbase/volNormalization
+            tf1 += F*T*D*WTGbase/volNormalization * cos(yaw)**2
+            tf2 += F*T*D*WTGbase/volNormalization * sin(yaw)**2
+            tf3 += F*T*D*WTGbase/volNormalization * 2.0 * cos(yaw) * sin(yaw)
+        # exit()
 
         ### Save the actuator disks for post processing ###
         self.fprint("Projecting Turbine Force")
         self.actuator_disks = project(rd,fs.V,solver_type='mumps',**self.extra_kwarg)
-        # tf1 = project(tf1,fs.V,solver_type='mumps')
-        # tf2 = project(tf2,fs.V,solver_type='mumps')
-        # tf3 = project(tf3,fs.V,solver_type='mumps')
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")

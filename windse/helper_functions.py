@@ -15,6 +15,7 @@ if main_file != "sphinx-build":
 
     import numpy as np
     import time
+    from scipy.special import gamma
 
 def BaseHeight(x,y,ground,dx=0,dy=0):
     return Constant(ground(float(x),float(y),dx=dx,dy=dy))
@@ -71,15 +72,23 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
     W = wind_farm.W
     R = wind_farm.RD/2.0
     dim, N = x.shape
-    A = np.pi*R**2.0
-    T_norm = 1.855438667500383
-    C_norm = 2.914516237206873
+
+    ### Set up some dim dependent values ###
+    S_norm = (2.0+pi)/(2.0*pi)
+    T_norm = 2.0*gamma(7.0/6.0)
+    if dim == 3:
+        A = np.pi*R**2.0 
+        D_norm = np.pi*gamma(4.0/3.0)
+    else:
+        A = 2*R 
+        D_norm = 2.0*gamma(7.0/6.0)
+    volNormalization = T_norm*D_norm*W*R**(dim-1)
 
     ### Calculate relevant dofs that will be nonzero ###
     if sparse_ids is None:
         # print("recalc sparse")
         ### Create the bounding box for each turbine ###
-        bounding_limit = [sparse_RDs*R]*dim
+        bounding_limit = [sparse_RDs*R]*3
         bl = x0-bounding_limit
         bu = x0+bounding_limit
 
@@ -107,8 +116,8 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
         def RForce(r): return 1.0
         def dRForce(r,d_r): return 0.0
     elif wind_farm.force == "sine":
-        def RForce(r): return (r*np.sin(np.pi*r)+0.5)/(.81831)
-        def dRForce(r,d_r): return (r*np.cos(np.pi*r)*(np.pi*d_r) + d_r*np.sin(np.pi*r))/(.81831)
+        def RForce(r): return (r*np.sin(np.pi*r)+0.5)/S_norm
+        def dRForce(r,d_r): return (r*np.cos(np.pi*r)*(np.pi*d_r) + d_r*np.sin(np.pi*r))/S_norm
     else:
         ValueError("Unknown force type: "+wind_farm.force)
 
@@ -119,7 +128,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
                 # Force
                 4.*0.5*A*a/(1.-a)*RForce(r) * 
                 # Disk Kernel
-                np.exp(-(np.power(r,12.0)+np.power(xrot[0]/W,6.0)))/(C_norm*R**2.0*T_norm*W)
+                np.exp(-(np.power(r,6.0)+np.power(xrot[0]/W,6.0)))/volNormalization
                 )
 
         ### Rotate the force for the yawed turbine ###
@@ -157,12 +166,12 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
                   (
                     RForce(r) *
                     # # Derivative of Disk Kernel
-                    -(12.0*np.power(r,11.0)*d_r+6.0*np.power(xrot[0]/W,5.0)*d_xrot[0]/W) +
+                    -(6.0*np.power(r,5.0)*d_r+6.0*np.power(xrot[0]/W,5.0)*d_xrot[0]/W) +
                     # # Derivative of Force
                     dRForce(r,d_r)
                     # Disk Kernal
                   ) *
-                  np.exp(-(np.power(r,12.0)+np.power(xrot[0]/W,6.0)))/(C_norm*R**2.0*T_norm*W)
+                  np.exp(-(np.power(r,6.0)+np.power(xrot[0]/W,6.0)))/volNormalization
                   )
 
         d_actuators_x = d_disks*np.cos(yaw)
@@ -192,7 +201,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
                   # Derivative of Force
                   4*0.5*A/(a-1.)**2.0*RForce(r) *
                   # Disk Kernal
-                  np.exp(-(np.power(r,12.0)+np.power(xrot[0]/W,6.0)))/(C_norm*R**2.0*T_norm*W)
+                  np.exp(-(np.power(r,6.0)+np.power(xrot[0]/W,6.0)))/volNormalization
                   )
 
         d_actuators_x = d_disks*np.cos(yaw)
@@ -224,7 +233,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
                 # Force
                 4.*0.5*A*a/(1.-a)*RForce(r) * 
                 # Disk Kernel
-                np.exp(-(np.power(r,12.0)+np.power(xrot[0]/W,6.0)))/(C_norm*R**2.0*T_norm*W)
+                np.exp(-(np.power(r,6.0)+np.power(xrot[0]/W,6.0)))/volNormalization
                 )
         d_disks = (
                   # # Force
@@ -232,12 +241,12 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
                   (
                     RForce(r) *
                     # # Derivative of Disk Kernel
-                    -(12.0*np.power(r,11.0)*d_r+6.0*np.power(xrot[0]/W,5.0)*d_xrot[0]/W) +
+                    -(6.0*np.power(r,5.0)*d_r+6.0*np.power(xrot[0]/W,5.0)*d_xrot[0]/W) +
                     # # Derivative of Force
                     dRForce(r,d_r)
                     # Disk Kernal
                   ) *
-                  np.exp(-(np.power(r,12.0)+np.power(xrot[0]/W,6.0)))/(C_norm*R**2.0*T_norm*W)
+                  np.exp(-(np.power(r,6.0)+np.power(xrot[0]/W,6.0)))/volNormalization
                   )
 
         actuators_x = disks*np.cos(yaw)
@@ -271,7 +280,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
 
     ### Output the actuator information if needed ###
     if save_actuators and dfd is None:
-        actuator_array = np.zeros((N*3,wind_farm.numturbs))
+        actuator_array = np.zeros((N*dim,wind_farm.numturbs))
         actuator_array[dim*(sparse_ids)+0] = actuators_x
         actuator_array[dim*(sparse_ids)+1] = actuators_y
     else:

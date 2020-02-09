@@ -16,7 +16,7 @@ Conda Installation (Automatic):
 The best way to use WindSE is via a conda environment. To install conda check out this link: `Conda Installation. <https://conda.io/projects/conda/en/latest/user-guide/install/>`_ After conda is installed, you can automatically setup the WindSE environment using::
 
     conda create --name <enviroment_name>
-    source activate <enviroment_name>
+    conda activate <enviroment_name>
     conda install -c conda-forge windse
 
 Conda Installation (Source):
@@ -28,7 +28,7 @@ If you want to use the latest version or just want to setup the environment manu
 
 You can replace the name <enviroment_name> with a different name for the environment if you want. Next we activate the environment using::
 
-    source activate <enviroment_name>
+    conda activate <enviroment_name>
 
 or whatever you named your environment. Now we need to install the dependent packages using::
 

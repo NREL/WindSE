@@ -404,81 +404,81 @@ class GenericDomain(object):
         ### Import data from Options ###
         if "path" in self.params["domain"]:
             self.path = self.params["domain"]["path"]
-            self.typo_path  = self.path + "topography.txt"
+            self.terrain_path  = self.path + "terrain.txt"
         else:
-            self.typo_path  = self.params["domain"]["typo_path"]
+            self.terrain_path  = self.params["domain"]["terrain_path"]
 
         ### Copy Files to input folder ###
-        shutil.copy(self.typo_path,self.params.folder+"input_files/")
+        shutil.copy(self.terrain_path,self.params.folder+"input_files/")
 
-        self.fprint("Path: {0}".format(self.typo_path),offset=1)
+        self.fprint("Path: {0}".format(self.terrain_path),offset=1)
 
         ### import ground data
-        self.topography = np.loadtxt(self.typo_path)
-        x_data = self.topography[1:,0]*self.xscale
-        y_data = self.topography[1:,1]*self.xscale
-        z_data = self.topography[1:,2]*self.xscale
+        self.terrain = np.loadtxt(self.terrain_path)
+        x_data = self.terrain[1:,0]*self.xscale
+        y_data = self.terrain[1:,1]*self.xscale
+        z_data = self.terrain[1:,2]*self.xscale
 
         ### generate interpolating function
         x_data = np.sort(np.unique(x_data))
         y_data = np.sort(np.unique(y_data))
-        z_data = np.reshape(z_data,(int(self.topography[0,0]),int(self.topography[0,1])))
-        self.topography_interpolated = RectBivariateSpline(x_data,y_data,z_data.T)
+        z_data = np.reshape(z_data,(int(self.terrain[0,0]),int(self.terrain[0,1])))
+        self.terrain_interpolated = RectBivariateSpline(x_data,y_data,z_data.T)
         self.ground_function = self.InterplatedGroundFunction
 
-    # def SetupAnalyticGround(self):
-    #     if self.params["domain"].get("gaussian",False):
-    #         self.hill_sigma_x = self.params["domain"]["gaussian"]["sigma_x"]
-    #         self.hill_sigma_y = self.params["domain"]["gaussian"]["sigma_y"]
-    #         self.hill_theta = self.params["domain"]["gaussian"].get("theta",0.0)
-    #         self.hill_amp = self.params["domain"]["gaussian"]["amp"]
-    #         self.hill_center = self.params["domain"]["gaussian"].get("center",[0.0,0.0])
-    #         self.hill_x0 = self.hill_center[0]
-    #         self.hill_y0 = self.hill_center[1]
-    #         self.fprint("")
-    #         self.fprint("Ground Type: Gaussian Hill")
-    #         self.fprint("Hill Center:   ({: .2f}, {: .2f})".format(self.hill_x0,self.hill_y0),offset=1)
-    #         self.fprint("Hill Rotation:  {: <7.2f}".format(self.hill_theta),offset=1)
-    #         self.fprint("Hill Amplitude: {: <7.2f}".format(self.hill_amp),offset=1)
-    #         self.fprint("Hill sigma_x:   {: <7.2f}".format(self.hill_sigma_x),offset=1)
-    #         self.fprint("Hill sigma_y:   {: <7.2f}".format(self.hill_sigma_y),offset=1)
-    #         self.hill_a = np.cos(self.hill_theta)**2/(2*self.hill_sigma_x**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_y**2)
-    #         self.hill_b = np.sin(2*self.hill_theta)/(4*self.hill_sigma_y**2) - np.sin(2*self.hill_theta)/(4*self.hill_sigma_x**2)
-    #         self.hill_c = np.cos(self.hill_theta)**2/(2*self.hill_sigma_y**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_x**2)
-    #         self.ground_function = self.GaussianGroundFuncion
-    #     elif self.params["domain"].get("plane",False):
-    #         self.plane_x0 = self.params["domain"]["plane"].get("intercept",[0.0,0.0,0.0])
-    #         self.plane_mx = self.params["domain"]["plane"]["mx"]
-    #         self.plane_my = self.params["domain"]["plane"]["my"]
-    #         self.ground_function = self.PlaneGroundFuncion
-    #         self.fprint("")
-    #         self.fprint("Ground Type: Plane")
-    #         self.fprint("Intercept: ({: .2f}, {: .2f}, {: .2f})".format(*self.plane_x0),offset=1)
-    #         self.fprint("X Slope:     {: <7.6f}".format(self.plane_mx),offset=1)
-    #         self.fprint("Y Slope:     {: <7.6f}".format(self.plane_my),offset=1)
-    #     else:
-    #         raise ValueError("Incorrect analytic ground function specified")
+    def SetupAnalyticGround(self):
+        if self.params["domain"].get("gaussian",False):
+            self.hill_sigma_x = self.params["domain"]["gaussian"]["sigma_x"]
+            self.hill_sigma_y = self.params["domain"]["gaussian"]["sigma_y"]
+            self.hill_theta = self.params["domain"]["gaussian"].get("theta",0.0)
+            self.hill_amp = self.params["domain"]["gaussian"]["amp"]
+            self.hill_center = self.params["domain"]["gaussian"].get("center",[0.0,0.0])
+            self.hill_x0 = self.hill_center[0]
+            self.hill_y0 = self.hill_center[1]
+            self.fprint("")
+            self.fprint("Ground Type: Gaussian Hill")
+            self.fprint("Hill Center:   ({: .2f}, {: .2f})".format(self.hill_x0,self.hill_y0),offset=1)
+            self.fprint("Hill Rotation:  {: <7.2f}".format(self.hill_theta),offset=1)
+            self.fprint("Hill Amplitude: {: <7.2f}".format(self.hill_amp),offset=1)
+            self.fprint("Hill sigma_x:   {: <7.2f}".format(self.hill_sigma_x),offset=1)
+            self.fprint("Hill sigma_y:   {: <7.2f}".format(self.hill_sigma_y),offset=1)
+            self.hill_a = np.cos(self.hill_theta)**2/(2*self.hill_sigma_x**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_y**2)
+            self.hill_b = np.sin(2*self.hill_theta)/(4*self.hill_sigma_y**2) - np.sin(2*self.hill_theta)/(4*self.hill_sigma_x**2)
+            self.hill_c = np.cos(self.hill_theta)**2/(2*self.hill_sigma_y**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_x**2)
+            self.ground_function = self.GaussianGroundFuncion
+        elif self.params["domain"].get("plane",False):
+            self.plane_x0 = self.params["domain"]["plane"].get("intercept",[0.0,0.0,0.0])
+            self.plane_mx = self.params["domain"]["plane"]["mx"]
+            self.plane_my = self.params["domain"]["plane"]["my"]
+            self.ground_function = self.PlaneGroundFuncion
+            self.fprint("")
+            self.fprint("Ground Type: Plane")
+            self.fprint("Intercept: ({: .2f}, {: .2f}, {: .2f})".format(*self.plane_x0),offset=1)
+            self.fprint("X Slope:     {: <7.6f}".format(self.plane_mx),offset=1)
+            self.fprint("Y Slope:     {: <7.6f}".format(self.plane_my),offset=1)
+        else:
+            raise ValueError("Incorrect analytic ground function specified")
 
 
-    # def GaussianGroundFuncion(self,x,y,dx=0,dy=0):
-    #     return self.hill_amp*exp( - (self.hill_a*(x-self.hill_x0)**2 + 2*self.hill_b*(x-self.hill_x0)*(y-self.hill_y0) + self.hill_c*(y-self.hill_y0)**2)**2)+self.z_range[0]
+    def GaussianGroundFuncion(self,x,y,dx=0,dy=0):
+        return self.hill_amp*exp( - (self.hill_a*(x-self.hill_x0)**2 + 2*self.hill_b*(x-self.hill_x0)*(y-self.hill_y0) + self.hill_c*(y-self.hill_y0)**2)**2)+self.z_range[0]
 
-    # def PlaneGroundFuncion(self,x,y,dx=0,dy=0):
-    #     if dx == 1:
-    #         val = self.plane_mx
-    #     elif dy == 1:
-    #         val = self.plane_my
-    #     elif abs(dx)+abs(dy) >=2:
-    #         val = 0
-    #     else:
-    #         val = (self.plane_mx*(x-self.plane_x0[0])+self.plane_my*(y-self.plane_x0[1]))+self.plane_x0[2]
-    #     return val
+    def PlaneGroundFuncion(self,x,y,dx=0,dy=0):
+        if dx == 1:
+            val = self.plane_mx
+        elif dy == 1:
+            val = self.plane_my
+        elif abs(dx)+abs(dy) >=2:
+            val = 0
+        else:
+            val = (self.plane_mx*(x-self.plane_x0[0])+self.plane_my*(y-self.plane_x0[1]))+self.plane_x0[2]
+        return val
 
     def InterplatedGroundFunction(self,x,y,dx=0,dy=0):
         if dx == 0 and dy == 0:
-            return float(self.topography_interpolated(x,y)[0]+self.ground_ref)
+            return float(self.terrain_interpolated(x,y)[0]+self.ground_ref)
         else:
-            return float(self.topography_interpolated(x,y,dx=dx,dy=dy)[0])
+            return float(self.terrain_interpolated(x,y,dx=dx,dy=dy)[0])
 
 
     def Ground(self,x,y,dx=0,dy=0):
@@ -684,7 +684,7 @@ class CylinderDomain(GenericDomain):
 
         ### Calculating the boundary of the shadow ###
         angles = np.linspace(0,2.0*np.pi,self.nt+1)
-        self.boundary_line = (self.radius*np.cos(angles)+self.center[0],self.radius*np.sin(angles)+self.center[1])
+        self.boundary_line = np.array((self.radius*np.cos(angles)+self.center[0],self.radius*np.sin(angles)+self.center[1]))
 
         self.fprint("Radius:        {: .2f}".format(self.radius/self.xscale))
         self.fprint("Center:       ({: .2f}, {: .2f})".format(self.center[0]/self.xscale,self.center[1]/self.xscale))
@@ -842,7 +842,6 @@ class CircleDomain(GenericDomain):
         self.radius   = self.params["domain"]["radius"]*self.xscale
         self.center   = np.array(self.params["domain"]["center"])*self.xscale
         self.nt = self.params["domain"]["nt"]
-        self.res = self.params["domain"]["res"]
         self.mesh_type = self.params["domain"].get("mesh_type","mshr")
         self.x_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
         self.y_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
@@ -853,7 +852,7 @@ class CircleDomain(GenericDomain):
 
         ### Calculating the boundary of the shadow ###
         angles = np.linspace(0,2.0*np.pi,self.nt+1)
-        self.boundary_line = (self.radius*np.cos(angles),self.radius*np.sin(angles))
+        self.boundary_line = np.array((self.radius*np.cos(angles),self.radius*np.sin(angles)))
 
         self.fprint("Radius:        {: .2f}".format(self.radius))
         self.fprint("Center:       ({: .2f}, {: .2f})".format(self.center[0],self.center[1]))
@@ -863,6 +862,7 @@ class CircleDomain(GenericDomain):
         self.fprint("")
         if self.mesh_type == "mshr":
 
+            self.res = self.params["domain"]["res"]
             self.fprint("Generating Mesh Using mshr")
 
             ### Create Mesh ###
@@ -914,22 +914,19 @@ class CircleDomain(GenericDomain):
         self.fprint("Marking Boundaries")
         outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y)
         inflow  = CompiledSubDomain("nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, c0=self.center[0], c1=self.center[1])
-        self.boundary_subdomains = [None,None,None,None,None,None,inflow,outflow]
-        self.boundary_names = {"front":None,"back":None,"left":None,"right":None,"bottom":None,"top":None,"inflow":7,"outflow":8}
+        self.boundary_subdomains = [None,None,None,None,None,None,outflow,inflow]
+        self.boundary_names = {"front":None,"back":None,"left":None,"right":None,"bottom":None,"top":None,"inflow":8,"outflow":7}
         self.boundary_types = {"inflow":  ["inflow"],
                                "no_stress": ["outflow"]}
 
         ### Generate the boundary markers for boundary conditions ###
-        self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
-        self.boundary_markers.set_all(0)
-        for i in range(len(self.boundary_subdomains)):
-            self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
+        self.BuildBoundaryMarkers()
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
         self.fprint("Initial Domain Setup",special="footer")
 
-    def ground_function(self,x,y):
+    def ground_function(self,x,y,dx=0,dy=0):
         return 0.0
 
     def RecomputeBoundaryMarkers(self,theta):
@@ -945,7 +942,7 @@ class CircleDomain(GenericDomain):
         # mark_start = time.time()
         # outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y)
         # inflow  = CompiledSubDomain("nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, c0=self.center[0], c1=self.center[1])
-        # self.boundary_subdomains = [None,None,None,None,None,None,inflow,outflow]
+        # self.boundary_subdomains = [None,None,None,None,None,None,outflow,inflow]
 
         # ### Generate the boundary markers for boundary conditions ###
         # self.BuildBoundaryMarkers()
@@ -976,8 +973,8 @@ class CircleDomain(GenericDomain):
             else:
                 self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
 
-        mark_stop = time.time()
-        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
+        # mark_stop = time.time()
+        # self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
 
 class RectangleDomain(GenericDomain):
     """
@@ -1048,7 +1045,7 @@ class RectangleDomain(GenericDomain):
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
         self.fprint("Initial Domain Setup",special="footer")
 
-    def ground_function(self,x,y):
+    def ground_function(self,x,y,dx=0,dy=0):
         return 0.0
 
     def RecomputeBoundaryMarkers(self,theta):
@@ -1146,12 +1143,12 @@ class ImportedDomain(GenericDomain):
 #             self.mesh_path  = self.path + "mesh." + self.filetype
 #             if self.filetype == "xml.gz":
 #                 self.boundary_path = self.path + "boundaries." + self.filetype
-#             self.typo_path  = self.path + "topology.txt"
+#             self.terrain_path  = self.path + "terrain.txt"
 #         else:
 #             self.mesh_path = self.params["domain"]["mesh_path"]
 #             if self.filetype == "xml.gz":
 #                 self.boundary_path = self.params["domain"]["bound_path"]
-#             self.typo_path  = self.params["domain"]["typo_path"]
+#             self.terrain_path  = self.params["domain"]["terrain_path"]
 
 #         ### Copy Files to input folder ###
 #         shutil.copy(self.mesh_path,self.params.folder+"input_files/")

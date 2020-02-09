@@ -185,6 +185,9 @@ def run_action(params_loc=None):
         if params["optimization"].get("optimize",False):
             opt.Optimize()
 
+        if params["optimization"].get("gradient",True):
+            opt.Gradient()
+
     tock = time.time()
     runtime = tock-tick
     print("Run Complete: {:1.2f} s".format(runtime))

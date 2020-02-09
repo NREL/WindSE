@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: "Axial"       # Name of the output folder
+    name: "Yaw"       # Name of the output folder
     preappend_datetime: false  # Place the date and time before the folder name
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: true
@@ -24,7 +24,7 @@ domain:
 
 refine:
     #                      # Description                  | Units
-    warp_type: split      # percent of cells moved       | -
+    warp_type: split       # percent of cells moved       | -
     warp_percent: 0.75     # percent of cells moved       | -
     warp_height: 150       # move cell below this value   | m
     farm_num: 1            # number of farm refinements   | -
@@ -48,7 +48,6 @@ solver:
     type: steady
 
 optimization:
-    controls: [axial]
+    controls: [yaw]
     taylor_test: True
     optimize: False
-    
