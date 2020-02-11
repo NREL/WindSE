@@ -31,7 +31,7 @@ if main_file != "sphinx-build":
     from windse import windse_parameters
 
     ### Check if we need dolfin_adjoint ###
-    if windse_parameters["general"].get("dolfin_adjoint", False):
+    if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
 
     ### This import improves the plotter functionality on Mac ###
@@ -56,10 +56,20 @@ class Optimizer(object):
         self.problem = solver.problem
         self.farm = solver.problem.farm
         self.fprint = self.params.fprint
-        self.Sx = self.problem.dom.xscale
+        self.xscale = self.problem.dom.xscale
 
-        self.control_types = self.params["optimization"]["controls"]
-        self.layout_bounds = np.array(self.params["optimization"].get("layout_bounds",[np.array(self.farm.ex_x)/self.Sx,np.array(self.farm.ex_y)/self.Sx]))*self.Sx
+        ### Update attributes based on params file ###
+        for key, value in self.params["optimization"].items():
+            if isinstance(value,list):
+                setattr(self,key,np.array(value))
+            else:
+                setattr(self,key,value)
+
+        ### Process parameters ###
+        if isinstance(self.layout_bounds,str):
+            if self.layout_bounds == "wind_farm":
+                self.layout_bounds = np.array(self.farm.ex_x,self.farm.ex_y)
+        self.layout_bounds = self.layout_bounds*self.xscale
 
         self.iteration = 0
 

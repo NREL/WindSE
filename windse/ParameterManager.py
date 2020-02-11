@@ -125,6 +125,18 @@ class Parameters(dict):
         self.CheckParameters(yaml_file,self.defaults)
         print("Parameter Check Passed")
 
+        ### Check is specific parameters were provided ###
+        self.default_bc_names = True
+        if yaml_file["boundary_condition"].get("boundary_names",{}):
+            self.default_bc_names = False
+        self.default_bc_types = True
+        if yaml_file["boundary_condition"].get("boundary_types",{}):
+            self.default_bc_types = False
+        if yaml_file.get("optimization",{}):
+            if not yaml_file["general"].get("dolfin_adjoint"):
+                raise ValueError("Optimization options given, but general:dolfin_ajdoint is set to False")
+
+
         ### Set the parameters ###
         self.update(self.NestedUpdate(yaml_file))
 

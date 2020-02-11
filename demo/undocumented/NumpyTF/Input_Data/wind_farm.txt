@@ -1,0 +1,2 @@
+#x	y	HH	Yaw	Diameter	Thickness	Axial_Induction
+0	0	32.1	0.0	27.0		2.7		.33

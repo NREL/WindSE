@@ -28,7 +28,7 @@ if main_file != "sphinx-build":
     from windse import windse_parameters
 
     ### Check if we need dolfin_adjoint ###
-    if windse_parameters["general"].get("dolfin_adjoint", False):
+    if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *  
 
     import math 
@@ -45,18 +45,23 @@ class GenericBoundary(object):
         self.height_first_save = True
         self.fprint = self.params.fprint
 
-        ### Check if boundary information is given in the params file ###
-        bcs_params = self.params.get("boundary_condition",{})
-        self.boundary_names = bcs_params.get("boundary_names", dom.boundary_names)
-        self.boundary_types = bcs_params.get("boundary_types", dom.boundary_types)
-        self.HH_vel = bcs_params.get("HH_vel", 8.0)*self.dom.xscale
-        self.power = bcs_params.get("power", 0.25)
-        self.k = bcs_params.get("k", 0.4)
+        ### Update attributes based on params file ###
+        for key, value in self.params["boundary_condition"].items():
+            setattr(self,key,value)
+
+        ### Get solver parameters ###
         self.init_wind = dom.init_wind
+        self.final_time = self.params["solver"]["final_time"]
 
         ### Define the zero function based on domain dimension ###
         self.zeros = Constant(dom.mesh.topology().dim()*(0.0,))
         self.zero  = Constant(0.0)
+
+        ### Use custom boundary tags if provided ###
+        if self.params.default_bc_names:
+            self.boundary_names = self.dom.boundary_names
+        if self.params.default_bc_types:
+            self.boundary_types = self.dom.boundary_types
 
     def SetupBoundaries(self):
         ### Create the equations need for defining the boundary conditions ###
@@ -320,7 +325,7 @@ class PowerInflow(GenericBoundary):
         #################
         #################
         #################
-        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-dom.ground_ref)))
+        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-dom.ground_reference)))
         # scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-0.0)))
         #################
         #################
@@ -384,14 +389,14 @@ class LogLayerInflow(GenericBoundary):
         self.ux = Function(fs.V0)
         self.uy = Function(fs.V1)
         self.uz = Function(fs.V2)
-        if dom.ground_ref == 0:
+        if dom.ground_reference == 0:
             scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+0.0001,0.0001))
             ustar = self.k/np.log(np.mean(farm.HH)/0.0001)
-        elif dom.ground_ref <= 0:
+        elif dom.ground_reference <= 0:
             raise ValueError("Log profile cannot be used with negative z values")
         else:
-            scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+dom.ground_ref,(dom.ground_ref)))
-            ustar = self.k/np.log(np.mean(farm.HH)/dom.ground_ref)
+            scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+dom.ground_reference,(dom.ground_reference)))
+            ustar = self.k/np.log(np.mean(farm.HH)/dom.ground_reference)
         self.unit_reference_velocity = np.multiply(ustar/self.k,np.log(scaled_depth))
         ux_com, uy_com, uz_com = self.PrepareVelocity(self.init_wind)
 
@@ -423,10 +428,8 @@ class TurbSimInflow(LogLayerInflow):
         super(TurbSimInflow, self).__init__(dom,fs,farm)
 
         ### Get the path for turbsim data ###
-        self.turbsim_path = self.params["boundary_condition"].get("turbsim_path",None)
         if self.turbsim_path is None:
             raise ValueError("Please provide the path to the turbsim data")
-        self.tFinal = self.params["solver"].get("final_time",1)
 
         ### Load Turbsim Data ###
         uTotal = np.load(self.turbsim_path+'turb_u.npy')
@@ -441,7 +444,7 @@ class TurbSimInflow(LogLayerInflow):
         ### Create the data bounds ###
         y = np.linspace(self.dom.y_range[0], self.dom.y_range[1], ny)
         z = np.linspace(self.dom.z_range[0], self.dom.z_range[1], nz)
-        t = np.linspace(0.0, self.tFinal, nt)
+        t = np.linspace(0.0, self.final_time, nt)
 
         ### Build interpolating functions ###
         self.interp_u = RegularGridInterpolator((z, y, t), uTotal)

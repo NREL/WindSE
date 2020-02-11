@@ -20,7 +20,7 @@ if main_file != "sphinx-build":
     # from memory_profiler import memory_usage
 
     ### Check if we need dolfin_adjoint ###
-    if windse_parameters["general"].get("dolfin_adjoint", False):
+    if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
 
 class GenericProblem(object):
@@ -43,12 +43,9 @@ class GenericProblem(object):
         self.tf_first_save = True
         self.fprint = self.params.fprint
 
-        ### Append the farm ###
-        self.params.full_farm = self.farm
-
-        ### add some helper items for dolfin_adjoint_helper.py ###
-        self.params.ground_fx = self.dom.Ground
-        self.params.full_hh = self.farm.HH
+        ### Update attributes based on params file ###
+        for key, value in self.params["problem"].items():
+            setattr(self,key,value)
 
     def ComputeTurbineForce(self,u,theta):
 
@@ -59,10 +56,10 @@ class GenericProblem(object):
             inflow_angle = 0.0
 
         ### Create the turbine force function ###
-        if self.farm.turbine_method == "dolfin":
+        if self.fs.turbine_method == "dolfin":
                 self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
 
-        elif self.farm.turbine_method == "numpy":
+        elif self.fs.turbine_method == "numpy":
                 self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
         else:
             raise ValueError("Unknown turbine method: "+self.farm.turbine_method)
@@ -140,8 +137,6 @@ class StabilizedProblem(GenericProblem):
         self.tf = self.ComputeTurbineForce(self.u_next,theta)
 
         ### These constants will be moved into the params file ###
-        nu = self.params["problem"].get("viscosity",.1)
-        lmax = self.params["problem"].get("lmax",15)
         f = Constant((0.0,)*self.dom.dim)
         f.rename("f","f")
         
@@ -149,8 +144,8 @@ class StabilizedProblem(GenericProblem):
         eps=Constant(1.0)
         eps.rename("eps","eps")
 
-        self.fprint("Viscosity:                 {:1.2e}".format(float(nu)))
-        self.fprint("Max Mixing Length:       {:1.2e}".format(float(lmax)))
+        self.fprint("Viscosity:                 {:1.2e}".format(float(self.viscosity)))
+        self.fprint("Max Mixing Length:         {:1.2e}".format(float(self.lmax)))
         self.fprint("Stabilization Coefficient: {:1.2e}".format(float(eps)))
 
         ### Calculate the stresses and viscosities ###
@@ -160,9 +155,9 @@ class StabilizedProblem(GenericProblem):
         if self.dom.dim == 3:
             ### https://doi.org/10.5194/wes-4-127-2019###
             l_mix = Function(self.fs.Q)
-            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:]/Sx,(1.+np.divide(vonKarman*self.bd.depth.vector()[:]/Sx,lmax)))
+            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:]/Sx,(1.+np.divide(vonKarman*self.bd.depth.vector()[:]/Sx,self.lmax)))
         else:
-            l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/lmax)))
+            l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/self.lmax)))
         # l_mix = Expression("x[2]/8.",degree=2)
         l_mix.rename("l_mix","l_mix")
         
@@ -174,7 +169,7 @@ class StabilizedProblem(GenericProblem):
         #     self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
         # else :
         # self.F = inner(grad(self.u_next)*self.u_next, v)*dx + Sx*Sx*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx# + inner(self.tf,v)*dx 
-        self.F = inner(grad(self.u_next)*self.u_next, v)*dx + Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+        self.F = inner(grad(self.u_next)*self.u_next, v)*dx + Sx*Sx*(self.viscosity+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
         # self.F_sans_tf =  (1.0)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx
         # self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_next[0]**2+self.u_next[1]**2),v)*dx 
 
@@ -186,9 +181,7 @@ class StabilizedProblem(GenericProblem):
         self.F += stab
         # self.F_sans_tf += stab
 
-        use_25d = self.params["problem"].get("use_25d_model", False)
-
-        if use_25d and self.dom.dim == 2 :
+        if self.use_25d_model and self.dom.dim == 2 :
             if self.dom.dim == 3:
                 raise ValueError("The 2.5D model requires a 2D simulation.")
 
@@ -223,14 +216,12 @@ class TaylorHoodProblem(GenericProblem):
         self.fprint("Setting Up Taylor-Hood Problem",special="header")
 
         ### These constants will be moved into the params file ###
-        nu = self.params["problem"].get("viscosity",0.1)
-        lmax = self.params["problem"].get("lmax",15)
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
         eps=Constant(0.01)
 
-        self.fprint("Viscosity:           {:1.2e}".format(float(nu)))
-        self.fprint("Max Mixing Length:       {:1.2e}".format(float(lmax)))
+        self.fprint("Viscosity:         {:1.2e}".format(float(self.viscosity)))
+        self.fprint("Max Mixing Length: {:1.2e}".format(float(self.lmax)))
 
         ### Create the test/trial/functions ###
         self.up_next = Function(self.fs.W)
@@ -248,9 +239,9 @@ class TaylorHoodProblem(GenericProblem):
         if self.dom.dim == 3:
             ### https://doi.org/10.5194/wes-4-127-2019###
             l_mix = Function(self.fs.Q)
-            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:],(1.+np.divide(vonKarman*self.bd.depth.vector()[:],lmax)))
+            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:],(1.+np.divide(vonKarman*self.bd.depth.vector()[:],self.lmax)))
         else:
-            l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/lmax)))
+            l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/self.lmax)))
 
         ### Calculate nu_T
         self.nu_T=l_mix**2.*S
@@ -259,11 +250,9 @@ class TaylorHoodProblem(GenericProblem):
         self.tf = self.ComputeTurbineForce(self.u_next,theta)
 
         ### Create the functional ###
-        self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+        self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (self.viscosity+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
     
-        use_25d = self.params["problem"].get("use_25d_model", False)
-
-        if use_25d:
+        if self.use_25d_model:
             if self.dom.dim == 3:
                 raise ValueError("The 2.5D model requires a 2D simulation.")
 
@@ -301,9 +290,8 @@ class UnsteadyProblem(GenericProblem):
         # Define fluid properties
         # FIXME: These should probably be set in params.yaml input filt
         # nu = 1/10000
-        nu = self.params["problem"].get("viscosity", .1)
         rho = 1
-        nu_c = Constant(nu)
+        nu_c = Constant(self.viscosity)
         rho_c = Constant(rho)
 
         # Define time step size (this value is used only for step 1 if adaptive timestepping is used)
@@ -311,7 +299,7 @@ class UnsteadyProblem(GenericProblem):
         self.dt = 0.1*self.dom.mesh.hmin()/self.bd.HH_vel
         self.dt_c  = Constant(self.dt)
 
-        self.fprint("Viscosity: {:1.2e}".format(float(nu)))
+        self.fprint("Viscosity: {:1.2e}".format(float(self.viscosity)))
         self.fprint("Density:   {:1.2e}".format(float(rho)))
 
         # Define trial and test functions for velocity

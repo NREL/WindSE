@@ -30,8 +30,8 @@ domain:
     x_range: [-1200, 1200] # x-range of the domain | m
     y_range: [-1200, 1200] # y-range of the domain | m
     z_range: [0.04, 640]   # z-range of the domain | m
-    nx: 12                 # Number of x-nodes     | -
-    ny: 12                 # Number of y-nodes     | -
+    nx: 10                 # Number of x-nodes     | -
+    ny: 10                 # Number of y-nodes     | -
     nz: 10                 # Number of z-nodes      | -
     interpolated: true 
     terrain_path: Input_Data/skew_terrain.txt
@@ -62,6 +62,8 @@ problem:
     viscosity: 0.2
 
 solver:
+    nonlinear_solver: newton
+    newton_relaxation: 0.9
     type: multiangle
     num_wind_angles: 3
     save_power: true

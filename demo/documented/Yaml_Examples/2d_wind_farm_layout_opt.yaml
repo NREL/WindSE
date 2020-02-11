@@ -29,9 +29,7 @@ wind_farm:
     seed: 8675309         # random seed for repeats  | -
     force: constant       # radial force distribution| -
 
-    turbine_method: dolfin
-    turbine_degree: 6
-    turbine_space: Quadrature
+
     ##################################################################
 
 
@@ -84,7 +82,10 @@ refine:
 
 function_space:
     type: taylor_hood
-
+    turbine_method: dolfin
+    turbine_degree: 6
+    turbine_space: Quadrature
+    
 boundary_condition:
     vel_profile: uniform
     HH_vel: 8.0

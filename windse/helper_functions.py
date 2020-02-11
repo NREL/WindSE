@@ -7,7 +7,7 @@ main_file = os.path.basename(__main__.__file__)
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
     from windse import windse_parameters
-    if windse_parameters["general"].get("dolfin_adjoint", False):
+    if windse_parameters.dolfin_adjoint:
         from dolfin import dx, File
         from dolfin_adjoint import Constant, Function, assemble
     else:

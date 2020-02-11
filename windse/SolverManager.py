@@ -24,7 +24,7 @@ if main_file != "sphinx-build":
     from windse import windse_parameters
 
     ### Check if we need dolfin_adjoint ###
-    if windse_parameters["general"].get("dolfin_adjoint", False):
+    if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
 
     ### This import improves the plotter functionality on Mac ###
@@ -39,10 +39,7 @@ if main_file != "sphinx-build":
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
     parameters['form_compiler']['representation'] = 'tsfc'
-    if windse_parameters["wind_farm"].get("turbine_space",None) == "Quadrature":
-        parameters['form_compiler']['quadrature_degree'] = windse_parameters["wind_farm"].get("turbine_degree",6)
-    else:
-        parameters['form_compiler']['quadrature_degree'] = 6
+    parameters['form_compiler']['quadrature_degree'] = windse_parameters["function_space"]["quadrature_degree"]
 
 class GenericSolver(object):
     """
@@ -51,18 +48,18 @@ class GenericSolver(object):
     def __init__(self,problem):
         self.params = windse_parameters
         self.problem  = problem
-        # self.u_next,self.p_next = self.problem.up_next.split(True)
-        self.u_next,self.p_next = split(self.problem.up_next)
+        self.u_next, self.p_next = split(self.problem.up_next)
         self.nu_T = self.problem.nu_T
         self.first_save = True
         self.fprint = self.params.fprint
-        self.extra_kwarg = {}
-        if self.params["general"].get("dolfin_adjoint", False):
-            self.extra_kwarg["annotate"] = False
-        self.save_power = self.params["solver"].get("save_power",False)
 
-        #Check if we are optimizing
-        if self.params.get("optimization",{}):
+        ### Update attributes based on params file ###
+        for key, value in self.params["solver"].items():
+            setattr(self,key,value)
+
+        self.extra_kwarg = {}
+        if self.params.dolfin_adjoint:
+            self.extra_kwarg["annotate"] = False
             self.optimizing = True
             self.J = 0
         else:
@@ -72,30 +69,6 @@ class GenericSolver(object):
         if self.save_power:
             self.J = 0
             self.J_saved = False
-
-    # def Plot(self):
-    #     """
-    #     This function plots the solution functions using matplotlib and saves the 
-    #     output to output/.../plots/u.pdf and output/.../plots/p.pdf
-    #     """
-
-    #     ### Create the path names ###
-    #     folder_string = self.params.folder+"/plots/"
-    #     u_string = self.params.folder+"/plots/u.pdf"
-    #     p_string = self.params.folder+"/plots/p.pdf"
-
-    #     ### Check if folder exists ###
-    #     if not os.path.exists(folder_string): os.makedirs(folder_string)
-
-    #     ### Plot the x component of velocity ###
-    #     plot(self.u_next[0],title="Velocity in the x Direction")
-    #     plt.savefig(u_string)
-    #     plt.figure()
-
-    #     ### Plot the pressure ###
-    #     plot(self.p_next,title="Pressure")
-    #     plt.savefig(p_string)
-    #     plt.show()
 
     def Save(self,val=0):
         """
@@ -135,15 +108,42 @@ class GenericSolver(object):
         """
         self.problem.ChangeWindAngle(theta)
 
-    def CalculatePowerFunctional_n(self,inflow_angle = 0.0):
-    # def CalculatePowerFunctional(self,inflow_angle = 0.0):
+    # def CalculatePowerFunctional_n(self,inflow_angle = 0.0):
+    def CalculatePowerFunctional(self,inflow_angle = 0.0):
 
-        if self.problem.dom.dim == 3:
+        # if self.problem.dom.dim == 3:
+        if self.problem.dom.dim <= 3:
+            # print("here")
             ### Reconstruct Turbine Force ###
             tf = self.problem.tf1*self.u_next[0]**2+self.problem.tf2*self.u_next[1]**2+self.problem.tf3*self.u_next[0]*self.u_next[1]
 
+
+            W = self.problem.farm.thickness[0]*1.0
+            R = self.problem.farm.RD[0]/2.0 
+
+            T_norm = 2.0*gamma(7.0/6.0)
+            D_norm = pi*gamma(4.0/3.0)
+            volNormalization_3D = T_norm*D_norm*W*R**2.0
+            print("3D Volume: "+repr(volNormalization_3D))
+
+            T_norm = 2.0*gamma(7.0/6.0)
+            D_norm = 2.0*gamma(7.0/6.0)
+            volNormalization_2D = T_norm*D_norm*W*R
+            print("3D Volume: "+repr(volNormalization_2D))
+
+
+            if self.problem.dom.dim == 2:
+                dim_scale = volNormalization_3D/volNormalization_2D
+                print(dim_scale)
+                dim_scale = pi*R/2
+                print(dim_scale)
+                dim_scale = 2*R*R*volNormalization_2D/volNormalization_3D
+                print(dim_scale)
+            else: 
+                dim_scale = 1.0
+
             ### Calculate Power ###
-            J = dot(tf,self.u_next)*dx
+            J = dot(tf*dim_scale,self.u_next)*dx
 
             ### Save Individual Powers ###
             if self.save_power:
@@ -157,69 +157,69 @@ class GenericSolver(object):
                         tf2 = self.problem.farm.actuator_disks_list[i] * sin(yaw)**2
                         tf3 = self.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
                         tf = tf1*self.u_next[0]**2+tf2*self.u_next[1]**2+tf3*self.u_next[0]*self.u_next[1]
-                        J_list[i] = assemble(dot(tf,self.u_next)*dx,**self.extra_kwarg)
+                        J_list[i] = assemble(dot(tf*dim_scale,self.u_next)*dx,**self.extra_kwarg)
 
                 for j in J_list:
                     print(j)
-                exit()
-        else:
-            J=0
-            J_list=np.zeros(self.problem.farm.numturbs+1)
-            for i in range(self.problem.farm.numturbs):
+                # exit()
+        # else:
+        #     J=0
+        #     J_list=np.zeros(self.problem.farm.numturbs+1)
+        #     for i in range(self.problem.farm.numturbs):
 
-                ### Set some Values ###
-                yaw = self.problem.farm.myaw[i]+inflow_angle
-                W = self.problem.farm.W[i]
-                R = self.problem.farm.RD[i]/2.0 
-                A = pi*R**2.0
-                a = self.problem.farm.ma[i]
-                C_tprime = 4*a/(1-a)
-                C_pprime = 0.45/(1-a)**3
+        #         ### Set some Values ###
+        #         yaw = self.problem.farm.myaw[i]+inflow_angle
+        #         W = self.problem.farm.W[i]
+        #         R = self.problem.farm.RD[i]/2.0 
+        #         A = pi*R**2.0
+        #         a = self.problem.farm.ma[i]
+        #         C_tprime = 4*a/(1-a)
+        #         C_pprime = 0.45/(1-a)**3
 
-                ### Define Integral Constants ###
-                T_norm = 2.0*gamma(7.0/6.0)
-                D_norm = 2.0*gamma(7.0/6.0)
-                h1 = float(hyper([],[1/3, 2/3, 5/6, 7/6],-(np.pi**6/46656)))
-                h2 = float(hyper([],[2/3, 7/6, 4/3, 3/2],-(np.pi**6/46656)))
-                h3 = float(hyper([],[4/3, 3/2, 5/3, 11/6],-(np.pi**6/46656)))
-                SD_norm = (1/3*np.pi**(3/2)*h1 - 1/15*np.pi**3*gamma(11/6)*h2 + gamma(7/6)*(1 + 1/360*np.pi**5*h3))/(.81831)
+        #         ### Define Integral Constants ###
+        #         T_norm = 2.0*gamma(7.0/6.0)
+        #         D_norm = 2.0*gamma(7.0/6.0)
+        #         h1 = float(hyper([],[1/3, 2/3, 5/6, 7/6],-(np.pi**6/46656)))
+        #         h2 = float(hyper([],[2/3, 7/6, 4/3, 3/2],-(np.pi**6/46656)))
+        #         h3 = float(hyper([],[4/3, 3/2, 5/3, 11/6],-(np.pi**6/46656)))
+        #         SD_norm = (1/3*np.pi**(3/2)*h1 - 1/15*np.pi**3*gamma(11/6)*h2 + gamma(7/6)*(1 + 1/360*np.pi**5*h3))/(.81831)
 
-                ### Reconstruct Turbine Force ###
-                tf1 = self.problem.farm.actuator_disks_list[i] * cos(yaw)**2
-                tf2 = self.problem.farm.actuator_disks_list[i] * sin(yaw)**2
-                tf3 = self.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
-                tf = tf1*self.u_next[0]**2+tf2*self.u_next[1]**2+tf3*self.u_next[0]*self.u_next[1]
-                tf = tf*T_norm*D_norm*W*R
+        #         ### Reconstruct Turbine Force ###
+        #         tf1 = self.problem.farm.actuator_disks_list[i] * cos(yaw)**2
+        #         tf2 = self.problem.farm.actuator_disks_list[i] * sin(yaw)**2
+        #         tf3 = self.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
+        #         tf = tf1*self.u_next[0]**2+tf2*self.u_next[1]**2+tf3*self.u_next[0]*self.u_next[1]
+        #         tf = tf*T_norm*D_norm*W*R
 
-                ### Calculate Volume of the Domain ###
-                unit = Function(self.problem.fs.Q)
-                unit.vector()[:] = 1.0
-                vol = assemble(unit*dx)
+        #         ### Calculate Volume of the Domain ###
+        #         unit = Function(self.problem.fs.Q)
+        #         unit.vector()[:] = 1.0
+        #         vol = assemble(unit*dx)
 
-                ### Calculate Integral of Actuator Disk ###
-                if self.problem.farm.force == "constant":
-                    Va = C_tprime*T_norm*D_norm*W*R*R
-                elif self.problem.farm.force == "sine":
-                    Va = C_tprime*T_norm*SD_norm*W*R*R
+        #         ### Calculate Integral of Actuator Disk ###
+        #         if self.problem.farm.force == "constant":
+        #             Va = C_tprime*T_norm*D_norm*W*R*R
+        #         elif self.problem.farm.force == "sine":
+        #             Va = C_tprime*T_norm*SD_norm*W*R*R
 
-                ### Calculate Power ###
-                # J_current = 0.5*A*C_pprime*(assemble(F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
-                # J_current = 0.5*A*C_pprime/vol*(dot(tf,self.u_next)/Va)**3*dx
-                J_current = 0.5*A*C_pprime/vol*(dot(tf,self.u_next)/Va)*dx
-                # J_current = 0.5*A*C_pprime/vol*(unit/Va)**3*dx
-                # J_current = unit*0.5*A*C_pprime/vol*(1/Va)**3*dx
-                # J_current = unit*Va*dx
-                J += J_current
+        #         ### Calculate Power ###
+        #         # J_current = 0.5*A*C_pprime*(assemble(F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
+        #         # J_current = 0.5*A*C_pprime/vol*(dot(tf,self.u_next)/Va)**3*dx
+        #         J_current = 0.5*A*C_pprime/vol*(dot(tf,self.u_next)/Va)*dx
+        #         # J_current = 0.5*A*C_pprime/vol*(unit/Va)**3*dx
+        #         # J_current = unit*0.5*A*C_pprime/vol*(1/Va)**3*dx
+        #         # J_current = unit*Va*dx
+        #         J += J_current
 
-                if self.save_power:
-                    J_list[i] = assemble(J_current)
+        #         if self.save_power:
+        #             J_list[i] = assemble(J_current)
 
-            if self.save_power:
-                J_list[-1]=np.sum(J_list[:-1])
-                print()
-                for j in J_list:
-                    print(j)
-                exit()
+        #     if self.save_power:
+        #         J_list[-1]=np.sum(J_list[:-1])
+        #         print()
+        #         for j in J_list:
+        #             print(j)
+        #         # exit()
 
             folder_string = self.params.folder+"/data/"
             if not os.path.exists(folder_string): os.makedirs(folder_string)
@@ -236,96 +236,128 @@ class GenericSolver(object):
         return J
         
     # def CalculatePowerFunctional_o(self,delta_yaw = 0.0):
-    def CalculatePowerFunctional(self,delta_yaw = 0.0):
-        self.fprint("Computing Power Functional")
+    # # def CalculatePowerFunctional(self,delta_yaw = 0.0):
+    #     self.fprint("Computing Power Functional")
 
-        x=SpatialCoordinate(self.problem.dom.mesh)
-        J=0.
-        J_list=np.zeros(self.problem.farm.numturbs+1)
-        for i in range(self.problem.farm.numturbs):
+    #     x=SpatialCoordinate(self.problem.dom.mesh)
+    #     J=0.
+    #     J_list=np.zeros(self.problem.farm.numturbs+1)
+    #     for i in range(self.problem.farm.numturbs):
 
-            mx = self.problem.farm.mx[i]
-            my = self.problem.farm.my[i]
-            mz = self.problem.farm.mz[i]
-            x0 = [mx,my,mz]
-            W = self.problem.farm.W[i]*1.0
-            R = self.problem.farm.RD[i]/2.0 
-            ma = self.problem.farm.ma[i]
-            yaw = self.problem.farm.myaw[i]+delta_yaw
-            u = self.u_next
-            A = pi*R**2.0
-            C_tprime = 4*ma/(1-ma)
-            C_pprime = 0.45/(1-ma)**3
+    #         mx = self.problem.farm.mx[i]
+    #         my = self.problem.farm.my[i]
+    #         mz = self.problem.farm.mz[i]
+    #         x0 = [mx,my,mz]
+    #         W = self.problem.farm.thickness[i]*1.0
+    #         R = self.problem.farm.RD[i]/2.0 
+    #         ma = self.problem.farm.ma[i]
+    #         yaw = self.problem.farm.myaw[i]+delta_yaw
+    #         u = self.u_next
+    #         A = pi*R**2.0
+    #         C_tprime = 4*ma/(1-ma)
+    #         C_pprime = 0.45/(1-ma)**3
             
-            ### Rotate and Shift the Turbine ###
-            xs = self.problem.farm.YawTurbine(x,x0,yaw)
-            u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
+    #         ### Rotate and Shift the Turbine ###
+    #         xs = self.problem.farm.YawTurbine(x,x0,yaw)
+    #         u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
 
-            ### Create the function that represents the Thickness of the turbine ###
-            T = exp(-pow((xs[0]/W),6.0))
+    #         ### Create the function that represents the Thickness of the turbine ###
+    #         T = exp(-pow((xs[0]/W),6.0))
 
-            if self.problem.dom.dim == 3:
-                # WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=yaw,degree=1)
-                WTGbase = as_vector((cos(yaw),sin(yaw),0.0))
+    #         if self.problem.dom.dim == 3:
+    #             # WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=yaw,degree=1)
+    #             WTGbase = as_vector((cos(yaw),sin(yaw),0.0))
 
-                ### Create the function that represents the Disk of the turbine
-                r = sqrt(xs[1]**2.0+xs[2]**2.0)/R
-                D = exp(-pow(r,6.0))
-                # D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))
+    #             ### Create the function that represents the Disk of the turbine
+    #             r = sqrt(xs[1]**2.0+xs[2]**2.0)/R
+    #             D = exp(-pow(r,6.0))
+    #             # D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))
 
-                # volNormalization = assemble(T*D*dx)
-                T_norm = 2.0*gamma(7.0/6.0)
-                D_norm = pi*gamma(4.0/3.0)
-                volNormalization = T_norm*D_norm*W*R**(self.problem.dom.dim-1)
+    #             volNormalization = assemble(T*D*dx)
+    #             print(volNormalization)
+    #             T_norm = 2.0*gamma(7.0/6.0)
+    #             D_norm = pi*gamma(4.0/3.0)
+    #             volNormalization = T_norm*D_norm*W*R**2.0
+    #             print(volNormalization)
 
-                ### Create the function that represents the force ###
-                if self.problem.farm.force == "constant":
-                    F = 0.5*A*C_tprime
-                elif self.problem.farm.force == "sine":
-                    # r = sqrt(xs[1]**2.0+xs[2]**2)
-                    F = 0.5*A*C_tprime*(r*sin(pi*r)+0.5)/(.81831)
+    #             ### Create the function that represents the force ###
+    #             if self.problem.farm.force == "constant":
+    #                 F = 0.5*A*C_tprime
+    #             elif self.problem.farm.force == "sine":
+    #                 # r = sqrt(xs[1]**2.0+xs[2]**2)
+    #                 F = 0.5*A*C_tprime*(r*sin(pi*r)+0.5)/(.81831)
 
-                J += dot(F*T*D/volNormalization*WTGbase*u_d**2,u)*dx
-                if self.save_power:
-                    J_list[i] = assemble((dot(F*T*D/volNormalization*WTGbase*u_d**2,u))*dx)
+    #             J_current = dot(F*T*D*WTGbase*u_d**2,u)*dx
+    #             J += J_current
+    #             if self.save_power:
+    #                 J_list[i] = assemble(J_current)
 
-            else:
-                # WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=yaw,degree=1)
-                WTGbase = as_vector((cos(yaw),sin(yaw)))
+    #         else:
+    #             # WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=yaw,degree=1)
+    #             WTGbase = as_vector((cos(yaw),sin(yaw)))
 
-                ### Create the function that represents the Disk of the turbine
-                r = sqrt(xs[1]**2.0+xs[2]**2.0)/R
-                D = exp(-pow(r,6.0))
-
-
-                # T_norm = 2.0*gamma(7.0/6.0)
-                # D_norm = 2.0*gamma(7.0/6.0)
-                # h1 = float(hyper([],[1/3, 2/3, 5/6, 7/6],-(np.pi**6/46656)))
-                # h2 = float(hyper([],[2/3, 7/6, 4/3, 3/2],-(np.pi**6/46656)))
-                # h3 = float(hyper([],[4/3, 3/2, 5/3, 11/6],-(np.pi**6/46656)))
-                # SD_norm = (1/3*np.pi**(3/2)*h1 - 1/15*np.pi**3*gamma(11/6)*h2 + gamma(7/6)*(1 + 1/360*np.pi**5*h3))/(.81831)
-                # volNormalization = T_norm*D_norm*W*R**(self.problem.dom.dim)
-                # volNormalization = assemble(T*D*dx)
-
-                ### Create the function that represents the force ###
-                if self.problem.farm.force == "constant":
-                    F = 0.5*self.problem.farm.RD[i]*C_tprime    
-                elif self.problem.farm.force == "sine":
-                    F = 0.5*self.problem.farm.RD[i]*C_tprime*(r*sin(pi*r)+0.5)/(.81831)
-
-                # V  = assemble(F*T*D*dx)
-                # Va = float(C_tprime)*T_norm*SD_norm*W*R*R
-                # print(V,Va,V/Va,V/(W*R*R),Va/(W*R*R))
-
-                J_current = 0.5*A*C_pprime*(assemble(F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
-                # J_current = (assemble(0.5*A*C_pprime*F*T*D*u_d*dx)/assemble(F*T*D*dx))
+    #             ### Create the function that represents the Disk of the turbine
+    #             r = sqrt(xs[1]**2.0+xs[2]**2.0)/R
+    #             D = exp(-pow(r,6.0))
 
 
-                ### LIST O PROBLEMS ###
-                # 1. Unfortunately, this is not a form so cannot be used with dolfin_adjoint (this just returns a float)
-                # 2. Where did WTGbase go? I know it need to be a scaler but does yaw angle not matter in 2D?
-                # 3. Should the C_pprime term be inside the numerator? 
-                # 4. Are you positive you want to divide by the total force (F*T*D) instead of just the space kernal (T*D)
+    #             # T_norm = 2.0*gamma(7.0/6.0)
+    #             # D_norm = 2.0*gamma(7.0/6.0)
+    #             # h1 = float(hyper([],[1/3, 2/3, 5/6, 7/6],-(np.pi**6/46656)))
+    #             # h2 = float(hyper([],[2/3, 7/6, 4/3, 3/2],-(np.pi**6/46656)))
+    #             # h3 = float(hyper([],[4/3, 3/2, 5/3, 11/6],-(np.pi**6/46656)))
+    #             # SD_norm = (1/3*np.pi**(3/2)*h1 - 1/15*np.pi**3*gamma(11/6)*h2 + gamma(7/6)*(1 + 1/360*np.pi**5*h3))/(.81831)
+    #             # volNormalization = T_norm*SD_norm*W*R**(self.problem.dom.dim)
+    #             volNormalization = assemble(T*D*dx)
+
+    #             T_norm = 2.0*gamma(7.0/6.0)
+    #             D_norm = pi*gamma(4.0/3.0)
+    #             volNormalization_3D = T_norm*D_norm*W*R**2.0
+    #             # print(volNormalization_3D)
+
+
+    #             T_norm = 2.0*gamma(7.0/6.0)
+    #             D_norm = 2.0*gamma(7.0/6.0)
+    #             volNormalization_2D = T_norm*D_norm*W*R
+    #             # print(volNormalization_2D)
+
+
+    #             print(volNormalization,volNormalization_2D,volNormalization_3D,2*volNormalization_2D/volNormalization_3D)
+
+    #             ### Create the function that represents the force ###
+    #             if self.problem.farm.force == "constant":
+    #                 F = 0.5*self.problem.farm.RD[i]*C_tprime    
+    #             elif self.problem.farm.force == "sine":
+    #                 F = 0.5*self.problem.farm.RD[i]*C_tprime*(r*sin(pi*r)+0.5)/(.81831)
+
+    #             # V  = assemble(F*T*D*dx)
+    #             # Va = float(C_tprime)*T_norm*SD_norm*W*R*R
+    #             # print(V,Va,V/Va,V/(W*R*R),Va/(W*R*R))
+
+    #             J_current = assemble(dot(F*T*D*WTGbase*u_d**2,u)*dx)
+    #             # J_current = (assemble(dot(F*T*D*WTGbase*u_d**2,u)*dx)
+    #             # J_current = 0.5*A*C_pprime*(assemble(dot(F*T*D*WTGbase*u_d**2,u)*dx)/assemble(F*T*D*dx))
+    #             # print(float(J_current))
+    #             # J_current_old = 0.5*A*C_pprime*(assemble(F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
+    #             # J_current = 0.5*A*C_pprime*(assemble(T*D*u*dx)/assemble(T*D*dx))**3
+
+    #             # J_3D = [1692363.167076575,801778.7751333286,545135.3528982735]
+    #             # J_3D = [767698.3159772983,420644.4831798226,291267.477222329]
+    #             # print(float(J_current_old),float(J_current_old/J_current),float(J_3D[i]/J_current))
+    #             # J_current = (assemble(0.5*A*C_pprime*F*T*D*u_d*dx)/assemble(F*T*D*dx))
+
+
+
+
+    #             ### LIST O PROBLEMS ###
+    #             # 1. Unfortunately, this is not a form so cannot be used with dolfin_adjoint (this just returns a float)
+    #             # 2. Where did WTGbase go? I know it need to be a scaler but does yaw angle not matter in 2D?
+    #             # 3. Should the C_pprime term be inside the numerator? 
+    #             # 4. Are you positive you want to divide by the total force (F*T*D) instead of just the space kernal (T*D)
+
+
+
+ 
 
 
 
@@ -336,36 +368,32 @@ class GenericSolver(object):
 
 
 
+    #             # J_current = 0.5*A*C_pprime*(1/assemble(F*T*D*dx))**3
+    #             J += J_current
+    #             if self.save_power:
+    #                 # J_list[i] = (assemble(F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
+    #                 J_list[i] = J_current
 
+    #     if self.save_power:
+    #         J_list[-1]=np.sum(J_list[:-1])
+    #         print()
+    #         for j in J_list:
+    #             print(j)
+    #         exit()
 
+    #         folder_string = self.params.folder+"/data/"
+    #         if not os.path.exists(folder_string): os.makedirs(folder_string)
 
+    #         if self.J_saved:
+    #             f = open(folder_string+"power_data.txt",'ab')
+    #         else:
+    #             f = open(folder_string+"power_data.txt",'wb')
+    #             self.J_saved = True
 
-                # J_current = 0.5*A*C_pprime*(1/assemble(F*T*D*dx))**3
-                J += J_current
-                if self.save_power:
-                    # J_list[i] = (assemble(F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
-                    J_list[i] = J_current
-        
-        if self.save_power:
-            J_list[-1]=np.sum(J_list[:-1])
-            print()
-            for j in J_list:
-                print(j)
-            exit()
+    #         np.savetxt(f,[J_list])
+    #         f.close()
 
-            folder_string = self.params.folder+"/data/"
-            if not os.path.exists(folder_string): os.makedirs(folder_string)
-
-            if self.J_saved:
-                f = open(folder_string+"power_data.txt",'ab')
-            else:
-                f = open(folder_string+"power_data.txt",'wb')
-                self.J_saved = True
-
-            np.savetxt(f,[J_list])
-            f.close()
-
-        return J
+    #     return J
 
 class SteadySolver(GenericSolver):
     """
@@ -422,14 +450,11 @@ class SteadySolver(GenericSolver):
         # self.fprint("Converged Successfully: {0}".format(converged))
         ####################################################################
 
-        nonlinear_solver = self.params["solver"].get("nonlinear_solver", "snes")
-        relaxation = self.params["solver"].get("newton_relaxation", 1.0)
+        self.fprint("Solving with {0}".format(self.nonlinear_solver))
+        if self.nonlinear_solver == "newton":
+            self.fprint("Relaxation parameter = {: 1.2f}".format(self.newton_relaxation))
 
-        self.fprint("Solving with {0}".format(nonlinear_solver))
-        if nonlinear_solver == "newton":
-            self.fprint("Relaxation parameter = {: 1.2f}".format(relaxation))
-
-            newton_options = {"relaxation_parameter": relaxation,
+            newton_options = {"relaxation_parameter": self.newton_relaxation,
                               "maximum_iterations": 40,
                               "linear_solver": "mumps",
                               "absolute_tolerance": 1e-6,
@@ -438,7 +463,7 @@ class SteadySolver(GenericSolver):
             solver_parameters = {"nonlinear_solver": "newton",
                                  "newton_solver": newton_options}
 
-        elif nonlinear_solver == "snes":
+        elif self.nonlinear_solver == "snes":
             # ### Add some helper functions to solver options ###
             solver_parameters = {"nonlinear_solver": "snes",
                                  "snes_solver": {
@@ -448,7 +473,7 @@ class SteadySolver(GenericSolver):
                                  "line_search": "bt",
                                  }}                        
         else:
-            raise ValueError("Unknown nonlinear solver type: {0}".format(nonlinear_solver))
+            raise ValueError("Unknown nonlinear solver type: {0}".format(self.nonlinear_solver))
 
         ### Start the Solve Process ###
         self.fprint("Solving",special="header")
@@ -529,17 +554,12 @@ class UnsteadySolver(GenericSolver):
                 % (self.problem.params["problem"]["type"]))
 
         # ================================================================
-
-        # Define the final simulation time
-        # FIXME: This should also be set in params.yaml input file
-        # tFinal = 6000.0
-        tFinal = self.params["solver"].get("final_time",1)
         
         # Start a counter for the total simulation time
         simTime = 0.0
 
         self.fprint("dt: %.4f" % (self.problem.dt))
-        self.fprint("tFinal: %.1f" % (tFinal))
+        self.fprint("self.final_time: %.1f" % (self.final_time))
 
         # ================================================================
 
@@ -614,9 +634,9 @@ class UnsteadySolver(GenericSolver):
 
         start = time.time()
 
-        while simTime < tFinal:
+        while simTime < self.final_time:
             # Get boundary conditions specific to this timestep
-            # bcu, bcp = self.GetBoundaryConditions(simTime/tFinal)
+            # bcu, bcp = self.GetBoundaryConditions(simTime/self.final_time)
             # bcu = self.modifyInletVelocity(simTime, bcu)
 
             # Update the turbine force
@@ -1021,15 +1041,10 @@ class MultiAngleSolver(SteadySolver):
         if self.params["domain"]["type"] in ["imported"]:
             raise ValueError("Cannot use a Multi-Angle Solver with an "+self.params["domain"]["type"]+" domain.")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
-        self.wind_range = self.params["solver"].get("wind_range", None)
         if  self.wind_range is None:
             self.wind_range = [0, 2.0*np.pi]
-            self.endpoint = self.params["solver"].get("endpoint", False)
-        else:
-            self.endpoint = self.params["solver"].get("endpoint", True)
 
-        self.num_wind = self.params["solver"]["num_wind_angles"]
-        self.angles = np.linspace(self.wind_range[0],self.wind_range[1],self.num_wind,endpoint=self.endpoint)
+        self.angles = np.linspace(self.wind_range[0],self.wind_range[1],self.num_wind_angles,endpoint=self.endpoint)
 
     def Solve(self):
         for i, theta in enumerate(self.angles):
@@ -1055,8 +1070,6 @@ class TimeSeriesSolver(SteadySolver):
         if self.params["domain"]["type"] in ["imported"]:
             raise ValueError("Cannot use a Multi-Angle Solver with an "+self.params["domain"]["type"]+" domain.")
         self.orignal_solve = super(TimeSeriesSolver, self).Solve
-        self.velocity_path = self.params["solver"]["velocity_path"]
-
 
         raw_data = np.loadtxt(self.velocity_path,comments="#")
         self.times = raw_data[:,0]

@@ -18,24 +18,24 @@ wind_farm:
 domain: 
     
     ########################### Box Domain ############################
-    type: box              #                       |
-    x_range: [-1200, 1200] # x-range of the domain | m
-    y_range: [-600, 600] # y-range of the domain | m
-    z_range: [0.04, 640]   # z-range of the domain | m
-    nx: 24                 # Number of x-nodes     | -
-    ny: 12                 # Number of y-nodes     | -
-    nz: 12                 # Number of z-nodes      | -
+    # type: box              #                       |
+    # x_range: [-1200, 1200] # x-range of the domain | m
+    # y_range: [-600, 600] # y-range of the domain | m
+    # z_range: [0.04, 640]   # z-range of the domain | m
+    # nx: 24                 # Number of x-nodes     | -
+    # ny: 12                 # Number of y-nodes     | -
+    # nz: 12                 # Number of z-nodes      | -
     ###################################################################
 
     ########################## Cylinder Domain ########################
-    # type: cylinder          #                       |
-    # mesh_type: squircular   # elliptic, stretch mshr|
-    # radius: 1200            # x-range of the domain | m
-    # center: [0.0, 0.0]      # y-range of the domain | m
-    # z_range: [0.04, 640]    # z-range of the domain | m
-    # nt: 62                  # segments around circle| -
+    type: cylinder          #                       |
+    mesh_type: mshr   # elliptic, stretch mshr|
+    radius: 1200            # x-range of the domain | m
+    center: [0.0, 0.0]      # y-range of the domain | m
+    z_range: [0.0, 640]    # z-range of the domain | m
+    nt: 62                  # segments around circle| -
     # nz: 10                  # Number of z-nodes     | -
-    # # res: 50                 # resolution for mshr   | -
+    res: 50                 # resolution for mshr   | -
     ###################################################################
 
     ######## Additionally, uncomment this for complex terrain #########
@@ -65,15 +65,20 @@ boundary_condition:
     vel_profile: log
     HH_vel: 8.0
     k: 0.4
+    ######### Uncomment to test out custom BCs for BoxDomain ##########
+    # boundary_types:
+    #     inflow: ["front"]
+    #     no_stress: ["back"]
+    #     free_slip: ["top","left","right"]
+    #     no_slip: ["bottom"]
+    ###################################################################
 
 problem:
     type: stabilized
-    viscosity: .01
-    lmax: 15
+    viscosity: 5
+    lmax: 50
 
 
 solver:
-    nonlinear_solver: newton
-    newton_relaxation: 0.9
     type: steady
     save_power: true

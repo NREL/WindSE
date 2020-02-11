@@ -23,7 +23,7 @@ if main_file != "sphinx-build":
     from windse import windse_parameters, BaseHeight, CalculateDiskTurbineForces
 
     ### Check if we need dolfin_adjoint ###
-    if windse_parameters["general"].get("dolfin_adjoint", False):
+    if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
 
     ### This import improves the plotter functionality on Mac ###
@@ -42,17 +42,24 @@ class GenericWindFarm(object):
     def __init__(self, dom):
         ### save a reference of option and create local version specifically of domain options ###
         self.params = windse_parameters
-        self.turbine_method = self.params["wind_farm"].get("turbine_method","numpy")
-        self.force = self.params["wind_farm"].get("force","sine")
-
-        self.analytic = self.params["domain"].get("analytic",False)
         self.dom = dom
         self.rd_first_save = True
         self.fprint = self.params.fprint
+
+        ### Update attributes based on params file ###
+        for key, value in self.params["wind_farm"].items():
+            if isinstance(value,list):
+                setattr(self,key,np.array(value))
+            else:
+                setattr(self,key,value)
+
         self.extra_kwarg = {}
-        if self.params["general"].get("dolfin_adjoint", False):
-            self.control_types = self.params["optimization"]["controls"]
+        self.optimize = False
+        if self.params.dolfin_adjoint:
+            self.layout_bounds = self.params["optimization"]["layout_bounds"]
             self.extra_kwarg["annotate"] = False
+            self.optimize = True
+
 
     def Plot(self,show=False,filename="wind_farm",power=None):
         """
@@ -70,11 +77,9 @@ class GenericWindFarm(object):
         if not os.path.exists(folder_string): os.makedirs(folder_string)
 
         ### Create a list that outlines the extent of the farm ###
-        if self.params.get("optimization",{}):
-            Sx = self.dom.xscale
-            layout_bounds = np.array(self.params["optimization"].get("layout_bounds",[np.array(self.ex_x)/Sx,np.array(self.ex_y)/Sx]))*Sx
-            ex_list_x = [layout_bounds[0][0],layout_bounds[0][1],layout_bounds[0][1],layout_bounds[0][0],layout_bounds[0][0]]
-            ex_list_y = [layout_bounds[1][0],layout_bounds[1][0],layout_bounds[1][1],layout_bounds[1][1],layout_bounds[1][0]]
+        if self.optimize and self.layout_bounds == "wind_farm":
+            ex_list_x = [self.layout_bounds[0][0],self.layout_bounds[0][1],self.layout_bounds[0][1],self.layout_bounds[0][0],self.layout_bounds[0][0]]
+            ex_list_y = [self.layout_bounds[1][0],self.layout_bounds[1][0],self.layout_bounds[1][1],self.layout_bounds[1][1],self.layout_bounds[1][0]]
         else:
             ex_list_x = [self.ex_x[0],self.ex_x[1],self.ex_x[1],self.ex_x[0],self.ex_x[0]]
             ex_list_y = [self.ex_y[0],self.ex_y[0],self.ex_y[1],self.ex_y[1],self.ex_y[0]]
@@ -139,7 +144,7 @@ class GenericWindFarm(object):
 
         ### Save text file ###
         Sx = self.dom.xscale
-        output = np.array([self.x/Sx, self.y/Sx, self.HH/Sx, self.yaw, self.RD/Sx, self.W/Sx, self.a])
+        output = np.array([self.x/Sx, self.y/Sx, self.HH/Sx, self.yaw, self.RD/Sx, self.thickness/Sx, self.axial])
         np.savetxt(file_string,output.T,header=head_str)
 
     def SaveActuatorDisks(self,val=0):
@@ -235,7 +240,7 @@ class GenericWindFarm(object):
         for i in range(self.numturbs):
             self.mx.append(Constant(self.x[i]))
             self.my.append(Constant(self.y[i]))
-            self.ma.append(Constant(self.a[i]))
+            self.ma.append(Constant(self.axial[i]))
             self.myaw.append(Constant(self.yaw[i]))
 
         for i in range(self.numturbs):
@@ -253,7 +258,7 @@ class GenericWindFarm(object):
         if yaw is not None:
             self.yaw = np.array(yaw,dtype=float)
         if a is not None:
-            self.a = np.array(a,dtype=float)
+            self.axial = np.array(a,dtype=float)
 
         for i in range(self.numturbs):
             self.mx[i]=Constant(self.x[i])
@@ -264,7 +269,7 @@ class GenericWindFarm(object):
             self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
             self.z[i] = float(self.mz[i])
             self.ground[i] = self.z[i] - self.HH[i]
-            self.ma[i]=Constant(self.a[i])
+            self.ma[i]=Constant(self.axial[i])
             self.myaw[i]=Constant(self.yaw[i])
 
     def CreateLists(self):
@@ -272,12 +277,10 @@ class GenericWindFarm(object):
         This function creates lists from single values. This is useful
         when the params.yaml file defines only one type of turbine.
         """
-        self.HH = np.full(self.numturbs,self.HH)
-        self.RD = np.full(self.numturbs,self.RD)
-        self.W = np.full(self.numturbs,self.W)
-        self.radius = np.full(self.numturbs,self.radius)
-        self.yaw = np.full(self.numturbs,self.yaw)
-        self.a = np.full(self.numturbs,self.axial)
+        for prop in ["HH", "RD", "thickness", "radius", "yaw", "axial"]:
+            val = getattr(self,prop)
+            if np.isscalar(val):
+                setattr(self,prop,np.full(self.numturbs,val))
 
     def CalculateHeights(self):
         """
@@ -475,7 +478,7 @@ class GenericWindFarm(object):
         for i in range(self.numturbs):
             x0 = [self.mx[i],self.my[i],self.mz[i]]
             yaw = self.myaw[i]+inflow_angle
-            W = self.W[i]*1.0
+            W = self.thickness[i]*1.0
             R = self.RD[i]/2.0
             ma = self.ma[i]
             C_tprime = 4*ma/(1-ma)
@@ -510,8 +513,8 @@ class GenericWindFarm(object):
 
             ### Calculate normalization constant ###
             volNormalization = T_norm*D_norm*W*R**(self.dom.dim-1)
-            # volNormalization = assemble(T*D*dx)
-            # print(volNormalization_a,volNormalization,volNormalization/(W*R**(self.dom.dim-1)),T_norm*D_norm)
+            volNormalization_a = assemble(T*D*dx)
+            print(volNormalization_a,volNormalization)#,volNormalization/(W*R**(self.dom.dim-1)),T_norm*D_norm)
 
             # compute disk averaged velocity in yawed case and don't project
             self.actuator_disks_list.append(F*T*D*WTGbase/volNormalization)
@@ -562,23 +565,17 @@ class GridWindFarm(GenericWindFarm):
         self.fprint("Generating Grid Wind Farm",special="header")
 
         ### Initialize Values from Options ###
-        self.grid_rows = self.params["wind_farm"]["grid_rows"]
-        self.grid_cols = self.params["wind_farm"]["grid_cols"]
         self.numturbs = self.grid_rows * self.grid_cols
         self.params["wind_farm"]["numturbs"] = self.numturbs
 
-
-        self.HH = [self.params["wind_farm"]["HH"]*Sx]*self.numturbs
-        self.RD = [self.params["wind_farm"]["RD"]*Sx]*self.numturbs
-        self.W = [self.params["wind_farm"]["thickness"]*Sx]*self.numturbs
-        self.yaw = [self.params["wind_farm"]["yaw"]]*self.numturbs
-        self.axial = [self.params["wind_farm"]["axial"]]*self.numturbs
-        self.radius = self.RD[0]/2.0
-        self.jitter = self.params["wind_farm"].get("jitter",0.0)*Sx
-        self.seed = self.params["wind_farm"].get("seed",None)
-
-        self.ex_x = np.array(self.params["wind_farm"]["ex_x"])*Sx
-        self.ex_y = np.array(self.params["wind_farm"]["ex_y"])*Sx
+        ### Scale Terms ###
+        self.HH     = self.HH * Sx
+        self.RD     = self.RD * Sx
+        self.thickness      = self.thickness * Sx
+        self.jitter = self.jitter * Sx
+        self.radius = self.RD/2.0
+        self.ex_x   = self.ex_x * Sx
+        self.ex_y   = self.ex_y * Sx
 
         ### Print some useful stats ###
         self.fprint("Force Type:         {0}".format(self.force))
@@ -653,22 +650,15 @@ class RandomWindFarm(GenericWindFarm):
         super(RandomWindFarm, self).__init__(dom)
         Sx = self.dom.xscale
         self.fprint("Generating Random Farm",special="header")
-
-        ### Initialize Values from Options ###
-        self.numturbs = self.params["wind_farm"]["numturbs"]
         
-        self.HH = [self.params["wind_farm"]["HH"]*Sx]*self.numturbs
-        self.RD = [self.params["wind_farm"]["RD"]*Sx]*self.numturbs
-        self.W = [self.params["wind_farm"]["thickness"]*Sx]*self.numturbs
-        self.yaw = [self.params["wind_farm"]["yaw"]]*self.numturbs
-        self.axial = [self.params["wind_farm"]["axial"]]*self.numturbs
-        self.radius = self.RD[0]/2.0
-
-        self.ex_x = np.array(self.params["wind_farm"]["ex_x"])*Sx
-        self.ex_y = np.array(self.params["wind_farm"]["ex_y"])*Sx
-
-        self.seed = self.params["wind_farm"].get("seed",None)
-        
+        ### Scale Terms ###
+        self.HH     = self.HH * Sx
+        self.RD     = self.RD * Sx
+        self.thickness      = self.thickness * Sx
+        self.jitter = self.jitter * Sx
+        self.radius = self.RD/2.0
+        self.ex_x   = self.ex_x * Sx
+        self.ex_y   = self.ex_y * Sx
 
         ### Print some useful stats ###
         self.fprint("Force Type:         {0}".format(self.force))
@@ -732,7 +722,6 @@ class ImportedWindFarm(GenericWindFarm):
         self.fprint("Importing Wind Farm",special="header")
         
         ### Import the data from path ###
-        self.path = self.params["wind_farm"]["path"]
         raw_data = np.loadtxt(self.path,comments="#")
 
         ### Copy Files to input folder ###
@@ -746,8 +735,8 @@ class ImportedWindFarm(GenericWindFarm):
             self.yaw   = raw_data[:,3]
             self.RD    = raw_data[:,4]*Sx
             self.radius = self.RD/2.0
-            self.W     = raw_data[:,5]*Sx
-            self.a     = raw_data[:,6]
+            self.thickness     = raw_data[:,5]*Sx
+            self.axial     = raw_data[:,6]
             self.numturbs = len(self.x)
 
         else:
@@ -757,8 +746,8 @@ class ImportedWindFarm(GenericWindFarm):
             self.yaw   = np.array((raw_data[3],))
             self.RD    = np.array((raw_data[4],))*Sx
             self.radius = np.array((raw_data[4]/2.0,))*Sx
-            self.W     = np.array((raw_data[5],))*Sx
-            self.a     = np.array((raw_data[6],))
+            self.thickness     = np.array((raw_data[5],))*Sx
+            self.axial     = np.array((raw_data[6],))
             self.numturbs = 1
 
         ### Update the options ###

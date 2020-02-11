@@ -1,0 +1,123 @@
+general: 
+    name:               Test
+    preappend_datetime: False
+    output:             [solution] 
+    output_type:        pvd
+    dolfin_adjoint:     False
+
+wind_farm: 
+    type:           Null           
+    path:           Null
+    display:        False
+    ex_x:           Null    
+    ex_y:           Null    
+    grid_rows:      Null      
+    grid_cols:      Null      
+    jitter:         0.0          
+    numturbs:       Null
+    seed:           Null      
+    HH:             Null             
+    RD:             Null             
+    thickness:      Null      
+    yaw:            Null            
+    axial:          Null          
+    force:          sine 
+
+domain: 
+    type:             Null
+    path:             Null
+    mesh_path:        Null
+    terrain_path:     Null
+    bound_path:       Null
+    filetype:         xml.gz
+    x_range:          Null
+    y_range:          Null
+    z_range:          Null
+    ground_reference: 0.0
+    scaled:           False # Extremely experimental 
+    nx:               Null
+    ny:               Null
+    nz:               Null
+    mesh_type:        mshr
+    center:           Null
+    radius:           Null
+    nt:               Null
+    res:              Null
+    interpolated:     False
+    analytic:         False
+    gaussian:
+        center:  [0.0, 0.0]
+        theta:   0.0
+        amp:     Null
+        sigma_x: Null
+        sigma_y: Null
+    plane: 
+        intercept: [0.0, 0.0, 0.0]
+        mx:        Null
+        my:        Null
+
+refine:
+    warp_type:      Null
+    warp_strength:  Null
+    warp_percent:   Null
+    warp_height:    Null
+    farm_num:       0
+    farm_type:      square
+    farm_factor:    1.0
+    farm_radius:    Null
+    turbine_num:    0
+    turbine_factor: 1.0
+    refine_custom:  Null
+
+function_space:
+    type: Null
+    quadrature_degree: 6
+    turbine_method: dolfin
+    turbine_space:  Quadrature
+    turbine_degree: 6
+
+boundary_condition:
+    vel_profile:    Null
+    HH_vel:         8.0
+    power:          0.25
+    k:              0.4
+    turbsim_path:   Null
+    boundary_names: 
+        front:   Null
+        back:    Null
+        left:    Null
+        right:   Null
+        bottom:  Null
+        top:     Null
+        inflow:  Null
+        outflow: Null
+    boundary_types: 
+        inflow:    Null
+        no_slip:   Null
+        free_slip: Null
+        no_stress: Null
+
+problem:
+    type:          Null
+    use_25d_model: False
+    viscosity:     0.1
+    lmax:          15
+
+solver:
+    type:              steady
+    endpoint:          False
+    wind_range:        Null
+    num_wind_angles:   Null
+    velocity_path:     Null
+    final_time:        1.0
+    save_interval:     1.0
+    nonlinear_solver:  snes
+    newton_relaxation: 1.0
+    save_power:        False
+
+optimization:
+    control_types:      Null
+    layout_bounds: wind_farm
+    taylor_test:   False
+    optimize:      False
+    gradient:      False

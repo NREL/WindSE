@@ -74,7 +74,7 @@ def run_action(params_loc=None):
     params=windse.windse_parameters
 
     ### Setup the Domain ###
-    if params["domain"].get("interpolated",False):
+    if params["domain"]["interpolated"]:
         dom_dict = {"box":windse.InterpolatedBoxDomain,
                     "cylinder":windse.InterpolatedCylinderDomain
         }
@@ -91,25 +91,25 @@ def run_action(params_loc=None):
                  "random":windse.RandomWindFarm,
                  "imported":windse.ImportedWindFarm}
     farm = farm_dict[params["wind_farm"]["type"]](dom)
-    farm.Plot(params["wind_farm"].get("display",False))
+    farm.Plot(params["wind_farm"]["display"])
 
     ### Move and refine the mesh
     if "refine" in params.keys():
-        if params["domain"].get("scaled",False):
+        if params["domain"]["scaled"]:
             Sx = 1.0e-3
         else:
             Sx = 1.0
-        warp_type      = params["refine"].get("warp_type",None)
-        warp_strength  = params["refine"].get("warp_strength",None)
-        warp_height    = params["refine"].get("warp_height",None)
-        warp_percent   = params["refine"].get("warp_percent",None)
-        farm_num       = params["refine"].get("farm_num",0)
-        farm_type      = params["refine"].get("farm_type","square")
-        farm_factor    = params["refine"].get("farm_factor",1.0)
-        farm_radius    = params["refine"].get("farm_radius",None)
-        refine_custom  = params["refine"].get("refine_custom",None)
-        turbine_num    = params["refine"].get("turbine_num",0)
-        turbine_factor = params["refine"].get("turbine_factor",1.0)
+        warp_type      = params["refine"]["warp_type"]      
+        warp_strength  = params["refine"]["warp_strength"]  
+        warp_height    = params["refine"]["warp_height"]    
+        warp_percent   = params["refine"]["warp_percent"]   
+        farm_num       = params["refine"]["farm_num"]       
+        farm_type      = params["refine"]["farm_type"]      
+        farm_factor    = params["refine"]["farm_factor"]    
+        farm_radius    = params["refine"]["farm_radius"]    
+        turbine_num    = params["refine"]["turbine_num"]    
+        turbine_factor = params["refine"]["turbine_factor"] 
+        refine_custom  = params["refine"]["refine_custom"]  
 
         if warp_type == "smooth":
             dom.WarpSmooth(warp_strength)
@@ -129,7 +129,9 @@ def run_action(params_loc=None):
                     dom.Refine(refine_data[0],region=region,region_type=refine_data[1])
         
         if farm_num > 0:
-            region = farm.CalculateFarmRegion(farm_type,farm_factor,length=farm_radius*Sx)
+            if farm_radius is not None:
+                farm_radius=farm_radius*Sx
+            region = farm.CalculateFarmRegion(farm_type,farm_factor,length=farm_radius)
             dom.Refine(farm_num,region=region,region_type=farm_type)
 
 
@@ -177,16 +179,14 @@ def run_action(params_loc=None):
     # exit()
 
     ### Perform Optimization ###
-    if params.get("optimization",{}):
+    if params.dolfin_adjoint:
         opt=windse.Optimizer(solver)
-        if params["optimization"].get("taylor_test",False):
-            opt.TaylorTest()
-
-        if params["optimization"].get("optimize",False):
-            opt.Optimize()
-
-        if params["optimization"].get("gradient",True):
+        if params["optimization"]["gradient"]:
             opt.Gradient()
+        if params["optimization"]["taylor_test"]:
+            opt.TaylorTest()
+        if params["optimization"]["optimize"]:
+            opt.Optimize()
 
     tock = time.time()
     runtime = tock-tick

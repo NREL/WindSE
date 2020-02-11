@@ -62,7 +62,7 @@ def assemble_adjoint_value(form, **kwargs):
     """Wrapper that assembles a matrix with boundary conditions"""
     bcs = kwargs.pop("bcs", ())
     # print(form)
-    if windse_parameters["wind_farm"].get("turbine_method","numpy") == "numpy":
+    if windse_parameters["function_space"]["turbine_method"] == "numpy":
         rep = 'tsfc'
     else:
         rep = 'uflacs'
