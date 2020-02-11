@@ -95,6 +95,10 @@ def run_action(params_loc=None):
 
     ### Move and refine the mesh
     if "refine" in params.keys():
+        if params["domain"].get("scaled",False):
+            Sx = 1.0e-3
+        else:
+            Sx = 1.0
         warp_type      = params["refine"].get("warp_type",None)
         warp_strength  = params["refine"].get("warp_strength",None)
         warp_height    = params["refine"].get("warp_height",None)
@@ -110,7 +114,7 @@ def run_action(params_loc=None):
         if warp_type == "smooth":
             dom.WarpSmooth(warp_strength)
         elif warp_type == "split":
-            dom.WarpSplit(warp_height,warp_percent)
+            dom.WarpSplit(warp_height*Sx,warp_percent)
 
 
         if refine_custom is not None:
@@ -118,11 +122,14 @@ def run_action(params_loc=None):
                 if refine_data[1] == "full":
                     dom.Refine(refine_data[0])
                 else:
-                    region = farm.CalculateFarmRegion(refine_data[1],length=refine_data[2])
+                    if refine_data[1] == "custom":
+                        region = np.array(refine_data[2])*Sx
+                    else:
+                        region = farm.CalculateFarmRegion(refine_data[1],length=refine_data[2]*Sx)
                     dom.Refine(refine_data[0],region=region,region_type=refine_data[1])
         
         if farm_num > 0:
-            region = farm.CalculateFarmRegion(farm_type,farm_factor,length=farm_radius)
+            region = farm.CalculateFarmRegion(farm_type,farm_factor,length=farm_radius*Sx)
             dom.Refine(farm_num,region=region,region_type=farm_type)
 
 
@@ -176,7 +183,7 @@ def run_action(params_loc=None):
         if params["optimization"].get("taylor_test",False):
             opt.TaylorTest()
 
-        if params["optimization"].get("optimize",True):
+        if params["optimization"].get("optimize",False):
             opt.Optimize()
 
     tock = time.time()

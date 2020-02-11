@@ -31,6 +31,7 @@ if main_file != "sphinx-build":
 ### THis is a special class that allows prints to go to file and terminal
 class Logger(object):
     def __init__(self,filename):
+        self.__dict__ = sys.stdout.__dict__.copy() 
         self.terminal = sys.stdout
         self.log = open(filename, "a")
         self.log.seek(0)
@@ -43,7 +44,10 @@ class Logger(object):
     def flush(self):
         self.terminal.flush()
         self.log.flush()
-        pass    
+        pass   
+
+    def isatty(self):
+        return self.terminal.isatty() 
 
 class Parameters(dict):
     """

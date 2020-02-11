@@ -96,6 +96,11 @@ class GenericDomain(object):
         self.first_save = True
         self.finalized = False
         self.fprint = self.params.fprint
+        if self.params["domain"].get("scaled",False):
+            self.xscale = 1.0e-3
+        else:
+            self.xscale = 1.0
+        self.ground_ref = self.params["domain"].get("ground_reference", 0.0)
 
     def Plot(self):
         """
@@ -139,6 +144,8 @@ class GenericDomain(object):
         # file << self.boundary_markers
         # print("Mesh Saved")
 
+        self.mesh.coordinates()[:]=self.mesh.coordinates()[:]/self.xscale
+
         if self.first_save:
             self.mesh_file = self.params.Save(self.mesh,"mesh",subfolder="mesh/",val=val,filetype="pvd")
             self.bmesh_file   = self.params.Save(self.bmesh,"boundary_mesh",subfolder="mesh/",val=val,filetype="pvd")
@@ -150,6 +157,7 @@ class GenericDomain(object):
             self.params.Save(self.bmesh,"boundary_mesh",subfolder="mesh/",val=val,file=self.bmesh_file,filetype="pvd")
             self.params.Save(self.boundary_markers,"facets",subfolder="mesh/",val=val,file=self.bc_file,filetype="pvd")
             # self.params.Save(self.mesh_radius,"mesh_radius",subfolder="mesh/",val=val,file=self.mr_file,filetype="pvd")
+        self.mesh.coordinates()[:]=self.mesh.coordinates()[:]*self.xscale
 
     def BuildBoundaryMarkers(self):
         self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
@@ -182,15 +190,15 @@ class GenericDomain(object):
         elif region is not None:
             self.fprint("Region Type: {0}".format(region_type))
             if "circle" in region_type:
-                self.fprint("Circle Radius: {:.2f}".format(region[0][0]))
-                self.fprint("Circle Center: ({:.2f}, {:.2f})".format(region[1][0],region[1][1]))
+                self.fprint("Circle Radius: {:.2f}".format(region[0][0]/self.xscale))
+                self.fprint("Circle Center: ({:.2f}, {:.2f})".format(region[1][0]/self.xscale,region[1][1]/self.xscale))
                 if self.dim == 3:
-                    self.fprint("Z Range:       [{:.2f}, {:.2f}]".format(region[2][0],region[2][1]))
+                    self.fprint("Z Range:       [{:.2f}, {:.2f}]".format(region[2][0]/self.xscale,region[2][1]/self.xscale))
             else:
-                self.fprint("X Range: [{: .2f}, {: .2f}]".format(region[0][0],region[0][1]))
-                self.fprint("Y Range: [{: .2f}, {: .2f}]".format(region[1][0],region[1][1]))
+                self.fprint("X Range: [{: .2f}, {: .2f}]".format(region[0][0]/self.xscale,region[0][1]/self.xscale))
+                self.fprint("Y Range: [{: .2f}, {: .2f}]".format(region[1][0]/self.xscale,region[1][1]/self.xscale))
                 if self.dim == 3:
-                    self.fprint("Z Range: [{: .2f}, {: .2f}]".format(region[2][0],region[2][1]))
+                    self.fprint("Z Range: [{: .2f}, {: .2f}]".format(region[2][0]/self.xscale,region[2][1]/self.xscale))
         else:
             self.fprint("Region Type: {0}".format("full"))
 
@@ -345,7 +353,7 @@ class GenericDomain(object):
         z=self.mesh.coordinates()[:,2].copy()
         z0 = self.z_range[0]
         z1 = self.z_range[1]
-        z1 = z0 + (z1 - z0)*((z-z0)/(z1-z0))**s
+        z1 = z0 + (z1 - z0)*(abs((z-z0)/(z1-z0)))**s
         self.mesh.coordinates()[:,2]=z1
         self.mesh.bounding_box_tree().build(self.mesh)
         self.bmesh = BoundaryMesh(self.mesh,"exterior")
@@ -407,41 +415,68 @@ class GenericDomain(object):
 
         ### import ground data
         self.topography = np.loadtxt(self.typo_path)
-        x_data = self.topography[1:,0]
-        y_data = self.topography[1:,1]
-        z_data = self.topography[1:,2]
+        x_data = self.topography[1:,0]*self.xscale
+        y_data = self.topography[1:,1]*self.xscale
+        z_data = self.topography[1:,2]*self.xscale
 
         ### generate interpolating function
         x_data = np.sort(np.unique(x_data))
         y_data = np.sort(np.unique(y_data))
         z_data = np.reshape(z_data,(int(self.topography[0,0]),int(self.topography[0,1])))
         self.topography_interpolated = RectBivariateSpline(x_data,y_data,z_data.T)
+        self.ground_function = self.InterplatedGroundFunction
 
-    def SetupAnalyticGround(self):
-        self.hill_sigma_x = self.params["domain"]["gaussian"]["sigma_x"]
-        self.hill_sigma_y = self.params["domain"]["gaussian"]["sigma_y"]
-        self.hill_theta = self.params["domain"]["gaussian"].get("theta",0.0)
-        self.hill_amp = self.params["domain"]["gaussian"]["amp"]
-        self.hill_center = self.params["domain"]["gaussian"].get("center",[0.0,0.0])
-        self.hill_x0 = self.hill_center[0]
-        self.hill_y0 = self.hill_center[1]
-        self.fprint("")
-        self.fprint("Ground Type: Gaussian Hill")
-        self.fprint("Hill Center:   ({: .2f}, {: .2f})".format(self.hill_x0,self.hill_y0),offset=1)
-        self.fprint("Hill Rotation:  {: <7.2f}".format(self.hill_theta),offset=1)
-        self.fprint("Hill Amplitude: {: <7.2f}".format(self.hill_amp),offset=1)
-        self.fprint("Hill sigma_x:   {: <7.2f}".format(self.hill_sigma_x),offset=1)
-        self.fprint("Hill sigma_y:   {: <7.2f}".format(self.hill_sigma_y),offset=1)
-        self.hill_a = np.cos(self.hill_theta)**2/(2*self.hill_sigma_x**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_y**2)
-        self.hill_b = np.sin(2*self.hill_theta)/(4*self.hill_sigma_y**2) - np.sin(2*self.hill_theta)/(4*self.hill_sigma_x**2)
-        self.hill_c = np.cos(self.hill_theta)**2/(2*self.hill_sigma_y**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_x**2)
+    # def SetupAnalyticGround(self):
+    #     if self.params["domain"].get("gaussian",False):
+    #         self.hill_sigma_x = self.params["domain"]["gaussian"]["sigma_x"]
+    #         self.hill_sigma_y = self.params["domain"]["gaussian"]["sigma_y"]
+    #         self.hill_theta = self.params["domain"]["gaussian"].get("theta",0.0)
+    #         self.hill_amp = self.params["domain"]["gaussian"]["amp"]
+    #         self.hill_center = self.params["domain"]["gaussian"].get("center",[0.0,0.0])
+    #         self.hill_x0 = self.hill_center[0]
+    #         self.hill_y0 = self.hill_center[1]
+    #         self.fprint("")
+    #         self.fprint("Ground Type: Gaussian Hill")
+    #         self.fprint("Hill Center:   ({: .2f}, {: .2f})".format(self.hill_x0,self.hill_y0),offset=1)
+    #         self.fprint("Hill Rotation:  {: <7.2f}".format(self.hill_theta),offset=1)
+    #         self.fprint("Hill Amplitude: {: <7.2f}".format(self.hill_amp),offset=1)
+    #         self.fprint("Hill sigma_x:   {: <7.2f}".format(self.hill_sigma_x),offset=1)
+    #         self.fprint("Hill sigma_y:   {: <7.2f}".format(self.hill_sigma_y),offset=1)
+    #         self.hill_a = np.cos(self.hill_theta)**2/(2*self.hill_sigma_x**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_y**2)
+    #         self.hill_b = np.sin(2*self.hill_theta)/(4*self.hill_sigma_y**2) - np.sin(2*self.hill_theta)/(4*self.hill_sigma_x**2)
+    #         self.hill_c = np.cos(self.hill_theta)**2/(2*self.hill_sigma_y**2) + np.sin(self.hill_theta)**2/(2*self.hill_sigma_x**2)
+    #         self.ground_function = self.GaussianGroundFuncion
+    #     elif self.params["domain"].get("plane",False):
+    #         self.plane_x0 = self.params["domain"]["plane"].get("intercept",[0.0,0.0,0.0])
+    #         self.plane_mx = self.params["domain"]["plane"]["mx"]
+    #         self.plane_my = self.params["domain"]["plane"]["my"]
+    #         self.ground_function = self.PlaneGroundFuncion
+    #         self.fprint("")
+    #         self.fprint("Ground Type: Plane")
+    #         self.fprint("Intercept: ({: .2f}, {: .2f}, {: .2f})".format(*self.plane_x0),offset=1)
+    #         self.fprint("X Slope:     {: <7.6f}".format(self.plane_mx),offset=1)
+    #         self.fprint("Y Slope:     {: <7.6f}".format(self.plane_my),offset=1)
+    #     else:
+    #         raise ValueError("Incorrect analytic ground function specified")
 
-    def GaussianGroundFuncion(self,x,y,dx=0,dy=0):
-        return self.hill_amp*exp( - (self.hill_a*(x-self.hill_x0)**2 + 2*self.hill_b*(x-self.hill_x0)*(y-self.hill_y0) + self.hill_c*(y-self.hill_y0)**2)**2)+self.z_range[0]
+
+    # def GaussianGroundFuncion(self,x,y,dx=0,dy=0):
+    #     return self.hill_amp*exp( - (self.hill_a*(x-self.hill_x0)**2 + 2*self.hill_b*(x-self.hill_x0)*(y-self.hill_y0) + self.hill_c*(y-self.hill_y0)**2)**2)+self.z_range[0]
+
+    # def PlaneGroundFuncion(self,x,y,dx=0,dy=0):
+    #     if dx == 1:
+    #         val = self.plane_mx
+    #     elif dy == 1:
+    #         val = self.plane_my
+    #     elif abs(dx)+abs(dy) >=2:
+    #         val = 0
+    #     else:
+    #         val = (self.plane_mx*(x-self.plane_x0[0])+self.plane_my*(y-self.plane_x0[1]))+self.plane_x0[2]
+    #     return val
 
     def InterplatedGroundFunction(self,x,y,dx=0,dy=0):
         if dx == 0 and dy == 0:
-            return float(self.topography_interpolated(x,y)[0]+self.z_range[0])
+            return float(self.topography_interpolated(x,y)[0]+self.ground_ref)
         else:
             return float(self.topography_interpolated(x,y,dx=dx,dy=dy)[0])
 
@@ -505,9 +540,9 @@ class BoxDomain(GenericDomain):
 
         ### Initialize values from Options ###
         self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
-        self.x_range = self.params["domain"]["x_range"]
-        self.y_range = self.params["domain"]["y_range"]
-        self.z_range = self.params["domain"]["z_range"]
+        self.x_range = np.array(self.params["domain"]["x_range"])*self.xscale
+        self.y_range = np.array(self.params["domain"]["y_range"])*self.xscale
+        self.z_range = np.array(self.params["domain"]["z_range"])*self.xscale
         self.nx = self.params["domain"]["nx"]
         self.ny = self.params["domain"]["ny"]
         self.nz = self.params["domain"]["nz"]
@@ -517,9 +552,9 @@ class BoxDomain(GenericDomain):
         self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
 
         ### Print Some stats ###
-        self.fprint("X Range: [{: .2f}, {: .2f}]".format(self.x_range[0],self.x_range[1]))
-        self.fprint("Y Range: [{: .2f}, {: .2f}]".format(self.y_range[0],self.y_range[1]))
-        self.fprint("Z Range: [{: .2f}, {: .2f}]".format(self.z_range[0],self.z_range[1]))
+        self.fprint("X Range: [{: .2f}, {: .2f}]".format(self.x_range[0]/self.xscale,self.x_range[1]/self.xscale))
+        self.fprint("Y Range: [{: .2f}, {: .2f}]".format(self.y_range[0]/self.xscale,self.y_range[1]/self.xscale))
+        self.fprint("Z Range: [{: .2f}, {: .2f}]".format(self.z_range[0]/self.xscale,self.z_range[1]/self.xscale))
 
         ### Create mesh ###
         mesh_start = time.time()
@@ -528,6 +563,8 @@ class BoxDomain(GenericDomain):
         start = Point(self.x_range[0], self.y_range[0], self.z_range[0])
         stop  = Point(self.x_range[1], self.y_range[1], self.z_range[1])
         self.mesh = BoxMesh(start, stop, self.nx, self.ny, self.nz)
+        # box = Box(start,stop)
+        # self.mesh = generate_mesh(box,self.nx)
         self.bmesh = BoundaryMesh(self.mesh,"exterior")
         mesh_stop = time.time()
         self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
@@ -560,18 +597,7 @@ class BoxDomain(GenericDomain):
 
     def ground_function(self,x,y,dx=0,dy=0):
         if dx == 0 and dy == 0:
-            #################
-            #################
-            #################
-            #################
-            #################
-            return self.z_range[0]
-            # return 0.0
-            #################
-            #################
-            #################
-            #################
-            #################
+            return self.ground_ref
         else:
             return 0.0
 
@@ -644,9 +670,9 @@ class CylinderDomain(GenericDomain):
         self.fprint("Generating Cylinder Domain",special="header")
 
         ### Initialize values from Options ###
-        self.radius   = self.params["domain"]["radius"]
-        self.center   = self.params["domain"]["center"]
-        self.z_range  = self.params["domain"]["z_range"]
+        self.radius   = self.params["domain"]["radius"]*self.xscale
+        self.center   = np.array(self.params["domain"]["center"])*self.xscale
+        self.z_range  = np.array(self.params["domain"]["z_range"])*self.xscale
         self.nt = self.params["domain"]["nt"]
         self.mesh_type = self.params["domain"].get("mesh_type","mshr")
         self.x_range  = [self.center[0]-self.radius,self.center[1]+self.radius]
@@ -660,9 +686,9 @@ class CylinderDomain(GenericDomain):
         angles = np.linspace(0,2.0*np.pi,self.nt+1)
         self.boundary_line = (self.radius*np.cos(angles)+self.center[0],self.radius*np.sin(angles)+self.center[1])
 
-        self.fprint("Radius:        {: .2f}".format(self.radius))
-        self.fprint("Center:       ({: .2f}, {: .2f})".format(self.center[0],self.center[1]))
-        self.fprint("Z Range:      [{: .2f}, {: .2f}]".format(self.z_range[0],self.z_range[1]))
+        self.fprint("Radius:        {: .2f}".format(self.radius/self.xscale))
+        self.fprint("Center:       ({: .2f}, {: .2f})".format(self.center[0]/self.xscale,self.center[1]/self.xscale))
+        self.fprint("Z Range:      [{: .2f}, {: .2f}]".format(self.z_range[0]/self.xscale,self.z_range[1]/self.xscale))
         self.fprint("Meshing Type:  {0}".format(self.mesh_type))
 
         mesh_start = time.time()
@@ -679,8 +705,8 @@ class CylinderDomain(GenericDomain):
             bottom = Point(self.center[0],self.center[1],self.z_range[0])
             mshr_domain = Cylinder(top,bottom,self.radius,self.radius,self.nt)
             self.mesh = generate_mesh(mshr_domain,self.res)
-            self.mesh = refine(self.mesh)
-            self.mesh = refine(self.mesh)
+            # self.mesh = refine(self.mesh)
+            # self.mesh = refine(self.mesh)
             # self.mesh = refine(self.mesh)
 
             # z = self.mesh.coordinates()[:,2]#+self.z_range[0]
@@ -731,11 +757,11 @@ class CylinderDomain(GenericDomain):
         self.fprint("")
         self.fprint("Marking Boundaries")
         outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1])
-        inflow  = CompiledSubDomain("x[2] >= z0 && x[2] <= z1 && nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
-        top     = CompiledSubDomain("near(x[2], z1) && on_boundary",z1 = self.z_range[1])
-        bottom  = CompiledSubDomain("near(x[2], z0) && on_boundary",z0 = self.z_range[0])
-        self.boundary_subdomains = [None,None,None,None,bottom,top,inflow,outflow]
-        self.boundary_names = {"front":None,"back":None,"left":None,"right":None,"bottom":5,"top":6,"inflow":7,"outflow":8}
+        inflow  = CompiledSubDomain("nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
+        top     = CompiledSubDomain("near(x[2], z1, tol) && on_boundary",z1 = self.z_range[1],tol = 1e-10)
+        bottom  = CompiledSubDomain("near(x[2], z0, tol) && on_boundary",z0 = self.z_range[0],tol = 1e-10)
+        self.boundary_subdomains = [None,None,None,None,outflow,inflow,bottom,top]
+        self.boundary_names = {"front":None,"back":None,"left":None,"right":None,"bottom":7,"top":8,"inflow":6,"outflow":5}
         self.boundary_types = {"inflow":          ["inflow"],
                                "no_stress":       ["outflow"],
                                "free_slip":       ["top"],
@@ -750,7 +776,7 @@ class CylinderDomain(GenericDomain):
 
     def ground_function(self,x,y,dx=0,dy=0):
         if dx == 0 and dy == 0:
-            return self.z_range[0]
+            return self.ground_ref
         else:
             return 0.0
 
@@ -813,8 +839,8 @@ class CircleDomain(GenericDomain):
         self.fprint("Generating Circle Domain",special="header")
 
         ### Initialize values from Options ###
-        self.radius   = self.params["domain"]["radius"]
-        self.center   = self.params["domain"]["center"]
+        self.radius   = self.params["domain"]["radius"]*self.xscale
+        self.center   = np.array(self.params["domain"]["center"])*self.xscale
         self.nt = self.params["domain"]["nt"]
         self.res = self.params["domain"]["res"]
         self.mesh_type = self.params["domain"].get("mesh_type","mshr")
@@ -983,12 +1009,12 @@ class RectangleDomain(GenericDomain):
 
         ### Initialize values from Options ###
         self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
-        self.x_range = self.params["domain"]["x_range"]
-        self.y_range = self.params["domain"]["y_range"]
+        self.x_range = np.array(self.params["domain"]["x_range"])*self.xscale
+        self.y_range = np.array(self.params["domain"]["y_range"])*self.xscale
         self.nx = self.params["domain"]["nx"]
         self.ny = self.params["domain"]["ny"]
-        self.fprint("X Range: [{: .2f}, {: .2f}]".format(self.x_range[0],self.x_range[1]))
-        self.fprint("Y Range: [{: .2f}, {: .2f}]".format(self.y_range[0],self.y_range[1]))
+        self.fprint("X Range: [{: .2f}, {: .2f}]".format(self.x_range[0]/self.xscale,self.x_range[1]/self.xscale))
+        self.fprint("Y Range: [{: .2f}, {: .2f}]".format(self.y_range[0]/self.xscale,self.y_range[1]/self.xscale))
         self.dim = 2
 
         ### Create mesh ###
@@ -1067,127 +1093,128 @@ class RectangleDomain(GenericDomain):
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
 
 class ImportedDomain(GenericDomain):
-    """
-    This class generates a domain from imported files. This mesh is defined
-    by 2 parameters in the param.yaml file. 
-
-    Example:
-        In the yaml file define::
-
-            domain: 
-                path: "Mesh_data/"
-                filetype: "xml.gz"
-
-        The supported filetypes are "xml.gz" and "h5". For "xml.gz" 3 files are
-        required: 
-
-            * mesh.xml.gz - this contains the mesh in a format dolfin can handle
-            * boundaries.xml.gz - this contains the facet markers that define where the boundaries are
-            * topology.txt - this contains the data for the ground topology. 
-                It assumes that the coordinates are from a uniform mesh.
-                It contains three column: x, y, z. The x and y columns contain 
-                just the unique values. The z column contains the ground values
-                for every combination of x and y. The first row must be the number
-                of points in the x and y direction. Here is an example for z=x+y/10::
-
-                    3 3 9
-                    0 0 0.0
-                    1 1 0.1
-                    2 2 0.2
-                        1.0
-                        1.1
-                        1.2
-                        2.0
-                        2.1
-                        2.2
-
-    """
-
     def __init__(self):
-        super(ImportedDomain, self).__init__()
+        raise NotImplementedError("Imported Domains need to be updated. Please use an Interpolated domain for now.")
+#     """
+#     This class generates a domain from imported files. This mesh is defined
+#     by 2 parameters in the param.yaml file. 
 
-        self.fprint("Importing Domain",special="header")
+#     Example:
+#         In the yaml file define::
 
-        ### Get the file type for the mesh (h5, xml.gz) ###
-        self.filetype = self.params["domain"].get("filetype", "xml.gz")
-        self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
+#             domain: 
+#                 path: "Mesh_data/"
+#                 filetype: "xml.gz"
 
-        ### Import data from Options ###
-        if "path" in self.params["domain"]:
-            self.path = self.params["domain"]["path"]
-            self.mesh_path  = self.path + "mesh." + self.filetype
-            if self.filetype == "xml.gz":
-                self.boundary_path = self.path + "boundaries." + self.filetype
-            self.typo_path  = self.path + "topology.txt"
-        else:
-            self.mesh_path = self.params["domain"]["mesh_path"]
-            if self.filetype == "xml.gz":
-                self.boundary_path = self.params["domain"]["bound_path"]
-            self.typo_path  = self.params["domain"]["typo_path"]
+#         The supported filetypes are "xml.gz" and "h5". For "xml.gz" 3 files are
+#         required: 
 
-        ### Copy Files to input folder ###
-        shutil.copy(self.mesh_path,self.params.folder+"input_files/")
-        if self.filetype == "xml.gz":
-            shutil.copy(self.boundary_path,self.params.folder+"input_files/")
+#             * mesh.xml.gz - this contains the mesh in a format dolfin can handle
+#             * boundaries.xml.gz - this contains the facet markers that define where the boundaries are
+#             * topology.txt - this contains the data for the ground topology. 
+#                 It assumes that the coordinates are from a uniform mesh.
+#                 It contains three column: x, y, z. The x and y columns contain 
+#                 just the unique values. The z column contains the ground values
+#                 for every combination of x and y. The first row must be the number
+#                 of points in the x and y direction. Here is an example for z=x+y/10::
 
-        ### Create the mesh ###
-        mesh_start = time.time()
-        self.fprint("")
-        self.fprint("Importing Mesh")
-        if self.filetype == "h5":
-            self.mesh = Mesh()
-            hdf5 = HDF5File(self.mesh.mpi_comm(), self.mesh_path, 'r')
-            hdf5.read(self.mesh, '/mesh', False)
-        elif self.filetype == "xml.gz":
-            self.mesh = Mesh(self.mesh_path)
-        else:
-            raise ValueError("Supported mesh types: h5, xml.gz.")
-        self.bmesh = BoundaryMesh(self.mesh,"exterior")
-        mesh_stop = time.time()
-        self.dim = self.mesh.topology().dim()
+#                     3 3 9
+#                     0 0 0.0
+#                     1 1 0.1
+#                     2 2 0.2
+#                         1.0
+#                         1.1
+#                         1.2
+#                         2.0
+#                         2.1
+#                         2.2
 
-        if self.dim != 3:
-            raise ValueError("Currently, only 3D meshes can be imported.")
+#     """
 
-        self.fprint("Mesh Imported: {:1.2f} s".format(mesh_stop-mesh_start))
+#     def __init__(self):
+#         super(ImportedDomain, self).__init__()
 
-        ### Calculate the range of the domain and push to options ###
-        self.x_range = [min(self.mesh.coordinates()[:,0]),max(self.mesh.coordinates()[:,0])]
-        self.y_range = [min(self.mesh.coordinates()[:,1]),max(self.mesh.coordinates()[:,1])]
-        self.z_range = [min(self.mesh.coordinates()[:,2]),max(self.mesh.coordinates()[:,2])]
-        self.params["domain"]["x_range"] = self.x_range
-        self.params["domain"]["y_range"] = self.y_range
-        self.params["domain"]["z_range"] = self.z_range
+#         self.fprint("Importing Domain",special="header")
 
-        ### Load the boundary markers ###
-        mark_start = time.time()
-        self.fprint("")
-        self.fprint("Importing Boundary Markers")
-        if self.filetype == "h5":
-            self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.geometry().dim()-1)
-            hdf5.read(self.boundary_markers, "/boundaries")
-        elif self.filetype == "xml.gz":
-            self.boundary_markers = MeshFunction("size_t", self.mesh, self.boundary_path)
-        print("Markers Imported")
-        self.boundary_names = {"front":1,"back":2,"left":3,"right":4,"bottom":5,"top":6}
-        self.boundary_types = {"inflow":    ["front","left","right"],
-                               "no_slip":   ["bottom"],
-                               "free_slip": ["top"],
-                               "no_stress": ["back"]}
-        mark_stop = time.time()
-        self.fprint("Boundary Markers Imported: {:1.2f} s".format(mark_stop-mark_start))
+#         ### Get the file type for the mesh (h5, xml.gz) ###
+#         self.filetype = self.params["domain"].get("filetype", "xml.gz")
+#         self.init_wind = self.params.get("solver",{}).get("init_wind_angle",0.0)
 
-        ### Create the interpolation function for the ground ###
-        interp_start = time.time()
-        self.fprint("")
-        self.fprint("Building Interpolating Function")
+#         ### Import data from Options ###
+#         if "path" in self.params["domain"]:
+#             self.path = self.params["domain"]["path"]
+#             self.mesh_path  = self.path + "mesh." + self.filetype
+#             if self.filetype == "xml.gz":
+#                 self.boundary_path = self.path + "boundaries." + self.filetype
+#             self.typo_path  = self.path + "topology.txt"
+#         else:
+#             self.mesh_path = self.params["domain"]["mesh_path"]
+#             if self.filetype == "xml.gz":
+#                 self.boundary_path = self.params["domain"]["bound_path"]
+#             self.typo_path  = self.params["domain"]["typo_path"]
 
-        self.SetupInterpolatedGround()
-        self.ground_function = self.InterplatedGroundFunction
+#         ### Copy Files to input folder ###
+#         shutil.copy(self.mesh_path,self.params.folder+"input_files/")
+#         if self.filetype == "xml.gz":
+#             shutil.copy(self.boundary_path,self.params.folder+"input_files/")
 
-        interp_stop = time.time()
-        self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
-        self.fprint("Initial Domain Setup",special="footer")
+#         ### Create the mesh ###
+#         mesh_start = time.time()
+#         self.fprint("")
+#         self.fprint("Importing Mesh")
+#         if self.filetype == "h5":
+#             self.mesh = Mesh()
+#             hdf5 = HDF5File(self.mesh.mpi_comm(), self.mesh_path, 'r')
+#             hdf5.read(self.mesh, '/mesh', False)
+#         elif self.filetype == "xml.gz":
+#             self.mesh = Mesh(self.mesh_path)
+#         else:
+#             raise ValueError("Supported mesh types: h5, xml.gz.")
+#         self.bmesh = BoundaryMesh(self.mesh,"exterior")
+#         mesh_stop = time.time()
+#         self.dim = self.mesh.topology().dim()
+
+#         if self.dim != 3:
+#             raise ValueError("Currently, only 3D meshes can be imported.")
+
+#         self.fprint("Mesh Imported: {:1.2f} s".format(mesh_stop-mesh_start))
+
+#         ### Calculate the range of the domain and push to options ###
+#         self.x_range = [min(self.mesh.coordinates()[:,0]),max(self.mesh.coordinates()[:,0])]
+#         self.y_range = [min(self.mesh.coordinates()[:,1]),max(self.mesh.coordinates()[:,1])]
+#         self.z_range = [min(self.mesh.coordinates()[:,2]),max(self.mesh.coordinates()[:,2])]
+#         self.params["domain"]["x_range"] = self.x_range
+#         self.params["domain"]["y_range"] = self.y_range
+#         self.params["domain"]["z_range"] = self.z_range
+
+#         ### Load the boundary markers ###
+#         mark_start = time.time()
+#         self.fprint("")
+#         self.fprint("Importing Boundary Markers")
+#         if self.filetype == "h5":
+#             self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.geometry().dim()-1)
+#             hdf5.read(self.boundary_markers, "/boundaries")
+#         elif self.filetype == "xml.gz":
+#             self.boundary_markers = MeshFunction("size_t", self.mesh, self.boundary_path)
+#         print("Markers Imported")
+#         self.boundary_names = {"front":1,"back":2,"left":3,"right":4,"bottom":5,"top":6}
+#         self.boundary_types = {"inflow":    ["front","left","right"],
+#                                "no_slip":   ["bottom"],
+#                                "free_slip": ["top"],
+#                                "no_stress": ["back"]}
+#         mark_stop = time.time()
+#         self.fprint("Boundary Markers Imported: {:1.2f} s".format(mark_stop-mark_start))
+
+#         ### Create the interpolation function for the ground ###
+#         interp_start = time.time()
+#         self.fprint("")
+#         self.fprint("Building Interpolating Function")
+
+#         self.SetupInterpolatedGround()
+
+#         interp_stop = time.time()
+#         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
+#         self.fprint("Initial Domain Setup",special="footer")
 
 class InterpolatedCylinderDomain(CylinderDomain):
     def __init__(self):
@@ -1211,10 +1238,8 @@ class InterpolatedCylinderDomain(CylinderDomain):
         self.analytic = self.params["domain"].get("analytic",False)
         if self.analytic:
             self.SetupAnalyticGround()
-            self.ground_function = self.GaussianGroundFuncion
         else:
             self.SetupInterpolatedGround()
-            self.ground_function = self.InterplatedGroundFunction
 
         interp_stop = time.time()
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")
@@ -1247,17 +1272,8 @@ class InterpolatedBoxDomain(BoxDomain):
         self.analytic = self.params["domain"].get("analytic",False)
         if self.analytic:
             self.SetupAnalyticGround()
-            self.ground_function = self.GaussianGroundFuncion
         else:
             self.SetupInterpolatedGround()
-            self.ground_function = self.InterplatedGroundFunction
-
-
-        print(self.topography_interpolated(480,0,dx=1))
-        print(self.topography_interpolated(480,0,dy=1))
-
-        print(self.InterplatedGroundFunction(480,0,dx=1))
-        print(self.InterplatedGroundFunction(480,0,dy=1))
 
         interp_stop = time.time()
         self.fprint("Ground Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")

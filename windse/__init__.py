@@ -15,13 +15,13 @@ def initialize(loc,updated_parameters=[]):
 
     windse_parameters.Load(loc,updated_parameters=updated_parameters)
 
-    global BaseHeight, Optimizer#, ReducedFunctional
+    global BaseHeight, CalculateDiskTurbineForces, Optimizer#, ReducedFunctional
     if windse_parameters["general"].get("dolfin_adjoint", False):
-        from windse.dolfin_adjoint_helper import BaseHeight#, ReducedFunctional
+        from windse.dolfin_adjoint_helper import BaseHeight, CalculateDiskTurbineForces#, ReducedFunctional
         from windse.OptimizationManager import Optimizer
     else:
-        from windse.helper_functions import BaseHeight
-        
+        from windse.helper_functions import BaseHeight, CalculateDiskTurbineForces
+     
     global BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain
     from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain
 

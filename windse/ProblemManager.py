@@ -17,6 +17,7 @@ if main_file != "sphinx-build":
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
+    # from memory_profiler import memory_usage
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters["general"].get("dolfin_adjoint", False):
@@ -49,6 +50,28 @@ class GenericProblem(object):
         self.params.ground_fx = self.dom.Ground
         self.params.full_hh = self.farm.HH
 
+    def ComputeTurbineForce(self,u,theta):
+
+        ### Compute the relative yaw angle ###
+        if theta is not None:
+            inflow_angle = theta-self.dom.init_wind
+        else:
+            inflow_angle = 0.0
+
+        ### Create the turbine force function ###
+        if self.farm.turbine_method == "dolfin":
+                self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+
+        elif self.farm.turbine_method == "numpy":
+                self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+        else:
+            raise ValueError("Unknown turbine method: "+self.farm.turbine_method)
+        
+        ### Convolve TF with u ###
+        tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
+
+        return tf
+
     def ChangeWindAngle(self,theta):
         """
         This function recomputes all necessary components for a new wind direction
@@ -71,7 +94,7 @@ class GenericProblem(object):
     def ChangeWindSpeed(self,speed):
         adj_start = time.time()
         self.fprint("Adjusting Wind Speed",special="header")
-        self.fprint("New Speed: {:1.8f} m/s".format(speed))
+        self.fprint("New Speed: {:1.8f} m/s".format(speed/self.dom.xscale))
         self.bd.HH_vel = speed
         adj_stop = time.time()
         self.fprint("Wind Speed Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")
@@ -102,28 +125,30 @@ class StabilizedProblem(GenericProblem):
         self.u_next,self.p_next = split(self.up_next)
         v,q = TestFunctions(self.fs.W)
 
+        ### Set the x scaling ###
+        Sx = self.dom.xscale
 
         ### Set the initial guess ###
         ### (this will become a separate function.)
         self.up_next.assign(self.bd.u0)
 
         ### Create the turbine force ###
-        if theta is not None:
-            self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next,delta_yaw=(theta-self.dom.init_wind))
-            # self.tf1, self.tf2, self.tf3 = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next,delta_yaw=(theta-self.dom.init_wind))
-        else:
-            self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next)
-            # self.tf1, self.tf2, self.tf3 = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next)
-            
-        # self.tf = self.tf1*self.u_next[0]**2+self.tf2*self.u_next[1]**2+self.tf3*self.u_next[0]*self.u_next[1]
+
+        # mem0=memory_usage()[0]
+        # mem_out, self.tf = memory_usage((self.ComputeTurbineForce,(self.u_next,theta),{}),max_usage=True,retval=True,max_iterations=1)
+        # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
+        self.tf = self.ComputeTurbineForce(self.u_next,theta)
 
         ### These constants will be moved into the params file ###
         nu = self.params["problem"].get("viscosity",.1)
         f = Constant((0.0,)*self.dom.dim)
+        f.rename("f","f")
+        
         vonKarman=0.41
         lmax=15
         mlDenom = 8.
         eps=Constant(1.0)
+        eps.rename("eps","eps")
 
         self.fprint("Viscosity:                 {:1.2e}".format(float(nu)))
         self.fprint("Mixing Length Scale:       {:1.2e}".format(float(mlDenom)))
@@ -136,10 +161,11 @@ class StabilizedProblem(GenericProblem):
         if self.dom.dim == 3:
             ### https://doi.org/10.5194/wes-4-127-2019###
             l_mix = Function(self.fs.Q)
-            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:],(1.+np.divide(vonKarman*self.bd.depth.vector()[:],lmax)))
+            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:]/Sx,(1.+np.divide(vonKarman*self.bd.depth.vector()[:]/Sx,lmax)))
         else:
-            l_mix = Constant(self.farm.HH[0]/mlDenom)
+            l_mix = Constant((self.farm.HH[0]/Sx)/mlDenom)
         # l_mix = Expression("x[2]/8.",degree=2)
+        l_mix.rename("l_mix","l_mix")
         
         ### Calculate nu_T
         self.nu_T=l_mix**2.*S
@@ -148,7 +174,8 @@ class StabilizedProblem(GenericProblem):
         # if self.farm.yaw[0]**2 > 1e-4:
         #     self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
         # else :
-        self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+        # self.F = inner(grad(self.u_next)*self.u_next, v)*dx + Sx*Sx*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx# + inner(self.tf,v)*dx 
+        self.F = inner(grad(self.u_next)*self.u_next, v)*dx + Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
         # self.F_sans_tf =  (1.0)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx
         # self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_next[0]**2+self.u_next[1]**2),v)*dx 
 
@@ -215,14 +242,7 @@ class TaylorHoodProblem(GenericProblem):
         self.nu_T=l_mix**2.*S
 
         ### Create the turbine force ###
-        if theta is not None:
-            self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next,delta_yaw=(theta-self.dom.init_wind))
-            # self.tf1, self.tf2, self.tf3 = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next,delta_yaw=(theta-self.dom.init_wind))
-        else:
-            self.tf = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next)
-            # self.tf1, self.tf2, self.tf3 = self.farm.TurbineForce(self.fs,self.dom.mesh,self.u_next)
-            
-        # self.tf = self.tf1*self.u_next[0]**2+self.tf2*self.u_next[1]**2+self.tf3*self.u_next[0]*self.u_next[1]
+        self.tf = self.ComputeTurbineForce(self.u_next,theta)
 
         self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
 
@@ -264,6 +284,10 @@ class UnsteadyProblem(GenericProblem):
         super(UnsteadyProblem, self).__init__(domain, windfarm, function_space, boundary_conditions)
         self.fprint("Setting Up Unsteady Problem", special="header")
 
+        ### Create Functional ###
+        self.ComputeFunctional()
+
+    def ComputeFunctional(self,theta=None):
         # ================================================================
 
         # Define fluid properties
@@ -355,9 +379,11 @@ class UnsteadyProblem(GenericProblem):
         # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
         self.tf = Function(self.fs.V)
 
+        # self.tf = self.ComputeTurbineForce(self.u_k,theta)
+
+
         # self.u_k2.vector()[:] = 0.0
         # self.u_k1.vector()[:] = 0.0
-
 
         # ================================================================
 

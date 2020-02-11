@@ -26,23 +26,33 @@ class GenericFunctionSpace(object):
         self.params = windse_parameters
         self.fprint = self.params.fprint
         self.dim = dom.dim
+        self.mesh = dom.mesh
+        self.tf_space = self.params["wind_farm"].get("turbine_space","Quadrature")
+        if self.tf_space == "Quadrature":
+            self.tf_degree = self.params["wind_farm"].get("turbine_degree",6)
+        else:
+            self.tf_degree = self.params["wind_farm"].get("turbine_degree",1)
 
     def SetupSubspaces(self):
         self.V = self.W.sub(0).collapse()
         self.Q = self.W.sub(1).collapse()
         self.V0 = self.V.sub(0).collapse() 
         self.V1 = self.V.sub(1).collapse()
-        if self.dim == 3:
-            self.V2 = self.V.sub(2).collapse()
 
         if self.dim == 3: 
+            self.V2 = self.V.sub(2).collapse()
             self.VelocityAssigner = FunctionAssigner(self.V,[self.V0,self.V1,self.V2])
         else:
             self.VelocityAssigner = FunctionAssigner(self.V,[self.V0,self.V1])
 
         self.SolutionAssigner = FunctionAssigner(self.W,[self.V,self.Q])
 
-
+        ### Create Function Spaces for numpy turbine force ###
+        if self.params["wind_farm"].get("turbine_method","numpy") == "numpy":
+            tf_V = VectorElement(self.tf_space,self.mesh.ufl_cell(),degree=self.tf_degree,quad_scheme="default")
+            self.tf_V = FunctionSpace(self.mesh, tf_V)
+            self.tf_V0 = self.tf_V.sub(0).collapse() 
+            self.fprint("Quadrature DOFS: {:d}".format(self.tf_V.dim()))
 
 class LinearFunctionSpace(GenericFunctionSpace):
     """
@@ -56,15 +66,15 @@ class LinearFunctionSpace(GenericFunctionSpace):
         fs_start = time.time()
         self.fprint("Creating Function Space",special="header")
 
-        V = VectorElement('Lagrange', dom.mesh.ufl_cell(), 1) 
-        Q = FiniteElement('Lagrange', dom.mesh.ufl_cell(), 1)
-        self.W = FunctionSpace(dom.mesh, MixedElement([V,Q]))
+        V = VectorElement('Lagrange', self.mesh.ufl_cell(), 1) 
+        Q = FiniteElement('Lagrange', self.mesh.ufl_cell(), 1)
+        self.W = FunctionSpace(self.mesh, MixedElement([V,Q]))
 
         self.SetupSubspaces()
 
-        self.fprint("Velocity DOFS: {:d}".format(self.V.dim()))
-        self.fprint("Pressure DOFS: {:d}".format(self.Q.dim()))
-        self.fprint("Total DOFS:    {:d}".format(self.W.dim()))
+        self.fprint("Velocity DOFS:   {:d}".format(self.V.dim()))
+        self.fprint("Pressure DOFS:   {:d}".format(self.Q.dim()))
+        self.fprint("Total DOFS:      {:d}".format(self.W.dim()))
         
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")
@@ -81,9 +91,9 @@ class TaylorHoodFunctionSpace(GenericFunctionSpace):
         ### Create the function space ###
         fs_start = time.time()
         self.fprint("Creating Function Space",special="header")
-        V = VectorElement('Lagrange', dom.mesh.ufl_cell(), 2) 
-        Q = FiniteElement('Lagrange', dom.mesh.ufl_cell(), 1)
-        self.W = FunctionSpace(dom.mesh, MixedElement([V,Q]))
+        V = VectorElement('Lagrange', self.mesh.ufl_cell(), 2) 
+        Q = FiniteElement('Lagrange', self.mesh.ufl_cell(), 1)
+        self.W = FunctionSpace(self.mesh, MixedElement([V,Q]))
 
         self.SetupSubspaces()
 

@@ -16,6 +16,7 @@ if main_file != "sphinx-build":
     import time
     import numpy as np
     from scipy.interpolate import RegularGridInterpolator
+    # from memory_profiler import memory_usage
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -35,8 +36,12 @@ if main_file != "sphinx-build":
     parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'        
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
+    # parameters['form_compiler']['representation'] = 'tsfc'
     parameters['form_compiler']['representation'] = 'uflacs'
-    parameters['form_compiler']['quadrature_degree'] = 6
+    if windse_parameters["wind_farm"].get("turbine_space",None) == "Quadrature":
+        parameters['form_compiler']['quadrature_degree'] = windse_parameters["wind_farm"].get("turbine_degree",6)
+    else:
+        parameters['form_compiler']['quadrature_degree'] = 6
 
 class GenericSolver(object):
     """
@@ -67,35 +72,38 @@ class GenericSolver(object):
             self.J = 0
             self.J_saved = False
 
-    def Plot(self):
-        """
-        This function plots the solution functions using matplotlib and saves the 
-        output to output/.../plots/u.pdf and output/.../plots/p.pdf
-        """
+    # def Plot(self):
+    #     """
+    #     This function plots the solution functions using matplotlib and saves the 
+    #     output to output/.../plots/u.pdf and output/.../plots/p.pdf
+    #     """
 
-        ### Create the path names ###
-        folder_string = self.params.folder+"/plots/"
-        u_string = self.params.folder+"/plots/u.pdf"
-        p_string = self.params.folder+"/plots/p.pdf"
+    #     ### Create the path names ###
+    #     folder_string = self.params.folder+"/plots/"
+    #     u_string = self.params.folder+"/plots/u.pdf"
+    #     p_string = self.params.folder+"/plots/p.pdf"
 
-        ### Check if folder exists ###
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
+    #     ### Check if folder exists ###
+    #     if not os.path.exists(folder_string): os.makedirs(folder_string)
 
-        ### Plot the x component of velocity ###
-        plot(self.u_next[0],title="Velocity in the x Direction")
-        plt.savefig(u_string)
-        plt.figure()
+    #     ### Plot the x component of velocity ###
+    #     plot(self.u_next[0],title="Velocity in the x Direction")
+    #     plt.savefig(u_string)
+    #     plt.figure()
 
-        ### Plot the pressure ###
-        plot(self.p_next,title="Pressure")
-        plt.savefig(p_string)
-        plt.show()
+    #     ### Plot the pressure ###
+    #     plot(self.p_next,title="Pressure")
+    #     plt.savefig(p_string)
+    #     plt.show()
 
     def Save(self,val=0):
         """
         This function saves the mesh and boundary markers to output/.../solutions/
         """
         u,p = self.problem.up_next.split(True,**self.extra_kwarg)
+        u.vector()[:]=u.vector()[:]/self.problem.dom.xscale
+        self.problem.dom.mesh.coordinates()[:]=self.problem.dom.mesh.coordinates()[:]/self.problem.dom.xscale
+
         if self.first_save:
             self.u_file = self.params.Save(u,"velocity",subfolder="solutions/",val=val)
             self.p_file = self.params.Save(p,"pressure",subfolder="solutions/",val=val)
@@ -105,6 +113,8 @@ class GenericSolver(object):
             self.params.Save(u,"velocity",subfolder="solutions/",val=val,file=self.u_file)
             self.params.Save(p,"pressure",subfolder="solutions/",val=val,file=self.p_file)
             # self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuT_file)
+        u.vector()[:]=u.vector()[:]*self.problem.dom.xscale
+        self.problem.dom.mesh.coordinates()[:]=self.problem.dom.mesh.coordinates()[:]*self.problem.dom.xscale
 
     def ChangeWindSpeed(self,speed):
         """
@@ -123,54 +133,75 @@ class GenericSolver(object):
             theta (float): The new wind angle in radians
         """
         self.problem.ChangeWindAngle(theta)
+# <<<<<<< HEAD
         
-    def CalculatePowerFunctional(self,delta_yaw = 0.0):
-        self.fprint("Computing Power Functional")
+#     def CalculatePowerFunctional(self,delta_yaw = 0.0):
+#         self.fprint("Computing Power Functional")
 
-        x=SpatialCoordinate(self.problem.dom.mesh)
-        J=0.
-        J_list=np.zeros(self.problem.farm.numturbs+1)
-        for i in range(self.problem.farm.numturbs):
+#         x=SpatialCoordinate(self.problem.dom.mesh)
+#         J=0.
+#         J_list=np.zeros(self.problem.farm.numturbs+1)
+#         for i in range(self.problem.farm.numturbs):
 
-            mx = self.problem.farm.mx[i]
-            my = self.problem.farm.my[i]
-            mz = self.problem.farm.mz[i]
-            x0 = [mx,my,mz]
-            W = self.problem.farm.W[i]*1.0
-            R = self.problem.farm.RD[i]/2.0 
-            ma = self.problem.farm.ma[i]
-            yaw = self.problem.farm.myaw[i]+delta_yaw
-            u = self.u_next
-            A = pi*R**2.0
+#             mx = self.problem.farm.mx[i]
+#             my = self.problem.farm.my[i]
+#             mz = self.problem.farm.mz[i]
+#             x0 = [mx,my,mz]
+#             W = self.problem.farm.W[i]*1.0
+#             R = self.problem.farm.RD[i]/2.0 
+#             ma = self.problem.farm.ma[i]
+#             yaw = self.problem.farm.myaw[i]+delta_yaw
+#             u = self.u_next
+#             A = pi*R**2.0
 
-            if self.problem.dom.dim == 2:
-                WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=float(yaw),degree=1)
-            else:
-                WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
+#             if self.problem.dom.dim == 2:
+#                 WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=float(yaw),degree=1)
+#             else:
+#                 WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
 
-            ### Rotate and Shift the Turbine ###
-            xs = self.problem.farm.YawTurbine(x,x0,yaw)
+#             ### Rotate and Shift the Turbine ###
+#             xs = self.problem.farm.YawTurbine(x,x0,yaw)
+# =======
+# >>>>>>> dev_numpy_tf
 
-            ### Create the function that represents the Thickness of the turbine ###
-            T_norm = 1.855438667500383
-            T = exp(-pow((xs[0]/W),6.0))/(T_norm*W)
+    def CalculatePowerFunctional(self,inflow_angle = 0.0):
+        tf = self.problem.tf1*self.u_next[0]**2+self.problem.tf2*self.u_next[1]**2+self.problem.tf3*self.u_next[0]*self.u_next[1]
+        J = dot(tf,self.u_next)*dx
+        # J = (self.problem.tf1[0]+self.problem.tf1[1]+self.problem.tf2[0]+self.problem.tf2[1]+self.problem.tf3[0]+self.problem.tf3[1])*dx
+        # XValues = SpatialCoordinate(self.problem.dom.mesh)
+        # J = (self.problem.tf1[0]*(XValues[0]+XValues[1]+300.0)/1000.0)*dx
+        # print(assemble(J))
+        # exit()
 
-            ### Create the function that represents the Disk of the turbine
-            D_norm = 2.914516237206873
-            D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
+# <<<<<<< HEAD
+#             ### Create the function that represents the Disk of the turbine
+#             D_norm = 2.914516237206873
+#             D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
 
-            u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
+#             u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
             
-            # print(np.shape(u))
-            # print(np.shape(A*T*D*WTGbase*u_d**2.0))
+#             # print(np.shape(u))
+#             # print(np.shape(A*T*D*WTGbase*u_d**2.0))
 
-            J += dot(A*T*D*WTGbase*u_d**2.0,u)*dx
+#             J += dot(A*T*D*WTGbase*u_d**2.0,u)*dx
 
-            if self.save_power:
-                J_list[i] = assemble(dot(A*T*D*WTGbase*u_d**2.0,u)*dx)
+#             if self.save_power:
+#                 J_list[i] = assemble(dot(A*T*D*WTGbase*u_d**2.0,u)*dx)
         
+# =======
+# >>>>>>> dev_numpy_tf
         if self.save_power:
-            J_list[-1]=assemble(J)
+            J_list=np.zeros(self.problem.farm.numturbs+1)
+            J_list[-1]=assemble(J,**self.extra_kwarg)
+
+            if self.problem.farm.actuator_disks_list is not None:
+                for i in range(self.problem.farm.numturbs):
+                    yaw = self.problem.farm.myaw[i]+inflow_angle
+                    tf1 = self.problem.farm.actuator_disks_list[i] * cos(yaw)**2
+                    tf2 = self.problem.farm.actuator_disks_list[i] * sin(yaw)**2
+                    tf3 = self.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
+                    tf = tf1*self.u_next[0]**2+tf2*self.u_next[1]**2+tf3*self.u_next[0]*self.u_next[1]
+                    J_list[i] = assemble(dot(tf,self.u_next)*dx,**self.extra_kwarg)
 
             folder_string = self.params.folder+"/data/"
             if not os.path.exists(folder_string): os.makedirs(folder_string)
@@ -183,8 +214,71 @@ class GenericSolver(object):
 
             np.savetxt(f,[J_list])
             f.close()
-
         return J
+
+
+    # def CalculatePowerFunctional(self,delta_yaw = 0.0):
+    #     self.fprint("Computing Power Functional")
+
+    #     x=SpatialCoordinate(self.problem.dom.mesh)
+    #     J=0.
+    #     J_list=np.zeros(self.problem.farm.numturbs+1)
+    #     for i in range(self.problem.farm.numturbs):
+
+    #         mx = self.problem.farm.mx[i]
+    #         my = self.problem.farm.my[i]
+    #         mz = self.problem.farm.mz[i]
+    #         x0 = [mx,my,mz]
+    #         W = self.problem.farm.W[i]*1.0
+    #         R = self.problem.farm.RD[i]/2.0 
+    #         ma = self.problem.farm.ma[i]
+    #         yaw = self.problem.farm.myaw[i]+delta_yaw
+    #         u = self.u_next
+    #         A = pi*R**2.0
+
+    #         WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=yaw,degree=1)
+
+    #         ### Rotate and Shift the Turbine ###
+    #         xs = self.problem.farm.YawTurbine(x,x0,yaw)
+
+    #         ### Create the function that represents the Thickness of the turbine ###
+    #         T_norm = 1.855438667500383
+    #         T = exp(-pow((xs[0]/W),6.0))/(T_norm*W)
+
+    #         ### Create the function that represents the Disk of the turbine
+    #         D_norm = 2.914516237206873
+    #         D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
+
+    #         u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
+
+    #         ### Create the function that represents the force ###
+    #         if self.problem.farm.force == "constant":
+    #             F = 4*0.5*A*ma/(1.-ma)
+    #         elif self.problem.farm.force == "sine":
+    #             r = sqrt(pow(xs[1],2.0)+pow(xs[2],2.0))
+    #             F = 4.*0.5*A*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5)/(.81831)
+
+    #         J += dot(F*T*D*WTGbase*u_d**2.0,u)*dx
+
+    #         if self.save_power:
+    #             J_list[i] = assemble(dot(A*T*D*WTGbase*u_d**2.0,u)*dx)
+        
+    #     if self.save_power:
+    #         J_list[-1]=assemble(J)
+
+    #         folder_string = self.params.folder+"/data/"
+    #         if not os.path.exists(folder_string): os.makedirs(folder_string)
+
+    #         if self.J_saved:
+    #             f = open(folder_string+"power_data.txt",'ab')
+    #         else:
+    #             f = open(folder_string+"power_data.txt",'wb')
+    #             self.J_saved = True
+
+    #         np.savetxt(f,[J_list])
+    #         f.close()
+
+    #     return J
 
 class SteadySolver(GenericSolver):
     """
@@ -210,9 +304,7 @@ class SteadySolver(GenericSolver):
         if "height" in self.params.output and self.problem.dom.dim == 3:
             self.problem.bd.SaveHeight(val=iter_val)
         if "turbine_force" in self.params.output:
-            # print('yo')
-            # self.problem.farm.SaveTurbineForce(val=iter_val)
-            self.problem.farm.SaveRotorDisks(val=iter_val)
+            self.problem.farm.SaveActuatorDisks(val=iter_val)
         self.fprint("Finished",special="footer")
 
         ####################################################################
@@ -303,8 +395,6 @@ class SteadySolver(GenericSolver):
                                  # "line_search": "basic",
                                  }}
 
-
-
         ### Start the Solve Process ###
         self.fprint("Solving",special="header")
         start = time.time()
@@ -317,14 +407,17 @@ class SteadySolver(GenericSolver):
         # self.problem.up_next.assign(self.up_baseline)
 
         ### Solve the real problem ###
+        # mem0=memory_usage()[0]
+        # mem_out, _ = memory_usage((solve,(self.problem.F == 0, self.problem.up_next, self.problem.bd.bcs),{"solver_parameters": solver_parameters}),max_usage=True,retval=True,max_iterations=1)
         solve(self.problem.F == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters)
         stop = time.time()
+
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
+        # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
         # self.u_next,self.p_next = self.problem.up_next.split(True)
         self.u_next,self.p_next = split(self.problem.up_next)
         # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
         self.nu_T = None
-
 
         ### Save solutions ###
         if "solution" in self.params.output:
@@ -338,6 +431,7 @@ class SteadySolver(GenericSolver):
         ###################################
         if self.optimizing or self.save_power:
             self.J += -self.CalculatePowerFunctional((iter_val-self.problem.dom.init_wind)) 
+            # self.J += -dot(self.problem.farm.rotor_disks,self.u_next)*dx
 
         # self.fprint("Speed Percent of Inflow Speed")
         # ps = []
@@ -459,6 +553,11 @@ class UnsteadySolver(GenericSolver):
 
         # ================================================================
 
+        print('Using Actuator/Turbine Parameters...')
+        print('Hub Height: ', self.problem.farm.HH[0])
+        print('Yaw: ', self.problem.farm.yaw[0])
+        print('Radius: ', self.problem.farm.radius[0])
+
         self.fprint("Solving",special="header")
         self.fprint("Sim Time | Next dt | U_max")
         self.fprint("--------------------------")
@@ -472,15 +571,14 @@ class UnsteadySolver(GenericSolver):
 
             # Update the turbine force
             # self.problem.tf = self.problem.farm.TurbineForce_numpy(None,None,None)
-            self.UpdateTurbineForce(simTime, 1) # Single turbine, disk actuator
+            # self.UpdateTurbineForce(simTime, 1) # Single turbine, disk actuator
+            # self.UpdateTurbineForce(simTime, 2) # Dubs
             t1 = time.time()
-            # self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
+            self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
             t2 = time.time()
             # print(t2-t1)
 
-            self.problem.bd.UpdateVelocity(simTime)
-
-            # self.UpdateTurbineForce(simTime, 2) # Dubs
+            # self.problem.bd.UpdateVelocity(simTime)
 
             # Record the "old" max velocity (before this update)
             u_max_k1 = self.problem.u_k.vector().max()
@@ -521,7 +619,6 @@ class UnsteadySolver(GenericSolver):
                 # Save output files
                 # self.SaveTimeSeries(fp, simTime)
                 self.SaveTimeSeries(simTime)
-
 
             # Adjust the timestep size, dt, for a balance of simulation speed and stability
             save_next_timestep = self.AdjustTimestepSize(save_next_timestep, saveInterval, simTime, u_max, u_max_k1)
@@ -626,6 +723,240 @@ class UnsteadySolver(GenericSolver):
     # ================================================================
 
     def UpdateActuatorLineForce(self, simTime):
+
+        def rot_x(theta):
+            Rx = np.array([[1, 0, 0],
+                           [0, np.cos(theta), -np.sin(theta)],
+                           [0, np.sin(theta), np.cos(theta)]])
+
+            return Rx
+
+        def rot_y(theta):
+            Ry = np.array([[np.cos(theta), 0, np.sin(theta)],
+                           [0, 1, 0],
+                           [-np.sin(theta), 0, np.cos(theta)]])
+            
+            return Ry
+
+        def rot_z(theta):
+            Rz = np.array([[np.cos(theta), -np.sin(theta), 0],
+                           [np.sin(theta), np.cos(theta), 0],
+                           [0, 0, 1]])
+            
+            return Rz
+
+        #================================================================
+        # Get Mesh Properties
+        #================================================================
+
+        ndim = self.problem.dom.dim
+
+        # Get the coordinates of the vector function space
+        coords = self.problem.fs.V.tabulate_dof_coordinates()
+        coords = np.copy(coords[0::self.problem.dom.dim, :])
+
+
+        # Resape a linear copy of the coordinates for every mesh point
+        coordsLinear = np.copy(coords.reshape(-1, 1))
+
+        #================================================================
+        # Set Turbine and Fluid Properties
+        #================================================================
+
+        # Set the density
+        rho = 1.0
+
+        # Set the hub height
+        hub_height = self.problem.farm.HH[0] # For a SWIFT turbine
+
+        # Get the hub-height velocity
+        u_inf = 8.0
+
+        # Set the rotational speed of the turbine
+        RPM = 15.0
+
+        # Set the yaw of the turbine
+        yaw = self.problem.farm.yaw[0]
+
+        # Set the number of blades in the turbine
+        num_blades = 3
+
+        # Blade length (turbine radius)
+        L = self.problem.farm.radius[0] # For a SWIFT turbine 27 m in diameter
+
+        # Chord length
+        c = L/20.0
+
+        # Width of Gaussian
+        # eps = 2.5*c
+        eps = 2.0*self.problem.dom.mesh.hmin()/np.sqrt(3)
+
+        # print(self.problem.farm.x)
+        # print(self.problem.farm.y)
+        # print(self.problem.farm.HH)
+        # print(self.problem.farm.yaw)
+        # print(self.problem.farm.RD)
+        # print(self.problem.farm.radius)
+
+        # Discretize each blade into separate nodes
+        num_blade_segments = 10
+
+        #================================================================
+        # Set Derived Constants
+        #================================================================
+
+        # Calculate the blade velocity
+        period = 60.0/RPM
+        tip_speed = np.pi*2.0*L*RPM/60.0
+        blade_vel = np.vstack((np.zeros(num_blade_segments),
+                               np.zeros(num_blade_segments),
+                               np.linspace(0.0, tip_speed, num_blade_segments)))
+
+        # Set the initial angle of each blade
+        theta_vec = np.linspace(0.0, 2.0*np.pi, num_blades+1)
+        theta_vec = theta_vec[0:num_blades]
+
+        # Calculate discrete node positions
+        rdim = np.linspace(0.0, L, num_blade_segments)
+
+        # Calculate width of individual blade segment
+        w = rdim[1] - rdim[0]
+
+        # Calculate an array describing the x, y, z position of each point
+        xblade = np.vstack((np.zeros(num_blade_segments),
+                            rdim,
+                            np.zeros(num_blade_segments)))
+
+        #================================================================
+        # Begin Calculating Turbine Forces
+        #================================================================
+
+        # Lift and drag coefficient (could be an array and you interpolate the value based on R)
+        # cl_dolf = Constant((np.linspace(1.5, 0.5, num_blade_segments)))
+        # cd_dolf = Constant((np.ones(num_blade_segments)))
+        # cl = cl_dolf.values()
+        # cd = cd_dolf.values()
+
+        cl = np.linspace(0.0, 2.0, num_blade_segments) # Uncomment for controllability study
+        cd = np.linspace(2.0, 0.0, num_blade_segments)
+        # cl = np.linspace(2.0, 0.0, num_blade_segments) # Uncomment for controllability study
+        # cd = np.linspace(0.0, 2.0, num_blade_segments)
+        # cl = np.ones(num_blade_segments)
+        # cd = np.ones(num_blade_segments)
+
+
+        # Create space to hold the vector values
+        tf_vec = np.zeros(np.size(coords))
+        # tf_lift_vec = np.zeros(np.size(coords))
+        # tf_drag_vec = np.zeros(np.size(coords))
+
+        # Calculate the blade position based on current simTime and turbine RPM
+        theta_offset = simTime/period*2.0*np.pi
+
+        # Treat each blade separately
+        for theta_0 in theta_vec:
+            theta = theta_0 + theta_offset
+
+            # Generate a rotation matrix for this turbine blade
+            Rx = rot_x(theta)
+            Rz = rot_z(yaw)
+
+            # Rotate the entire [x; y; z] matrix using this matrix, then shift to the hub height
+            xblade_rotated = np.dot(Rz, np.dot(Rx, xblade))
+            xblade_rotated[2, :] += hub_height
+
+            # Tile the blade coordinates for every mesh point, [numGridPts*ndim x num_blade_segments]
+            xblade_rotated_full = np.tile(xblade_rotated, (np.shape(coords)[0], 1))
+
+            # Subtract and square to get the dx^2 values in the x, y, and z directions
+            dx_full = (coordsLinear - xblade_rotated_full)**2
+
+            # Add together to get |x^2 + y^2 + z^2|^2
+            dist2 = dx_full[0::ndim] + dx_full[1::ndim] + dx_full[2::ndim]
+
+            # Set if using local velocity around inidividual nodes
+            using_local_velocity = False
+        
+            if using_local_velocity:
+                # Generate the fluid velocity from the actual node locations in the flow
+                u_fluid = np.zeros((3, num_blade_segments))
+                
+                for k in range(num_blade_segments):
+                    u_fluid[:, k] = self.problem.u_k1(xblade_rotated[0, k],
+                                                      xblade_rotated[1, k],
+                                                      xblade_rotated[2, k])
+                                    
+            else:
+                # Generate the fluid velocity analytically using the hub height velocity
+                # u_inf_vec = u_inf*np.ones(num_blade_segments)
+                
+                # u_fluid = np.vstack((u_inf_vec,
+                #                      np.zeros(num_blade_segments),
+                #                      np.zeros(num_blade_segments)))
+                u_fluid = np.zeros((3, num_blade_segments))
+                
+                for k in range(num_blade_segments):
+                    u_fluid[0, k] = 8.0*(xblade_rotated[2, k]/hub_height)**0.18
+
+            
+            # Rotate the blade velocity in the global x, y, z, coordinate system
+            blade_vel_rotated = np.dot(Rz, np.dot(Rx, -blade_vel))
+                            
+            # Form the total relative velocity vector (including velocity from rotating blade)
+            u_rel = u_fluid + blade_vel_rotated
+            
+            # Create unit vectors in the direction of u_rel
+            u_rel_mag = np.linalg.norm(u_rel, axis=0)
+            u_rel_mag[u_rel_mag < 1e-6] = 1e-6
+            u_unit = u_rel/u_rel_mag
+            
+            # Calculate the lift and drag forces using the relative velocity magnitude
+            lift = (0.5*cl*rho*c*w*u_rel_mag**2)/(eps**3 * np.pi**1.5)
+            drag = (0.5*cd*rho*c*w*u_rel_mag**2)/(eps**3 * np.pi**1.5)
+            
+            # Calculate the force at every mesh point due to every node [numGridPts x NumActuators]
+            nodal_lift = lift*np.exp(-dist2/eps**2)
+            nodal_drag = drag*np.exp(-dist2/eps**2)
+            
+            # Calculate a vector in the direction of the blade
+            blade_unit = xblade_rotated[:, -1] - np.array([0.0, 0.0, hub_height])  
+            
+            for k in range(num_blade_segments):
+                # The drag unit simply points opposite the relative velocity unit vector
+                drag_unit = -u_unit[:, k]
+                
+                # The lift is normal to the plane generated by the blade and relative velocity
+                lift_unit = np.cross(drag_unit, blade_unit)
+                lift_unit_mag = np.linalg.norm(lift_unit)
+                if lift_unit_mag < 1e-6:
+                    lift_unit_mag = 1e-6
+                lift_unit = lift_unit/lift_unit_mag
+                
+                if k == 0:
+                    drag_force = np.outer(nodal_drag[:, k], drag_unit)
+                    lift_force = np.outer(nodal_lift[:, k], lift_unit)
+                else:
+                    drag_force += np.outer(nodal_drag[:, k], drag_unit)
+                    lift_force += np.outer(nodal_lift[:, k], lift_unit)
+                    
+            # The total turbine force is the sum of lift and drag effects
+            turbine_force = drag_force + lift_force
+
+            for k in range(ndim):
+                tf_vec[k::ndim] += turbine_force[:, k]
+                # tf_lift_vec[k::ndim] += lift_force[:, k]
+                # tf_drag_vec[k::ndim] += drag_force[:, k]
+
+        # Save the output
+        tf_vec[np.abs(tf_vec) < 1e-12] = 0.0
+        # tf_lift_vec[np.abs(tf_lift_vec) < 1e-12] = 0.0
+        # tf_drag_vec[np.abs(tf_drag_vec) < 1e-12] = 0.0
+
+        self.problem.tf.vector()[:] = tf_vec
+
+    # ================================================================
+
+    def UpdateActuatorLineForceOld(self, simTime):
         coords = self.problem.fs.V.tabulate_dof_coordinates()
         coords = np.copy(coords[0::self.problem.dom.dim, :])
 

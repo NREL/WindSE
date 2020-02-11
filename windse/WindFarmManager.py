@@ -19,7 +19,7 @@ if main_file != "sphinx-build":
     import shutil
 
     ### Import the cumulative parameters ###
-    from windse import windse_parameters, BaseHeight
+    from windse import windse_parameters, BaseHeight, CalculateDiskTurbineForces
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters["general"].get("dolfin_adjoint", False):
@@ -31,87 +31,6 @@ if main_file != "sphinx-build":
         matplotlib.use('TKAgg')
     import matplotlib.pyplot as plt
 
-def TurbineForceNumpy(locs,yaws,axials,Ws,RDs,fs,inflow_angle=0.0,force_type="constant"):
-    """
-
-    """
-    ### Set up some useful values ###
-    dim = fs.V.mesh().topology().dim()
-    locs = np.array(locs).T
-    numturbs = locs.shape[0]
-
-    ### Get the coordinates for a single component of the velocity function space ###
-    coordinates = fs.V0.tabulate_dof_coordinates()
-    x = coordinates[:,0]
-    y = coordinates[:,1]
-    if dim == 3:
-        z = coordinates[:,2]
-
-    ### Initialize Functions ###
-    rotor_disks = Function(fs.V0)
-    tf_x = Function(fs.V0)
-    tf_y = Function(fs.V1)
-    tf_z = Function(fs.V2)
-    tf1  = Function(fs.V)
-    tf2  = Function(fs.V)
-    tf3  = Function(fs.V)
-    tf_temp = Function(fs.V)
-
-    ### For each turbine compute the space kernel and force ###
-    for i in range(numturbs):
-
-        ### Collect Turbine Specfic Data ###
-        x0 = locs[i,0]
-        y0 = locs[i,1]
-        z0 = locs[i,2]
-        yaw = yaws[i]+inflow_angle
-        a = axials[i]
-        W = Ws[i]
-        R = RDs[i]/2.0
-        A = pi*R**2.0
-
-        ### Yaw and translate the turbine ###
-        xrot =   math.cos(yaw)*(x-x0) + math.sin(yaw)*(y-y0)
-        yrot = - math.sin(yaw)*(x-x0) + math.cos(yaw)*(y-y0)
-        if dim == 3:
-            zrot = z-z0
-        else:
-            zrot = 0.0
-
-        ### Create the Thickness Kernel ###
-        T_norm = 1.855438667500383
-        T = np.exp(-np.power((xrot/W),6.0))/(T_norm*W)
-
-        ### Create the Disk Kernel ###
-        D_norm = 2.914516237206873
-        r = np.power(yrot,2.0)+np.power(zrot,2.0)
-        D = np.exp(-np.power(r/R**2.0,6.0))/(D_norm*R**2.0)
-
-        ### Create Radial Force ###
-        if force_type == "constant":
-            C_t = 4./3.
-            F = 0.5*A*C_t*a/(1.-a)
-        elif force_type == "sine":
-            F = 4.*0.5*A*a/(1.-a)*(r/R*np.sin(pi*r/R)+0.5) #* 1/(.81831)
-
-        ### Assemble the turbine force components ##
-        tf_x.vector()[:] = F*T*D*cos(yaw)
-        tf_y.vector()[:] = F*T*D*sin(yaw)
-        rotor_disks.vector()[:] += T*D 
-
-        ### Create a tempory turbine force vector ###
-        if dim == 3:
-            fs.VelocityAssigner.assign(tf_temp,[tf_x,tf_y,tf_z])
-        else:
-            fs.VelocityAssigner.assign(tf_temp,[tf_x,tf_y])
-
-        ### Create the 3 Turbine force function to completely reconstruct tf*(u.n)^2 without velocity ###
-        tf1.vector()[:] += tf_temp.vector()[:] * cos(yaw)**2
-        tf2.vector()[:] += tf_temp.vector()[:] * sin(yaw)**2
-        tf3.vector()[:] += tf_temp.vector()[:] * cos(yaw) * sin(yaw)
-
-    return (tf1,tf2,tf3,rotor_disks)
-
 class GenericWindFarm(object):
     """
     A GenericProblem contains on the basic functions required by all problem objects.
@@ -122,16 +41,19 @@ class GenericWindFarm(object):
     def __init__(self, dom):
         ### save a reference of option and create local version specifically of domain options ###
         self.params = windse_parameters
+        self.turbine_method = self.params["wind_farm"].get("turbine_method","numpy")
         self.force = self.params["wind_farm"].get("force","sine")
+
         self.analytic = self.params["domain"].get("analytic",False)
         self.dom = dom
         self.rd_first_save = True
         self.fprint = self.params.fprint
         self.extra_kwarg = {}
         if self.params["general"].get("dolfin_adjoint", False):
+            self.control_types = self.params["optimization"]["controls"]
             self.extra_kwarg["annotate"] = False
 
-    def Plot(self,show=True,filename="wind_farm"):
+    def Plot(self,show=False,filename="wind_farm",power=None):
         """
         This function plots the locations of each wind turbine and
         saves the output to output/.../plots/
@@ -147,25 +69,56 @@ class GenericWindFarm(object):
         if not os.path.exists(folder_string): os.makedirs(folder_string)
 
         ### Create a list that outlines the extent of the farm ###
-        ex_list_x = [self.ex_x[0],self.ex_x[1],self.ex_x[1],self.ex_x[0],self.ex_x[0]]
-        ex_list_y = [self.ex_y[0],self.ex_y[0],self.ex_y[1],self.ex_y[1],self.ex_y[0]]
+        if self.params.get("optimization",{}):
+            Sx = self.dom.xscale
+            layout_bounds = np.array(self.params["optimization"].get("layout_bounds",[np.array(self.ex_x)/Sx,np.array(self.ex_y)/Sx]))*Sx
+            ex_list_x = [layout_bounds[0][0],layout_bounds[0][1],layout_bounds[0][1],layout_bounds[0][0],layout_bounds[0][0]]
+            ex_list_y = [layout_bounds[1][0],layout_bounds[1][0],layout_bounds[1][1],layout_bounds[1][1],layout_bounds[1][0]]
+        else:
+            ex_list_x = [self.ex_x[0],self.ex_x[1],self.ex_x[1],self.ex_x[0],self.ex_x[0]]
+            ex_list_y = [self.ex_y[0],self.ex_y[0],self.ex_y[1],self.ex_y[1],self.ex_y[0]]
 
         ### Generate and Save Plot ###
         plt.figure()
         if hasattr(self.dom,"boundary_line"):
-            plt.plot(*self.dom.boundary_line,c="k")
-        plt.plot(ex_list_x,ex_list_y,c="r")
-        p=plt.scatter(self.x,self.y,c=self.z,cmap="coolwarm",edgecolors=(0, 0, 0, 1))
+            plt.plot(*self.dom.boundary_line/self.dom.xscale,c="k")
+        plt.plot(np.array(ex_list_x)/self.dom.xscale, np.array(ex_list_y)/self.dom.xscale,c="r")
+
+        ### Plot Blades
+        for i in range(self.numturbs):
+            blade_n = [np.cos(self.yaw[i]),np.sin(self.yaw[i])]
+            rr = self.RD[i]/2.0
+            blade_x = np.array([self.x[i]+rr*blade_n[1],self.x[i]-rr*blade_n[1]])/self.dom.xscale
+            blade_y = np.array([self.y[i]-rr*blade_n[0],self.y[i]+rr*blade_n[0]])/self.dom.xscale
+            plt.plot(blade_x,blade_y,c='k',linewidth=2,zorder=1)
+
+        ### Choose coloring for the turbines ###
+        if isinstance(power,(list,np.ndarray)):
+            coloring = power
+        else:
+            coloring = np.array(self.z)/self.dom.xscale
+
+        ### Plot Hub Locations
+        p=plt.scatter(self.x/self.dom.xscale,self.y/self.dom.xscale,c=coloring,cmap="coolwarm",edgecolors=(0, 0, 0, 1),s=20,zorder=2)
         # p=plt.scatter(self.x,self.y,c="k",s=70)
-        plt.xlim(self.dom.x_range[0],self.dom.x_range[1])
-        plt.ylim(self.dom.y_range[0],self.dom.y_range[1])
+        plt.xlim(self.dom.x_range[0]/self.dom.xscale,self.dom.x_range[1]/self.dom.xscale)
+        plt.ylim(self.dom.y_range[0]/self.dom.xscale,self.dom.y_range[1]/self.dom.xscale)
         clb = plt.colorbar(p)
         clb.ax.set_ylabel('Hub Elevation')
 
-        plt.title("Location of the Turbines")
+        if power is None:
+            plt.title("Location of the Turbines")
+        elif isinstance(power,(list,np.ndarray)):
+            plt.title("Power Output: {: 5.2f}".format(sum(power)))
+        else:
+            plt.title("Power Output: {: 5.2f}".format(power))
+
         plt.savefig(file_string, transparent=True)
+
         if show:
             plt.show()
+
+        plt.close()
 
     def SaveWindFarm(self,val=None,filename="wind_farm"):
 
@@ -184,37 +137,24 @@ class GenericWindFarm(object):
 
 
         ### Save text file ###
-        output = np.array([self.x, self.y, self.HH, self.yaw, self.RD, self.W, self.a])
+        Sx = self.dom.xscale
+        output = np.array([self.x/Sx, self.y/Sx, self.HH/Sx, self.yaw, self.RD/Sx, self.W/Sx, self.a])
         np.savetxt(file_string,output.T,header=head_str)
 
-
-    def SaveRotorDisks(self,val=0):
+    def SaveActuatorDisks(self,val=0):
         """
         This function saves the turbine force if exists to output/.../functions/
         """
-        if isinstance(self.rotor_disks,Function):
+
+        self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]/self.dom.xscale
+        if hasattr(self.actuator_disks,"_cpp_object"):
             if self.rd_first_save:
-                self.rd_file = self.params.Save(self.rotor_disks,"rotor_disks",subfolder="functions/",val=val)
+                self.rd_file = self.params.Save(self.actuator_disks,"actuator_disks",subfolder="functions/",val=val)
                 self.rd_first_save = False
             else:
-                self.params.Save(self.rotor_disks,"rotor_disks",subfolder="functions/",val=val,file=self.rd_file)
+                self.params.Save(self.actuator_disks,"actuator_disks",subfolder="functions/",val=val,file=self.rd_file)
 
-    def GetLocations(self):
-        """
-        This function gets three lists containing the x, y, and z locations
-        of each turbine.
-
-        Returns:
-            x, y, z (lists): turbine coordinates
-        """
-        return self.x, self.y, self.z
-
-    def PrintLocations(self):
-        """
-        This function prints out the  locations of each turbine.
-        """
-        for i in range(self.numturbs):
-            print("Turbine "+repr(i+1)+": "+repr([self.x[i],self.y[i],self.z[i]]))
+        self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]*self.dom.xscale
 
     def CalculateExtents(self):
         """
@@ -300,30 +240,31 @@ class GenericWindFarm(object):
         for i in range(self.numturbs):
             self.mx[i].rename("x"+repr(i),"x"+repr(i))
             self.my[i].rename("y"+repr(i),"y"+repr(i))
+            self.myaw[i].rename("yaw"+repr(i),"yaw"+repr(i))
+            self.ma[i].rename("a"+repr(i),"a"+repr(i))
 
-    def UpdateConstants(self,m=None,indexes=None,control_types=None):
+    def UpdateControls(self,x=None,y=None,yaw=None,a=None):
 
-        if m is not None:
-            m = np.array(m)
-            if "layout" in control_types:
-                self.x = m[indexes[0]]
-                self.y = m[indexes[1]]
-            if "yaw" in control_types:
-                self.yaw = m[indexes[2]]
-            if "axial" in control_types:
-                self.a = m[indexes[3]]
+        if x is not None:
+            self.x = np.array(x,dtype=float)
+        if y is not None:
+            self.y = np.array(y,dtype=float)
+        if yaw is not None:
+            self.yaw = np.array(yaw,dtype=float)
+        if a is not None:
+            self.a = np.array(a,dtype=float)
 
         for i in range(self.numturbs):
-            self.mx[i].assign(self.x[i])
-            self.my[i].assign(self.y[i])
-            if self.analytic:
-                self.mz[i] = self.dom.Ground(self.mx[i],self.my[i])+float(self.HH[i])
-            else:
-                self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
+            self.mx[i]=Constant(self.x[i])
+            self.my[i]=Constant(self.y[i])
+            # if self.analytic:
+            #     self.mz[i] = self.dom.Ground(self.mx[i],self.my[i])+float(self.HH[i])
+            # else:
+            self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
             self.z[i] = float(self.mz[i])
             self.ground[i] = self.z[i] - self.HH[i]
-            self.ma[i].assign(self.a[i])
-            self.myaw[i].assign(self.yaw[i])
+            self.ma[i]=Constant(self.a[i])
+            self.myaw[i]=Constant(self.yaw[i])
 
     def CreateLists(self):
         """
@@ -345,32 +286,12 @@ class GenericWindFarm(object):
         self.z = np.zeros(self.numturbs)
         self.ground = np.zeros(self.numturbs)
         for i in range(self.numturbs):
-            if self.analytic:
-                self.mz.append(self.dom.Ground(self.mx[i],self.my[i])+float(self.HH[i]))
-            else:
-                # self.mz.append(BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i]))
-                self.mz.append(float(self.HH[i]))
+            # if self.analytic:
+            #     self.mz.append(self.dom.Ground(self.mx[i],self.my[i])+float(self.HH[i]))
+            # else:
+            self.mz.append(BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i]))
             self.z[i] = float(self.mz[i])
             self.ground[i] = self.z[i] - self.HH[i]
-
-    def RotateFarm(self,angle):
-        """
-        This function rotates the position of each turbine. It does not change 
-        the yaw of the turbines. 
-
-        Args:
-            angle (float): the rotation angle in radians
-        """
-
-        center = [sum(self.dom.x_range)/2.0,sum(self.dom.y_range)/2.0,sum(self.dom.z_range)/2.0]
-        for i in range(self.numturbs):
-            x = [self.x[i],self.y[i],self.z[i]]
-            self.x[i] = math.cos(angle)*(x[0]-center[0]) - math.sin(angle)*(x[1]-center[1])+center[0]
-            self.y[i] = math.sin(angle)*(x[0]-center[0]) + math.cos(angle)*(x[1]-center[1])+center[1]
-            self.z[i] = self.HH[i]+self.dom.ground(self.x[i],self.y[i])[0]
-            # self.angle[i] -= rot
-        self.CalculateExtents()
-        self.UpdateConstants()
 
     def RefineTurbines(self,num,radius_multiplyer):
 
@@ -424,7 +345,7 @@ class GenericWindFarm(object):
                     y = np.tile(y,(n,1))
 
                 ### For each turbine, find which vertex is closet using squared distance
-                force_cylindrical_refinement = False
+                force_cylindrical_refinement = True
                 
                 if force_cylindrical_refinement:
                     d_y = pt[1]
@@ -469,46 +390,6 @@ class GenericWindFarm(object):
         self.CalculateHeights()
         self.fprint("Turbine Refinement Finished",special="footer")
 
-    def CreateRotorDiscs(self,fs,mesh,delta_yaw=0.0):
-        tf_start = time.time()
-        self.fprint("Creating Rotor Discs",special="header")
-        x=SpatialCoordinate(mesh)
-
-        self.discs = Function(fs.Q)
-        # self.discs = Function(fs.V)
-
-        for i in range(self.numturbs):
-            x0 = [self.mx[i],self.my[i],self.mz[i]]
-            yaw = self.myaw[i]+delta_yaw
-            W = self.W[i]/2.0
-            R = self.RD[i]/2.0
-            
-            ### Calculate the normal vector ###
-            n = Constant((cos(yaw),sin(yaw),0.0))
-
-            ### Rotate and Shift the Turbine ###
-            xs = self.YawTurbine(x,x0,yaw)
-
-            ### Create the function that represents the Thickness of the turbine ###
-            T_norm = 1.902701539733748
-            T = exp(-pow((xs[0]/W),10.0))/(T_norm*W)
-
-            ### Create the function that represents the Disk of the turbine
-            D_norm = 2.884512175878827
-            D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),5.0))/(D_norm*R**2.0)
-
-            ### Combine and add to the total ###
-            self.discs = self.discs + T*D
-            # self.discs = self.discs + T*D*n
-
-        self.fprint("Projecting Rotor Discs")
-        self.discs = project(self.discs,fs.Q,solver_type='mumps',**self.extra_kwarg)
-
-        tf_stop = time.time()
-        self.fprint("Rotor Discs Created: {:1.2f} s".format(tf_stop-tf_start),special="footer")
-
-
-
     def YawTurbine(self,x,x0,yaw):
         """
         This function yaws the turbines when creating the turbine force.
@@ -518,8 +399,8 @@ class GenericWindFarm(object):
             x0 (list): the location of the turbine to be yawed
             yaw (float): the yaw value in radians
         """
-        xrot =   math.cos(yaw)*(x[0]-x0[0]) + math.sin(yaw)*(x[1]-x0[1])
-        yrot = - math.sin(yaw)*(x[0]-x0[0]) + math.cos(yaw)*(x[1]-x0[1])
+        xrot =   cos(yaw)*(x[0]-x0[0]) + sin(yaw)*(x[1]-x0[1])
+        yrot = - sin(yaw)*(x[0]-x0[0]) + cos(yaw)*(x[1]-x0[1])
         if self.dom.dim == 3:
             zrot = x[2]-x0[2]
         else:
@@ -527,18 +408,44 @@ class GenericWindFarm(object):
         
         return [xrot,yrot,zrot]
 
-    def TurbineForce_numpy(self,fs,mesh,u_next,delta_yaw=0.0):
+    def NumpyTurbineForce(self,fs,mesh,inflow_angle=0.0):
         tf_start = time.time()
         self.fprint("Calculating Turbine Force",special="header")
+        self.fprint("Using a Numpy Representation")
 
-        tf1, tf2, tf3, rotor_disks = TurbineForceNumpy([self.x,self.y,self.z],self.yaw,self.a,self.W,self.RD,fs,inflow_angle=delta_yaw,force_type=self.force)
-        self.rotor_disks = rotor_disks
+        self.inflow_angle = inflow_angle
+        x = fs.tf_V0.tabulate_dof_coordinates().T
+        [tf1, tf2, tf3], sparse_ids, actuator_array = CalculateDiskTurbineForces(x, self, fs, save_actuators=True)
+
+        self.fprint("Turbine Force Space:  {}".format(fs.tf_space))
+        self.fprint("Turbine Force Degree: {:d}".format(fs.tf_degree))
+        self.fprint("Quadrature DOFS:      {:d}".format(fs.tf_V.dim()))
+        self.fprint("Turbine DOFs:         {:d}".format(len(sparse_ids)))
+        self.fprint("Compression:          {:1.4f} %".format(len(sparse_ids)/fs.tf_V.dim()*100))
+
+        ### Rename for Identification ###
+        tf1.rename("tf1","tf1")
+        tf2.rename("tf2","tf2")
+        tf3.rename("tf3","tf3")
+
+        ### Construct the actuator disks for post processing ###
+        # self.actuator_disks_list = actuator_disks
+        self.actuator_disks = Function(fs.tf_V)
+        self.actuator_disks.vector()[:] = np.sum(actuator_array,axis=1)
+        self.fprint("Projecting Turbine Force")
+        self.actuator_disks = project(self.actuator_disks,fs.V,solver_type='mumps',form_compiler_parameters={'quadrature_degree': fs.tf_degree},**self.extra_kwarg)
+        
+        self.actuator_disks_list = []
+        for i in range(self.numturbs):
+            temp = Function(fs.tf_V)
+            temp.vector()[:] = actuator_array[:,i]
+            self.actuator_disks_list.append(temp)
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
         return (tf1, tf2, tf3)
 
-    def TurbineForce(self,fs,mesh,u_next,delta_yaw=0.0):
+    def DolfinTurbineForce(self,fs,mesh,inflow_angle=0.0):
         """
         This function creates a turbine force by applying 
         a spacial kernel to each turbine. This kernel is 
@@ -564,23 +471,30 @@ class GenericWindFarm(object):
         """
         tf_start = time.time()
         self.fprint("Calculating Turbine Force",special="header")
+        self.fprint("Using a Dolfin Representation")
 
         x=SpatialCoordinate(mesh)
         tf=0
+        rd=0
         tf1=0
         tf2=0
         tf3=0
+        self.actuator_disks_list = []
         for i in range(self.numturbs):
             x0 = [self.mx[i],self.my[i],self.mz[i]]
-            yaw = self.myaw[i]+delta_yaw
+            yaw = self.myaw[i]+inflow_angle
             W = self.W[i]*1.0
             R = self.RD[i]/2.0
             A = pi*R**2.0 
             ma = self.ma[i]
             if self.dom.dim == 3:
-                WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
+                # WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
+                WTGbase = as_vector((cos(yaw),sin(yaw),0.0))
             else:
-                WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=float(yaw),degree=1)
+                # WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=float(yaw),degree=1)
+                WTGbase = as_vector((cos(yaw),sin(yaw)))
+            # WTGbase.rename("WTGbase","WTGbase")
+
 
             ### Rotate and Shift the Turbine ###
             xs = self.YawTurbine(x,x0,yaw)
@@ -591,106 +505,40 @@ class GenericWindFarm(object):
 
             ### Create the function that represents the Disk of the turbine
             D_norm = 2.914516237206873
-            D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
+            D = exp(-pow((pow((xs[1]/R),2.0)+pow((xs[2]/R),2.0)),6.0))/(D_norm*R**2.0)
 
             ### Create the function that represents the force ###
             if self.force == "constant":
-                C_t = 4./3.
-                F = 0.5*A*C_t*ma/(1.-ma)
+                F = 4*0.5*A*ma/(1.-ma)
             elif self.force == "sine":
-                r = sqrt(xs[1]**2.0+xs[2]**2)
+                r = sqrt(pow(xs[1],2.0)+pow(xs[2],2.0))
                 F = 4.*0.5*A*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5)/(.81831)
 
             # compute disk averaged velocity in yawed case and don't project
-            u_d = u_next[0]*cos(yaw) + u_next[1]*sin(yaw)
-            tf  += F*T*D*WTGbase*u_d**2
-            # tf1 += F*T*D*WTGbase * cos(yaw)**2#*u_d**2
-            # tf2 += F*T*D*WTGbase * sin(yaw)**2#*u_d**2
-            # tf3 += F*T*D*WTGbase * cos(yaw) * sin(yaw)#*u_d**2
+            self.actuator_disks_list.append(F*T*D*WTGbase)
+            rd  += F*T*D*WTGbase
+            tf1 += F*T*D*WTGbase * cos(yaw)**2
+            tf2 += F*T*D*WTGbase * sin(yaw)**2
+            tf3 += F*T*D*WTGbase * 2.0 * cos(yaw) * sin(yaw)
 
-        ### Project Turbine Force to save on Assemble time ###
+            # W=0.02
+            # WTGbase2 = Function(fs.V0)
+            # WTGbase2.vector()[:] = 1.0
+            # WTGbase2.rename("WTGbase2","WTGbase2")
+            # tf1 += exp(-(xs[0]/W)**6.0)*WTGbase2*WTGbase*cos(yaw)**2
+            # tf2 += exp(-(xs[0]/W)**6.0)*WTGbase2*WTGbase*sin(yaw)**2
+            # tf3 += exp(-(xs[0]/W)**6.0)*WTGbase2*WTGbase*2.0 * cos(yaw) * sin(yaw)
+
+        ### Save the actuator disks for post processing ###
         self.fprint("Projecting Turbine Force")
-        self.rotor_disks = None
-        # self.rotor_disks = project(tf,fs.V,solver_type='mumps',**self.extra_kwarg)
+        self.actuator_disks = project(rd,fs.V,solver_type='mumps',**self.extra_kwarg)
+        # tf1 = project(tf1,fs.V,solver_type='mumps')
+        # tf2 = project(tf2,fs.V,solver_type='mumps')
+        # tf3 = project(tf3,fs.V,solver_type='mumps')
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
-        # return (tf1, tf2, tf3)
-        return tf
-
-    # def TurbineForce2D(self,fs,mesh):
-    #     """
-    #     This function creates a turbine force by applying 
-    #     a spatial kernel to each turbine. This kernel is 
-    #     created from the turbines location, yaw, thickness, diameter,
-    #     and force density. Currently, force density is limit to a scaled
-    #     version of 
-
-    #     .. math::
-
-    #         r\\sin(r),
-
-    #     where :math:`r` is the distance from the center of the turbine.
-
-    #     Args:
-    #         V (dolfin.FunctionSpace): The function space the turbine force will use.
-    #         mesh (dolfin.mesh): The mesh
-
-    #     Returns:
-    #         tf (dolfin.Function): the turbine force.
-
-    #     Todo:
-    #         * Setup a way to get the force density from file
-    #     """
-
-    #     tf_start = time.time()
-    #     self.fprint("Calculating Turbine Force",special="header")
-    #     x=SpatialCoordinate(mesh)
-
-    #     tf_x=Function(fs.V0)
-    #     tf_y=Function(fs.V1)
-
-    #     for i in range(self.numturbs):
-    #         x0 = [self.mx[i],self.my[i]]
-    #         yaw = self.myaw[i]
-    #         W = self.W[i]/2.0
-    #         R = self.RD[i]/2.0 
-    #         ma = self.ma[i]
-
-    #         ### Rotate and Shift the Turbine ###
-    #         xs = self.YawTurbine2D(x,x0,yaw)
-
-    #         ### Create the function that represents the Thickness of the turbine ###
-    #         T_norm = 1.902701539733748
-    #         T = exp(-pow((xs[0]/W),10.0))/(T_norm*W)
-
-    #         ### Create the function that represents the Disk of the turbine
-    #         D_norm = 2.884512175878827
-    #         D = exp(-pow((pow((xs[1]/R),2)),5.0))/(D_norm*R**2.0)
-
-    #         ### Create the function that represents the force ###
-    #         # F = 0.75*0.5*4.*A*self.ma[i]/(1.-self.ma[i])/beta
-    #         r = sqrt(xs[1]**2.0)
-    #         # F = 4.*0.5*(pi*R**2.0)*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5)
-    #         F = 4.*0.5*(pi*R**2.0)*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5)
-
-    #         ### Combine and add to the total ###
-    #         tf_x = tf_x + F*T*D*cos(yaw)
-    #         tf_y = tf_y + F*T*D*sin(yaw)
-
-    #     ### Project Turbine Force to save on Assemble time ###
-    #     self.fprint("Projecting X Force")
-    #     tf_x = project(tf_x,fs.V0,solver_type='mumps')
-    #     self.fprint("Projecting Y Force")
-    #     tf_y = project(tf_y,fs.V1,solver_type='mumps')    
-
-    #     ### Assign the components to the turbine force ###
-    #     self.tf = Function(fs.V)
-    #     fs.VelocityAssigner.assign(self.tf,[tf_x,tf_y])
-
-    #     tf_stop = time.time()
-    #     self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
-    #     return as_vector((tf_x,tf_y))
+        return (tf1, tf2, tf3)
 
 class GridWindFarm(GenericWindFarm):
     """
@@ -720,6 +568,7 @@ class GridWindFarm(GenericWindFarm):
     """
     def __init__(self,dom):
         super(GridWindFarm, self).__init__(dom)
+        Sx = self.dom.xscale
 
         self.fprint("Generating Grid Wind Farm",special="header")
 
@@ -729,17 +578,18 @@ class GridWindFarm(GenericWindFarm):
         self.numturbs = self.grid_rows * self.grid_cols
         self.params["wind_farm"]["numturbs"] = self.numturbs
 
-        self.HH = [self.params["wind_farm"]["HH"]]*self.numturbs
-        self.RD = [self.params["wind_farm"]["RD"]]*self.numturbs
-        self.W = [self.params["wind_farm"]["thickness"]]*self.numturbs
+
+        self.HH = [self.params["wind_farm"]["HH"]*Sx]*self.numturbs
+        self.RD = [self.params["wind_farm"]["RD"]*Sx]*self.numturbs
+        self.W = [self.params["wind_farm"]["thickness"]*Sx]*self.numturbs
         self.yaw = [self.params["wind_farm"]["yaw"]]*self.numturbs
         self.axial = [self.params["wind_farm"]["axial"]]*self.numturbs
         self.radius = self.RD[0]/2.0
-        self.jitter = self.params["wind_farm"].get("jitter",0.0)
+        self.jitter = self.params["wind_farm"].get("jitter",0.0)*Sx
         self.seed = self.params["wind_farm"].get("seed",None)
 
-        self.ex_x = self.params["wind_farm"]["ex_x"]
-        self.ex_y = self.params["wind_farm"]["ex_y"]
+        self.ex_x = np.array(self.params["wind_farm"]["ex_x"])*Sx
+        self.ex_y = np.array(self.params["wind_farm"]["ex_y"])*Sx
 
         ### Print some useful stats ###
         self.fprint("Force Type:         {0}".format(self.force))
@@ -749,8 +599,8 @@ class GridWindFarm(GenericWindFarm):
         if self.jitter > 0.0:
             self.fprint("Amount of Jitter:   {: 1.2f}".format(self.jitter))
             self.fprint("Random Seed: " + repr(self.seed))
-        self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0],self.ex_x[1]))
-        self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0],self.ex_y[1]))
+        self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0]/Sx,self.ex_x[1]/Sx))
+        self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0]/Sx,self.ex_y[1]/Sx))
 
         ### Create the x and y coords ###
         self.grid_x = np.linspace(self.ex_x[0]+self.radius,self.ex_x[1]-self.radius,self.grid_cols)
@@ -812,20 +662,21 @@ class RandomWindFarm(GenericWindFarm):
     """
     def __init__(self,dom):
         super(RandomWindFarm, self).__init__(dom)
+        Sx = self.dom.xscale
         self.fprint("Generating Random Farm",special="header")
 
         ### Initialize Values from Options ###
         self.numturbs = self.params["wind_farm"]["numturbs"]
         
-        self.HH = [self.params["wind_farm"]["HH"]]*self.numturbs
-        self.RD = [self.params["wind_farm"]["RD"]]*self.numturbs
-        self.W = [self.params["wind_farm"]["thickness"]]*self.numturbs
+        self.HH = [self.params["wind_farm"]["HH"]*Sx]*self.numturbs
+        self.RD = [self.params["wind_farm"]["RD"]*Sx]*self.numturbs
+        self.W = [self.params["wind_farm"]["thickness"]*Sx]*self.numturbs
         self.yaw = [self.params["wind_farm"]["yaw"]]*self.numturbs
         self.axial = [self.params["wind_farm"]["axial"]]*self.numturbs
         self.radius = self.RD[0]/2.0
 
-        self.ex_x = self.params["wind_farm"]["ex_x"]
-        self.ex_y = self.params["wind_farm"]["ex_y"]
+        self.ex_x = np.array(self.params["wind_farm"]["ex_x"])*Sx
+        self.ex_y = np.array(self.params["wind_farm"]["ex_y"])*Sx
 
         self.seed = self.params["wind_farm"].get("seed",None)
         
@@ -833,8 +684,8 @@ class RandomWindFarm(GenericWindFarm):
         ### Print some useful stats ###
         self.fprint("Force Type:         {0}".format(self.force))
         self.fprint("Number of Turbines: {:d}".format(self.numturbs))
-        self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0],self.ex_x[1]))
-        self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0],self.ex_y[1]))
+        self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0]/Sx,self.ex_x[1]/Sx))
+        self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0]/Sx,self.ex_y[1]/Sx))
         self.fprint("Random Seed: " + repr(self.seed))
 
         ### Check if random seed is set ###
@@ -888,6 +739,7 @@ class ImportedWindFarm(GenericWindFarm):
     """
     def __init__(self,dom):
         super(ImportedWindFarm, self).__init__(dom)
+        Sx = self.dom.xscale
         self.fprint("Importing Wind Farm",special="header")
         
         ### Import the data from path ###
@@ -899,24 +751,24 @@ class ImportedWindFarm(GenericWindFarm):
 
         ### Parse the data ###
         if len(raw_data.shape) > 1:
-            self.x     = raw_data[:,0] 
-            self.y     = raw_data[:,1]
-            self.HH    = raw_data[:,2]
+            self.x     = raw_data[:,0]*Sx 
+            self.y     = raw_data[:,1]*Sx
+            self.HH    = raw_data[:,2]*Sx
             self.yaw   = raw_data[:,3]
-            self.RD    = raw_data[:,4]
+            self.RD    = raw_data[:,4]*Sx
             self.radius = self.RD/2.0
-            self.W     = raw_data[:,5]
+            self.W     = raw_data[:,5]*Sx
             self.a     = raw_data[:,6]
             self.numturbs = len(self.x)
 
         else:
-            self.x     = np.array((raw_data[0],))
-            self.y     = np.array((raw_data[1],))
-            self.HH    = np.array((raw_data[2],))
+            self.x     = np.array((raw_data[0],))*Sx
+            self.y     = np.array((raw_data[1],))*Sx
+            self.HH    = np.array((raw_data[2],))*Sx
             self.yaw   = np.array((raw_data[3],))
-            self.RD    = np.array((raw_data[4],))
-            self.radius = np.array((raw_data[4]/2.0,))
-            self.W     = np.array((raw_data[5],))
+            self.RD    = np.array((raw_data[4],))*Sx
+            self.radius = np.array((raw_data[4]/2.0,))*Sx
+            self.W     = np.array((raw_data[5],))*Sx
             self.a     = np.array((raw_data[6],))
             self.numturbs = 1
 
