@@ -1,0 +1,61 @@
+# General options
+general: 
+    name: Log_Inflow      # Name of the output folder
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    # dolfin_adjoint: True
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                     # Description              | Units
+    type: imported        #                          |
+    path: Inputs/wind_farm.txt   # location of wind farm    | -
+    turbine_method: numpy
+    turbine_space: CG
+    turbine_degree: 1
+    force: constant
+    
+# Domain Constants for a Box Domain
+domain: 
+    #                     # Description           | Units
+    type: box             #                       |
+    x_range: [-378, 630]   # x-range of the domain | m
+    y_range: [-378, 378]    # y-range of the domain | m
+    z_range: [0.0,  450]  # z-range of the domain | m
+    nx: 24                # Number of x-nodes     | - 
+    ny: 16                # Number of y-nodes     | - 
+    nz: 10                # Number of z-nodes     | - 
+
+refine:
+    #                      # Description                  | Units
+    warp_type: split
+    warp_percent: 0.85     # percent of cells moved       | -
+    warp_height: 200        # move cell below this value   | m
+    refine_custom: [
+        [1,custom,[[-168,630],[-168,168],[0,258]]],
+        [1,custom,[[-84,630],[-84,84],[6,174]]]
+
+    ]
+
+function_space:
+    type: linear
+
+boundary_condition:
+    vel_profile: log
+    HH_vel: 8.0
+    k: 0.4
+
+problem:
+    type: unsteady
+    viscosity: 0.001
+
+solver:
+    type: unsteady
+    final_time: 2
+    save_interval: 0.5
+
+optimization:
+    controls: [yaw]
+    objective_type: new
+    taylor_test: False
+    optimize: False
+    gradient: True

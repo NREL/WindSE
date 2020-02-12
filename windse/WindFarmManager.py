@@ -306,7 +306,7 @@ class GenericWindFarm(object):
             cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
 
 
-            expand_turbine_radius = True
+            expand_turbine_radius = False
 
             if expand_turbine_radius:
                 radius = (num-i)*radius_multiplyer*np.array(self.RD)/2.0
@@ -345,7 +345,7 @@ class GenericWindFarm(object):
                     y = np.tile(y,(n,1))
 
                 ### For each turbine, find which vertex is closet using squared distance
-                force_cylindrical_refinement = True
+                force_cylindrical_refinement = False
                 
                 if force_cylindrical_refinement:
                     d_y = pt[1]
@@ -395,7 +395,7 @@ class GenericWindFarm(object):
         This function yaws the turbines when creating the turbine force.
 
         Args:
-            x (dolfin.SpacialCoordinate): the space variable, x
+            x (dolfin.SpatialCoordinate): the space variable, x
             x0 (list): the location of the turbine to be yawed
             yaw (float): the yaw value in radians
         """

@@ -75,21 +75,9 @@ class Optimizer(object):
         self.get_minimum_distance_constraint_func(self.controls, 2*np.mean(self.problem.farm.HH))
 
         self.fprint("Define Optimizing Functional")
-        if self.solver.J:
-            self.J = assemble(self.solver.J)
-            test = Constant(self.J)
-            test.rename("J","J")
-            self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
-
-            # print(dir(self.J))
-            # print(dir(self.Jhat))
-            # tape = get_working_tape()
-            # tape.visualise()
-            # exit()
-
-            self.Jcurrent = self.J
-        else:
-            self.PowerFunctional()
+        self.J = self.solver.J
+        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
+        self.Jcurrent = self.J
 
         self.fprint("Number of Controls: {:d}".format(len(self.controls)),special="header")
         self.OptPrintFunction(self.init_vals)
@@ -160,24 +148,6 @@ class Optimizer(object):
 
         self.bounds = [lower_bounds,upper_bounds]
 
-    # def PowerFunctional(self):
-    #     """
-    #     Creates the power functional that will be optimized
-
-    #     Args:
-    #         tf (dolfin.Function): Turbine Force function
-    #         u (dolfin.Function): Velocity vector.
-    #     """
-    #     #how to handle rotation?
-    #     # J=Functional(tf*u[0]**3*dx)
-
-    #     if self.farm.yaw[0]**2 > 1e-4:
-    #         self.J = assemble(-dot(self.problem.tf,self.solver.u_next)*dx)
-    #     else:
-    #         self.J = assemble(-inner(dot(self.problem.tf,self.solver.u_next),self.solver.u_next[0]**2+self.solver.u_next[1]**2)*dx)
-    #     self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback) 
-    #     self.Jcurrent = self.J
-
     def ListControls(self,m):
         if "layout" in self.control_types:
             for i in range(self.farm.numturbs):
@@ -186,60 +156,6 @@ class Optimizer(object):
         if "yaw" in self.control_types:
             for i in range(self.farm.numturbs):
                 self.fprint("Yaw Turbine {0:} of {1:}: {2: 4.6f}".format(i+1,self.farm.numturbs,self.farm.yaw[i]))
-
-    # def PlotLayout(self,m,show=False):
-    #     self.x_val = []
-    #     self.y_val = []
-
-    #     for i,val in enumerate(m):
-    #         if "x_" in self.names[i]:
-    #             self.x_val.append(float(m[i]))
-    #         elif "y_" in self.names[i]:
-    #             self.y_val.append(float(m[i]))
-
-    #     z_val = self.problem.dom.Ground(self.x_val,self.y_val)+self.problem.farm.HH
-
-    #     ### Create the path names ###
-    #     folder_string = self.params.folder+"/plots/"
-    #     file_string = self.params.folder+"/plots/wind_farm_step_"+repr(self.iteration)+".pdf"
-
-    #     ### Check if folder exists ###
-    #     if not os.path.exists(folder_string): os.makedirs(folder_string)
-
-    #     ### Create a list that outlines the extent of the farm ###
-    #     ex_list_x = [self.layout_bounds[0][0],self.layout_bounds[0][1],self.layout_bounds[0][1],self.layout_bounds[0][0],self.layout_bounds[0][0]]
-    #     ex_list_y = [self.layout_bounds[1][0],self.layout_bounds[1][0],self.layout_bounds[1][1],self.layout_bounds[1][1],self.layout_bounds[1][0]]
-
-    #     ### Generate and Save Plot ###
-    #     plt.clf()
-    #     if hasattr(self.problem.dom,"boundary_line"):
-    #         plt.plot(*self.problem.dom.boundary_line,c="k")
-    #     plt.plot(ex_list_x,ex_list_y,c="r")
-
-    #     for i in range(self.numturbs):
-    #         blade_n = [np.cos(self.yaw[i]),np.sin(self.yaw[i])]
-    #         rr = self.RD[i]/2.0
-    #         blade_x = [self.x[i]+rr*blade_n[1],self.x[i]-rr*blade_n[1]]
-    #         blade_y = [self.y[i]-rr*blade_n[0],self.y[i]+rr*blade_n[0]]
-    #         plt.plot(blade_x,blade_y,c='k',linewidth=2,zorder=1)
-
-
-
-    #     p=plt.scatter(self.x,self.y,c=self.z,cmap="coolwarm",edgecolors=(0, 0, 0, 1),s=20,zorder=2)
-
-
-    #     p=plt.scatter(self.x_val,self.y_val,c=z_val,cmap="coolwarm",edgecolors=(0, 0, 0, 1))
-    #     # p=plt.scatter(self.x_val,self.y_val,c="k",s=70)
-    #     # p=plt.scatter(self.x_val,self.y_val,c=range(self.farm.numturbs))
-    #     plt.xlim(self.problem.dom.x_range[0],self.problem.dom.x_range[1])
-    #     plt.ylim(self.problem.dom.y_range[0],self.problem.dom.y_range[1])
-    #     clb = plt.colorbar(p)
-    #     clb.ax.set_ylabel('Hub Elevation')
-
-    #     plt.title("Power Output: {: 5.2f}".format(-self.Jcurrent))
-    #     plt.savefig(file_string, transparent=True)
-    #     if show:
-    #         plt.show()
 
     def SaveControls(self,m):
 
@@ -293,7 +209,7 @@ class Optimizer(object):
         tock = time.time()
         self.fprint("Time Elapsed: {:1.2f} s".format(tock-tick))
         self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
-        exit()
+        # exit()
 
         # exit()
         # if "layout" in self.control_types:

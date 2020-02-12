@@ -377,9 +377,9 @@ class UnsteadyProblem(GenericProblem):
         # Create the turbine force
         # FIXME: Should this be set by a numpy array operation or a fenics function?
         # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
-        self.tf = Function(self.fs.V)
+        # self.tf = Function(self.fs.V)
 
-        # self.tf = self.ComputeTurbineForce(self.u_k,theta)
+        self.tf = self.ComputeTurbineForce(self.u_k,theta)
 
 
         # self.u_k2.vector()[:] = 0.0

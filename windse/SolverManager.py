@@ -25,6 +25,9 @@ if main_file != "sphinx-build":
     if windse_parameters["general"].get("dolfin_adjoint", False):
         from dolfin_adjoint import *
 
+        ### Import objective functions ###
+        import windse.ObjectiveFunctions as obj_funcs
+
     ### This import improves the plotter functionality on Mac ###
     if platform == 'darwin':
         import matplotlib
@@ -36,9 +39,9 @@ if main_file != "sphinx-build":
     parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'        
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
-    # parameters['form_compiler']['representation'] = 'tsfc'
-    parameters['form_compiler']['representation'] = 'uflacs'
-    if windse_parameters["wind_farm"].get("turbine_space",None) == "Quadrature":
+    parameters['form_compiler']['representation'] = 'tsfc'
+    # parameters['form_compiler']['representation'] = 'uflacs'
+    if windse_parameters["wind_farm"].get("turbine_space","Quadrature") == "Quadrature":
         parameters['form_compiler']['quadrature_degree'] = windse_parameters["wind_farm"].get("turbine_degree",6)
     else:
         parameters['form_compiler']['quadrature_degree'] = 6
@@ -64,6 +67,8 @@ class GenericSolver(object):
         if self.params.get("optimization",{}):
             self.optimizing = True
             self.J = 0
+            self.objective_type = self.params["optimization"]["objective_type"]
+            self.objective_func = obj_funcs.objectives_dict[self.objective_type]
         else:
             self.optimizing = False
 
@@ -133,152 +138,37 @@ class GenericSolver(object):
             theta (float): The new wind angle in radians
         """
         self.problem.ChangeWindAngle(theta)
-# <<<<<<< HEAD
-        
-#     def CalculatePowerFunctional(self,delta_yaw = 0.0):
-#         self.fprint("Computing Power Functional")
 
-#         x=SpatialCoordinate(self.problem.dom.mesh)
-#         J=0.
-#         J_list=np.zeros(self.problem.farm.numturbs+1)
-#         for i in range(self.problem.farm.numturbs):
-
-#             mx = self.problem.farm.mx[i]
-#             my = self.problem.farm.my[i]
-#             mz = self.problem.farm.mz[i]
-#             x0 = [mx,my,mz]
-#             W = self.problem.farm.W[i]*1.0
-#             R = self.problem.farm.RD[i]/2.0 
-#             ma = self.problem.farm.ma[i]
-#             yaw = self.problem.farm.myaw[i]+delta_yaw
-#             u = self.u_next
-#             A = pi*R**2.0
-
-#             if self.problem.dom.dim == 2:
-#                 WTGbase = Expression(("cos(yaw)","sin(yaw)"),yaw=float(yaw),degree=1)
-#             else:
-#                 WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=float(yaw),degree=1)
-
-#             ### Rotate and Shift the Turbine ###
-#             xs = self.problem.farm.YawTurbine(x,x0,yaw)
-# =======
-# >>>>>>> dev_numpy_tf
 
     def CalculatePowerFunctional(self,inflow_angle = 0.0):
-        tf = self.problem.tf1*self.u_next[0]**2+self.problem.tf2*self.u_next[1]**2+self.problem.tf3*self.u_next[0]*self.u_next[1]
-        J = dot(tf,self.u_next)*dx
-        # J = (self.problem.tf1[0]+self.problem.tf1[1]+self.problem.tf2[0]+self.problem.tf2[1]+self.problem.tf3[0]+self.problem.tf3[1])*dx
-        # XValues = SpatialCoordinate(self.problem.dom.mesh)
-        # J = (self.problem.tf1[0]*(XValues[0]+XValues[1]+300.0)/1000.0)*dx
-        # print(assemble(J))
-        # exit()
-
-# <<<<<<< HEAD
-#             ### Create the function that represents the Disk of the turbine
-#             D_norm = 2.914516237206873
-#             D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
-
-#             u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
-            
-#             # print(np.shape(u))
-#             # print(np.shape(A*T*D*WTGbase*u_d**2.0))
-
-#             J += dot(A*T*D*WTGbase*u_d**2.0,u)*dx
-
-#             if self.save_power:
-#                 J_list[i] = assemble(dot(A*T*D*WTGbase*u_d**2.0,u)*dx)
-        
-# =======
-# >>>>>>> dev_numpy_tf
-        if self.save_power:
-            J_list=np.zeros(self.problem.farm.numturbs+1)
-            J_list[-1]=assemble(J,**self.extra_kwarg)
-
-            if self.problem.farm.actuator_disks_list is not None:
-                for i in range(self.problem.farm.numturbs):
-                    yaw = self.problem.farm.myaw[i]+inflow_angle
-                    tf1 = self.problem.farm.actuator_disks_list[i] * cos(yaw)**2
-                    tf2 = self.problem.farm.actuator_disks_list[i] * sin(yaw)**2
-                    tf3 = self.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
-                    tf = tf1*self.u_next[0]**2+tf2*self.u_next[1]**2+tf3*self.u_next[0]*self.u_next[1]
-                    J_list[i] = assemble(dot(tf,self.u_next)*dx,**self.extra_kwarg)
-
-            folder_string = self.params.folder+"/data/"
-            if not os.path.exists(folder_string): os.makedirs(folder_string)
-
-            if self.J_saved:
-                f = open(folder_string+"power_data.txt",'ab')
-            else:
-                f = open(folder_string+"power_data.txt",'wb')
-                self.J_saved = True
-
-            np.savetxt(f,[J_list])
-            f.close()
+        J = -assemble(dot(self.problem.tf,self.u_next)*dx)
         return J
 
+    def SavePower(self,inflow_angle=0.0):
 
-    # def CalculatePowerFunctional(self,delta_yaw = 0.0):
-    #     self.fprint("Computing Power Functional")
+        J_list=np.zeros(self.problem.farm.numturbs+1)
 
-    #     x=SpatialCoordinate(self.problem.dom.mesh)
-    #     J=0.
-    #     J_list=np.zeros(self.problem.farm.numturbs+1)
-    #     for i in range(self.problem.farm.numturbs):
+        if self.problem.farm.actuator_disks_list is not None:
+            for i in range(self.problem.farm.numturbs):
+                yaw = self.problem.farm.myaw[i]+inflow_angle
+                tf1 = self.problem.farm.actuator_disks_list[i] * cos(yaw)**2
+                tf2 = self.problem.farm.actuator_disks_list[i] * sin(yaw)**2
+                tf3 = self.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
+                tf = tf1*self.u_next[0]**2+tf2*self.u_next[1]**2+tf3*self.u_next[0]*self.u_next[1]
+                J_list[i] = assemble(dot(tf,self.u_next)*dx,**self.extra_kwarg)
+        J_list[-1]=sum(J_list)
 
-    #         mx = self.problem.farm.mx[i]
-    #         my = self.problem.farm.my[i]
-    #         mz = self.problem.farm.mz[i]
-    #         x0 = [mx,my,mz]
-    #         W = self.problem.farm.W[i]*1.0
-    #         R = self.problem.farm.RD[i]/2.0 
-    #         ma = self.problem.farm.ma[i]
-    #         yaw = self.problem.farm.myaw[i]+delta_yaw
-    #         u = self.u_next
-    #         A = pi*R**2.0
+        folder_string = self.params.folder+"/data/"
+        if not os.path.exists(folder_string): os.makedirs(folder_string)
 
-    #         WTGbase = Expression(("cos(yaw)","sin(yaw)","0.0"),yaw=yaw,degree=1)
+        if self.J_saved:
+            f = open(folder_string+"power_data.txt",'ab')
+        else:
+            f = open(folder_string+"power_data.txt",'wb')
+            self.J_saved = True
 
-    #         ### Rotate and Shift the Turbine ###
-    #         xs = self.problem.farm.YawTurbine(x,x0,yaw)
-
-    #         ### Create the function that represents the Thickness of the turbine ###
-    #         T_norm = 1.855438667500383
-    #         T = exp(-pow((xs[0]/W),6.0))/(T_norm*W)
-
-    #         ### Create the function that represents the Disk of the turbine
-    #         D_norm = 2.914516237206873
-    #         D = exp(-pow((pow((xs[1]/R),2)+pow((xs[2]/R),2)),6.0))/(D_norm*R**2.0)
-
-    #         u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
-
-    #         ### Create the function that represents the force ###
-    #         if self.problem.farm.force == "constant":
-    #             F = 4*0.5*A*ma/(1.-ma)
-    #         elif self.problem.farm.force == "sine":
-    #             r = sqrt(pow(xs[1],2.0)+pow(xs[2],2.0))
-    #             F = 4.*0.5*A*ma/(1.-ma)*(r/R*sin(pi*r/R)+0.5)/(.81831)
-
-    #         J += dot(F*T*D*WTGbase*u_d**2.0,u)*dx
-
-    #         if self.save_power:
-    #             J_list[i] = assemble(dot(A*T*D*WTGbase*u_d**2.0,u)*dx)
-        
-    #     if self.save_power:
-    #         J_list[-1]=assemble(J)
-
-    #         folder_string = self.params.folder+"/data/"
-    #         if not os.path.exists(folder_string): os.makedirs(folder_string)
-
-    #         if self.J_saved:
-    #             f = open(folder_string+"power_data.txt",'ab')
-    #         else:
-    #             f = open(folder_string+"power_data.txt",'wb')
-    #             self.J_saved = True
-
-    #         np.savetxt(f,[J_list])
-    #         f.close()
-
-    #     return J
+        np.savetxt(f,[J_list])
+        f.close()
 
 class SteadySolver(GenericSolver):
     """
@@ -429,8 +319,13 @@ class SteadySolver(GenericSolver):
         ###################################
         ### Fix how angle is transfered ###
         ###################################
-        if self.optimizing or self.save_power:
-            self.J += -self.CalculatePowerFunctional((iter_val-self.problem.dom.init_wind)) 
+        if self.save_power:
+            self.SavePower(((iter_val-self.problem.dom.init_wind)))
+
+
+        if self.optimizing:
+            self.J += self.objective_func(self,(iter_val-self.problem.dom.init_wind)) 
+            print(self.outflow_markers)
             # self.J += -dot(self.problem.farm.rotor_disks,self.u_next)*dx
 
         # self.fprint("Speed Percent of Inflow Speed")
@@ -573,9 +468,9 @@ class UnsteadySolver(GenericSolver):
             # self.problem.tf = self.problem.farm.TurbineForce_numpy(None,None,None)
             # self.UpdateTurbineForce(simTime, 1) # Single turbine, disk actuator
             # self.UpdateTurbineForce(simTime, 2) # Dubs
-            t1 = time.time()
-            self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
-            t2 = time.time()
+            # t1 = time.time()
+            # self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
+            # t2 = time.time()
             # print(t2-t1)
 
             # self.problem.bd.UpdateVelocity(simTime)
@@ -643,12 +538,12 @@ class UnsteadySolver(GenericSolver):
         if self.first_save:
             self.velocity_file = self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime)
             self.pressure_file   = self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime)
-            self.turb_force_file   = self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime)
+            # self.turb_force_file   = self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime)
             self.first_save = False
         else:
             self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime,file=self.velocity_file)
             self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime,file=self.pressure_file)
-            self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
+            # self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
 
         # # Save velocity files (pointer in fp[0])
         # self.problem.u_k.rename('Velocity', 'Velocity')
