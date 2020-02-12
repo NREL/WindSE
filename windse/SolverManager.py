@@ -19,7 +19,7 @@ if main_file != "sphinx-build":
     # from memory_profiler import memory_usage
 
     ### Import the cumulative parameters ###
-    from windse import windse_parameters
+    from windse import windse_parameters, CalculateActuatorLineTurbineForces
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters["general"].get("dolfin_adjoint", False):
@@ -564,18 +564,28 @@ class UnsteadySolver(GenericSolver):
 
         start = time.time()
 
+        dfd_c_lift = CalculateActuatorLineTurbineForces(self.problem, simTime, dfd='c_lift')
+        print('dfd_c_lift: ', np.shape(dfd_c_lift))
+        dfd_c_drag = CalculateActuatorLineTurbineForces(self.problem, simTime, dfd='c_drag')
+        print('dfd_c_drag: ', np.shape(dfd_c_drag))
+        coords = self.problem.fs.V.tabulate_dof_coordinates()
+        coords = np.copy(coords[0::self.problem.dom.dim, :])
+        print(np.shape(coords))
+
         while simTime < tFinal:
             # Get boundary conditions specific to this timestep
             # bcu, bcp = self.GetBoundaryConditions(simTime/tFinal)
             # bcu = self.modifyInletVelocity(simTime, bcu)
 
             # Update the turbine force
+            self.problem.tf = CalculateActuatorLineTurbineForces(self.problem, simTime)
             # self.problem.tf = self.problem.farm.TurbineForce_numpy(None,None,None)
             # self.UpdateTurbineForce(simTime, 1) # Single turbine, disk actuator
             # self.UpdateTurbineForce(simTime, 2) # Dubs
-            t1 = time.time()
-            self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
-            t2 = time.time()
+            # t1 = time.time()
+
+            # self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
+            # t2 = time.time()
             # print(t2-t1)
 
             # self.problem.bd.UpdateVelocity(simTime)

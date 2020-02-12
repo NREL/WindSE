@@ -16,7 +16,7 @@ if main_file != "sphinx-build":
     import time
 
     ### Import the cumulative parameters ###
-    from windse import windse_parameters
+    from windse import windse_parameters, CalculateActuatorLineTurbineForces
     # from memory_profiler import memory_usage
 
     ### Check if we need dolfin_adjoint ###
@@ -50,7 +50,7 @@ class GenericProblem(object):
         self.params.ground_fx = self.dom.Ground
         self.params.full_hh = self.farm.HH
 
-    def ComputeTurbineForce(self,u,theta):
+    def ComputeTurbineForce(self,u,theta,simTime=0.0):
 
         ### Compute the relative yaw angle ###
         if theta is not None:
@@ -60,15 +60,20 @@ class GenericProblem(object):
 
         ### Create the turbine force function ###
         if self.farm.turbine_method == "dolfin":
-                self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+            self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
 
         elif self.farm.turbine_method == "numpy":
-                self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+            self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+
+        elif self.farm.turbine_method == 'alm':
+            tf = CalculateActuatorLineTurbineForces(self, simTime)
+
         else:
             raise ValueError("Unknown turbine method: "+self.farm.turbine_method)
         
         ### Convolve TF with u ###
-        tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
+        if self.farm.turbine_method != 'alm':
+            tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
 
         return tf
 
@@ -377,9 +382,9 @@ class UnsteadyProblem(GenericProblem):
         # Create the turbine force
         # FIXME: Should this be set by a numpy array operation or a fenics function?
         # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
-        self.tf = Function(self.fs.V)
+        # self.tf = Function(self.fs.V)
 
-        # self.tf = self.ComputeTurbineForce(self.u_k,theta)
+        self.tf = self.ComputeTurbineForce(self.u_k,theta)
 
 
         # self.u_k2.vector()[:] = 0.0
