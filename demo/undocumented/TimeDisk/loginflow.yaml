@@ -18,7 +18,7 @@ wind_farm:
 domain: 
     #                     # Description           | Units
     type: box             #                       |
-    x_range: [-378, 80]   # x-range of the domain | m
+    x_range: [-378, 630]   # x-range of the domain | m
     y_range: [-378, 378]    # y-range of the domain | m
     z_range: [0.0,  450]  # z-range of the domain | m
     nx: 24                # Number of x-nodes     | - 
@@ -50,11 +50,11 @@ problem:
 
 solver:
     type: unsteady
-    final_time: 10
-    save_interval: 0.5
+    final_time: 90
+    save_interval: 5
 
 optimization:
-    controls: [lift]
+    controls: [lift,drag]
     objective_type: wake_deflection
     taylor_test: True
     optimize: False

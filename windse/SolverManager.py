@@ -377,12 +377,12 @@ class UnsteadySolver(GenericSolver):
         
         # Start a counter for the total simulation time
         simTime = 0.0
-        recordTime = 8.0
-        # recordTime = 1.5*(self.problem.dom.x_range[1]/self.problem.bd.HH_vel)
-        # if tFinal < recordTime + 60.0/self.problem.rpm:
-        #     self.fprint("Warning: Final time is too small... overriding")
-        #     tFinal = recordTime + 60.0/self.problem.rpm
-        #     self.fprint("         New Final Time: {:1.2f} s".format(tFinal))
+        # recordTime = 8.0
+        recordTime = 1.5*(self.problem.dom.x_range[1]/self.problem.bd.HH_vel)
+        if tFinal < recordTime + 60.0/self.problem.rpm:
+            self.fprint("Warning: Final time is too small... overriding")
+            tFinal = recordTime + 60.0/self.problem.rpm
+            self.fprint("         New Final Time: {:1.2f} s".format(tFinal))
 
         self.fprint("dt: %.4f" % (self.problem.dt))
         self.fprint("tFinal: %.1f" % (tFinal))
@@ -523,7 +523,7 @@ class UnsteadySolver(GenericSolver):
 
             # Calculate the objective function
             if self.optimizing and simTime >= recordTime:
-                self.J += 1/self.problem.dt*self.objective_func(self,(iter_val-self.problem.dom.init_wind)) 
+                self.J += self.problem.dt_c/(tFinal-recordTime)*self.objective_func(self,(iter_val-self.problem.dom.init_wind)) 
 
 
             if save_next_timestep:

@@ -285,7 +285,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
 #================================================================
 
 def UpdateActuatorLineForce(problem, simTime, dfd, tf):
-
+    print(dfd)
     def rot_x(theta):
         Rx = np.array([[1, 0, 0],
                        [0, np.cos(theta), -np.sin(theta)],
