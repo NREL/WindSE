@@ -399,8 +399,8 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
     # cl = cl_dolf.values()
     # cd = cd_dolf.values()
 
-    cl = np.array(problem.mcl, dtype=float)
-    cd = np.array(problem.mcd, dtype=float)
+    cl = np.array(problem.mcl, dtype = float)
+    cd = np.array(problem.mcd, dtype = float)
 
     # cl = np.linspace(0.0, 2.0, problem.num_blade_segments) # Uncomment for controllability study
     # cd = np.linspace(2.0, 0.0, problem.num_blade_segments)
@@ -533,7 +533,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
 
         # Remove near-zero values
         tf_vec[np.abs(tf_vec) < 1e-12] = 0.0
-        
+
         if tf is None:
             tf = Function(problem.fs.V)
 

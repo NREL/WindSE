@@ -274,6 +274,8 @@ class TaylorHoodProblem(GenericProblem):
 
         self.fprint("Taylor-Hood Problem Setup",special="footer")
 
+# ================================================================
+
 class UnsteadyProblem(GenericProblem):
     """
     The UnsteadyProblem sets up everything required for solving Navier-Stokes using
@@ -432,3 +434,19 @@ class UnsteadyProblem(GenericProblem):
         # ================================================================
 
         self.fprint("Unsteady Problem Setup",special="footer")
+
+# ================================================================
+
+    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None):
+
+        if c_lift is not None:
+            cl = np.array(c_lift, dtype = float)
+        if c_drag is not None:
+            cd = np.array(c_drag, dtype = float)
+
+        for k in range(self.num_blad_segments):
+            self.mcl[k] = Constant(cl[k])
+            self.mcd[k] = Constant(cd[k])
+
+# ================================================================
+

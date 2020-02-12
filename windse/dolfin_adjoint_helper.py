@@ -262,7 +262,7 @@ def CalculateDiskTurbineForces(x,farm,fs,**kwargs):
 
     ### Create the block object ###
     if annotate:
-        block = TurbineForceBlock(x,farm,fs,sparse_ids,**kwargs)
+        block = ActuatorLineForceBlock(x,farm,fs,sparse_ids,**kwargs)
 
     ### Prepare outputs for recording on tape ###
     r = []
@@ -281,11 +281,11 @@ def CalculateDiskTurbineForces(x,farm,fs,**kwargs):
 
     return func_output.delist(r), sparse_ids, actuator_array
 
-class TurbineForceBlock(Block):
+class ActuatorLineForceBlock(Block):
     '''This is the Block class that will be used to calculate adjoint 
     information for optimizations. '''
     def __init__(self, x,farm,fs,sparse_ids,**kwargs):
-        super(TurbineForceBlock, self).__init__()
+        super(ActuatorLineForceBlock, self).__init__()
         self.x = x
         self.farm = farm
         self.fs = fs
@@ -330,7 +330,7 @@ class TurbineForceBlock(Block):
         self.VectorSparseIDs()
 
     def __str__(self):
-        return "TurbineForceBlock"
+        return "ActuatorLineForceBlock"
 
     def CheckTurbineLocations(self,x,y):
         new_x = np.array(x,dtype=float)
@@ -420,6 +420,131 @@ class TurbineForceBlock(Block):
 
 
 
+
+
+
+
+# ================================================================
+# ================================================================
+
+def CalculateActuatorLineTurbineForces(problem, simTime,**kwargs):
+    '''This is the adjoint version of RelativeHeight. It's goal is to 
+    calculate the height of the turbine's base. At the same time, it creates
+    a block that helps propagate the adjoint information.'''
+    annotate = annotate_tape(kwargs)
+
+    # Example of how to call the update actuator force function
+    # UpdateActuatorLineForce(problem, simTime, dfd, tf):
+
+    ### Get the actual output ###
+    with stop_annotating():
+        func_output = backend_CalculateActuatorLineTurbineForces(problem, simTime,**kwargs)
+
+    ### Create the block object ###
+    if annotate:
+        block = ActuatorLineForceBlock(problem, simTime,**kwargs)
+
+    ### Prepare outputs for recording on tape ###
+    r = []
+    func_output = Enlist(func_output)
+    for out in func_output:
+        if not isinstance(out,list):
+            r.append(create_overloaded_object(out))
+
+    ### Add everything to tape ###
+    if annotate:
+        for out in r:
+            if not isinstance(out,list):
+                block.add_output(out.create_block_variable())
+        tape = get_working_tape()
+        tape.add_block(block)
+
+    return func_output.delist(r)
+    
+# ================================================================
+# ================================================================
+
+class ActuatorLineForceBlock(Block):
+    '''This is the Block class that will be used to calculate adjoint 
+    information for optimizations. '''
+    def __init__(self, problem, simTime, **kwargs):
+        super(ActuatorLineForceBlock, self).__init__()
+        self.problem = problem
+        self.simTime = simTime
+
+        # Add dependencies on the controls
+        for i in range(self.problem.num_blade_segments):
+            self.problem.mcl[i].block_variable.tag = ("c_lift", i)
+            self.add_dependency(self.problem.mcl[i])
+
+            self.problem.mcd[i].block_variable.tag = ("c_drag", i)
+            self.add_dependency(self.problem.mcd[i])
+
+        # Tabulate which controls matter
+        self.control_types = []
+        if "lift" in problem.farm.control_types:
+            self.control_types.append("c_lift")
+        if "drag" in problem.farm.control_types:
+            self.control_types.append("c_drag")
+
+        # Record the current values for controls
+        self.old_c_lift = np.array(self.farm.mcl, dtype=float)
+        self.old_c_drag = np.array(self.farm.mcd, dtype=float)
+
+
+    def __str__(self):
+        return "ActuatorLineForceBlock"
+
+
+    def prepare_recompute_component(self, inputs, relevant_outputs):
+        # update the new controls inside the windfarm
+        c_lift = inputs[0::2]
+        c_drag = inputs[1::2]
+
+        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag)
+
+        prepared = backend_CalculateDiskTurbineForces(self.problem, self.simTime)
+
+        return prepared
+
+    def recompute_component(self, inputs, block_variable, idx, prepared):
+        return prepared[idx]
+
+    def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
+        ### update the new controls inside the windfarm ###
+        c_lift = inputs[0::2]
+        c_drag = inputs[1::2]
+
+        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag)
+
+        prepared = {}
+        for name in self.control_types:
+            # pr = cProfile.Profile()
+            # pr.enable()
+            # print("calculating "+name+" derivatives")
+            prepared[name] = backend_CalculateDiskTurbineForces(self.problem, self.simTime, dfd = name)
+            # pr.disable()
+            # pr.print_stats()
+
+            # exit()
+
+        return prepared
+
+    def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
+
+        ### Get the control type and turbine index ###
+        name, segment_index = block_variable.tag
+
+        ### Apply derivative to previous in tape ###
+        adj_output = 0
+        for i in range(3):
+            # adj_output += np.inner(adj_inputs[i].get_local(self.all_ids),prepared[name][i][:,segment_index])
+            adj_output += np.inner(adj_inputs[i], prepared[name][i][:, segment_index])
+
+        return np.array(adj_output)
+
+# ================================================================
+# ================================================================
 
 
 
