@@ -578,17 +578,17 @@ class UnsteadySolver(GenericSolver):
             # bcu = self.modifyInletVelocity(simTime, bcu)
 
             # Update the turbine force
-            self.problem.tf = CalculateActuatorLineTurbineForces(self.problem, simTime)
+            CalculateActuatorLineTurbineForces(self.problem, simTime, tf=self.problem.tf)
+            # self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
+
             # self.problem.tf = self.problem.farm.TurbineForce_numpy(None,None,None)
             # self.UpdateTurbineForce(simTime, 1) # Single turbine, disk actuator
             # self.UpdateTurbineForce(simTime, 2) # Dubs
             # t1 = time.time()
-
-            # self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
             # t2 = time.time()
             # print(t2-t1)
 
-            # self.problem.bd.UpdateVelocity(simTime)
+            self.problem.bd.UpdateVelocity(simTime)
 
             # Record the "old" max velocity (before this update)
             u_max_k1 = self.problem.u_k.vector().max()
@@ -692,7 +692,7 @@ class UnsteadySolver(GenericSolver):
     def AdjustTimestepSize(self, save_next_timestep, saveInterval, simTime, u_max, u_max_k1):
 
         # Set the CFL target (0.2 is a good value for stability and speed, YMMV)
-        cfl_target = 0.2
+        cfl_target = 0.4
 
         # Enforce a minimum timestep size
         dt_min = 0.01
@@ -721,6 +721,8 @@ class UnsteadySolver(GenericSolver):
             save_next_timestep = True
         else:
             save_next_timestep = False
+
+        # dt_new = 0.04
 
         # Update both the Python variable and FEniCS constant
         self.problem.dt = dt_new
@@ -857,6 +859,9 @@ class UnsteadySolver(GenericSolver):
 
         # Create space to hold the vector values
         tf_vec = np.zeros(np.size(coords))
+        lift_force = np.zeros((np.shape(coords)[0], ndim))
+        drag_force = np.zeros((np.shape(coords)[0], ndim))
+
         # tf_lift_vec = np.zeros(np.size(coords))
         # tf_drag_vec = np.zeros(np.size(coords))
 
@@ -942,20 +947,19 @@ class UnsteadySolver(GenericSolver):
                     lift_unit_mag = 1e-6
                 lift_unit = lift_unit/lift_unit_mag
                 
-                if k == 0:
-                    drag_force = np.outer(nodal_drag[:, k], drag_unit)
-                    lift_force = np.outer(nodal_lift[:, k], lift_unit)
-                else:
-                    drag_force += np.outer(nodal_drag[:, k], drag_unit)
-                    lift_force += np.outer(nodal_lift[:, k], lift_unit)
+                vector_nodal_drag = np.outer(nodal_drag[:, k], drag_unit)
+                vector_nodal_lift = np.outer(nodal_lift[:, k], lift_unit)
+
+                drag_force += vector_nodal_drag
+                lift_force += vector_nodal_lift
                     
             # The total turbine force is the sum of lift and drag effects
-            turbine_force = drag_force + lift_force
+        turbine_force = drag_force + lift_force
 
-            for k in range(ndim):
-                tf_vec[k::ndim] += turbine_force[:, k]
-                # tf_lift_vec[k::ndim] += lift_force[:, k]
-                # tf_drag_vec[k::ndim] += drag_force[:, k]
+        for k in range(ndim):
+            tf_vec[k::ndim] = turbine_force[:, k]
+            # tf_lift_vec[k::ndim] += lift_force[:, k]
+            # tf_drag_vec[k::ndim] += drag_force[:, k]
 
         # Save the output
         tf_vec[np.abs(tf_vec) < 1e-12] = 0.0

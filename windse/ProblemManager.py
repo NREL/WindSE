@@ -306,7 +306,20 @@ class UnsteadyProblem(GenericProblem):
         # Define time step size (this value is used only for step 1 if adaptive timestepping is used)
         # FIXME: change variable name to avoid confusion within dolfin adjoint
         self.dt = 0.1*self.dom.mesh.hmin()/self.bd.HH_vel
+        # self.dt = 0.04
         self.dt_c  = Constant(self.dt)
+
+        if self.farm.turbine_method == 'alm':
+            self.num_blade_segments = 10
+            self.mcl = []
+            self.mcd = []
+
+            cl = np.linspace(0.0, 2.0, self.num_blade_segments)
+            cd = np.linspace(2.0, 0.0, self.num_blade_segments)
+
+            for k in range(self.num_blade_segments):
+                self.mcl.append(Constant(cl[k]))
+                self.mcd.append(Constant(cd[k]))
 
         self.fprint("Viscosity: {:1.2e}".format(float(nu)))
         self.fprint("Density:   {:1.2e}".format(float(rho)))
@@ -393,11 +406,17 @@ class UnsteadyProblem(GenericProblem):
         # ================================================================
 
         # Define variational problem for step 1: tentative velocity
+        # F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
+        #    + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
+        #    + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
+        #    + dot(nabla_grad(self.p_k1), v)*dx \
+        #    - dot(-self.tf, v)*dx
+
         F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
            + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
            + dot(nabla_grad(self.p_k1), v)*dx \
-           - dot(-self.tf, v)*dx
+           - dot(self.tf, v)*dx
 
         self.a1 = lhs(F1)
         self.L1 = rhs(F1)

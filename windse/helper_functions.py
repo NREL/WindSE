@@ -284,7 +284,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
 
 #================================================================
 
-def UpdateActuatorLineForce(problem, simTime, dfd):
+def UpdateActuatorLineForce(problem, simTime, dfd, tf):
 
     def rot_x(theta):
         Rx = np.array([[1, 0, 0],
@@ -361,7 +361,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
     # print(problem.farm.radius)
 
     # Discretize each blade into separate nodes
-    num_blade_segments = 10
+    # problem.num_blade_segments 
 
     #================================================================
     # Set Derived Constants
@@ -370,56 +370,58 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
     # Calculate the blade velocity
     period = 60.0/RPM
     tip_speed = np.pi*2.0*L*RPM/60.0
-    blade_vel = np.vstack((np.zeros(num_blade_segments),
-                           np.zeros(num_blade_segments),
-                           np.linspace(0.0, tip_speed, num_blade_segments)))
+    blade_vel = np.vstack((np.zeros(problem.num_blade_segments),
+                           np.zeros(problem.num_blade_segments),
+                           np.linspace(0.0, tip_speed, problem.num_blade_segments)))
 
     # Set the initial angle of each blade
     theta_vec = np.linspace(0.0, 2.0*np.pi, num_blades+1)
     theta_vec = theta_vec[0:num_blades]
 
     # Calculate discrete node positions
-    rdim = np.linspace(0.0, L, num_blade_segments)
+    rdim = np.linspace(0.0, L, problem.num_blade_segments)
 
     # Calculate width of individual blade segment
     w = rdim[1] - rdim[0]
 
     # Calculate an array describing the x, y, z position of each point
-    xblade = np.vstack((np.zeros(num_blade_segments),
+    xblade = np.vstack((np.zeros(problem.num_blade_segments),
                         rdim,
-                        np.zeros(num_blade_segments)))
+                        np.zeros(problem.num_blade_segments)))
 
     #================================================================
     # Begin Calculating Turbine Forces
     #================================================================
 
     # Lift and drag coefficient (could be an array and you interpolate the value based on R)
-    # cl_dolf = Constant((np.linspace(1.5, 0.5, num_blade_segments)))
-    # cd_dolf = Constant((np.ones(num_blade_segments)))
+    # cl_dolf = Constant((np.linspace(1.5, 0.5, problem.num_blade_segments)))
+    # cd_dolf = Constant((np.ones(problem.num_blade_segments)))
     # cl = cl_dolf.values()
     # cd = cd_dolf.values()
 
-    cl = np.linspace(0.0, 2.0, num_blade_segments) # Uncomment for controllability study
-    cd = np.linspace(2.0, 0.0, num_blade_segments)
+    cl = np.array(problem.mcl, dtype=float)
+    cd = np.array(problem.mcd, dtype=float)
+
+    # cl = np.linspace(0.0, 2.0, problem.num_blade_segments) # Uncomment for controllability study
+    # cd = np.linspace(2.0, 0.0, problem.num_blade_segments)
 
     if dfd is None:
-        tf = Function(problem.fs.V)
         tf_vec = np.zeros(np.size(coords))
         lift_force = np.zeros((np.shape(coords)[0], ndim))
         drag_force = np.zeros((np.shape(coords)[0], ndim))
 
     elif dfd == 'c_lift':
-        cl = np.ones(num_blade_segments)
-        dfd_c_lift = np.zeros((np.size(coords), num_blade_segments))
+        cl = np.ones(problem.num_blade_segments)
+        dfd_c_lift = np.zeros((np.size(coords), problem.num_blade_segments))
 
     elif dfd == 'c_drag':
-        cd = np.ones(num_blade_segments)
-        dfd_c_drag = np.zeros((np.size(coords), num_blade_segments))
+        cd = np.ones(problem.num_blade_segments)
+        dfd_c_drag = np.zeros((np.size(coords), problem.num_blade_segments))
 
-    # cl = np.linspace(2.0, 0.0, num_blade_segments) # Uncomment for controllability study
-    # cd = np.linspace(0.0, 2.0, num_blade_segments)
-    # cl = np.ones(num_blade_segments)
-    # cd = np.ones(num_blade_segments)
+    # cl = np.linspace(2.0, 0.0, problem.num_blade_segments) # Uncomment for controllability study
+    # cd = np.linspace(0.0, 2.0, problem.num_blade_segments)
+    # cl = np.ones(problem.num_blade_segments)
+    # cd = np.ones(problem.num_blade_segments)
 
     # tf_lift_vec = np.zeros(np.size(coords))
     # tf_drag_vec = np.zeros(np.size(coords))
@@ -439,7 +441,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
         xblade_rotated = np.dot(Rz, np.dot(Rx, xblade))
         xblade_rotated[2, :] += hub_height
 
-        # Tile the blade coordinates for every mesh point, [numGridPts*ndim x num_blade_segments]
+        # Tile the blade coordinates for every mesh point, [numGridPts*ndim x problem.num_blade_segments]
         xblade_rotated_full = np.tile(xblade_rotated, (np.shape(coords)[0], 1))
 
         # Subtract and square to get the dx^2 values in the x, y, and z directions
@@ -453,23 +455,23 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
     
         if using_local_velocity:
             # Generate the fluid velocity from the actual node locations in the flow
-            u_fluid = np.zeros((3, num_blade_segments))
+            u_fluid = np.zeros((3, problem.num_blade_segments))
             
-            for k in range(num_blade_segments):
+            for k in range(problem.num_blade_segments):
                 u_fluid[:, k] = problem.u_k1(xblade_rotated[0, k],
                                                   xblade_rotated[1, k],
                                                   xblade_rotated[2, k])
                                 
         else:
             # Generate the fluid velocity analytically using the hub height velocity
-            # u_inf_vec = u_inf*np.ones(num_blade_segments)
+            # u_inf_vec = u_inf*np.ones(problem.num_blade_segments)
             
             # u_fluid = np.vstack((u_inf_vec,
-            #                      np.zeros(num_blade_segments),
-            #                      np.zeros(num_blade_segments)))
-            u_fluid = np.zeros((3, num_blade_segments))
+            #                      np.zeros(problem.num_blade_segments),
+            #                      np.zeros(problem.num_blade_segments)))
+            u_fluid = np.zeros((3, problem.num_blade_segments))
             
-            for k in range(num_blade_segments):
+            for k in range(problem.num_blade_segments):
                 u_fluid[0, k] = 8.0*(xblade_rotated[2, k]/hub_height)**0.18
 
         
@@ -495,7 +497,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
         # Calculate a vector in the direction of the blade
         blade_unit = xblade_rotated[:, -1] - np.array([0.0, 0.0, hub_height])
         
-        for k in range(num_blade_segments):
+        for k in range(problem.num_blade_segments):
             # The drag unit simply points opposite the relative velocity unit vector
             drag_unit = -u_unit[:, k]
             
@@ -531,11 +533,17 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
 
         # Remove near-zero values
         tf_vec[np.abs(tf_vec) < 1e-12] = 0.0
+        
+        if tf is None:
+            tf = Function(problem.fs.V)
 
-        # Set the dolfin vector values
-        tf.vector()[:] = tf_vec
+            # Set the dolfin vector values
+            tf.vector()[:] = tf_vec
 
-        return tf
+            return tf
+
+        else:
+            tf.vector()[:] = tf_vec
 
     elif dfd == 'c_lift':
         return dfd_c_lift
@@ -545,16 +553,16 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
 
 #================================================================
 
-def CalculateActuatorLineTurbineForces(problem,simTime,dfd=None):
+def CalculateActuatorLineTurbineForces(problem,simTime,dfd=None, tf=None):
     if dfd is None:
         # Return a dolfin function [1 x numPts*ndim]
-        tf = UpdateActuatorLineForce(problem, simTime, dfd)
+        tf = UpdateActuatorLineForce(problem, simTime, dfd, tf)
     elif dfd == 'c_lift':
         # Return a numpy array of derivatives [numPts*ndim x numControls]
-        tf = UpdateActuatorLineForce(problem, simTime, dfd)
+        tf = UpdateActuatorLineForce(problem, simTime, dfd, tf)
     elif dfd == 'c_drag':
         # Return a numpy array of derivatives [numPts*ndim x numControls]
-        tf = UpdateActuatorLineForce(problem, simTime, dfd)
+        tf = UpdateActuatorLineForce(problem, simTime, dfd, tf)
 
     return tf
 
