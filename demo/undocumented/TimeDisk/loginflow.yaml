@@ -1,15 +1,15 @@
 # General options
 general: 
-    name: Log_Inflow      # Name of the output folder
+    name: THE_WORLDS_MOST_IMPORTANT_TEST_EVER_POSSIBILLY_BETTER_THAN_SLICED_BREAD      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution"]
-    # dolfin_adjoint: True
+    dolfin_adjoint: True
 
 # Wind Farm constants for a grid farm
 wind_farm: 
     #                     # Description              | Units
     type: imported        #                          |
     path: Inputs/wind_farm.txt   # location of wind farm    | -
-    turbine_method: numpy
+    turbine_method: alm
     turbine_space: CG
     turbine_degree: 1
     force: constant
@@ -18,7 +18,7 @@ wind_farm:
 domain: 
     #                     # Description           | Units
     type: box             #                       |
-    x_range: [-378, 630]   # x-range of the domain | m
+    x_range: [-378, 80]   # x-range of the domain | m
     y_range: [-378, 378]    # y-range of the domain | m
     z_range: [0.0,  450]  # z-range of the domain | m
     nx: 24                # Number of x-nodes     | - 
@@ -50,12 +50,12 @@ problem:
 
 solver:
     type: unsteady
-    final_time: 2
+    final_time: 10
     save_interval: 0.5
 
 optimization:
-    controls: [yaw]
-    objective_type: new
-    taylor_test: False
+    controls: [lift]
+    objective_type: wake_deflection
+    taylor_test: True
     optimize: False
     gradient: True

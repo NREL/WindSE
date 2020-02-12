@@ -17,7 +17,7 @@ def initialize(loc,updated_parameters=[]):
 
     global BaseHeight, CalculateDiskTurbineForces, CalculateActuatorLineTurbineForces, Optimizer#, ReducedFunctional
     if windse_parameters["general"].get("dolfin_adjoint", False):
-        from windse.dolfin_adjoint_helper import BaseHeight, CalculateDiskTurbineForces#, ReducedFunctional
+        from windse.dolfin_adjoint_helper import BaseHeight, CalculateDiskTurbineForces, CalculateActuatorLineTurbineForces#, ReducedFunctional
         from windse.OptimizationManager import Optimizer
     else:
         from windse.helper_functions import BaseHeight, CalculateDiskTurbineForces, CalculateActuatorLineTurbineForces

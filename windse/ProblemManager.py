@@ -312,6 +312,7 @@ class UnsteadyProblem(GenericProblem):
         self.dt_c  = Constant(self.dt)
 
         if self.farm.turbine_method == 'alm':
+            self.rpm = 15
             self.num_blade_segments = 10
             self.mcl = []
             self.mcd = []
@@ -343,6 +344,7 @@ class UnsteadyProblem(GenericProblem):
         self.u_k2 = Function(self.fs.V)
 
         # Seed previous velocity fields with the chosen initial condition
+        self.u_k.assign(self.bd.bc_velocity)
         self.u_k1.assign(self.bd.bc_velocity)
         self.u_k2.assign(self.bd.bc_velocity)
 
@@ -444,7 +446,7 @@ class UnsteadyProblem(GenericProblem):
         if c_drag is not None:
             cd = np.array(c_drag, dtype = float)
 
-        for k in range(self.num_blad_segments):
+        for k in range(self.num_blade_segments):
             self.mcl[k] = Constant(cl[k])
             self.mcd[k] = Constant(cd[k])
 

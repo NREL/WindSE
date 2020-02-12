@@ -26,16 +26,14 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
     if not hasattr(solver,"outflow_markers"):
         y_factor = 2.0
         z_factor = 1.2
-        HH = 90.0
-        x0 = 630.0
-        y0 = 0.0
-        R = 63.
+        HH = solver.problem.farm.HH[0]
+        x0 = solver.problem.dom.x_range[1]
+        y0 = solver.problem.farm.y[0]
+        R = solver.problem.farm.RD[0]/2.0
         ly=y0-y_factor*R
         uy=y0+y_factor*R
         lz=HH-z_factor*R
         uz=HH+z_factor*R
-        print(ly,uy)
-        print(lz,uz)
         outregion  = CompiledSubDomain("near(x[0], x0, tol) && x[1]>=ly && x[1]<=uy  && x[2]>=lz && x[2]<=uz && on_boundary",x0 = x0, ly=ly, uy=uy, lz=lz, uz=uz, tol = 1e-10)
         solver.outflow_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim() - 1)
         solver.outflow_markers.set_all(0)
@@ -50,7 +48,7 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
     x = SpatialCoordinate(solver.problem.dom.mesh)
 
     u_ref = solver.problem.bd.bc_velocity
-    u     = solver.u_next
+    u     = solver.problem.u_k
     u_dif_mag = sqrt((u[0]-u_ref[0])**2.0+(u[1]-u_ref[1])**2.0+(u[2]-u_ref[2])**2.0)
 
     M = assemble(u_dif_mag*ds(1))

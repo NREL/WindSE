@@ -488,8 +488,8 @@ class ActuatorLineForceBlock(Block):
             self.control_types.append("c_drag")
 
         # Record the current values for controls
-        self.old_c_lift = np.array(self.farm.mcl, dtype=float)
-        self.old_c_drag = np.array(self.farm.mcd, dtype=float)
+        self.old_c_lift = np.array(self.problem.mcl, dtype=float)
+        self.old_c_drag = np.array(self.problem.mcd, dtype=float)
 
 
     def __str__(self):
@@ -503,7 +503,7 @@ class ActuatorLineForceBlock(Block):
 
         self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag)
 
-        prepared = backend_CalculateDiskTurbineForces(self.problem, self.simTime)
+        prepared = backend_CalculateActuatorLineTurbineForces(self.problem, self.simTime)
 
         return prepared
 
@@ -522,7 +522,7 @@ class ActuatorLineForceBlock(Block):
             # pr = cProfile.Profile()
             # pr.enable()
             # print("calculating "+name+" derivatives")
-            prepared[name] = backend_CalculateDiskTurbineForces(self.problem, self.simTime, dfd = name)
+            prepared[name] = backend_CalculateActuatorLineTurbineForces(self.problem, self.simTime, dfd = name)
             # pr.disable()
             # pr.print_stats()
 

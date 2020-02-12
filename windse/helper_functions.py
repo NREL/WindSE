@@ -335,7 +335,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
     u_inf = 8.0
 
     # Set the rotational speed of the turbine
-    RPM = 15.0
+    RPM = problem.rpm
 
     # Set the yaw of the turbine
     yaw = problem.farm.yaw[0]
@@ -556,6 +556,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
 #================================================================
 
 def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, tf=None):
+    print("current time: "+repr(simTime))
     if dfd is None:
         # Return a dolfin function [1 x numPts*ndim]
         tf = UpdateActuatorLineForce(problem, simTime, dfd, tf)

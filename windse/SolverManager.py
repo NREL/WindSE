@@ -377,6 +377,12 @@ class UnsteadySolver(GenericSolver):
         
         # Start a counter for the total simulation time
         simTime = 0.0
+        recordTime = 8.0
+        # recordTime = 1.5*(self.problem.dom.x_range[1]/self.problem.bd.HH_vel)
+        # if tFinal < recordTime + 60.0/self.problem.rpm:
+        #     self.fprint("Warning: Final time is too small... overriding")
+        #     tFinal = recordTime + 60.0/self.problem.rpm
+        #     self.fprint("         New Final Time: {:1.2f} s".format(tFinal))
 
         self.fprint("dt: %.4f" % (self.problem.dt))
         self.fprint("tFinal: %.1f" % (tFinal))
@@ -515,6 +521,11 @@ class UnsteadySolver(GenericSolver):
             # Update the simulation time
             simTime += self.problem.dt
 
+            # Calculate the objective function
+            if self.optimizing and simTime >= recordTime:
+                self.J += 1/self.problem.dt*self.objective_func(self,(iter_val-self.problem.dom.init_wind)) 
+
+
             if save_next_timestep:
                 # Read in new inlet values
                 # bcu = self.updateInletVelocityFromFile(saveCount, bcu)
@@ -589,7 +600,7 @@ class UnsteadySolver(GenericSolver):
     def AdjustTimestepSize(self, save_next_timestep, saveInterval, simTime, u_max, u_max_k1):
 
         # Set the CFL target (0.2 is a good value for stability and speed, YMMV)
-        cfl_target = 0.4
+        cfl_target = 0.2
 
         # Enforce a minimum timestep size
         dt_min = 0.01
