@@ -427,7 +427,7 @@ class ActuatorLineForceBlock(Block):
 # ================================================================
 # ================================================================
 
-def CalculateActuatorLineTurbineForces(problem, simTime,**kwargs):
+def CalculateActuatorLineTurbineForces(problem, simTime, **kwargs):
     '''This is the adjoint version of RelativeHeight. It's goal is to 
     calculate the height of the turbine's base. At the same time, it creates
     a block that helps propagate the adjoint information.'''
@@ -438,7 +438,7 @@ def CalculateActuatorLineTurbineForces(problem, simTime,**kwargs):
 
     ### Get the actual output ###
     with stop_annotating():
-        func_output = backend_CalculateActuatorLineTurbineForces(problem, simTime,**kwargs)
+        func_output = backend_CalculateActuatorLineTurbineForces(problem, simTime, **kwargs)
 
     ### Create the block object ###
     if annotate:
@@ -460,7 +460,7 @@ def CalculateActuatorLineTurbineForces(problem, simTime,**kwargs):
         tape.add_block(block)
 
     return func_output.delist(r)
-    
+
 # ================================================================
 # ================================================================
 
@@ -508,7 +508,7 @@ class ActuatorLineForceBlock(Block):
         return prepared
 
     def recompute_component(self, inputs, block_variable, idx, prepared):
-        return prepared[idx]
+        return prepared
 
     def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
         ### update the new controls inside the windfarm ###
@@ -536,10 +536,7 @@ class ActuatorLineForceBlock(Block):
         name, segment_index = block_variable.tag
 
         ### Apply derivative to previous in tape ###
-        adj_output = 0
-        for i in range(3):
-            # adj_output += np.inner(adj_inputs[i].get_local(self.all_ids),prepared[name][i][:,segment_index])
-            adj_output += np.inner(adj_inputs[i], prepared[name][i][:, segment_index])
+        adj_output = np.inner(adj_inputs[0], prepared[name][:, segment_index])
 
         return np.array(adj_output)
 

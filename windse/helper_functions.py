@@ -534,16 +534,18 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
         # Remove near-zero values
         tf_vec[np.abs(tf_vec) < 1e-12] = 0.0
 
-        if tf is None:
-            tf = Function(problem.fs.V)
+        # if tf is None:
+        tf = Function(problem.fs.V)
 
-            # Set the dolfin vector values
-            tf.vector()[:] = tf_vec
+        # Set the dolfin vector values
+        tf.vector()[:] = tf_vec
 
-            return tf
+        return tf
 
-        else:
-            tf.vector()[:] = tf_vec
+        # else:
+        #     # FIXME: We may need to use .assign() here instead of this
+        #     # tf.assign()
+        #     tf.vector()[:] = tf_vec
 
     elif dfd == 'c_lift':
         return dfd_c_lift
@@ -553,7 +555,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
 
 #================================================================
 
-def CalculateActuatorLineTurbineForces(problem,simTime,dfd=None, tf=None):
+def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, tf=None):
     if dfd is None:
         # Return a dolfin function [1 x numPts*ndim]
         tf = UpdateActuatorLineForce(problem, simTime, dfd, tf)

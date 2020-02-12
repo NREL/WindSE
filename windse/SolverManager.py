@@ -578,7 +578,9 @@ class UnsteadySolver(GenericSolver):
             # bcu = self.modifyInletVelocity(simTime, bcu)
 
             # Update the turbine force
-            CalculateActuatorLineTurbineForces(self.problem, simTime, tf=self.problem.tf)
+            new_tf = CalculateActuatorLineTurbineForces(self.problem, simTime)
+            self.problem.tf.assign(new_tf)
+            
             # self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
 
             # self.problem.tf = self.problem.farm.TurbineForce_numpy(None,None,None)
