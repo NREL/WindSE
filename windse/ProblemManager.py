@@ -16,7 +16,7 @@ if main_file != "sphinx-build":
     import time
 
     ### Import the cumulative parameters ###
-    from windse import windse_parameters
+    from windse import windse_parameters, CalculateActuatorLineTurbineForces
     # from memory_profiler import memory_usage
 
     ### Check if we need dolfin_adjoint ###
@@ -50,7 +50,7 @@ class GenericProblem(object):
         self.params.ground_fx = self.dom.Ground
         self.params.full_hh = self.farm.HH
 
-    def ComputeTurbineForce(self,u,theta):
+    def ComputeTurbineForce(self,u,theta,simTime=0.0):
 
         ### Compute the relative yaw angle ###
         if theta is not None:
@@ -60,15 +60,20 @@ class GenericProblem(object):
 
         ### Create the turbine force function ###
         if self.farm.turbine_method == "dolfin":
-                self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+            self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
 
         elif self.farm.turbine_method == "numpy":
-                self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+            self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+
+        elif self.farm.turbine_method == 'alm':
+            tf = CalculateActuatorLineTurbineForces(self, simTime)
+
         else:
             raise ValueError("Unknown turbine method: "+self.farm.turbine_method)
         
         ### Convolve TF with u ###
-        tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
+        if self.farm.turbine_method != 'alm':
+            tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
 
         return tf
 
@@ -269,6 +274,8 @@ class TaylorHoodProblem(GenericProblem):
 
         self.fprint("Taylor-Hood Problem Setup",special="footer")
 
+# ================================================================
+
 class UnsteadyProblem(GenericProblem):
     """
     The UnsteadyProblem sets up everything required for solving Navier-Stokes using
@@ -301,7 +308,20 @@ class UnsteadyProblem(GenericProblem):
         # Define time step size (this value is used only for step 1 if adaptive timestepping is used)
         # FIXME: change variable name to avoid confusion within dolfin adjoint
         self.dt = 0.1*self.dom.mesh.hmin()/self.bd.HH_vel
+        # self.dt = 0.04
         self.dt_c  = Constant(self.dt)
+
+        if self.farm.turbine_method == 'alm':
+            self.num_blade_segments = 10
+            self.mcl = []
+            self.mcd = []
+
+            cl = np.linspace(0.0, 2.0, self.num_blade_segments)
+            cd = np.linspace(2.0, 0.0, self.num_blade_segments)
+
+            for k in range(self.num_blade_segments):
+                self.mcl.append(Constant(cl[k]))
+                self.mcd.append(Constant(cd[k]))
 
         self.fprint("Viscosity: {:1.2e}".format(float(nu)))
         self.fprint("Density:   {:1.2e}".format(float(rho)))
@@ -388,11 +408,17 @@ class UnsteadyProblem(GenericProblem):
         # ================================================================
 
         # Define variational problem for step 1: tentative velocity
+        # F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
+        #    + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
+        #    + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
+        #    + dot(nabla_grad(self.p_k1), v)*dx \
+        #    - dot(-self.tf, v)*dx
+
         F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
            + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
            + dot(nabla_grad(self.p_k1), v)*dx \
-           - dot(-self.tf, v)*dx
+           - dot(self.tf, v)*dx
 
         self.a1 = lhs(F1)
         self.L1 = rhs(F1)
@@ -408,3 +434,19 @@ class UnsteadyProblem(GenericProblem):
         # ================================================================
 
         self.fprint("Unsteady Problem Setup",special="footer")
+
+# ================================================================
+
+    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None):
+
+        if c_lift is not None:
+            cl = np.array(c_lift, dtype = float)
+        if c_drag is not None:
+            cd = np.array(c_drag, dtype = float)
+
+        for k in range(self.num_blad_segments):
+            self.mcl[k] = Constant(cl[k])
+            self.mcd[k] = Constant(cd[k])
+
+# ================================================================
+
