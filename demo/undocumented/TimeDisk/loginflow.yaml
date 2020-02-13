@@ -51,8 +51,8 @@ problem:
 
 solver:
     type: unsteady
-    final_time: 5
-    save_interval: 1
+    final_time: 100
+    save_interval: 5
 
 optimization:
     controls: [yaw]

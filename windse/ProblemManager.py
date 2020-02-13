@@ -66,7 +66,7 @@ class GenericProblem(object):
             self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
 
         elif self.farm.turbine_method == 'alm':
-            self.rpm = 15
+            self.rpm = 10
             self.num_blade_segments = 10
             self.mcl = []
             self.mcd = []
@@ -151,8 +151,8 @@ class StabilizedProblem(GenericProblem):
         self.fprint("Setting Up Stabilized Problem",special="header")
 
         ### Create the test/trial/functions ###
-        self.up_next = Function(self.fs.W)
-        self.u_next,self.p_next = split(self.up_next)
+        self.up_k = Function(self.fs.W)
+        self.u_k,self.p_k = split(self.up_k)
         v,q = TestFunctions(self.fs.W)
 
         ### Set the x scaling ###
@@ -160,12 +160,12 @@ class StabilizedProblem(GenericProblem):
 
         ### Set the initial guess ###
         ### (this will become a separate function.)
-        self.up_next.assign(self.bd.u0)
+        self.up_k.assign(self.bd.u0)
 
         # mem0=memory_usage()[0]
-        # mem_out, self.tf = memory_usage((self.ComputeTurbineForce,(self.u_next,theta),{}),max_usage=True,retval=True,max_iterations=1)
+        # mem_out, self.tf = memory_usage((self.ComputeTurbineForce,(self.u_k,theta),{}),max_usage=True,retval=True,max_iterations=1)
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
-        self.tf = self.ComputeTurbineForce(self.u_next,theta)
+        self.tf = self.ComputeTurbineForce(self.u_k,theta)
 
         ### These constants will be moved into the params file ###
         nu = self.params["problem"].get("viscosity",.1)
@@ -183,7 +183,7 @@ class StabilizedProblem(GenericProblem):
         self.fprint("Stabilization Coefficient: {:1.2e}".format(float(eps)))
 
         ### Calculate the stresses and viscosities ###
-        S = sqrt(2*inner(0.5*(grad(self.u_next)+grad(self.u_next).T),0.5*(grad(self.u_next)+grad(self.u_next).T)))
+        S = sqrt(2*inner(0.5*(grad(self.u_k)+grad(self.u_k).T),0.5*(grad(self.u_k)+grad(self.u_k).T)))
 
         ### Create l_mix based on distance to the ground ###
         if self.dom.dim == 3:
@@ -200,17 +200,17 @@ class StabilizedProblem(GenericProblem):
 
         ### Create the functional ###
         # if self.farm.yaw[0]**2 > 1e-4:
-        #     self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+        #     self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
         # else :
-        # self.F = inner(grad(self.u_next)*self.u_next, v)*dx + Sx*Sx*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx# + inner(self.tf,v)*dx 
-        self.F = inner(grad(self.u_next)*self.u_next, v)*dx + Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
-        # self.F_sans_tf =  (1.0)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx
-        # self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_next[0]**2+self.u_next[1]**2),v)*dx 
+        # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx# + inner(self.tf,v)*dx 
+        self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+        # self.F_sans_tf =  (1.0)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx
+        # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_k[0]**2+self.u_k[1]**2),v)*dx 
 
         ### Add in the Stabilizing term ###
-        # stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
-        stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
-        # stab_sans_tf = - eps*inner(grad(q), grad(self.p_next))*dx 
+        # stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
+        stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
+        # stab_sans_tf = - eps*inner(grad(q), grad(self.p_k))*dx 
         self.F += stab
         # self.F_sans_tf += stab
         self.fprint("Stabilized Problem Setup",special="footer")
@@ -247,16 +247,16 @@ class TaylorHoodProblem(GenericProblem):
         self.fprint("Mixing Length Scale: {:1.2e}".format(float(mlDenom)))
 
         ### Create the test/trial/functions ###
-        self.up_next = Function(self.fs.W)
-        self.u_next,self.p_next = split(self.up_next)
+        self.up_k = Function(self.fs.W)
+        self.u_k,self.p_k = split(self.up_k)
         v,q = TestFunctions(self.fs.W)
 
         ### Set the initial guess ###
         ### (this will become a separate function.)
-        self.up_next.assign(self.bd.u0)
+        self.up_k.assign(self.bd.u0)
 
         ### Calculate the stresses and viscosities ###
-        S = sqrt(2.*inner(0.5*(grad(self.u_next)+grad(self.u_next).T),0.5*(grad(self.u_next)+grad(self.u_next).T)))
+        S = sqrt(2.*inner(0.5*(grad(self.u_k)+grad(self.u_k).T),0.5*(grad(self.u_k)+grad(self.u_k).T)))
 
         ### Create l_mix based on distance to the ground ###
         if self.dom.dim == 3:
@@ -270,15 +270,15 @@ class TaylorHoodProblem(GenericProblem):
         self.nu_T=l_mix**2.*S
 
         ### Create the turbine force ###
-        self.tf = self.ComputeTurbineForce(self.u_next,theta)
+        self.tf = self.ComputeTurbineForce(self.u_k,theta)
 
-        self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+        self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
 
         use_25d_model = True
 
         ### Create the functional ###
         if use_25d_model:
-            # ugrad = grad(self.u_next)
+            # ugrad = grad(self.u_k)
 
             # yaw = np.pi/8
             # dvdy = as_matrix([[sin(yaw)*ugrad[0, 0],           0],
@@ -288,8 +288,8 @@ class TaylorHoodProblem(GenericProblem):
             # print(dir(dvdy))
             # print(dvdy)
 
-            dudx = Dx(self.u_next[0], 0)
-            dvdy = Dx(self.u_next[1], 1)
+            dudx = Dx(self.u_k[0], 0)
+            dvdy = Dx(self.u_k[1], 1)
 
             term25 = (sin(self.dom.init_wind)*dudx*q + cos(self.dom.init_wind)*dvdy*q)*dx
 
@@ -400,11 +400,11 @@ class UnsteadyProblem(GenericProblem):
 
         # ================================================================
 
-        # FIXME: This up_next function is only present to avoid errors  
+        # FIXME: This up_k function is only present to avoid errors  
         # during assignments in GenericSolver.__init__
 
         # Create the combined function space
-        self.up_next = Function(self.fs.W)
+        self.up_k = Function(self.fs.W)
 
         # Create the turbine force
         # FIXME: Should this be set by a numpy array operation or a fenics function?
@@ -430,7 +430,7 @@ class UnsteadyProblem(GenericProblem):
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
            + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
            + dot(nabla_grad(self.p_k1), v)*dx \
-           - dot(-self.tf, v)*dx
+           - dot(self.tf, v)*dx
 
         self.a1 = lhs(F1)
         self.L1 = rhs(F1)

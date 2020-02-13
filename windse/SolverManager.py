@@ -39,8 +39,8 @@ if main_file != "sphinx-build":
     parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'        
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
-    parameters['form_compiler']['representation'] = 'tsfc'
-    # parameters['form_compiler']['representation'] = 'uflacs'
+    # parameters['form_compiler']['representation'] = 'tsfc'
+    parameters['form_compiler']['representation'] = 'uflacs'
     if windse_parameters["wind_farm"].get("turbine_space","Quadrature") == "Quadrature":
         parameters['form_compiler']['quadrature_degree'] = windse_parameters["wind_farm"].get("turbine_degree",6)
     else:
@@ -53,8 +53,7 @@ class GenericSolver(object):
     def __init__(self,problem):
         self.params = windse_parameters
         self.problem  = problem
-        # self.u_next,self.p_next = self.problem.up_next.split(True)
-        self.u_next,self.p_next = split(self.problem.up_next)
+        # self.u_k,self.p_k = self.problem.up_k.split(True)
         self.nu_T = self.problem.nu_T
         self.first_save = True
         self.fprint = self.params.fprint
@@ -92,12 +91,12 @@ class GenericSolver(object):
     #     if not os.path.exists(folder_string): os.makedirs(folder_string)
 
     #     ### Plot the x component of velocity ###
-    #     plot(self.u_next[0],title="Velocity in the x Direction")
+    #     plot(self.u_k[0],title="Velocity in the x Direction")
     #     plt.savefig(u_string)
     #     plt.figure()
 
     #     ### Plot the pressure ###
-    #     plot(self.p_next,title="Pressure")
+    #     plot(self.p_k,title="Pressure")
     #     plt.savefig(p_string)
     #     plt.show()
 
@@ -105,7 +104,7 @@ class GenericSolver(object):
         """
         This function saves the mesh and boundary markers to output/.../solutions/
         """
-        u,p = self.problem.up_next.split(True,**self.extra_kwarg)
+        u,p = self.problem.up_k.split(True,**self.extra_kwarg)
         u.vector()[:]=u.vector()[:]/self.problem.dom.xscale
         self.problem.dom.mesh.coordinates()[:]=self.problem.dom.mesh.coordinates()[:]/self.problem.dom.xscale
 
@@ -141,7 +140,7 @@ class GenericSolver(object):
 
 
     def CalculatePowerFunctional(self,inflow_angle = 0.0):
-        J = -assemble(dot(self.problem.tf,self.u_next)*dx)
+        J = -assemble(dot(self.problem.tf,self.u_k)*dx)
         return J
 
     def SavePower(self,inflow_angle=0.0):
@@ -154,8 +153,8 @@ class GenericSolver(object):
                 tf1 = self.problem.farm.actuator_disks_list[i] * cos(yaw)**2
                 tf2 = self.problem.farm.actuator_disks_list[i] * sin(yaw)**2
                 tf3 = self.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
-                tf = tf1*self.u_next[0]**2+tf2*self.u_next[1]**2+tf3*self.u_next[0]*self.u_next[1]
-                J_list[i] = assemble(dot(tf,self.u_next)*dx,**self.extra_kwarg)
+                tf = tf1*self.u_k[0]**2+tf2*self.u_k[1]**2+tf3*self.u_k[0]*self.u_k[1]
+                J_list[i] = assemble(dot(tf,self.u_k)*dx,**self.extra_kwarg)
         J_list[-1]=sum(J_list)
 
         folder_string = self.params.folder+"/data/"
@@ -178,6 +177,7 @@ class SteadySolver(GenericSolver):
         problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
     """
     def __init__(self,problem):
+        self.u_k,self.p_k = split(self.problem.up_k)
         super(SteadySolver, self).__init__(problem)
 
     def Solve(self,iter_val=0):
@@ -202,10 +202,10 @@ class SteadySolver(GenericSolver):
         ### doesn't play nice with dolfin_adjoint
         ### Define Jacobian ###
         # dU = TrialFunction(self.problem.fs.W)
-        # J  = derivative(self.problem.F,  self.problem.up_next, dU)
+        # J  = derivative(self.problem.F,  self.problem.up_k, dU)
 
         # ### Setup nonlinear solver ###
-        # nonlinear_problem = NonlinearVariationalProblem(self.problem.F, self.problem.up_next, self.problem.bd.bcs, J)
+        # nonlinear_problem = NonlinearVariationalProblem(self.problem.F, self.problem.up_k, self.problem.bd.bcs, J)
         # nonlinear_solver  = NonlinearVariationalSolver(nonlinear_problem)
 
         # ### Set some parameters ###
@@ -290,22 +290,22 @@ class SteadySolver(GenericSolver):
         start = time.time()
         
         # ### Solve the Baseline Problem ###
-        # solve(self.problem.F_sans_tf == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters, **self.extra_kwarg)
+        # solve(self.problem.F_sans_tf == 0, self.problem.up_k, self.problem.bd.bcs, solver_parameters=solver_parameters, **self.extra_kwarg)
 
         # ### Store the Baseline and Assign for the real solve ###
-        # self.up_baseline = self.problem.up_next.copy(deepcopy=True)
-        # self.problem.up_next.assign(self.up_baseline)
+        # self.up_baseline = self.problem.up_k.copy(deepcopy=True)
+        # self.problem.up_k.assign(self.up_baseline)
 
         ### Solve the real problem ###
         # mem0=memory_usage()[0]
-        # mem_out, _ = memory_usage((solve,(self.problem.F == 0, self.problem.up_next, self.problem.bd.bcs),{"solver_parameters": solver_parameters}),max_usage=True,retval=True,max_iterations=1)
-        solve(self.problem.F == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters)
+        # mem_out, _ = memory_usage((solve,(self.problem.F == 0, self.problem.up_k, self.problem.bd.bcs),{"solver_parameters": solver_parameters}),max_usage=True,retval=True,max_iterations=1)
+        solve(self.problem.F == 0, self.problem.up_k, self.problem.bd.bcs, solver_parameters=solver_parameters)
         stop = time.time()
 
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
-        # self.u_next,self.p_next = self.problem.up_next.split(True)
-        self.u_next,self.p_next = split(self.problem.up_next)
+        # self.u_k,self.p_k = self.problem.up_k.split(True)
+        self.u_k,self.p_k = split(self.problem.up_k)
         # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
         self.nu_T = None
 
@@ -326,7 +326,7 @@ class SteadySolver(GenericSolver):
         if self.optimizing:
             self.J += self.objective_func(self,(iter_val-self.problem.dom.init_wind)) 
             print(self.outflow_markers)
-            # self.J += -dot(self.problem.farm.rotor_disks,self.u_next)*dx
+            # self.J += -dot(self.problem.farm.rotor_disks,self.u_k)*dx
 
         # self.fprint("Speed Percent of Inflow Speed")
         # ps = []
@@ -334,7 +334,7 @@ class SteadySolver(GenericSolver):
         #     HH = self.problem.farm.HH[0]
         #     RD = self.problem.farm.RD[0]
         #     x_val = (i+1)*RD
-        #     vel = self.problem.up_next([x_val,0,HH])
+        #     vel = self.problem.up_k([x_val,0,HH])
         #     vel = vel[0:3]
         #     nom = np.linalg.norm(vel)
         #     perc = nom/self.problem.bd.HH_vel
@@ -380,7 +380,8 @@ class UnsteadySolver(GenericSolver):
 
         # Start a counter for the total simulation time
         simTime = 0.0
-        recordTime = tFinal-2.0*saveInterval
+        recordTime = 20
+        # recordTime = tFinal-2.0*saveInterval
         # recordTime = 1.5*(self.problem.dom.x_range[1]/self.problem.bd.HH_vel)
         # if tFinal < recordTime + 60.0/self.problem.rpm:
         #     self.fprint("Warning: Final time is too small... overriding")
@@ -476,16 +477,12 @@ class UnsteadySolver(GenericSolver):
         # coords = np.copy(coords[0::self.problem.dom.dim, :])
         # print(np.shape(coords))
         dt_sum = 0
+        J_old = 0
         while simTime < tFinal:
             # Get boundary conditions specific to this timestep
             # bcu, bcp = self.GetBoundaryConditions(simTime/tFinal)
             # bcu = self.modifyInletVelocity(simTime, bcu)
 
-            # Update the turbine force
-            # if self.problem.farm.turbine_method == "alm":
-            #     new_tf = CalculateActuatorLineTurbineForces(self.problem, simTime)
-            #     self.problem.tf.assign(new_tf)
-            
             # self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
 
             # self.problem.tf = self.problem.farm.TurbineForce_numpy(None,None,None)
@@ -528,6 +525,10 @@ class UnsteadySolver(GenericSolver):
             # Update the simulation time
             simTime += self.problem.dt
 
+            # Update the turbine force
+            if self.problem.farm.turbine_method == "alm":
+                new_tf = CalculateActuatorLineTurbineForces(self.problem, simTime)
+                self.problem.tf.assign(new_tf)
 
             if save_next_timestep:
                 # Read in new inlet values
@@ -548,9 +549,11 @@ class UnsteadySolver(GenericSolver):
             if self.optimizing and simTime >= recordTime and simTime+self.problem.dt <= tFinal:
                 self.J += float(self.problem.dt)*self.objective_func(self,(iter_val-self.problem.dom.init_wind))
                 dt_sum += self.problem.dt 
-            print("Current Objective Value: "+repr(float(self.J)))
-            print("Current dt sum: "+repr(float(dt_sum)))
-            print("delta_record: "+repr(float(tFinal-recordTime)))
+                J_new = float(self.J/dt_sum)
+                J_diff = J_new-J_old
+                J_old = J_new
+                print("Current Objective Value: "+repr(float(self.J/dt_sum)))
+                print("Change in Objective    : "+repr(float(J_diff)))
 
             # After changing timestep size, A1 must be reassembled
             # FIXME: This may be unnecessary (or could be sped up by changing only the minimum amount necessary)
@@ -574,12 +577,12 @@ class UnsteadySolver(GenericSolver):
         if self.first_save:
             self.velocity_file = self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime)
             self.pressure_file   = self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime)
-            # self.turb_force_file   = self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime)
+            self.turb_force_file   = self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime)
             self.first_save = False
         else:
             self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime,file=self.velocity_file)
             self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime,file=self.pressure_file)
-            # self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
+            self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
 
         # # Save velocity files (pointer in fp[0])
         # self.problem.u_k.rename('Velocity', 'Velocity')
@@ -613,7 +616,7 @@ class UnsteadySolver(GenericSolver):
     def AdjustTimestepSize(self, save_next_timestep, saveInterval, simTime, u_max, u_max_k1):
 
         # Set the CFL target (0.2 is a good value for stability and speed, YMMV)
-        cfl_target = 0.2
+        cfl_target = 0.4
 
         # Enforce a minimum timestep size
         dt_min = 0.01

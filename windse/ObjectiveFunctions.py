@@ -49,7 +49,8 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
 
     u_ref = solver.problem.bd.bc_velocity
     u     = solver.problem.u_k
-    u_dif_mag = sqrt((u[0]-u_ref[0])**2.0+(u[1]-u_ref[1])**2.0+(u[2]-u_ref[2])**2.0)
+    # u_dif_mag = sqrt((u[0]-u_ref[0])**2.0+(u[1]-u_ref[1])**2.0+(u[2]-u_ref[2])**2.0)
+    u_dif_mag = sqrt((u[0]-u_ref[0])**2.0)
 
     M = assemble(u_dif_mag*ds(1))
     Mx = assemble(x[0]*u_dif_mag*ds(1))
