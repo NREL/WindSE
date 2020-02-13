@@ -536,7 +536,7 @@ class ActuatorLineForceBlock(Block):
         name, segment_index = block_variable.tag
 
         ### Apply derivative to previous in tape ###
-        adj_output = np.inner(adj_inputs[0], prepared[name][:, segment_index])
+        adj_output = np.inner(adj_inputs[0].get_local(), prepared[name][:, segment_index])
 
         return np.array(adj_output)
 

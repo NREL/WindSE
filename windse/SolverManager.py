@@ -39,8 +39,8 @@ if main_file != "sphinx-build":
     parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'        
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
-    parameters['form_compiler']['representation'] = 'tsfc'
-    # parameters['form_compiler']['representation'] = 'uflacs'
+    # parameters['form_compiler']['representation'] = 'tsfc'
+    parameters['form_compiler']['representation'] = 'uflacs'
     if windse_parameters["wind_farm"].get("turbine_space","Quadrature") == "Quadrature":
         parameters['form_compiler']['quadrature_degree'] = windse_parameters["wind_farm"].get("turbine_degree",6)
     else:
@@ -474,14 +474,13 @@ class UnsteadySolver(GenericSolver):
         coords = np.copy(coords[0::self.problem.dom.dim, :])
         print(np.shape(coords))
 
+        exit()
+
         while simTime < tFinal:
             # Get boundary conditions specific to this timestep
             # bcu, bcp = self.GetBoundaryConditions(simTime/tFinal)
             # bcu = self.modifyInletVelocity(simTime, bcu)
 
-            # Update the turbine force
-            new_tf = CalculateActuatorLineTurbineForces(self.problem, simTime)
-            self.problem.tf.assign(new_tf)
             
             # self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
 
@@ -521,6 +520,10 @@ class UnsteadySolver(GenericSolver):
 
             # Update the simulation time
             simTime += self.problem.dt
+
+            # Update the turbine force
+            new_tf = CalculateActuatorLineTurbineForces(self.problem, simTime)
+            self.problem.tf.assign(new_tf)
 
             # Calculate the objective function
             if self.optimizing and simTime >= recordTime:

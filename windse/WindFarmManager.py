@@ -306,7 +306,7 @@ class GenericWindFarm(object):
             cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
 
 
-            expand_turbine_radius = False
+            expand_turbine_radius = True
 
             if expand_turbine_radius:
                 radius = (num-i)*radius_multiplyer*np.array(self.RD)/2.0
@@ -345,11 +345,11 @@ class GenericWindFarm(object):
                     y = np.tile(y,(n,1))
 
                 ### For each turbine, find which vertex is closet using squared distance
-                force_cylindrical_refinement = False
+                force_cylindrical_refinement = True
                 
                 if force_cylindrical_refinement:
                     d_y = pt[1]
-                    d_z = pt[2] - 32.1
+                    d_z = pt[2] - self.HH[0]
                     min_r = d_y**2 + d_z**2
                 else:
                     min_r = np.min(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)

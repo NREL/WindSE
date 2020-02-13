@@ -11,7 +11,7 @@ if main_file != "sphinx-build":
         from dolfin import dx, File
         from dolfin_adjoint import Constant, Function, assemble
     else:
-        from dolfin import Constant, Function, dx, assemble
+        from dolfin import Constant, Function, dx, assemble, File
 
     import numpy as np
     import time
@@ -285,7 +285,8 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
 #================================================================
 
 def UpdateActuatorLineForce(problem, simTime, dfd, tf):
-    print(dfd)
+    if problem.params.get("optimization",{}):
+        print(dfd)
     def rot_x(theta):
         Rx = np.array([[1, 0, 0],
                        [0, np.cos(theta), -np.sin(theta)],
@@ -329,7 +330,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
     rho = 1.0
 
     # Set the hub height
-    hub_height = problem.farm.HH[0] # For a SWIFT turbine
+    hub_height = problem.farm.HH[0]
 
     # Get the hub-height velocity
     u_inf = 8.0
@@ -344,7 +345,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
     num_blades = 3
 
     # Blade length (turbine radius)
-    L = problem.farm.radius[0] # For a SWIFT turbine 27 m in diameter
+    L = problem.farm.radius[0]
 
     # Chord length
     c = L/20.0
@@ -480,7 +481,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
                         
         # Form the total relative velocity vector (including velocity from rotating blade)
         u_rel = u_fluid + blade_vel_rotated
-        
+
         # Create unit vectors in the direction of u_rel
         u_rel_mag = np.linalg.norm(u_rel, axis=0)
         u_rel_mag[u_rel_mag < 1e-6] = 1e-6
@@ -548,15 +549,51 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
         #     tf.vector()[:] = tf_vec
 
     elif dfd == 'c_lift':
+        save_c_lift = False
+
+        if save_c_lift:
+            dfdcl = Function(problem.fs.V)
+            dfdcl_fp = File('output/timeSeries/dfdcl.pvd')
+
+            for k in range(problem.num_blade_segments):
+                dfdcl_vec = np.copy(dfd_c_lift[:, k])
+                # print(dfdcl_vec.min(), dfdcl_vec.max())
+                # print(dfdcl_vec[0:20])
+                dfdcl_vec[np.abs(dfdcl_vec) < 1e-12] = 0.0
+                dfdcl.vector()[:] = dfdcl_vec
+
+                dfdcl.rename('dfdcl', 'dfdcl')
+
+                dfdcl_fp << (dfdcl, k)
+
         return dfd_c_lift
 
     elif dfd == 'c_drag':
+        save_c_drag = False
+
+        if save_c_drag:
+            dfdcd = Function(problem.fs.V)
+            dfdcd_fp = File('output/timeSeries/dfdcd.pvd')
+
+            for k in range(problem.num_blade_segments):
+                dfdcd_vec = np.copy(dfd_c_drag[:, k])
+                # print(dfdcl_vec.min(), dfdcl_vec.max())
+                # print(dfdcl_vec[0:20])
+                dfdcd_vec[np.abs(dfdcd_vec) < 1e-12] = 0.0
+                dfdcd.vector()[:] = dfdcd_vec
+
+                dfdcd.rename('dfdcd', 'dfdcd')
+
+                dfdcd_fp << (dfdcd, k)
+
         return dfd_c_drag
 
 #================================================================
 
 def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, tf=None):
-    print("current time: "+repr(simTime))
+    if problem.params.get("optimization",{}):
+        print("Current Optimization Time: "+repr(simTime))
+
     if dfd is None:
         # Return a dolfin function [1 x numPts*ndim]
         tf = UpdateActuatorLineForce(problem, simTime, dfd, tf)

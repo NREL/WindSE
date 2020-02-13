@@ -312,13 +312,15 @@ class UnsteadyProblem(GenericProblem):
         self.dt_c  = Constant(self.dt)
 
         if self.farm.turbine_method == 'alm':
-            self.rpm = 15
+            self.rpm = 10
             self.num_blade_segments = 10
             self.mcl = []
             self.mcd = []
 
-            cl = np.linspace(0.0, 2.0, self.num_blade_segments)
-            cd = np.linspace(2.0, 0.0, self.num_blade_segments)
+            # cl = np.linspace(0.0, 2.0, self.num_blade_segments)
+            # cd = np.linspace(2.0, 0.0, self.num_blade_segments)
+            cl = np.ones(self.num_blade_segments)
+            cd = np.ones(self.num_blade_segments)
 
             for k in range(self.num_blade_segments):
                 self.mcl.append(Constant(cl[k]))
