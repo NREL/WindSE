@@ -135,7 +135,7 @@ class Optimizer(object):
 
         if "drag" in self.control_types:
             for i in range(self.problem.num_blade_segments):
-                self.indexes[4].append(j)
+                self.indexes[5].append(j)
                 j+=1
                 self.names.append("drag_"+repr(i))
                 self.controls.append(Control(self.problem.mcd[i]))
