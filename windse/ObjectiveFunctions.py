@@ -57,9 +57,6 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
     Mz = assemble(x[2]*u_dif_mag*ds(1))
 
     print(Mx/M,My/M,Mz/M)
-
-    J = assemble(solver.problem.dt_c/solver.record_delta*x[1]*u_dif_mag*ds(1))/assemble(u_dif_mag*ds(1))
-
     return My/M
 
 objectives_dict = {"power":    CalculatePowerFunctional,
