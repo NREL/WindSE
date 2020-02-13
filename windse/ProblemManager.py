@@ -66,6 +66,19 @@ class GenericProblem(object):
             self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
 
         elif self.farm.turbine_method == 'alm':
+            self.rpm = 15
+            self.num_blade_segments = 10
+            self.mcl = []
+            self.mcd = []
+
+            # cl = np.linspace(0.0, 2.0, self.num_blade_segments)
+            # cd = np.linspace(2.0, 0.0, self.num_blade_segments)
+            cl = np.ones(self.num_blade_segments)
+            cd = np.ones(self.num_blade_segments)
+
+            for k in range(self.num_blade_segments):
+                self.mcl.append(Constant(cl[k]))
+                self.mcd.append(Constant(cd[k]))
             tf = CalculateActuatorLineTurbineForces(self, simTime)
 
         else:
@@ -104,6 +117,18 @@ class GenericProblem(object):
         adj_stop = time.time()
         self.fprint("Wind Speed Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")
 
+    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None):
+
+        if c_lift is not None:
+            cl = np.array(c_lift, dtype = float)
+        if c_drag is not None:
+            cd = np.array(c_drag, dtype = float)
+
+        for k in range(self.num_blade_segments):
+            self.mcl[k] = Constant(cl[k])
+            self.mcd[k] = Constant(cd[k])
+
+
 class StabilizedProblem(GenericProblem):
     """
     The StabilizedProblem setup everything required for solving Navier-Stokes with 
@@ -136,8 +161,6 @@ class StabilizedProblem(GenericProblem):
         ### Set the initial guess ###
         ### (this will become a separate function.)
         self.up_next.assign(self.bd.u0)
-
-        ### Create the turbine force ###
 
         # mem0=memory_usage()[0]
         # mem_out, self.tf = memory_usage((self.ComputeTurbineForce,(self.u_next,theta),{}),max_usage=True,retval=True,max_iterations=1)
@@ -311,19 +334,6 @@ class UnsteadyProblem(GenericProblem):
         # self.dt = 0.04
         self.dt_c  = Constant(self.dt)
 
-        if self.farm.turbine_method == 'alm':
-            self.rpm = 15
-            self.num_blade_segments = 10
-            self.mcl = []
-            self.mcd = []
-
-            cl = np.linspace(0.0, 2.0, self.num_blade_segments)
-            cd = np.linspace(2.0, 0.0, self.num_blade_segments)
-
-            for k in range(self.num_blade_segments):
-                self.mcl.append(Constant(cl[k]))
-                self.mcd.append(Constant(cd[k]))
-
         self.fprint("Viscosity: {:1.2e}".format(float(nu)))
         self.fprint("Density:   {:1.2e}".format(float(rho)))
 
@@ -420,7 +430,7 @@ class UnsteadyProblem(GenericProblem):
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
            + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
            + dot(nabla_grad(self.p_k1), v)*dx \
-           - dot(self.tf, v)*dx
+           - dot(-self.tf, v)*dx
 
         self.a1 = lhs(F1)
         self.L1 = rhs(F1)
@@ -437,18 +447,18 @@ class UnsteadyProblem(GenericProblem):
 
         self.fprint("Unsteady Problem Setup",special="footer")
 
-# ================================================================
+# # ================================================================
 
-    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None):
+#     def UpdateActuatorLineControls(self, c_lift = None, c_drag = None):
 
-        if c_lift is not None:
-            cl = np.array(c_lift, dtype = float)
-        if c_drag is not None:
-            cd = np.array(c_drag, dtype = float)
+#         if c_lift is not None:
+#             cl = np.array(c_lift, dtype = float)
+#         if c_drag is not None:
+#             cd = np.array(c_drag, dtype = float)
 
-        for k in range(self.num_blade_segments):
-            self.mcl[k] = Constant(cl[k])
-            self.mcd[k] = Constant(cd[k])
+#         for k in range(self.num_blade_segments):
+#             self.mcl[k] = Constant(cl[k])
+#             self.mcd[k] = Constant(cd[k])
 
-# ================================================================
+# # ================================================================
 

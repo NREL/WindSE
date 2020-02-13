@@ -162,9 +162,22 @@ class Optimizer(object):
                 lower_bounds.append(Constant(0))
                 upper_bounds.append(Constant(1.))
 
+        if "lift" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                lower_bounds.append(Constant(0))
+                upper_bounds.append(Constant(2.))
+
+        if "drag" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                lower_bounds.append(Constant(0))
+                upper_bounds.append(Constant(2.))
+
         self.bounds = [lower_bounds,upper_bounds]
 
     def ListControls(self,m):
+
+        self.fprint("Current Objective Value: " + repr(float(self.Jcurrent)))
+
         if "layout" in self.control_types:
             for i in range(self.farm.numturbs):
                 self.fprint("Location Turbine {0:} of {1:}: {2: 4.2f}, {3: 4.2f}".format(i+1,self.farm.numturbs,self.farm.x[i],self.farm.y[i]))
@@ -174,7 +187,7 @@ class Optimizer(object):
                 self.fprint("Yaw Turbine {0:} of {1:}: {2: 4.6f}".format(i+1,self.farm.numturbs,self.farm.yaw[i]))
 
         for i, val in enumerate(m):
-            print(self.names[i] +": " +repr(float(val)))
+            self.fprint(self.names[i] +": " +repr(float(val)))
 
     def SaveControls(self,m):
 
@@ -223,8 +236,8 @@ class Optimizer(object):
         mem0=memory_usage()[0]
         tick = time.time()
         mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True,max_iterations=1)
-        for d in der:
-            print(float(d))
+        for i, d in enumerate(der):
+            self.fprint("dJd"+self.names[i] +": " +repr(float(d)))
         tock = time.time()
         self.fprint("Time Elapsed: {:1.2f} s".format(tock-tick))
         self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
