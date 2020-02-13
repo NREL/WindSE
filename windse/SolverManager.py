@@ -377,12 +377,13 @@ class UnsteadySolver(GenericSolver):
         
         # Start a counter for the total simulation time
         simTime = 0.0
-        # recordTime = 8.0
+        # recordTime = 4.0
         recordTime = 1.5*(self.problem.dom.x_range[1]/self.problem.bd.HH_vel)
         if tFinal < recordTime + 60.0/self.problem.rpm:
             self.fprint("Warning: Final time is too small... overriding")
             tFinal = recordTime + 60.0/self.problem.rpm
             self.fprint("         New Final Time: {:1.2f} s".format(tFinal))
+        self.record_delta = tFinal-recordTime
 
         self.fprint("dt: %.4f" % (self.problem.dt))
         self.fprint("tFinal: %.1f" % (tFinal))
@@ -523,7 +524,7 @@ class UnsteadySolver(GenericSolver):
 
             # Calculate the objective function
             if self.optimizing and simTime >= recordTime:
-                self.J += self.problem.dt_c/(tFinal-recordTime)*self.objective_func(self,(iter_val-self.problem.dom.init_wind)) 
+                self.J += self.objective_func(self,(iter_val-self.problem.dom.init_wind)) 
 
 
             if save_next_timestep:
@@ -561,12 +562,12 @@ class UnsteadySolver(GenericSolver):
         if self.first_save:
             self.velocity_file = self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime)
             self.pressure_file   = self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime)
-            # self.turb_force_file   = self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime)
+            self.turb_force_file   = self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime)
             self.first_save = False
         else:
             self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime,file=self.velocity_file)
             self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime,file=self.pressure_file)
-            # self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
+            self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
 
         # # Save velocity files (pointer in fp[0])
         # self.problem.u_k.rename('Velocity', 'Velocity')

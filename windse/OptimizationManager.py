@@ -92,7 +92,7 @@ class Optimizer(object):
     def CreateControls(self):
         self.controls = []
         self.names = []
-        self.indexes = [[],[],[],[]]
+        self.indexes = [[],[],[],[],[],[]]
         self.init_vals = []
         j = 0
         if "layout" in self.control_types:
@@ -125,6 +125,22 @@ class Optimizer(object):
                 self.controls.append(Control(self.farm.ma[i]))
                 self.init_vals.append(self.farm.ma[i])
 
+        if "lift" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                self.indexes[4].append(j)
+                j+=1
+                self.names.append("lift_"+repr(i))
+                self.controls.append(Control(self.problem.mcl[i]))
+                self.init_vals.append(self.problem.mcl[i])
+
+        if "drag" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                self.indexes[4].append(j)
+                j+=1
+                self.names.append("drag_"+repr(i))
+                self.controls.append(Control(self.problem.mcd[i]))
+                self.init_vals.append(self.problem.mcl[i])
+
     def CreateBounds(self):
         lower_bounds = []
         upper_bounds = []
@@ -156,6 +172,9 @@ class Optimizer(object):
         if "yaw" in self.control_types:
             for i in range(self.farm.numturbs):
                 self.fprint("Yaw Turbine {0:} of {1:}: {2: 4.6f}".format(i+1,self.farm.numturbs,self.farm.yaw[i]))
+
+        for i, val in enumerate(m):
+            print(self.names[i] +": " +repr(float(val)))
 
     def SaveControls(self,m):
 
