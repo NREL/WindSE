@@ -66,7 +66,7 @@ class GenericProblem(object):
             self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
 
         elif self.farm.turbine_method == 'alm':
-            self.rpm = 10
+            self.rpm = 12
             self.num_blade_segments = 10
             self.mcl = []
             self.mcd = []
