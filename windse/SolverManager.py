@@ -487,6 +487,7 @@ class UnsteadySolver(GenericSolver):
         # while self.simTime < tFinal:
         stable = False
         # while (not stable) or self.simTime < tFinal:
+        tip_speed = self.problem.rpm*2.0*np.pi*self.problem.farm.radius[0]/60.0
         while self.simTime < tFinal:
         # while not stable and self.simTime < tFinal:
             # Get boundary conditions specific to this timestep
@@ -505,7 +506,7 @@ class UnsteadySolver(GenericSolver):
             self.problem.bd.UpdateVelocity(self.simTime)
 
             # Record the "old" max velocity (before this update)
-            u_max_k1 = self.problem.u_k.vector().max()
+            u_max_k1 = max(tip_speed, self.problem.u_k.vector().max())
 
             # Step 1: Tentative velocity step
             b1 = assemble(self.problem.L1, tensor=b1)
@@ -530,7 +531,7 @@ class UnsteadySolver(GenericSolver):
             self.problem.p_k1.assign(self.problem.p_k)
 
             # Record the updated max velocity
-            u_max = self.problem.u_k.vector().max()
+            u_max = max(tip_speed, self.problem.u_k.vector().max())
 
             # Update the simulation time
             self.simTime += self.problem.dt
@@ -631,7 +632,7 @@ class UnsteadySolver(GenericSolver):
     def AdjustTimestepSize(self, save_next_timestep, saveInterval, simTime, u_max, u_max_k1):
 
         # Set the CFL target (0.2 is a good value for stability and speed, YMMV)
-        cfl_target = 0.4
+        cfl_target = 0.5
 
         # Enforce a minimum timestep size
         dt_min = 0.01

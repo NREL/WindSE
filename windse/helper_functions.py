@@ -347,10 +347,14 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
 
     # Chord length
     c = L/20.0
+    # c = np.linspace(5.0, 2.0, problem.num_blade_segments)
 
     # Width of Gaussian
     # eps = 2.5*c
-    eps = 2.0*problem.dom.mesh.hmin()/np.sqrt(3)
+    # eps = 2.0*problem.dom.mesh.hmin()/np.sqrt(3)
+    eps = 0.5*problem.dom.mesh.hmin()
+    # eps = c/4.3
+    # print('eps:', eps)
 
     # print(problem.farm.x)
     # print(problem.farm.y)
@@ -458,8 +462,8 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
             
             for k in range(problem.num_blade_segments):
                 u_fluid[:, k] = problem.u_k1(xblade_rotated[0, k],
-                                                  xblade_rotated[1, k],
-                                                  xblade_rotated[2, k])
+                                             xblade_rotated[1, k],
+                                             xblade_rotated[2, k])
                                 
         else:
             # Generate the fluid velocity analytically using the hub height velocity
@@ -471,7 +475,9 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
             u_fluid = np.zeros((3, problem.num_blade_segments))
             
             for k in range(problem.num_blade_segments):
-                u_fluid[0, k] = 8.0*(xblade_rotated[2, k]/hub_height)**0.18
+                u_fluid[:, k] = problem.u_k1(problem.dom.x_range[0],
+                                             xblade_rotated[1, k],
+                                             xblade_rotated[2, k])
 
         
         # Rotate the blade velocity in the global x, y, z, coordinate system
