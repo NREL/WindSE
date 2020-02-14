@@ -122,7 +122,7 @@ def CalculateDiskTurbineForces(x,farm,fs,**kwargs):
 
     ### Create the block object ###
     if annotate:
-        block = ActuatorLineForceBlock(x,farm,fs,sparse_ids,**kwargs)
+        block = ActuatorDiskForceBlock(x,farm,fs,sparse_ids,**kwargs)
 
     ### Prepare outputs for recording on tape ###
     r = []
@@ -141,11 +141,11 @@ def CalculateDiskTurbineForces(x,farm,fs,**kwargs):
 
     return func_output.delist(r), sparse_ids, actuator_array
 
-class ActuatorLineForceBlock(Block):
+class ActuatorDiskForceBlock(Block):
     '''This is the Block class that will be used to calculate adjoint 
     information for optimizations. '''
     def __init__(self, x,farm,fs,sparse_ids,**kwargs):
-        super(ActuatorLineForceBlock, self).__init__()
+        super(ActuatorDiskForceBlock, self).__init__()
         self.x = x
         self.farm = farm
         self.fs = fs
@@ -261,7 +261,7 @@ class ActuatorLineForceBlock(Block):
 
         ### Get the control type and turbine index ###
         name, turb_idx = block_variable.tag
-
+        print("Calculating Derivative: " +name+"_"+repr(turb_idx))
         ### Apply derivative to previous in tape ###
         adj_output = 0
         for i in range(3):

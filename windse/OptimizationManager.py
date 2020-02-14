@@ -300,7 +300,7 @@ class Optimizer(object):
 
         h = []
         for i,c in enumerate(self.controls):
-            h.append(Constant(0.01*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
+            h.append(Constant(1*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
 
         conv_rate = taylor_test(self.Jhat, self.init_vals, h)
 

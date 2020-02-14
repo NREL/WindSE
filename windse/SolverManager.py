@@ -104,7 +104,9 @@ class GenericSolver(object):
         """
         This function saves the mesh and boundary markers to output/.../solutions/
         """
-        u,p = self.problem.up_k.split(True,**self.extra_kwarg)
+        u = self.problem.u_k
+        p = self.problem.p_k
+
         u.vector()[:]=u.vector()[:]/self.problem.dom.xscale
         self.problem.dom.mesh.coordinates()[:]=self.problem.dom.mesh.coordinates()[:]/self.problem.dom.xscale
 
@@ -305,7 +307,7 @@ class SteadySolver(GenericSolver):
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
         # self.u_k,self.p_k = self.problem.up_k.split(True)
-        self.u_k,self.p_k = split(self.problem.up_k)
+        self.problem.u_k,self.problem.p_k = split(self.problem.up_k)
         # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
         self.nu_T = None
 
@@ -379,18 +381,20 @@ class UnsteadySolver(GenericSolver):
         saveInterval = self.params["solver"].get("save_interval",1)
 
         # Start a counter for the total simulation time
-        simTime = 0.0
-        recordTime = 20
+        self.simTime = 0.0
+        self.wake_RD = int(self.params["optimization"].get("wake_RD",5))
+        recordTime = 0
         # recordTime = tFinal-2.0*saveInterval
-        # recordTime = 1.5*(self.problem.dom.x_range[1]/self.problem.bd.HH_vel)
+        # recordTime = 1.0*(self.wake_RD*self.problem.farm.RD[0]/self.problem.bd.HH_vel)
         # if tFinal < recordTime + 60.0/self.problem.rpm:
         #     self.fprint("Warning: Final time is too small... overriding")
         #     tFinal = recordTime + 60.0/self.problem.rpm
         #     self.fprint("         New Final Time: {:1.2f} s".format(tFinal))
-        self.record_delta = tFinal-recordTime
+        # self.record_delta = tFinal-recordTime
 
         self.fprint("dt: %.4f" % (self.problem.dt))
         self.fprint("tFinal: %.1f" % (tFinal))
+        self.fprint("recordTime: %.1f" % (recordTime))
 
         # ================================================================
 
@@ -410,7 +414,7 @@ class UnsteadySolver(GenericSolver):
         #     fp.append(File("%s/timeSeries/turbineForce.pvd" % (self.problem.dom.params.folder)))
 
         # Save first timestep (create file pointers for first call)
-        self.SaveTimeSeries(simTime)
+        self.SaveTimeSeries(self.simTime)
 
         self.fprint("Saving Input Data",special="header")
         if "mesh" in self.params.output:
@@ -469,30 +473,36 @@ class UnsteadySolver(GenericSolver):
 
         start = time.time()
 
-        # dfd_c_lift = CalculateActuatorLineTurbineForces(self.problem, simTime, dfd='c_lift')
+        # dfd_c_lift = CalculateActuatorLineTurbineForces(self.problem, self.simTime, dfd='c_lift')
         # print('dfd_c_lift: ', np.shape(dfd_c_lift))
-        # dfd_c_drag = CalculateActuatorLineTurbineForces(self.problem, simTime, dfd='c_drag')
+        # dfd_c_drag = CalculateActuatorLineTurbineForces(self.problem, self.simTime, dfd='c_drag')
         # print('dfd_c_drag: ', np.shape(dfd_c_drag))
         # coords = self.problem.fs.V.tabulate_dof_coordinates()
         # coords = np.copy(coords[0::self.problem.dom.dim, :])
         # print(np.shape(coords))
         dt_sum = 0
         J_old = 0
-        while simTime < tFinal:
+        i = 0
+        # while i < 2:
+        # while self.simTime < tFinal:
+        stable = False
+        # while (not stable) or self.simTime < tFinal:
+        while self.simTime < tFinal:
+        # while not stable and self.simTime < tFinal:
             # Get boundary conditions specific to this timestep
-            # bcu, bcp = self.GetBoundaryConditions(simTime/tFinal)
-            # bcu = self.modifyInletVelocity(simTime, bcu)
+            # bcu, bcp = self.GetBoundaryConditions(self.simTime/tFinal)
+            # bcu = self.modifyInletVelocity(self.simTime, bcu)
 
-            # self.UpdateActuatorLineForce(simTime) # Single turbine, line actuator
+            # self.UpdateActuatorLineForce(self.simTime) # Single turbine, line actuator
 
             # self.problem.tf = self.problem.farm.TurbineForce_numpy(None,None,None)
-            # self.UpdateTurbineForce(simTime, 1) # Single turbine, disk actuator
-            # self.UpdateTurbineForce(simTime, 2) # Dubs
+            # self.UpdateTurbineForce(self.simTime, 1) # Single turbine, disk actuator
+            # self.UpdateTurbineForce(self.simTime, 2) # Dubs
             # t1 = time.time()
             # t2 = time.time()
             # print(t2-t1)
 
-            self.problem.bd.UpdateVelocity(simTime)
+            self.problem.bd.UpdateVelocity(self.simTime)
 
             # Record the "old" max velocity (before this update)
             u_max_k1 = self.problem.u_k.vector().max()
@@ -523,35 +533,39 @@ class UnsteadySolver(GenericSolver):
             u_max = self.problem.u_k.vector().max()
 
             # Update the simulation time
-            simTime += self.problem.dt
+            self.simTime += self.problem.dt
 
             # Update the turbine force
             if self.problem.farm.turbine_method == "alm":
-                new_tf = CalculateActuatorLineTurbineForces(self.problem, simTime)
+                new_tf = CalculateActuatorLineTurbineForces(self.problem, self.simTime)
                 self.problem.tf.assign(new_tf)
 
             if save_next_timestep:
                 # Read in new inlet values
                 # bcu = self.updateInletVelocityFromFile(saveCount, bcu)
                 
-                # Clean up simTime to avoid accumulating round-off error
+                # Clean up self.simTime to avoid accumulating round-off error
                 saveCount += 1
-                simTime = saveInterval*saveCount
+                self.simTime = saveInterval*saveCount
 
                 # Save output files
-                # self.SaveTimeSeries(fp, simTime)
-                self.SaveTimeSeries(simTime)
+                # self.SaveTimeSeries(fp, self.simTime)
+                self.SaveTimeSeries(self.simTime)
 
             # Adjust the timestep size, dt, for a balance of simulation speed and stability
-            save_next_timestep = self.AdjustTimestepSize(save_next_timestep, saveInterval, simTime, u_max, u_max_k1)
+            save_next_timestep = self.AdjustTimestepSize(save_next_timestep, saveInterval, self.simTime, u_max, u_max_k1)
 
             # Calculate the objective function
-            if self.optimizing and simTime >= recordTime and simTime+self.problem.dt <= tFinal:
+            if self.optimizing and self.simTime >= recordTime:
+            # if i == 1:
                 self.J += float(self.problem.dt)*self.objective_func(self,(iter_val-self.problem.dom.init_wind))
                 dt_sum += self.problem.dt 
                 J_new = float(self.J/dt_sum)
                 J_diff = J_new-J_old
                 J_old = J_new
+                if abs(J_diff) <= 0.001:
+                    # tFinal = self.simTime+self.problem.dt
+                    stable = True
                 print("Current Objective Value: "+repr(float(self.J/dt_sum)))
                 print("Change in Objective    : "+repr(float(J_diff)))
 
@@ -561,7 +575,8 @@ class UnsteadySolver(GenericSolver):
             [bc.apply(A1) for bc in self.problem.bd.bcu]
 
             # Print some solver statistics
-            self.fprint("%8.2f | %7.2f | %5.2f" % (simTime, self.problem.dt, u_max))
+            self.fprint("%8.2f | %7.2f | %5.2f" % (self.simTime, self.problem.dt, u_max))
+            i+=1
 
         self.J = self.J/float(dt_sum)
 

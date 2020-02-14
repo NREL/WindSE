@@ -516,10 +516,10 @@ class GenericWindFarm(object):
 
             # compute disk averaged velocity in yawed case and don't project
             self.actuator_disks_list.append(F*T*D*WTGbase)
-            rd  -= F*T*D*WTGbase
-            tf1 -= F*T*D*WTGbase * cos(yaw)**2
-            tf2 -= F*T*D*WTGbase * sin(yaw)**2
-            tf3 -= F*T*D*WTGbase * 2.0 * cos(yaw) * sin(yaw)
+            rd  += -F*T*D*WTGbase
+            tf1 += -F*T*D*WTGbase * cos(yaw)**2
+            tf2 += -F*T*D*WTGbase * sin(yaw)**2
+            tf3 += -F*T*D*WTGbase * 2.0 * cos(yaw) * sin(yaw)
 
             # W=0.02
             # WTGbase2 = Function(fs.V0)
