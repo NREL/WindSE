@@ -115,6 +115,7 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
 
     ### Save Data ###
     np.savetxt(f,[out_data])
+    f.close()
 
     return J
 
