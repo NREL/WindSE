@@ -9,8 +9,10 @@ wind_farm:
 
     # ####################### Imported Wind Farm #######################
     # type: imported                   #                          |
-    # path: Input_Data/wind_farm.txt   # location of wind farm    | -
-    # force: constant                      # radial force distribution| -
+    # path: ./test_wind_data.txt         # location of wind farm    | -
+    # force: constant                  # radial force distribution| -
+    # seed: 8675309                    # random seed for repeats  | -
+    # jitter: 0                        # Randomly perturb turbines| m
     # ###################################################################
 
 

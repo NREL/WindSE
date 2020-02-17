@@ -181,7 +181,7 @@ class Optimizer(object):
         dJdma= compute_gradient(self.J, self.controls)
         # gradient_list = [float(dd) for dd in dJdma] # Gradient given in a list from Fenics
         gradient_list = np.array(dJdma, dtype=np.float)
-        print(gradient_list)
+        # print(gradient_list)
 
         return gradient_list
 
