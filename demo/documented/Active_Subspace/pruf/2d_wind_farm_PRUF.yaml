@@ -1,21 +1,21 @@
 # General options
-general: 
+general:
     name: 2_5D_Wind_Farm_PRUF      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution","eddy_viscosity"]
 
 # Wind Farm Parameters: Uncomment a set to change the type of wind farm
-wind_farm: 
+wind_farm:
 
     ####################### Imported Wind Farm #######################
     type: imported                   #                          |
-    path: Input_Data/pruf_wind_farm.txt   # location of wind farm    | -
+    path: ./pruf_wind_farm.txt   # location of wind farm    | -
     force: constant                      # radial force distribution| -
     ###################################################################
 
 
 # Domain Parameters: Uncomment a set to change domain shape
-domain: 
-    
+domain:
+
     ####################### Rectangle Domain #########################
     type: rectangle                              #|
     x_range: [-1000, 13000] # x-range of the domain | m
@@ -23,10 +23,10 @@ domain:
     nx: 200                # Number of x-nodes     | -
     ny: 200                # Number of y-nodes     | -
     ##################################################################
-    
+
 
     # ########################### Circle Domain #########################
-    # type: circle                                  
+    # type: circle
     # mesh_type: mshr         # squircular, elliptic, stretch
     # radius: 7000            # x-range of the domain | m
     # center: [6500, 5500]      # y-range of the domain | m
