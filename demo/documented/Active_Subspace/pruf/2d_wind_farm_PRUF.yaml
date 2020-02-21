@@ -1,0 +1,61 @@
+# General options
+general: 
+    name: 2_5D_Wind_Farm_PRUF      # Name of the output folder
+    output: ["mesh","initial_guess","height","turbine_force","solution","eddy_viscosity"]
+
+# Wind Farm Parameters: Uncomment a set to change the type of wind farm
+wind_farm: 
+
+    ####################### Imported Wind Farm #######################
+    type: imported                   #                          |
+    path: Input_Data/pruf_wind_farm.txt   # location of wind farm    | -
+    force: constant                      # radial force distribution| -
+    ###################################################################
+
+
+# Domain Parameters: Uncomment a set to change domain shape
+domain: 
+    
+    ####################### Rectangle Domain #########################
+    type: rectangle                              #|
+    x_range: [-1000, 13000] # x-range of the domain | m
+    y_range: [-1000, 12000] # y-range of the domain | m
+    nx: 200                # Number of x-nodes     | -
+    ny: 200                # Number of y-nodes     | -
+    ##################################################################
+    
+
+    # ########################### Circle Domain #########################
+    # type: circle                                  
+    # mesh_type: mshr         # squircular, elliptic, stretch
+    # radius: 7000            # x-range of the domain | m
+    # center: [6500, 5500]      # y-range of the domain | m
+    # nt: 150                  # segments around circle| -
+    # res: 150                 # resolution for mshr   | -
+    # ###################################################################
+
+
+
+refine:
+    #                      # Description                  | Units
+    turbine_num: 2         # number of turbine refinements| -
+    turbine_factor: 2   # turbine radius multiplier    | -
+
+function_space:
+    type: taylor_hood
+
+boundary_condition:
+    vel_profile: uniform
+    max_vel: 8.0
+
+problem:
+    use_25d_model: True
+    type: taylor_hood
+    viscosity: .01
+    lmax: 50
+
+solver:
+    nonlinear_solver: newton
+    newton_relaxation: 0.9
+    type: steady
+    save_power: true
