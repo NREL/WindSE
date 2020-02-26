@@ -24,26 +24,14 @@ def run_driver(params_loc=None):
     else:
         raise NameError("paramters doesn't contain any optimization options")
 
-def run_model(params_loc=None):
-    params = initialize_analysis(params_loc=params_loc)
+def run_model(params_loc=None, comm=None):
+    params = initialize_analysis(params_loc=params_loc, comm=comm)
     problem = setup_problem(params)
-    # print('\n\n type problem :', type(problem), '\n')
     solver = solve_problem(params, problem)
-    # print('\n\n type problem :', type(problem), '\n')
 
     return params, problem, solver
 
-def initialize_analysis(params_loc=None):
-    # ### unload windse if previously loaded ###
-    # if "windse" in sys.modules.keys():
-    #     del sys.modules["windse"]
-    #     mods_to_remove = []
-    #     for k in sys.modules.keys():
-    #         if "windse." in k:
-    #             mods_to_remove.append(k)
-    #     for i in range(len(mods_to_remove)):
-    #         del sys.modules[mods_to_remove[i]]
-    # import windse
+def initialize_analysis(params_loc=None, comm=None):
 
     # You need to parse the YAML file before initializing WindSE
     parser = argparse.ArgumentParser(usage="windse run [options] params", formatter_class=argparse.RawTextHelpFormatter)
@@ -62,6 +50,11 @@ def initialize_analysis(params_loc=None):
 
     ### Initialize WindSE ###
     windse.initialize(params_loc,updated_parameters=args.updated_parameters)
+    if comm is None:
+        pass
+    else:
+        windse.windse_parameters['comm'] = comm
+
     params=windse.windse_parameters
 
     return params
