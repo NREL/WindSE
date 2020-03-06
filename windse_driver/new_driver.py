@@ -1,3 +1,6 @@
+# This file essentially splits up the old driver.py into smaller functions for
+# greater granularity and control.
+
 import sys
 import numpy as np
 import time
