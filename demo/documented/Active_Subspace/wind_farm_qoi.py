@@ -1,7 +1,8 @@
+import warnings
 import numpy as np
 from pystatreduce.quantity_of_interest import QuantityOfInterest
 import windse
-from windse_driver.new_driver import run_driver, run_model
+from windse_driver.new_driver import run_driver, run_model, initialize_analysis, setup_problem, solve_problem
 
 # Plotting specific imports - Temporary
 from mpl_toolkits import mplot3d
@@ -11,15 +12,27 @@ import matplotlib.pyplot as plt
 np.set_printoptions(linewidth=150)
 
 class WindFarm(QuantityOfInterest):
-    def __init__(self, systemsize, param_file):
+    def __init__(self, systemsize, param_file, initial_solve=True, mpi_comm=None):
         QuantityOfInterest.__init__(self, systemsize)
 
         # Construct the WindSE problem
-        self.windse_params, self.windse_problem, self.windse_solver = run_model(params_loc=param_file)
+        self.initial_solve = initial_solve
+        if self.initial_solve:
+            self.windse_params, self.windse_problem, self.windse_solver = run_model(params_loc=param_file, comm=mpi_comm)
+        else:
+            warnings.warn("The solver object has not been created. This QoI is a compatibility object cannot be used for function evaluation")
+            self.windse_params = initialize_analysis(params_loc=param_file, comm=None)
+            self.windse_problem = setup_problem(self.windse_params)
+
         assert self.systemsize == self.windse_problem.farm.numturbs
 
-        # Create the WindSE optimization object
-        self.windse_opt = windse.Optimizer(self.windse_solver)
+        if hasattr(self, 'windse_solver'):
+            self.windse_opt = windse.Optimizer(self.windse_solver)
+        else:
+            pass
+
+        # # Create the WindSE optimization object
+        # self.windse_opt = windse.Optimizer(self.windse_solver)
 
 
     def eval_QoI(self, mu, xi):
@@ -52,15 +65,25 @@ class WindFarm(QuantityOfInterest):
         plt.tight_layout()
         plt.show()
 
+    def create_solver_object(self):
+        if hasattr(self, 'windse_solver'):
+            pass
+        else:
+            self.windse_solver = solve_problem(self.windse_params, self.windse_problem)
+            self.windse_opt = windse.Optimizer(self.windse_solver) # You need this to compute gradients
+
+
 if __name__ == '__main__':
 
-    params_file = "./2d_wind_farm_induction_factor_opt.yaml"
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    params_file = "./3x3/2d_wind_farm_induction_factor_opt.yaml"
+    # params_file = "./pruf/2d_wind_farm_PRUF.yaml"
     n_turbines = 9
-    windfarm = WindFarm(n_turbines, params_file)
+    windfarm = WindFarm(n_turbines, params_file, mpi_comm=comm)
 
-    windfarm.plot_eigenmodes(np.ones(n_turbines))
+    # windfarm.plot_eigenmodes(np.ones(n_turbines))
 
-    """
     rv_val = 0.25*np.ones(n_turbines)
     fval = windfarm.eval_QoI(rv_val, np.zeros(n_turbines))
 
@@ -69,4 +92,3 @@ if __name__ == '__main__':
     # Print it
     print('fval = ', fval)
     print('grad_val = \n', grad_val)
-    """

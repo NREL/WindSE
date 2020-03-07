@@ -1,3 +1,8 @@
+# This file creates *.txt files with wind farm information that can then be
+# loaded through a *.yaml file to recreate wind farms. In this file this is done
+# to create samples for the active subspace method implementation where samples
+# from a joint distribution are used to to create these text files.
+
 import numpy as np
 import chaospy as cp
 import windse

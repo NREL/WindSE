@@ -10,8 +10,16 @@ loop_upper_bound=$(($nsamples-1))
 echo $loop_upper_bound
 for i in $(seq 0 $loop_upper_bound)
 do
-  txt_fname="windfarm_pruf_${distribution_type}_$i.txt" # construct filename for the windfarm txt
+  eagle_directory=/projects/uqpwrsys/kpanda/windfarm_files/ # Directory where the windfarm txts are stored
+  txt_fname="${eagle_directory}windfarm_pruf_${distribution_type}_$i.txt" # construct filename for the windfarm txt
   yaml_fname="${output_directory}2d_wind_farm_PRUF_${distribution_type}_$i.yaml" # construct the yaml fname
+  case_name="2_5D_Wind_Farm_PRUF_${i}"
+  # echo $txt_fname $case_name
   cp 2d_wind_farm_PRUF.yaml $yaml_fname # duplicate the pristine yaml file
-  sed -i "" "11 s/pruf_wind_farm.txt/$txt_fname/" "$yaml_fname"
+  sed -i "" "3 s/2_5D_Wind_Farm_PRUF/${case_name}/" "$yaml_fname"
+  sed -i "" "13 s~pruf_wind_farm.txt~${txt_fname}~" "$yaml_fname"
 done
+
+cd ./yaml_files/
+tar -czf windfarm_PRUF_uniform_yamls.tar.gz ./*.yaml
+cd ../
