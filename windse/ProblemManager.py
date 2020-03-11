@@ -66,7 +66,7 @@ class GenericProblem(object):
             self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
 
         elif self.farm.turbine_method == 'alm':
-            self.rpm = 12
+            self.rpm = self.params["wind_farm"]["rpm"]
             self.num_blade_segments = 10
             self.mcl = []
             self.mcd = []
@@ -412,6 +412,8 @@ class UnsteadyProblem(GenericProblem):
         # self.tf = Function(self.fs.V)
 
         self.tf = self.ComputeTurbineForce(self.u_k,theta)
+        self.u_k.assign(self.tf)
+        self.u_k.assign(self.bd.bc_velocity)
 
 
         # self.u_k2.vector()[:] = 0.0

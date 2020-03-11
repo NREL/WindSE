@@ -351,8 +351,8 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
 
     # Width of Gaussian
     # eps = 2.5*c
-    # eps = 2.0*problem.dom.mesh.hmin()/np.sqrt(3)
-    eps = 0.5*problem.dom.mesh.hmin()
+    eps = 2.0*problem.dom.mesh.hmin()/np.sqrt(3)
+    # eps = 0.5*problem.dom.mesh.hmin()
     # eps = c/4.3
     # print('eps:', eps)
 

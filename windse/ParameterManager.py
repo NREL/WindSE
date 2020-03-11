@@ -97,6 +97,7 @@ class Parameters(dict):
 
         ### Create Instances of the general options ###
         self.name = self["general"].get("name", "Test")
+        self.output_folder = self["general"].get("output_folder", "output/")
         self.preappend_datetime = self["general"].get("preappend_datetime", False)
         self.output_type = self["general"].get("output_type", "pvd")
         self.dolfin_adjoint = self["general"].get("dolfin_adjoint", False)
@@ -110,7 +111,7 @@ class Parameters(dict):
         if self.preappend_datetime:
             self.name = timestamp+"-"+self.name
             self["general"]["name"]=self.name
-        self.folder = "output/"+self.name+"/"
+        self.folder = self.output_folder+self.name+"/"
         self["general"]["folder"] = self.folder
 
         ### Make sure folder exists ###

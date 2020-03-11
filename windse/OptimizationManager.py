@@ -77,6 +77,7 @@ class Optimizer(object):
         self.fprint("Define Optimizing Functional")
         self.J = self.solver.J
         self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
+
         self.Jcurrent = self.J
 
         self.fprint("Number of Controls: {:d}".format(len(self.controls)),special="header")
