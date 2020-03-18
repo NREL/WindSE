@@ -7,8 +7,11 @@ import __main__
 import os
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
-
+if hasattr(__main__,"__file__"):
+    main_file = os.path.basename(__main__.__file__)
+else:
+    main_file = "ipython"
+    
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
     from dolfin import *
