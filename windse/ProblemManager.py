@@ -16,7 +16,7 @@ if main_file != "sphinx-build":
     import time
 
     ### Import the cumulative parameters ###
-    from windse import windse_parameters
+    from windse import windse_parameters, CalculateActuatorLineTurbineForces
     # from memory_profiler import memory_usage
 
     ### Check if we need dolfin_adjoint ###
@@ -47,7 +47,7 @@ class GenericProblem(object):
         for key, value in self.params["problem"].items():
             setattr(self,key,value)
 
-    def ComputeTurbineForce(self,u,theta):
+    def ComputeTurbineForce(self,u,theta,simTime=0.0):
 
         ### Compute the relative yaw angle ###
         if theta is not None:
@@ -56,16 +56,42 @@ class GenericProblem(object):
             inflow_angle = 0.0
 
         ### Create the turbine force function ###
+<<<<<<< HEAD
         if self.fs.turbine_method == "dolfin":
                 self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
 
         elif self.fs.turbine_method == "numpy":
                 self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+=======
+        if self.farm.turbine_method == "dolfin":
+            self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+
+        elif self.farm.turbine_method == "numpy":
+            self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+
+        elif self.farm.turbine_method == 'alm':
+            self.rpm = self.params["wind_farm"]["rpm"]
+            self.num_blade_segments = 10
+            self.mcl = []
+            self.mcd = []
+
+            # cl = np.linspace(0.0, 2.0, self.num_blade_segments)
+            # cd = np.linspace(2.0, 0.0, self.num_blade_segments)
+            cl = np.ones(self.num_blade_segments)
+            cd = np.ones(self.num_blade_segments)
+
+            for k in range(self.num_blade_segments):
+                self.mcl.append(Constant(cl[k]))
+                self.mcd.append(Constant(cd[k]))
+            tf = CalculateActuatorLineTurbineForces(self, simTime)
+
+>>>>>>> dev_alm
         else:
             raise ValueError("Unknown turbine method: "+self.farm.turbine_method)
         
         ### Convolve TF with u ###
-        tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
+        if self.farm.turbine_method != 'alm':
+            tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
 
         return tf
 
@@ -96,6 +122,18 @@ class GenericProblem(object):
         adj_stop = time.time()
         self.fprint("Wind Speed Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")
 
+    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None):
+
+        if c_lift is not None:
+            cl = np.array(c_lift, dtype = float)
+        if c_drag is not None:
+            cd = np.array(c_drag, dtype = float)
+
+        for k in range(self.num_blade_segments):
+            self.mcl[k] = Constant(cl[k])
+            self.mcd[k] = Constant(cd[k])
+
+
 class StabilizedProblem(GenericProblem):
     """
     The StabilizedProblem setup everything required for solving Navier-Stokes with 
@@ -118,8 +156,8 @@ class StabilizedProblem(GenericProblem):
         self.fprint("Setting Up Stabilized Problem",special="header")
 
         ### Create the test/trial/functions ###
-        self.up_next = Function(self.fs.W)
-        self.u_next,self.p_next = split(self.up_next)
+        self.up_k = Function(self.fs.W)
+        self.u_k,self.p_k = split(self.up_k)
         v,q = TestFunctions(self.fs.W)
 
         ### Set the x scaling ###
@@ -127,14 +165,12 @@ class StabilizedProblem(GenericProblem):
 
         ### Set the initial guess ###
         ### (this will become a separate function.)
-        self.up_next.assign(self.bd.u0)
-
-        ### Create the turbine force ###
+        self.up_k.assign(self.bd.u0)
 
         # mem0=memory_usage()[0]
-        # mem_out, self.tf = memory_usage((self.ComputeTurbineForce,(self.u_next,theta),{}),max_usage=True,retval=True,max_iterations=1)
+        # mem_out, self.tf = memory_usage((self.ComputeTurbineForce,(self.u_k,theta),{}),max_usage=True,retval=True,max_iterations=1)
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
-        self.tf = self.ComputeTurbineForce(self.u_next,theta)
+        self.tf = self.ComputeTurbineForce(self.u_k,theta)
 
         ### These constants will be moved into the params file ###
         f = Constant((0.0,)*self.dom.dim)
@@ -149,7 +185,7 @@ class StabilizedProblem(GenericProblem):
         self.fprint("Stabilization Coefficient: {:1.2e}".format(float(eps)))
 
         ### Calculate the stresses and viscosities ###
-        S = sqrt(2*inner(0.5*(grad(self.u_next)+grad(self.u_next).T),0.5*(grad(self.u_next)+grad(self.u_next).T)))
+        S = sqrt(2*inner(0.5*(grad(self.u_k)+grad(self.u_k).T),0.5*(grad(self.u_k)+grad(self.u_k).T)))
 
         ### Create l_mix based on distance to the ground ###
         if self.dom.dim == 3:
@@ -166,8 +202,9 @@ class StabilizedProblem(GenericProblem):
 
         ### Create the functional ###
         # if self.farm.yaw[0]**2 > 1e-4:
-        #     self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+        #     self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
         # else :
+<<<<<<< HEAD
         # self.F = inner(grad(self.u_next)*self.u_next, v)*dx + Sx*Sx*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx# + inner(self.tf,v)*dx 
         self.F = inner(grad(self.u_next)*self.u_next, v)*dx + Sx*Sx*(self.viscosity+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
         # self.F_sans_tf =  (1.0)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx
@@ -178,6 +215,17 @@ class StabilizedProblem(GenericProblem):
         stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
         # stab_sans_tf = - eps*inner(grad(q), grad(self.p_next))*dx 
 
+=======
+        # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx# + inner(self.tf,v)*dx 
+        self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+        # self.F_sans_tf =  (1.0)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx
+        # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_k[0]**2+self.u_k[1]**2),v)*dx 
+
+        ### Add in the Stabilizing term ###
+        # stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
+        stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
+        # stab_sans_tf = - eps*inner(grad(q), grad(self.p_k))*dx 
+>>>>>>> dev_alm
         self.F += stab
         # self.F_sans_tf += stab
 
@@ -224,16 +272,16 @@ class TaylorHoodProblem(GenericProblem):
         self.fprint("Max Mixing Length: {:1.2e}".format(float(self.lmax)))
 
         ### Create the test/trial/functions ###
-        self.up_next = Function(self.fs.W)
-        self.u_next,self.p_next = split(self.up_next)
+        self.up_k = Function(self.fs.W)
+        self.u_k,self.p_k = split(self.up_k)
         v,q = TestFunctions(self.fs.W)
 
         ### Set the initial guess ###
         ### (this will become a separate function.)
-        self.up_next.assign(self.bd.u0)
+        self.up_k.assign(self.bd.u0)
 
         ### Calculate the stresses and viscosities ###
-        S = sqrt(2.*inner(0.5*(grad(self.u_next)+grad(self.u_next).T),0.5*(grad(self.u_next)+grad(self.u_next).T)))
+        S = sqrt(2.*inner(0.5*(grad(self.u_k)+grad(self.u_k).T),0.5*(grad(self.u_k)+grad(self.u_k).T)))
 
         ### Create l_mix based on distance to the ground ###
         if self.dom.dim == 3:
@@ -247,9 +295,14 @@ class TaylorHoodProblem(GenericProblem):
         self.nu_T=l_mix**2.*S
 
         ### Create the turbine force ###
-        self.tf = self.ComputeTurbineForce(self.u_next,theta)
+        self.tf = self.ComputeTurbineForce(self.u_k,theta)
+
+        self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+
+        use_25d_model = True
 
         ### Create the functional ###
+<<<<<<< HEAD
         self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (self.viscosity+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
     
         if self.use_25d_model:
@@ -259,12 +312,29 @@ class TaylorHoodProblem(GenericProblem):
             self.fprint("Using 2.5D model")
             dudx = Dx(self.u_next[0], 0)
             dvdy = Dx(self.u_next[1], 1)
+=======
+        if use_25d_model:
+            # ugrad = grad(self.u_k)
+
+            # yaw = np.pi/8
+            # dvdy = as_matrix([[sin(yaw)*ugrad[0, 0],           0],
+            #                   [          0, cos(yaw)*ugrad[1, 1]]])
+
+            # print(type(dvdy))
+            # print(dir(dvdy))
+            # print(dvdy)
+
+            dudx = Dx(self.u_k[0], 0)
+            dvdy = Dx(self.u_k[1], 1)
+>>>>>>> dev_alm
 
             term25 = (sin(self.dom.init_wind)*dudx*q + cos(self.dom.init_wind)*dvdy*q)*dx
 
             self.F -= term25
 
         self.fprint("Taylor-Hood Problem Setup",special="footer")
+
+# ================================================================
 
 class UnsteadyProblem(GenericProblem):
     """
@@ -297,6 +367,7 @@ class UnsteadyProblem(GenericProblem):
         # Define time step size (this value is used only for step 1 if adaptive timestepping is used)
         # FIXME: change variable name to avoid confusion within dolfin adjoint
         self.dt = 0.1*self.dom.mesh.hmin()/self.bd.HH_vel
+        # self.dt = 0.04
         self.dt_c  = Constant(self.dt)
 
         self.fprint("Viscosity: {:1.2e}".format(float(self.viscosity)))
@@ -319,6 +390,7 @@ class UnsteadyProblem(GenericProblem):
         self.u_k2 = Function(self.fs.V)
 
         # Seed previous velocity fields with the chosen initial condition
+        self.u_k.assign(self.bd.bc_velocity)
         self.u_k1.assign(self.bd.bc_velocity)
         self.u_k2.assign(self.bd.bc_velocity)
 
@@ -364,31 +436,39 @@ class UnsteadyProblem(GenericProblem):
 
         # ================================================================
 
-        # FIXME: This up_next function is only present to avoid errors  
+        # FIXME: This up_k function is only present to avoid errors  
         # during assignments in GenericSolver.__init__
 
         # Create the combined function space
-        self.up_next = Function(self.fs.W)
+        self.up_k = Function(self.fs.W)
 
         # Create the turbine force
         # FIXME: Should this be set by a numpy array operation or a fenics function?
         # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
         # self.tf = Function(self.fs.V)
+
         self.tf = self.ComputeTurbineForce(self.u_k,theta)
+        self.u_k.assign(self.tf)
+        self.u_k.assign(self.bd.bc_velocity)
 
 
         # self.u_k2.vector()[:] = 0.0
         # self.u_k1.vector()[:] = 0.0
 
-
         # ================================================================
 
         # Define variational problem for step 1: tentative velocity
+        # F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
+        #    + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
+        #    + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
+        #    + dot(nabla_grad(self.p_k1), v)*dx \
+        #    - dot(-self.tf, v)*dx
+
         F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
            + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
            + dot(nabla_grad(self.p_k1), v)*dx \
-           - dot(-self.tf, v)*dx
+           - dot(self.tf, v)*dx
 
         self.a1 = lhs(F1)
         self.L1 = rhs(F1)
@@ -404,3 +484,19 @@ class UnsteadyProblem(GenericProblem):
         # ================================================================
 
         self.fprint("Unsteady Problem Setup",special="footer")
+
+# # ================================================================
+
+#     def UpdateActuatorLineControls(self, c_lift = None, c_drag = None):
+
+#         if c_lift is not None:
+#             cl = np.array(c_lift, dtype = float)
+#         if c_drag is not None:
+#             cd = np.array(c_drag, dtype = float)
+
+#         for k in range(self.num_blade_segments):
+#             self.mcl[k] = Constant(cl[k])
+#             self.mcd[k] = Constant(cd[k])
+
+# # ================================================================
+

@@ -136,7 +136,6 @@ class Parameters(dict):
             if not yaml_file["general"].get("dolfin_adjoint"):
                 raise ValueError("Optimization options given, but general:dolfin_ajdoint is set to False")
 
-
         ### Set the parameters ###
         self.update(self.NestedUpdate(yaml_file))
 
@@ -150,7 +149,7 @@ class Parameters(dict):
         if self.preappend_datetime:
             self.name = timestamp+"-"+self.name
             self["general"]["name"]=self.name
-        self.folder = "output/"+self.name+"/"
+        self.folder = self.output_folder+self.name+"/"
         self["general"]["folder"] = self.folder
 
         ### Make sure folder exists ###

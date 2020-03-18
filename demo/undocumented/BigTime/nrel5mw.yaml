@@ -1,0 +1,83 @@
+# General options
+general: 
+    # name: "actuator_yaw_15rpm_linear_analytical"       # Name of the output folder
+    name: "nrel5mw_der_thick_u11.4_RD5e_v0.1_s12_2mmm_tipspeed"
+    preappend_datetime: false  # Place the date and time before the folder name
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: True
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                     # Description              | Units
+    type: imported        #                          |
+    path: nrel5mw.txt   # location of wind farm    | -
+    turbine_method: "alm"
+    rpm: 12.0
+
+# Domain Constants for a Box Domain
+domain: 
+    #                      # Description           | Units
+    type: box              #                       |
+    # x_range: [-135, 270]  # x-range of the domain | m
+    # y_range: [-135, 135]  # y-range of the domain | m
+    # z_range: [0.04, 200]  # z-range of the domain | m
+    # x_range: [-378, 80]    # [-3D, 7D]  # x-range of the domain | m
+    x_range: [-378, 630]    # [-3D, 7D]  # x-range of the domain | m
+    y_range: [-378, 378]    # [-3D, 3D]  # y-range of the domain | m
+    z_range: [0.04, 450]    # [  0, 5D]  # z-range of the domain | m
+    nx: 25 #54                # Number of x-nodes     | - old: 30 UltraCoarse: 15
+    ny: 15 # 32                # Number of y-nodes     | - old: 30
+    nz: 10 # 40                # Number of z-nodes     | - old: 12
+
+refine:
+    #                      # Description                  | Units
+    warp_type: "split"
+    warp_percent: 0.85     # percent of cells moved       | -
+    warp_height: 200        # move cell below this value   | m
+    # refine_custom: [
+    #     [1,custom,[[-168,882],[-168,168],[0,258]]],
+    #     [1,custom,[[-84,882],[-84,84],[6,174]]]
+
+    # ]
+    turbine_num: 2 #1         # number of turbine refinements| -
+    turbine_factor: 1.33    # turbine radius multiplier    | -
+    # the "0" in the wake refinement block is what determines
+    # model fidelity in the problems I ran
+    # uultracoarse, ~4 sec, 5740 DoF
+    # ultracoarse, ~10 sec, 20076 DoF
+    # 0 - coarse, ~30-55 sec, 38144 DoF 
+    # 1 - medium, ~110-115 sec, 102552 DoF
+    # 2 - fine, ~1484-1760 sec, 548920 DoF
+    # refine_custom: [
+    #   [1, custom, [[-54.0, 189.0], [-54.0, 54.0], [0, 60]]],
+     # # [1, custom, [[-25.0, 25.0], [-25.0, 25.0], [0, 45.0]]]
+    # ]
+
+function_space:
+    type: linear
+    # type: taylor_hood
+
+boundary_condition:
+    vel_profile: log
+    HH_vel: 11.4
+    k: 0.4
+
+problem:
+    type: unsteady
+    viscosity: 0.1
+    # viscosity: 0.000018
+ 
+solver:
+    type: unsteady
+    final_time: 200
+    record_time: 100
+    save_interval: 0.5
+
+optimization:
+    controls: [lift, drag]
+    objective_type: wake_deflection
+    wake_RD: 5 
+    min_total: 0
+    taylor_test: True
+    optimize: False
+    gradient: False

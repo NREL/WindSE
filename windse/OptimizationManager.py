@@ -85,21 +85,10 @@ class Optimizer(object):
         self.get_minimum_distance_constraint_func(self.controls, 2*np.mean(self.problem.farm.HH))
 
         self.fprint("Define Optimizing Functional")
-        if self.solver.J:
-            self.J = assemble(self.solver.J)
-            test = Constant(self.J)
-            test.rename("J","J")
-            self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
+        self.J = self.solver.J
+        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
 
-            # print(dir(self.J))
-            # print(dir(self.Jhat))
-            # tape = get_working_tape()
-            # tape.visualise()
-            # exit()
-
-            self.Jcurrent = self.J
-        else:
-            self.PowerFunctional()
+        self.Jcurrent = self.J
 
         self.fprint("Number of Controls: {:d}".format(len(self.controls)),special="header")
         self.OptPrintFunction(self.init_vals)
@@ -114,7 +103,7 @@ class Optimizer(object):
     def CreateControls(self):
         self.controls = []
         self.names = []
-        self.indexes = [[],[],[],[]]
+        self.indexes = [[],[],[],[],[],[]]
         self.init_vals = []
         j = 0
         if "layout" in self.control_types:
@@ -147,6 +136,22 @@ class Optimizer(object):
                 self.controls.append(Control(self.farm.ma[i]))
                 self.init_vals.append(self.farm.ma[i])
 
+        if "lift" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                self.indexes[4].append(j)
+                j+=1
+                self.names.append("lift_"+repr(i))
+                self.controls.append(Control(self.problem.mcl[i]))
+                self.init_vals.append(self.problem.mcl[i])
+
+        if "drag" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                self.indexes[5].append(j)
+                j+=1
+                self.names.append("drag_"+repr(i))
+                self.controls.append(Control(self.problem.mcd[i]))
+                self.init_vals.append(self.problem.mcl[i])
+
     def CreateBounds(self):
         lower_bounds = []
         upper_bounds = []
@@ -168,45 +173,50 @@ class Optimizer(object):
                 lower_bounds.append(Constant(0))
                 upper_bounds.append(Constant(1.))
 
+        if "lift" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                lower_bounds.append(Constant(0))
+                upper_bounds.append(Constant(2.))
+
+        if "drag" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                lower_bounds.append(Constant(0))
+                upper_bounds.append(Constant(2.))
+
         self.bounds = [lower_bounds,upper_bounds]
-
-    # def PowerFunctional(self):
-    #     """
-    #     Creates the power functional that will be optimized
-
-    #     Args:
-    #         tf (dolfin.Function): Turbine Force function
-    #         u (dolfin.Function): Velocity vector.
-    #     """
-    #     #how to handle rotation?
-    #     self.J = assemble(-(dot(self.problem.tf,self.solver.u_next))*dx)
-    #     self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback) 
-    #     self.Jcurrent = self.J
 
     def Gradient(self):
         """
         Returns a gradient of the objective function
         """
-        dJdma= compute_gradient(self.J, self.controls)
-        # print([float(dd) for dd in dJdma])
-        for dd in dJdma:
-            print(float(dd))
-
+        mem0=memory_usage()[0]
+        tick = time.time()
+        mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True,max_iterations=1)
+        for i, d in enumerate(der):
+            self.fprint("dJd"+self.names[i] +": " +repr(float(d)))
+        tock = time.time()
+        self.fprint("Time Elapsed: {:1.2f} s".format(tock-tick))
+        self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
 
     def ListControls(self,m):
-        if "layout" in self.control_types:
-            for i in range(self.farm.numturbs):
-                self.fprint("Location Turbine {0:} of {1:}: {2: 4.2f}, {3: 4.2f}".format(i+1,self.farm.numturbs,self.farm.x[i],self.farm.y[i]))
 
-        if "yaw" in self.control_types:
-            for i in range(self.farm.numturbs):
-                self.fprint("Yaw Turbine {0:} of {1:}: {2: 4.6f}".format(i+1,self.farm.numturbs,self.farm.yaw[i]))
+        self.fprint("Current Objective Value: " + repr(float(self.Jcurrent)))
+
+        # if "layout" in self.control_types:
+        #     for i in range(self.farm.numturbs):
+        #         self.fprint("Location Turbine {0:} of {1:}: {2: 4.2f}, {3: 4.2f}".format(i+1,self.farm.numturbs,self.farm.x[i],self.farm.y[i]))
+
+        # if "yaw" in self.control_types:
+        #     for i in range(self.farm.numturbs):
+        #         self.fprint("Yaw Turbine {0:} of {1:}: {2: 4.6f}".format(i+1,self.farm.numturbs,self.farm.yaw[i]))
+
+        for i, val in enumerate(m):
+            self.fprint(self.names[i] +": " +repr(float(val)))
 
     def SaveControls(self,m):
 
         folder_string = self.params.folder+"/data/"
         if not os.path.exists(folder_string): os.makedirs(folder_string)
-
 
         new_values = {}
         m_f = np.array(m,dtype=float)
@@ -240,26 +250,6 @@ class Optimizer(object):
         f.close()
 
     def OptPrintFunction(self,m):
-        # tape = get_working_tape()
-        # tape.visualise()
-        # exit()
-
-
-
-        # mem0=memory_usage()[0]
-        # tick = time.time()
-        # mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True,max_iterations=1)
-        # for d in der:
-        #     print(float(d))
-        # tock = time.time()
-        # self.fprint("Time Elapsed: {:1.2f} s".format(tock-tick))
-        # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
-        # exit()
-
-        # exit()
-        # if "layout" in self.control_types:
-        #     self.PlotLayout(m,show=False)
-
         self.SaveControls(m)
         self.ListControls(m)
 
@@ -309,7 +299,7 @@ class Optimizer(object):
 
         h = []
         for i,c in enumerate(self.controls):
-            h.append(Constant(0.01*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
+            h.append(Constant(1*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
 
         conv_rate = taylor_test(self.Jhat, self.init_vals, h)
 

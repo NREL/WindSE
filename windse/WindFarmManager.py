@@ -310,7 +310,7 @@ class GenericWindFarm(object):
             cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
 
 
-            expand_turbine_radius = False
+            expand_turbine_radius = True
 
             if expand_turbine_radius:
                 radius = (num-i)*radius_multiplyer*np.array(self.RD)/2.0
@@ -349,8 +349,14 @@ class GenericWindFarm(object):
                     y = np.tile(y,(n,1))
 
                 ### For each turbine, find which vertex is closet using squared distance
-                min_r = np.min(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)
-
+                force_cylindrical_refinement = True
+                
+                if force_cylindrical_refinement:
+                    d_y = pt[1]
+                    d_z = pt[2] - self.HH[0]
+                    min_r = d_y**2 + d_z**2
+                else:
+                    min_r = np.min(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)
 
                 downstream_teardrop_shape = False
 
@@ -364,9 +370,12 @@ class GenericWindFarm(object):
                         min_r = np.min(np.power(turb_x-x*2.0,2.0)+np.power(turb_y-y,2.0),axis=1)
 
 
-                in_circle = min_r<=radius**2.0
+                in_circle = min_r <= radius**2.0
                 if self.dom.dim == 3:
-                    in_z = np.logical_and(turb_z0 <= max(z), turb_z1 >= min(z))
+                    if force_cylindrical_refinement:
+                        in_z = -radius < pt[0]
+                    else:
+                        in_z = np.logical_and(turb_z0 <= max(z), turb_z1 >= min(z))
                     near_turbine = np.logical_and(in_circle, in_z)
                 else:
                     near_turbine = in_circle
@@ -390,7 +399,7 @@ class GenericWindFarm(object):
         This function yaws the turbines when creating the turbine force.
 
         Args:
-            x (dolfin.SpacialCoordinate): the space variable, x
+            x (dolfin.SpatialCoordinate): the space variable, x
             x0 (list): the location of the turbine to be yawed
             yaw (float): the yaw value in radians
         """
@@ -513,8 +522,8 @@ class GenericWindFarm(object):
 
             ### Calculate normalization constant ###
             volNormalization = T_norm*D_norm*W*R**(self.dom.dim-1)
-            volNormalization_a = assemble(T*D*dx)
-            print(volNormalization_a,volNormalization)#,volNormalization/(W*R**(self.dom.dim-1)),T_norm*D_norm)
+            # volNormalization_a = assemble(T*D*dx)
+            # print(volNormalization_a,volNormalization)#,volNormalization/(W*R**(self.dom.dim-1)),T_norm*D_norm)
 
             # compute disk averaged velocity in yawed case and don't project
             self.actuator_disks_list.append(F*T*D*WTGbase/volNormalization)
@@ -522,7 +531,6 @@ class GenericWindFarm(object):
             tf1 += F*T*D*WTGbase/volNormalization * cos(yaw)**2
             tf2 += F*T*D*WTGbase/volNormalization * sin(yaw)**2
             tf3 += F*T*D*WTGbase/volNormalization * 2.0 * cos(yaw) * sin(yaw)
-        # exit()
 
         ### Save the actuator disks for post processing ###
         self.fprint("Projecting Turbine Force")
