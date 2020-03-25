@@ -185,119 +185,283 @@ class GenericDomain(object):
             if self.boundary_subdomains[i] is not None:
                 self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
 
-    def Refine(self,num,region=None,region_type=None,cell_markers=None):
-        """
-        This function can be used to refine the mesh. If a region is
-        specified, the refinement is local
-
-        Args:
-            num (int): the number of times to refine
-
-        :Keyword Arguments:
-            * **region** (*list*): 
-                                for square region use: [[xmin,xmax],[ymin,ymax],[zmin,zmax]]
-                                for circle region use: [[radius],[c_x,c_y],[zmin,zmax]]
-            * **region_type** (*str*): Either "circle" or "square" 
-            * **cell_markers** (*:meth:dolfin.mesh.MeshFunction*): A cell function marking which cells to refine 
-        """
+    def BoxRefine(self,region,expand_factor=1):
         refine_start = time.time()
 
-        ### Print some useful stats 
-        self.fprint("Starting Mesh Refinement",special="header")
-        if cell_markers is not None:
-            self.fprint("Region Type: {0}".format("cell_markers"))
-        elif region is not None:
-            self.fprint("Region Type: {0}".format(region_type))
-            if "circle" in region_type:
-                self.fprint("Circle Radius: {:.2f}".format(region[0][0]/self.xscale))
-                self.fprint("Circle Center: ({:.2f}, {:.2f})".format(region[1][0]/self.xscale,region[1][1]/self.xscale))
-                if self.dim == 3:
-                    self.fprint("Z Range:       [{:.2f}, {:.2f}]".format(region[2][0]/self.xscale,region[2][1]/self.xscale))
+        ### Calculate Expanded Region ###
+        x0, x1 = region[0]
+        y0, y1 = region[1]
+        ex = (expand_factor-1)*(x1-x0)/2.0
+        ey = (expand_factor-1)*(y1-y0)/2.0
+        en = min(ex,ey)
+        x0, x1 = x0-en, x1+en
+        y0, y1 = y0-en, y1+en
+        if self.dim == 3:
+            z0, z1 = region[2]
+            ez = (expand_factor-1)*(z1-z0)/2.0
+            z0, z1 = z0-ez, z1+ez
+
+        ### Print Region
+        self.fprint("Starting Box Refinement",special="header")
+        self.fprint("X Range: [{: .2f}, {: .2f}]".format(x0/self.xscale,x1/self.xscale))
+        self.fprint("Y Range: [{: .2f}, {: .2f}]".format(y0/self.xscale,y1/self.xscale))
+        if self.dim == 3:
+            self.fprint("Z Range: [{: .2f}, {: .2f}]".format(z0/self.xscale,z1/self.xscale))
+
+        ### Create cell markers ###
+        self.fprint("Marking Cells")
+        cell_f = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
+        for cell in cells(self.mesh):
+            in_square = between(cell.midpoint()[0],(x0,x1)) and between(cell.midpoint()[1],(y0,y1))
+            if self.dim == 3:
+                # g_z = 0.0#self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
+                g_z = self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
+                in_z = between(cell.midpoint()[2],(z0,z1+g_z))
+                in_region = in_square and in_z
             else:
-                self.fprint("X Range: [{: .2f}, {: .2f}]".format(region[0][0]/self.xscale,region[0][1]/self.xscale))
-                self.fprint("Y Range: [{: .2f}, {: .2f}]".format(region[1][0]/self.xscale,region[1][1]/self.xscale))
-                if self.dim == 3:
-                    self.fprint("Z Range: [{: .2f}, {: .2f}]".format(region[2][0]/self.xscale,region[2][1]/self.xscale))
-        else:
-            self.fprint("Region Type: {0}".format("full"))
+                in_region = in_square
+            if in_region:
+                cell_f[cell] = True
 
-        ### Mark cells for refinement
-        for i in range(num):
-            if num>1:
-                step_start = time.time()
-                self.fprint("Refining Mesh Step {:d} of {:d}".format(i+1,num), special="header")
-            else:
-                self.fprint("")
+        ### Refine Mesh
+        self.Refine(cell_f)
 
-
-            ### Check if cell markers were provided ###
-            if cell_markers is not None:
-                cell_f = cell_markers
-                self.fprint("Cells Marked for Refinement: {:d}".format(sum(cell_markers.array())))
-
-            ### Check if a region was provided ###
-            elif region is not None:
-                self.fprint("Marking Cells")
-
-                ### Create an empty cell marker function
-                cell_f = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
-                cells_marked = 0
-
-                ### Check if we are refining in a circle ###
-                if "circle" in region_type:
-                    radius=region[0][0]
-                    for cell in cells(self.mesh):
-                        in_circle = (cell.midpoint()[0]-region[1][0])**2.0+(cell.midpoint()[1]-region[1][1])**2.0<=radius**2.0
-                        if self.dim == 3:
-                            # g_z = 0.0#self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
-                            g_z = self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
-                            in_z = between(cell.midpoint()[2],(region[2][0],region[2][1]+g_z))
-                            in_region = in_circle and in_z
-                        else:
-                            in_region = in_circle
-                        if in_region:
-                            cell_f[cell] = True
-                            cells_marked += 1
-
-                ### or a rectangle ###
-                else:
-                    cell_f = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
-                    for cell in cells(self.mesh):
-                        in_square = between(cell.midpoint()[0],tuple(region[0])) and between(cell.midpoint()[1],tuple(region[1]))
-                        if self.dim == 3:
-                            # g_z = 0.0#self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
-                            g_z = self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
-                            in_z = between(cell.midpoint()[2],(region[2][0],region[2][1]+g_z))
-                            in_region = in_square and in_z
-                        else:
-                            in_region = in_square
-                        if in_region:
-                            cell_f[cell] = True
-                            cells_marked += 1
-                self.fprint("Cells Marked for Refinement: {:d}".format(cells_marked))
-
-            
-            ### If neither a region or cell markers were provided, Refine everwhere ###
-            else:
-                cell_f = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),True)
-
-            old_verts = self.mesh.num_vertices()
-            old_cells = self.mesh.num_cells()
-            self.fprint("Refining Mesh")
-            self.mesh = refine(self.mesh,cell_f)
-            self.bmesh = BoundaryMesh(self.mesh,"exterior")
-            self.boundary_markers = adapt(self.boundary_markers,self.mesh)
-
-            self.fprint("Original Mesh Vertices: {:d}".format(old_verts))
-            self.fprint("Original Mesh Cells:    {:d}".format(old_cells))
-            self.fprint("New Mesh Vertices:      {:d}".format(self.mesh.num_vertices()))
-            self.fprint("New Mesh Cells:         {:d}".format(self.mesh.num_cells()))
-            if num>1:
-                step_stop = time.time()
-                self.fprint("Step {:d} of {:d} Finished: {:1.2f} s".format(i+1,num,step_stop-step_start), special="footer")
-        
         refine_stop = time.time()
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
+
+    def CylinderRefine(self,center,radius,height=0,expand_factor=1):
+
+        ### Calculate Expanded Region ###
+        radius = expand_factor*radius
+        if self.dim == 3:
+            ez = (expand_factor-1)*height/2.0
+            center[2] -= ez
+            height = expand_factor*height
+
+        ### Print Region Data ###
+        refine_start = time.time()
+        self.fprint("Starting Vertical Cylinder Refinement",special="header")
+        self.fprint("Cylinder Radius: {:.2f}".format(radius/self.xscale))
+        if self.dim == 3:
+            self.fprint("Cylinder Height: {:.2f}".format(height/self.xscale))
+            self.fprint("Cylinder Center: ({:.2f}, {:.2f}, {:.2f})".format(center[0]/self.xscale,center[1]/self.xscale,center[2]/self.xscale))
+        else:
+            self.fprint("Cylinder Center: ({:.2f}, {:.2f})".format(center[0]/self.xscale,center[1]/self.xscale))
+
+        cell_f = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
+        cells_marked = 0
+
+        ### Check if we are refining in a circle ###
+        for cell in cells(self.mesh):
+            in_circle = (cell.midpoint()[0]-center[0])**2.0+(cell.midpoint()[1]-center[1])**2.0<=radius**2.0
+            if self.dim == 3:
+                # g_z = 0.0#self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
+                g_z = self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
+                in_z = between(cell.midpoint()[2],(center[2],center[2]+height+g_z))
+                in_region = in_circle and in_z
+            else:
+                in_region = in_circle
+            if in_region:
+                cell_f[cell] = True
+
+        ### Refine Mesh
+        self.Refine(cell_f)
+
+        refine_stop = time.time()
+        self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")  
+
+    def StreamRefine(self,center,radius,length,theta=0,pivot_offset=0,expand_factor=1):
+        refine_start = time.time()
+
+        ### Calculate Expanded Region ###
+        en = 2*(expand_factor-1)*radius/2.0
+        center[0] -= en*np.cos(theta)
+        center[1] -= -en*np.sin(theta)
+        length = length+2*en
+        radius = expand_factor*radius
+
+        ### Output data
+        self.fprint("Starting Vertical Cylinder Refinement",special="header")
+        self.fprint("Cylinder Radius: {:.2f}".format(radius/self.xscale))
+        self.fprint("Cylinder Length: {:.2f}".format(length/self.xscale))
+        if self.dim == 3:
+            self.fprint("Cylinder Center: ({:.2f}, {:.2f}, {:.2f})".format(center[0]/self.xscale,center[1]/self.xscale,center[2]/self.xscale))
+        else:
+            self.fprint("Cylinder Center: ({:.2f}, {:.2f})".format(center[0]/self.xscale,center[1]/self.xscale))
+        self.fprint("Cylinder Rotation: {:.2f}".format(theta))
+
+        cell_f = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
+        cells_marked = 0
+
+        ### Check if we are refining in a circle ###
+        for cell in cells(self.mesh):
+
+            xs = cell.midpoint()[0]
+            ys = cell.midpoint()[1]
+            x = np.cos(theta)*(xs-center[0]-pivot_offset)-np.sin(theta)*(ys-center[1])+ center[0]+pivot_offset
+            y = np.sin(theta)*(xs-center[0]-pivot_offset)+np.cos(theta)*(ys-center[1])+ center[1]
+
+            in_stream = between(x,(center[0],center[0]+length))
+            if self.dim == 3:
+                z = cell.midpoint()[2] + self.ground_function(x,y)
+                in_circle = (y-center[1])**2.0+(z-center[2])**2.0<=radius**2.0
+            else:
+                in_circle = between(y,(center[1]-radius,center[1]+radius))
+            in_region = in_circle and in_stream
+
+            if in_region:
+                cell_f[cell] = True
+
+        ### Refine Mesh
+        self.Refine(cell_f)
+
+        refine_stop = time.time()
+        self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")  
+
+    def Refine(self, cellmarkers=None):
+        old_verts = self.mesh.num_vertices()
+        old_cells = self.mesh.num_cells()
+        self.fprint("Refining Mesh")
+        self.mesh = refine(self.mesh,cellmarkers)
+        self.bmesh = BoundaryMesh(self.mesh,"exterior")
+        self.boundary_markers = adapt(self.boundary_markers,self.mesh)
+
+        self.fprint("Original Mesh Vertices: {:d}".format(old_verts))
+        self.fprint("Original Mesh Cells:    {:d}".format(old_cells))
+        self.fprint("New Mesh Vertices:      {:d}".format(self.mesh.num_vertices()))
+        self.fprint("New Mesh Cells:         {:d}".format(self.mesh.num_cells()))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # def Refine(self,num,region=None,region_type=None,cell_markers=None):
+    #     """
+    #     This function can be used to refine the mesh. If a region is
+    #     specified, the refinement is local
+
+    #     Args:
+    #         num (int): the number of times to refine
+
+    #     :Keyword Arguments:
+    #         * **region** (*list*): 
+    #                             for square region use: [[xmin,xmax],[ymin,ymax],[zmin,zmax]]
+    #                             for circle region use: [[radius],[c_x,c_y],[zmin,zmax]]
+    #         * **region_type** (*str*): Either "circle" or "square" 
+    #         * **cell_markers** (*:meth:dolfin.mesh.MeshFunction*): A cell function marking which cells to refine 
+    #     """
+    #     refine_start = time.time()
+
+    #     ### Print some useful stats 
+    #     self.fprint("Starting Mesh Refinement",special="header")
+    #     if cell_markers is not None:
+    #         self.fprint("Region Type: {0}".format("cell_markers"))
+    #     elif region is not None:
+    #         self.fprint("Region Type: {0}".format(region_type))
+    #         if "circle" in region_type:
+    #             self.fprint("Circle Radius: {:.2f}".format(region[0][0]/self.xscale))
+    #             self.fprint("Circle Center: ({:.2f}, {:.2f})".format(region[1][0]/self.xscale,region[1][1]/self.xscale))
+    #             if self.dim == 3:
+    #                 self.fprint("Z Range:       [{:.2f}, {:.2f}]".format(region[2][0]/self.xscale,region[2][1]/self.xscale))
+    #         else:
+    #             self.fprint("X Range: [{: .2f}, {: .2f}]".format(region[0][0]/self.xscale,region[0][1]/self.xscale))
+    #             self.fprint("Y Range: [{: .2f}, {: .2f}]".format(region[1][0]/self.xscale,region[1][1]/self.xscale))
+    #             if self.dim == 3:
+    #                 self.fprint("Z Range: [{: .2f}, {: .2f}]".format(region[2][0]/self.xscale,region[2][1]/self.xscale))
+    #     else:
+    #         self.fprint("Region Type: {0}".format("full"))
+
+    #     ### Mark cells for refinement
+    #     for i in range(num):
+    #         if num>1:
+    #             step_start = time.time()
+    #             self.fprint("Refining Mesh Step {:d} of {:d}".format(i+1,num), special="header")
+    #         else:
+    #             self.fprint("")
+
+
+    #         ### Check if cell markers were provided ###
+    #         if cell_markers is not None:
+    #             cell_f = cell_markers
+    #             self.fprint("Cells Marked for Refinement: {:d}".format(sum(cell_markers.array())))
+
+    #         ### Check if a region was provided ###
+    #         elif region is not None:
+    #             self.fprint("Marking Cells")
+
+    #             ### Create an empty cell marker function
+    #             cell_f = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
+    #             cells_marked = 0
+
+    #             ### Check if we are refining in a circle ###
+    #             if "circle" in region_type:
+    #                 radius=region[0][0]
+    #                 for cell in cells(self.mesh):
+    #                     in_circle = (cell.midpoint()[0]-region[1][0])**2.0+(cell.midpoint()[1]-region[1][1])**2.0<=radius**2.0
+    #                     if self.dim == 3:
+    #                         # g_z = 0.0#self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
+    #                         g_z = self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
+    #                         in_z = between(cell.midpoint()[2],(region[2][0],region[2][1]+g_z))
+    #                         in_region = in_circle and in_z
+    #                     else:
+    #                         in_region = in_circle
+    #                     if in_region:
+    #                         cell_f[cell] = True
+    #                         cells_marked += 1
+
+    #             ### or a rectangle ###
+    #             else:
+    #                 cell_f = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
+    #                 for cell in cells(self.mesh):
+    #                     in_square = between(cell.midpoint()[0],tuple(region[0])) and between(cell.midpoint()[1],tuple(region[1]))
+    #                     if self.dim == 3:
+    #                         # g_z = 0.0#self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
+    #                         g_z = self.ground_function(cell.midpoint()[0],cell.midpoint()[1])
+    #                         in_z = between(cell.midpoint()[2],(region[2][0],region[2][1]+g_z))
+    #                         in_region = in_square and in_z
+    #                     else:
+    #                         in_region = in_square
+    #                     if in_region:
+    #                         cell_f[cell] = True
+    #                         cells_marked += 1
+    #             self.fprint("Cells Marked for Refinement: {:d}".format(cells_marked))
+
+            
+    #         ### If neither a region or cell markers were provided, Refine everwhere ###
+    #         else:
+    #             cell_f = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),True)
+
+    #         old_verts = self.mesh.num_vertices()
+    #         old_cells = self.mesh.num_cells()
+    #         self.fprint("Refining Mesh")
+    #         self.mesh = refine(self.mesh,cell_f)
+    #         self.bmesh = BoundaryMesh(self.mesh,"exterior")
+    #         self.boundary_markers = adapt(self.boundary_markers,self.mesh)
+
+    #         self.fprint("Original Mesh Vertices: {:d}".format(old_verts))
+    #         self.fprint("Original Mesh Cells:    {:d}".format(old_cells))
+    #         self.fprint("New Mesh Vertices:      {:d}".format(self.mesh.num_vertices()))
+    #         self.fprint("New Mesh Cells:         {:d}".format(self.mesh.num_cells()))
+    #         if num>1:
+    #             step_stop = time.time()
+    #             self.fprint("Step {:d} of {:d} Finished: {:1.2f} s".format(i+1,num,step_stop-step_start), special="footer")
+        
+    #     refine_stop = time.time()
+    #     self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
 
     def WarpSplit(self,h,s):

@@ -21,12 +21,15 @@ def initialize(loc,updated_parameters=[]):
         from windse.OptimizationManager import Optimizer
     else:
         from windse.helper_functions import BaseHeight, CalculateDiskTurbineForces, CalculateActuatorLineTurbineForces
-     
+    
     global BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain
     from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain
 
     global GridWindFarm, RandomWindFarm, ImportedWindFarm
     from windse.WindFarmManager import GridWindFarm, RandomWindFarm, ImportedWindFarm
+
+    global RefineMesh
+    from windse.RefinementManager import RefineMesh
 
     global LinearFunctionSpace, TaylorHoodFunctionSpace
     from windse.FunctionSpaceManager import LinearFunctionSpace, TaylorHoodFunctionSpace
@@ -39,4 +42,3 @@ def initialize(loc,updated_parameters=[]):
 
     global SteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
     from windse.SolverManager import SteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
-

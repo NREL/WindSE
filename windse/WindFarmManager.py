@@ -165,7 +165,7 @@ class GenericWindFarm(object):
 
         self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]*self.dom.xscale
 
-    def CalculateExtents(self):
+    def CalculateFarmBoundingBox(self):
         """
         This functions takes into consideration the turbine locations, diameters, 
         and hub heights to create lists that describe the extent of the windfarm.
@@ -189,47 +189,7 @@ class GenericWindFarm(object):
         self.params["wind_farm"]["ex_y"] = self.ex_y
         self.params["wind_farm"]["ex_z"] = self.ex_z
 
-    def CalculateFarmRegion(self,region_type,factor=1.0,length=None):
-
-
-        if region_type == "custom":
-            return length
-
-        elif region_type == "square":
-            x_center = (self.ex_x[1]+self.ex_x[0])/2.0
-            y_center = (self.ex_y[1]+self.ex_y[0])/2.0
-            z_center = (self.ex_z[1]+self.ex_z[0])/2.0
-
-            if length is None:
-                x = factor*(np.subtract(self.ex_x,x_center))+x_center
-                y = factor*(np.subtract(self.ex_y,y_center))+y_center
-                z = factor*(self.ex_z - z_center)+z_center
-            else:
-                x = [-length/2.0+x_center,length/2.0+x_center]
-                y = [-length/2.0+x_center,length/2.0+x_center]
-                # z = 1.2*(self.ex_z - z_center)+z_center
-                z = [self.dom.z_range[0], np.mean(self.HH)+np.mean(self.RD)]
-
-            return [x,y,z]
-
-        elif "circle" in region_type:
-            if region_type == "farm_circle":
-                center = [sum(self.x)/float(self.numturbs),sum(self.y)/float(self.numturbs)]
-            else:
-                center = [sum(self.dom.x_range)/2.0,sum(self.dom.y_range)/2.0]
-
-            z_center = (self.ex_z[1]+self.ex_z[0])/2.0
-
-            if length is None:
-                length = factor*max(np.sqrt(np.power(self.x-center[0],2.0)+np.power(self.y-center[1],2.0)))
-            
-            # z = 1.2*(self.ex_z - z_center)+z_center
-            z = [self.dom.z_range[0], np.mean(self.HH)+np.mean(self.RD)]
-
-            return [[length],center,z]
-
-        else:
-            raise ValueError("Not a valid region type: "+region_type)
+        return [self.ex_x,self.ex_y,self.ex_z]
 
     def CreateConstants(self):
         """
@@ -299,6 +259,254 @@ class GenericWindFarm(object):
             self.mz.append(BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i]))
             self.z[i] = float(self.mz[i])
             self.ground[i] = self.z[i] - self.HH[i]
+
+    def SimpleRefine(self,radius,expand_factor=1):
+        self.fprint("Cylinder Refinement Near Turbines",special="header")
+        refine_start = time.time()
+
+        ### Calculate expanded values ###
+        radius = expand_factor*radius
+
+        ### Create the cell markers ###
+        cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
+        
+        ### Get Dimension ###
+        n = self.numturbs
+        d = self.dom.dim
+
+        ### Get Turbine Coordinates ###
+        turb_x = np.array(self.x)
+        turb_y = np.array(self.y)
+        if self.dom.dim == 3:
+            turb_z0 = self.dom.z_range[0]-radius
+            turb_z1 = self.z+radius
+
+        self.fprint("Marking Near Turbine")
+        mark_start = time.time()
+        for cell in cells(self.dom.mesh):
+            ### Get Points of all cell vertices ##
+            pt = cell.get_vertex_coordinates()
+            x = pt[0:-2:d]
+            y = pt[1:-1:d]
+            if d == 3:
+                z = pt[2::d]
+
+            ### Find the minimum distance for each turbine with the vertices ###
+            x_diff = np.power(np.subtract.outer(x,turb_x),2.0)
+            y_diff = np.power(np.subtract.outer(y,turb_y),2.0)
+            min_r = np.min(x_diff+y_diff,axis=0)
+
+            ### Determine if cell is in radius for each turbine ###
+            in_circle = min_r <= radius**2.0
+
+            ### Determine if in cylinder ###
+            if d == 3:
+                in_z = np.logical_and(turb_z0 <= max(z), turb_z1 >= min(z))
+                near_turbine = np.logical_and(in_circle, in_z)
+            else:
+                near_turbine = in_circle
+
+            ### mark if cell is near any cylinder ###
+            if any(near_turbine):
+                cell_f[cell] = True
+
+        mark_stop = time.time()
+        self.fprint("Marking Finished: {:1.2f} s".format(mark_stop-mark_start))
+
+        ### Refine Mesh ###
+        self.dom.Refine(cell_f)
+
+        ### Recompute Heights with new mesh ###
+        self.CalculateHeights()
+
+        refine_stop = time.time()
+        self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
+
+
+    def WakeRefine(self,radius,length,theta=0.0,expand_factor=1):
+        self.fprint("Wake Refinement Near Turbines",special="header")
+        refine_start = time.time()
+
+        ### Calculate expanded values ###
+        radius = expand_factor*radius
+        length = length+2*(expand_factor-1)*radius
+
+        ### Create the cell markers ###
+        cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
+
+        ### Get Dimension ###
+        n = self.numturbs
+        d = self.dom.dim
+
+        ### Get Turbine Coordinates ###
+        turb_x = np.array(self.x)
+        turb_y = np.array(self.y)
+        if self.dom.dim == 3:
+            turb_z = np.array(self.z)
+
+        self.fprint("Marking Near Turbine")
+        mark_start = time.time()
+        for cell in cells(self.dom.mesh):
+            ### Get Points of all cell vertices ##
+            pt = cell.get_vertex_coordinates()
+            x = pt[0:-2:d]
+            y = pt[1:-1:d]
+            if d == 3:
+                z = pt[2::d]
+
+            ### Rotate the Cylinder about the turbine axis ###
+            x_diff = np.subtract.outer(x,turb_x)
+            y_diff = np.subtract.outer(y,turb_y)
+            x = (np.cos(theta)*(x_diff)-np.sin(theta)*(y_diff) + turb_x)
+            y = (np.sin(theta)*(x_diff)+np.cos(theta)*(y_diff) + turb_y)
+
+            ### Determine if in wake ###
+            x0 = turb_x - radius
+            x1 = turb_x + length
+            in_wake = np.logical_and(np.greater(x,x0),np.less(x,x1))
+            in_wake = np.any(in_wake,axis=0)
+
+            ### Find the minimum distance for each turbine with the vertices ###
+            y_diff = y-turb_y
+            if d == 3:
+                z_diff = np.subtract.outer(z,turb_z)
+                min_r = np.min(np.power(y_diff,2.0)+np.power(z_diff,2.0),axis=0)
+            else:
+                min_r = np.min(np.power(y_diff,2.0),axis=0)
+
+            ### Determine if cell is in radius for each turbine ###
+            in_circle = min_r <= radius**2.0
+            near_turbine = np.logical_and(in_circle, in_wake)
+
+            ### mark if cell is near any cylinder ###
+            if any(near_turbine):
+                cell_f[cell] = True
+
+
+        mark_stop = time.time()
+        self.fprint("Marking Finished: {:1.2f} s".format(mark_stop-mark_start))
+
+        ### Refine Mesh ###
+        self.dom.Refine(cell_f)
+
+        ### Recompute Heights with new mesh ###
+        self.CalculateHeights()
+
+        refine_stop = time.time()
+        self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
+
+    def TearRefine(self,radius,theta=0.0,expand_factor=1):
+        self.fprint("Tear Drop Refinement Near Turbines",special="header")
+        refine_start = time.time()
+
+        ### Calculate expanded values ###
+        radius = expand_factor*radius
+
+        ### Create the cell markers ###
+        cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
+        
+        ### Get Dimension ###
+        n = self.numturbs
+        d = self.dom.dim
+
+        ### Get Turbine Coordinates ###
+        turb_x = np.array(self.x)
+        turb_y = np.array(self.y)
+        if self.dom.dim == 3:
+            turb_z0 = self.dom.z_range[0]-radius
+            turb_z1 = self.z+radius
+
+        self.fprint("Marking Near Turbine")
+        mark_start = time.time()
+        for cell in cells(self.dom.mesh):
+            ### Get Points of all cell vertices ##
+            pt = cell.get_vertex_coordinates()
+            x = pt[0:-2:d]
+            y = pt[1:-1:d]
+            if d == 3:
+                z = pt[2::d]
+
+            ### Rotate the Cylinder about the turbine axis ###
+            x_diff = np.subtract.outer(x,turb_x)
+            y_diff = np.subtract.outer(y,turb_y)
+            x = (np.cos(theta)*(x_diff)-np.sin(theta)*(y_diff) + turb_x)
+            y = (np.sin(theta)*(x_diff)+np.cos(theta)*(y_diff) + turb_y)
+            x_diff = x - turb_x
+            y_diff = y - turb_y
+
+            ### Find Closest Turbine ###
+            min_dist = np.min(np.power(x_diff,2.0)+np.power(y_diff,2.0),axis=0)
+            min_turb_id = np.argmin(min_dist)
+
+            # ### Do something based on upstream or downstream ###
+            # if min(x[:,min_turb_id]-turb_x[min_turb_id]) <= 0:
+            #     val = -min_turb_id-1
+            # else:
+            #     val = min_turb_id+1
+
+            # ### Determine if in z_range ###
+            # if d == 3:
+            #     in_z = turb_z0 <= max(z) and turb_z1[min_turb_id] >= min(z)
+            #     if in_z:
+            #         near_turbine = val
+            #     else:
+            #         near_turbine = 0
+            # else:
+            #     near_turbine = val
+
+            ### Check if upstream or downstream and adjust accordingly ###
+            cl_x = turb_x[min_turb_id]
+            cl_y = turb_y[min_turb_id]
+            dx = min(x[:,min_turb_id]-cl_x)
+            dy = min(y[:,min_turb_id]-cl_y)
+            if dx <= 0:
+                dist = (dx*2)**2 + dy**2
+            else:
+                dist = (dx/2)**2 + dy**2
+
+            ### determine if in z-range ###
+            if d == 3:
+                in_z = turb_z0 <= max(z) and turb_z1[min_turb_id] >= min(z)
+                near_turbine = in_z and dist <= radius**2
+            else:
+                near_turbine = dist <= radius**2
+            ### mark if cell is near any cylinder ###
+            if near_turbine:
+                cell_f[cell] = True
+
+
+        # File("test.pvd") << cell_f
+        # exit()
+
+        mark_stop = time.time()
+        self.fprint("Marking Finished: {:1.2f} s".format(mark_stop-mark_start))
+
+        ### Refine Mesh ###
+        self.dom.Refine(cell_f)
+
+        ### Recompute Heights with new mesh ###
+        self.CalculateHeights()
+
+        refine_stop = time.time()
+        self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def RefineTurbines(self,num,radius_multiplyer):
 
@@ -600,8 +808,14 @@ class GridWindFarm(GenericWindFarm):
         self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0]/Sx,self.ex_y[1]/Sx))
 
         ### Create the x and y coords ###
-        self.grid_x = np.linspace(self.ex_x[0]+self.radius,self.ex_x[1]-self.radius,self.grid_cols)
-        self.grid_y = np.linspace(self.ex_y[0]+self.radius,self.ex_y[1]-self.radius,self.grid_rows)
+        if self.grid_cols > 1:
+            self.grid_x = np.linspace(self.ex_x[0]+self.radius,self.ex_x[1]-self.radius,self.grid_cols)
+        else:
+            self.grid_x = (self.ex_x[0]+self.ex_x[1])/2.0
+        if self.grid_rows > 1:
+            self.grid_y = np.linspace(self.ex_y[0]+self.radius,self.ex_y[1]-self.radius,self.grid_rows)
+        else:
+            self.grid_y = (self.ex_y[0]+self.ex_y[1])/2.0
 
         ### Use the x and y coords to make a mesh grid ###
         self.x, self.y = np.meshgrid(self.grid_x,self.grid_y)
@@ -773,7 +987,7 @@ class ImportedWindFarm(GenericWindFarm):
         self.CalculateHeights()
 
         ### Calculate the extent of the farm ###
-        self.CalculateExtents()
+        self.CalculateFarmBoundingBox()
     
 
         self.fprint("Wind Farm Imported",special="footer")

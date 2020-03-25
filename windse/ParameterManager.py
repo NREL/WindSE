@@ -24,6 +24,7 @@ if main_file != "sphinx-build":
     import sys
     import ast
     import difflib
+    import copy
 
     # set_log_level(LogLevel.CRITICAL)
 
@@ -117,7 +118,12 @@ class Parameters(dict):
         """
 
         ### Load the yaml file (requires PyYaml)
-        yaml_file = yaml.load(open(loc),Loader=yaml.SafeLoader)
+        if loc == "defaults" or loc is None:
+            self.fprint("Loading Defaults")
+            yaml_file = self
+        else:
+            self.fprint("Loading: "+loc)
+            yaml_file = yaml.load(open(loc),Loader=yaml.SafeLoader)
 
         ### update any parameters if supplied ###
         for p in updated_parameters:
@@ -126,7 +132,7 @@ class Parameters(dict):
 
         ### Check for incorrect parameters ###
         self.CheckParameters(yaml_file,self.defaults)
-        print("Parameter Check Passed")
+        self.fprint("Parameter Check Passed")
 
         ### Check is specific parameters were provided ###
         self.default_bc_names = True
@@ -137,7 +143,7 @@ class Parameters(dict):
             self.default_bc_types = False
         if yaml_file.get("optimization",{}):
             if not yaml_file["general"].get("dolfin_adjoint"):
-                raise ValueError("Optimization options given, but general:dolfin_ajdoint is set to False")
+                print("Warning: Optimization options given, but general:dolfin_ajdoint is set to False")
 
         ### Set the parameters ###
         self.update(self.NestedUpdate(yaml_file))
@@ -164,7 +170,8 @@ class Parameters(dict):
         sys.stdout = Logger(self.log)
 
         ### Copy params file to output folder ###
-        shutil.copy(loc,self.folder+"input_files/")
+        if loc != "defaults" and loc is not None:
+            shutil.copy(loc,self.folder+"input_files/")
 
         ### Create checkpoint if required ###
         # if self.save_file_type == "hdf5":

@@ -1,7 +1,8 @@
 general: 
     name:               Test
     preappend_datetime: False
-    output:             [solution] 
+    output:             [solution]
+    output_folder:      output/ 
     output_type:        pvd
     dolfin_adjoint:     False
 
@@ -64,8 +65,8 @@ refine:
     farm_num:       0
     farm_type:      square
     farm_factor:    1.0
-    farm_radius:    Null
     turbine_num:    0
+    turbine_type:   simple
     turbine_factor: 1.0
     refine_custom:  Null
 

@@ -59,13 +59,6 @@ class GenericProblem(object):
             inflow_angle = 0.0
 
         ### Create the turbine force function ###
-<<<<<<< HEAD
-        if self.fs.turbine_method == "dolfin":
-                self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
-
-        elif self.fs.turbine_method == "numpy":
-                self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
-=======
         if self.farm.turbine_method == "dolfin":
             self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
 
@@ -87,8 +80,6 @@ class GenericProblem(object):
                 self.mcl.append(Constant(cl[k]))
                 self.mcd.append(Constant(cd[k]))
             tf = CalculateActuatorLineTurbineForces(self, simTime)
-
->>>>>>> dev_alm
         else:
             raise ValueError("Unknown turbine method: "+self.farm.turbine_method)
         
@@ -207,18 +198,6 @@ class StabilizedProblem(GenericProblem):
         # if self.farm.yaw[0]**2 > 1e-4:
         #     self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
         # else :
-<<<<<<< HEAD
-        # self.F = inner(grad(self.u_next)*self.u_next, v)*dx + Sx*Sx*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx# + inner(self.tf,v)*dx 
-        self.F = inner(grad(self.u_next)*self.u_next, v)*dx + Sx*Sx*(self.viscosity+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
-        # self.F_sans_tf =  (1.0)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx
-        # self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (nu+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_next[0]**2+self.u_next[1]**2),v)*dx 
-
-        ### Add in the Stabilizing term ###
-        # stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
-        stab = - eps*inner(grad(q), grad(self.p_next))*dx - eps*inner(grad(q), dot(grad(self.u_next), self.u_next))*dx 
-        # stab_sans_tf = - eps*inner(grad(q), grad(self.p_next))*dx 
-
-=======
         # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx# + inner(self.tf,v)*dx 
         self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
         # self.F_sans_tf =  (1.0)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx
@@ -228,7 +207,7 @@ class StabilizedProblem(GenericProblem):
         # stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
         stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
         # stab_sans_tf = - eps*inner(grad(q), grad(self.p_k))*dx 
->>>>>>> dev_alm
+
         self.F += stab
         # self.F_sans_tf += stab
 
@@ -300,36 +279,16 @@ class TaylorHoodProblem(GenericProblem):
         ### Create the turbine force ###
         self.tf = self.ComputeTurbineForce(self.u_k,theta)
 
+        ### Create the functional ###
         self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
 
-        use_25d_model = True
-
-        ### Create the functional ###
-<<<<<<< HEAD
-        self.F = inner(grad(self.u_next)*self.u_next, v)*dx + (self.viscosity+self.nu_T)*inner(grad(self.u_next), grad(v))*dx - inner(div(v),self.p_next)*dx - inner(div(self.u_next),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
-    
         if self.use_25d_model:
             if self.dom.dim == 3:
                 raise ValueError("The 2.5D model requires a 2D simulation.")
 
             self.fprint("Using 2.5D model")
-            dudx = Dx(self.u_next[0], 0)
-            dvdy = Dx(self.u_next[1], 1)
-=======
-        if use_25d_model:
-            # ugrad = grad(self.u_k)
-
-            # yaw = np.pi/8
-            # dvdy = as_matrix([[sin(yaw)*ugrad[0, 0],           0],
-            #                   [          0, cos(yaw)*ugrad[1, 1]]])
-
-            # print(type(dvdy))
-            # print(dir(dvdy))
-            # print(dvdy)
-
             dudx = Dx(self.u_k[0], 0)
             dvdy = Dx(self.u_k[1], 1)
->>>>>>> dev_alm
 
             term25 = (sin(self.dom.init_wind)*dudx*q + cos(self.dom.init_wind)*dvdy*q)*dx
 
