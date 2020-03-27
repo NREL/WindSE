@@ -18,8 +18,13 @@ do
   cp 2d_wind_farm_PRUF.yaml $yaml_fname # duplicate the pristine yaml file
   sed -i "" "3 s/2_5D_Wind_Farm_PRUF/${case_name}/" "$yaml_fname"
   sed -i "" "13 s~pruf_wind_farm.txt~${txt_fname}~" "$yaml_fname"
+
+  # Uncomment the following for low-fidelity yamls
+  sed -i "" "25 s/200/100/" "$yaml_fname"
+  sed -i "" "26 s/200/100/" "$yaml_fname"
 done
 
 cd ./yaml_files/
-tar -czf windfarm_PRUF_uniform_yamls.tar.gz ./*.yaml
+tar -czf windfarm_PRUF_uniform_lofi_yamls.tar.gz ./*.yaml
+# tar -czf windfarm_PRUF_uniform_yamls.tar.gz ./*.yaml
 cd ../

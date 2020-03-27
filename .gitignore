@@ -6,3 +6,5 @@
 *.ipynb_checkpoints/
 *.egg-info/
 */.egg-info/
+demo/documented/Active_Subspace/pruf/yaml_files/*.yaml
+demo/documented/Active_Subspace/pruf/gradients/*.npz

@@ -1,3 +1,5 @@
+# This file simply runs the windfarm using the new driver
+
 import numpy as np
 import windse
 from windse_driver.new_driver import run_driver, run_model
@@ -6,7 +8,7 @@ import time
 from mpi4py import MPI
 
 
-use_serial = False
+use_serial = True
 if use_serial:
     start_time = time.time()
     # Get the various objects associated with the problem from the driver

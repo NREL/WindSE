@@ -3,6 +3,7 @@ general:
     name: 2_5D_Wind_Farm_Layout      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: true
+    output_directory: ./3x3_output
 
 # Wind Farm Parameters: Uncomment a set to change the type of wind farm
 wind_farm:
@@ -52,23 +53,23 @@ wind_farm:
 # Domain Parameters: Uncomment a set to change domain shape
 domain:
 
-    # ####################### Rectangle Domain #########################
-    # type: rectangle                              |
-    # x_range: [-1200, 1200] # x-range of the domain | m
-    # y_range: [-400, 400] # y-range of the domain | m
-    # nx: 300                # Number of x-nodes     | -
-    # ny: 100                # Number of y-nodes     | -
-    # ##################################################################
+    ####################### Rectangle Domain #########################
+    type: rectangle        #                       |
+    x_range: [-1200, 1200] # x-range of the domain | m
+    y_range: [-1200, 1200]   # y-range of the domain | m
+    nx: 50                # Number of x-nodes     | -
+    ny: 50                # Number of y-nodes     | -
+    ##################################################################
 
 
-    ########################### Circle Domain #########################
-    type: circle
-    mesh_type: mshr         # squircular, elliptic, stretch
-    radius: 1500            # x-range of the domain | m
-    center: [0.0, 0.0]      # y-range of the domain | m
-    nt: 50                  # segments around circle| -
-    res: 50                 # resolution for mshr   | -
-    ###################################################################
+    # ########################### Circle Domain #########################
+    # type: circle
+    # mesh_type: mshr         # squircular, elliptic, stretch
+    # radius: 1500            # x-range of the domain | m
+    # center: [0.0, 0.0]      # y-range of the domain | m
+    # nt: 50                  # segments around circle| -
+    # res: 50                 # resolution for mshr   | -
+    # ###################################################################
 
 
 

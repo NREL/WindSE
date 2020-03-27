@@ -51,19 +51,35 @@ class WindFarm(QuantityOfInterest):
         self.windse_solver.Solve()
         return self.windse_opt.Gradient()
 
-    def plot_eigenmodes(self, eigenvec, is_2D=True):
+    def plot_eigenvector_on_farm(self, eigenvec, show=True):
         """
         Plotting script for ploting eigenvectors on the windfarm. This is a
         temporary home for this function as it doesnt really belong in here.
         """
         # Get the wind farm bounds
         x, y, z = self.windse_problem.farm.GetLocations()
-        fname = 'eigenvector_overlay.pdf'
-        fig = plt.figure('eigenvectors')
-        ax = plt.axes()
-        s = ax.scatter(x, y, c=eigenvec, cmap="coolwarm", edgecolors=(0,0,0,1))
-        plt.tight_layout()
-        plt.show()
+        # fname = 'eigenvector_overlay.pdf'
+        # fig = plt.figure('eigenvectors')
+        # ax = plt.axes()
+        # s = ax.scatter(x, y, c=eigenvec, cmap="coolwarm", edgecolors=(0,0,0,1))
+        # plt.tight_layout()
+        # plt.show()
+
+        plt.figure()
+        # if hasattr(self.dom,"boundary_line"):
+        #     plt.plot(*self.dom.boundary_line,c="k")
+        # plt.plot(ex_list_x,ex_list_y,c="r")
+        p=plt.scatter(x, y, c=eigenvec,cmap="coolwarm",edgecolors=(0, 0, 0, 1))
+        # p=plt.scatter(self.x,self.y,c="k",s=70)
+        plt.xlim(self.windse_problem.farm.dom.x_range[0],self.windse_problem.farm.dom.x_range[1])
+        plt.ylim(self.windse_problem.farm.dom.y_range[0],self.windse_problem.farm.dom.y_range[1])
+        clb = plt.colorbar(p)
+        clb.ax.set_ylabel('eigenvector value')
+
+        plt.title("Eigenvector Overlay")
+        plt.savefig("eigenvector_overlay.pdf", transparent=True)
+        if show:
+            plt.show()
 
     def create_solver_object(self):
         if hasattr(self, 'windse_solver'):

@@ -2,13 +2,15 @@
 general:
     name: 2_5D_Wind_Farm_PRUF      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution","eddy_viscosity"]
+    dolfin_adjoint: true
+    # output_directory: /scratch/kpanda/PRUF_outputs
 
 # Wind Farm Parameters: Uncomment a set to change the type of wind farm
 wind_farm:
 
     ####################### Imported Wind Farm #######################
     type: imported                   #                          |
-    path: ./pruf_wind_farm.txt   # location of wind farm    | -
+    path: pruf_wind_farm.txt   # location of wind farm    | -
     force: constant                      # radial force distribution| -
     ###################################################################
 
@@ -59,3 +61,9 @@ solver:
     newton_relaxation: 0.9
     type: steady
     save_power: true
+
+optimization:
+    controls: [axial]
+    taylor_test: False
+    optimize: False
+    gradient: True
