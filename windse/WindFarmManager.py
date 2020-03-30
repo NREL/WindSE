@@ -460,7 +460,7 @@ class GenericWindFarm(object):
             dx = min(x[:,min_turb_id]-cl_x)
             dy = min(y[:,min_turb_id]-cl_y)
             if dx <= 0:
-                dist = (dx*2)**2 + dy**2
+                dist = (dx*1.5)**2 + dy**2
             else:
                 dist = (dx/2)**2 + dy**2
 

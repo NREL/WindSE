@@ -6,3 +6,7 @@
 *.ipynb_checkpoints/
 *.egg-info/
 */.egg-info/
+*.pvd
+*.vtu
+*.xdmf
+*.h5

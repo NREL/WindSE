@@ -37,11 +37,11 @@ params["wind_farm"]["axial"]     = 0.33
 # params["refine"]["turbine_type"]   = "simple"
 # params["refine"]["turbine_factor"] = 2
 params["refine"]["refine_custom"]  = [
-                                      [ "cylinder", [ [0,0,0], 750, 150 ]               ],
-                                      [ "box",      [ [[-500,500],[-500,500],[0,150]] ] ],
-                                      [ "simple",   [ 100 ]                              ],
-                                      [ "tear",     [ 50, 0.7853 ]                      ]
-                                     ]
+    [ "cylinder", [ [0,0,0], 750, 150 ]               ],
+    [ "box",      [ [[-500,500],[-500,500],[0,150]] ] ],
+    [ "simple",   [ 100 ]                             ],
+    [ "tear",     [ 50, 0.7853 ]                      ]
+]
 
 ### Initialize Parameters using those set above ###
 windse.initialize(None)
