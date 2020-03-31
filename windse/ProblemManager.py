@@ -171,7 +171,10 @@ class StabilizedProblem(GenericProblem):
             dudx = Dx(self.u_next[0], 0)
             dvdy = Dx(self.u_next[1], 1)
 
-            term25 = (sin(self.dom.init_wind)*dudx*q + cos(self.dom.init_wind)*dvdy*q)*dx
+            if theta is None:
+                term25 = dvdy*q*dx
+            else:
+                term25 = (abs(sin(theta))*dudx*q + abs(cos(theta))*dvdy*q)*dx
 
             self.F -= term25
 
@@ -253,7 +256,10 @@ class TaylorHoodProblem(GenericProblem):
             dudx = Dx(self.u_next[0], 0)
             dvdy = Dx(self.u_next[1], 1)
 
-            term25 = (sin(self.dom.init_wind)*dudx*q + cos(self.dom.init_wind)*dvdy*q)*dx
+            if theta is None:
+                term25 = dvdy*q*dx
+            else:
+                term25 = (abs(sin(theta))*dudx*q + abs(cos(theta))*dvdy*q)*dx
 
             self.F -= term25
 
