@@ -26,7 +26,7 @@ dom = windse.CircleDomain()
 dom.Save()
 
 ### Check the number of verts and cells ###
-if dom.mesh.num_cells() != 3:
+if dom.mesh.num_cells() != 39300:
     raise ValueError("Box domain constructed with unexpected number of cells")
 if dom.mesh.num_vertices() != 19865:
     raise ValueError("Box domain constructed with unexpected number of vertices")
