@@ -1,9 +1,8 @@
 #!/bin/bash 
 
 ### Run this to use conda in the script
-conda init bash
 # eval "$(conda shell.bash hook)"
-# source $(conda info --base)/etc/profile.d/conda.sh
+source $(conda info --base)/etc/profile.d/conda.sh
 
 ### Create the Environment
 conda create -y --name $1
