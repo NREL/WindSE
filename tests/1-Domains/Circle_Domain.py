@@ -27,9 +27,9 @@ dom.Save()
 
 ### Check the number of verts and cells ###
 if dom.mesh.num_cells() != 39300:
-    raise ValueError("Box domain constructed with unexpected number of cells")
+    raise ValueError("Box domain constructed with unexpected number of cells: "+repr(dom.mesh.num_cells()))
 if dom.mesh.num_vertices() != 19865:
-    raise ValueError("Box domain constructed with unexpected number of vertices")
+    raise ValueError("Box domain constructed with unexpected number of vertices: "+repr(dom.mesh.num_vertices()))
 
 ### Calculate Volume ###
 V = FiniteElement('Lagrange', dom.mesh.ufl_cell(), 1)
@@ -41,4 +41,4 @@ True_Volume = (pi*radius**2.0)
 
 ### Check the mesh volume ###
 if abs((Volume-True_Volume)/True_Volume) > 1e-3:
-    raise ValueError("Box domain constructed with unexpected volume")
+    raise ValueError("Box domain constructed with unexpected volume: " + repr(True_Volume))
