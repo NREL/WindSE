@@ -1,10 +1,6 @@
 #!/bin/bash 
 
 ### Run this to use conda in the script
-# eval "$(conda shell.bash hook)"
-echo "This is the location of miniconda"
-conda info --base
-echo ""
 source $(conda info --base)/etc/profile.d/conda.sh
 
 ### Create the Environment
