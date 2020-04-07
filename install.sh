@@ -9,7 +9,7 @@ conda create -y --name $1
 conda activate $1
 
 ### Install conda-forge dependencies 
-conda install -y -c conda-forge fenics=2019.1.0 dolfin-adjoint matplotlib scipy mshr hdf5 pyyaml memory_profiler
+conda install -y -c conda-forge fenics=2019.1.0 dolfin-adjoint matplotlib scipy mshr hdf5 pyyaml memory_profiler pytest
 
 ### Install editible version of WindSE
 pip install -e .
