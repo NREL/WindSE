@@ -20,7 +20,7 @@ before_install:
     - conda update --yes conda
 
 install:
-    - sh install.sh test-environment
+    - bash install.sh test-environment
     # - conda create --yes -n test-environment python=$PYTHON_VERSION
     - source activate test-environment
     # - conda install --yes -c conda-forge fenics dolfin-adjoint mshr matplotlib scipy pyyaml memory_profiler pytest
