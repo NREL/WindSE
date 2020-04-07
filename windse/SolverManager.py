@@ -31,7 +31,7 @@ if main_file != "sphinx-build":
 
     ### Improve Solver parameters ###
     parameters["std_out_all_processes"] = False;
-    parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'        
+    parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
     parameters['form_compiler']['representation'] = 'uflacs'
@@ -68,7 +68,7 @@ class GenericSolver(object):
 
     def Plot(self):
         """
-        This function plots the solution functions using matplotlib and saves the 
+        This function plots the solution functions using matplotlib and saves the
         output to output/.../plots/u.pdf and output/.../plots/p.pdf
         """
 
@@ -109,7 +109,7 @@ class GenericSolver(object):
         """
         This function recomputes all necessary components for a new wind direction
 
-        Args: 
+        Args:
             theta (float): The new wind angle in radians
         """
         self.problem.ChangeWindSpeed(speed)
@@ -118,11 +118,11 @@ class GenericSolver(object):
         """
         This function recomputes all necessary components for a new wind direction
 
-        Args: 
+        Args:
             theta (float): The new wind angle in radians
         """
         self.problem.ChangeWindAngle(theta)
-        
+
     def CalculatePowerFunctional(self,delta_yaw = 0.0):
         self.fprint("Computing Power Functional")
 
@@ -136,14 +136,14 @@ class GenericSolver(object):
             mz = self.problem.farm.mz[i]
             x0 = [mx,my,mz]
             W = self.problem.farm.W[i]*1.0
-            R = self.problem.farm.RD[i]/2.0 
+            R = self.problem.farm.RD[i]/2.0
             ma = self.problem.farm.ma[i]
             yaw = self.problem.farm.myaw[i]+delta_yaw
             u = self.u_next
             A = pi*R**2.0
             C_tprime = 4*ma/(1-ma)
             C_pprime = 0.45/(1-ma)**3
-            
+
             ### Rotate and Shift the Turbine ###
             xs = self.problem.farm.YawTurbine(x,x0,yaw)
             u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
@@ -182,15 +182,17 @@ class GenericSolver(object):
 
                 ### Create the function that represents the force ###
                 if self.problem.farm.force == "constant":
-                    F = 0.5*self.problem.farm.RD[i]*C_tprime    
+                    F = 0.5*self.problem.farm.RD[i]*C_tprime
                 elif self.problem.farm.force == "sine":
                     r = sqrt(xs[1]**2.0+xs[2]**2)
                     F = 0.5*self.problem.farm.RD[i]*C_tprime*(r/R*sin(pi*r/R)+0.5)/(.81831)
 
-                J += 0.5*A*C_pprime*(assemble(F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
+                # J += 0.5*A*C_pprime*(assemble(F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
+                J += (assemble(((0.5*A*C_pprime)**(1/3))*F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
+                print(type(J))
                 if self.save_power:
                     J_list[i] = 0.5*A*C_pprime*(assemble(F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
-        
+
         if self.save_power:
             J_list[-1]=np.sum(J_list[:-1])
 
@@ -206,13 +208,13 @@ class GenericSolver(object):
             np.savetxt(f,[J_list])
             f.close()
 
-        return J_list[-1]
+        return J # J_list[-1]
 
 class SteadySolver(GenericSolver):
     """
     This solver is for solving the steady state problem
 
-    Args: 
+    Args:
         problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
     """
     def __init__(self,problem):
@@ -236,7 +238,7 @@ class SteadySolver(GenericSolver):
         self.fprint("Finished",special="footer")
 
         ####################################################################
-        ### This is the better way to define a nonlinear problem but it 
+        ### This is the better way to define a nonlinear problem but it
         ### doesn't play nice with dolfin_adjoint
         # ### Define Jacobian ###
         # dU = TrialFunction(self.problem.fs.W)
@@ -276,7 +278,7 @@ class SteadySolver(GenericSolver):
                               "linear_solver": "mumps",
                               "absolute_tolerance": 1e-6,
                               "relative_tolerance": 1e-5}
-        
+
             solver_parameters = {"nonlinear_solver": "newton",
                                  "newton_solver": newton_options}
 
@@ -284,19 +286,19 @@ class SteadySolver(GenericSolver):
             # ### Add some helper functions to solver options ###
             solver_parameters = {"nonlinear_solver": "snes",
                                  "snes_solver": {
-                                 "linear_solver": "mumps", 
+                                 "linear_solver": "mumps",
                                  "maximum_iterations": 40,
                                  "error_on_nonconvergence": True,
                                  "line_search": "bt",
                                  }}
-                                 
+
         else:
             raise ValueError("Unknown nonlinear solver type: {0}".format(nonlinear_solver))
 
         ### Start the Solve Process ###
         self.fprint("Solving",special="header")
         start = time.time()
-        
+
         # ### Solve the Baseline Problem ###
         # solve(self.problem.F_sans_tf == 0, self.problem.up_next, self.problem.bd.bcs, solver_parameters=solver_parameters, **self.extra_kwarg)
 
@@ -325,7 +327,7 @@ class SteadySolver(GenericSolver):
         ### Fix how angle is transfered ###
         ###################################
         if self.optimizing or self.save_power:
-            self.J += -self.CalculatePowerFunctional((iter_val-self.problem.dom.init_wind)) 
+            self.J += -self.CalculatePowerFunctional((iter_val-self.problem.dom.init_wind))
 
         # self.fprint("Speed Percent of Inflow Speed")
         # ps = []
@@ -347,10 +349,10 @@ class MultiAngleSolver(SteadySolver):
     This solver will solve the problem using the steady state solver for every
     angle in angles.
 
-    Args: 
+    Args:
         problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
         angles (list): A list of wind inflow directions.
-    """ 
+    """
 
     def __init__(self,problem):
         super(MultiAngleSolver, self).__init__(problem)
@@ -381,10 +383,10 @@ class TimeSeriesSolver(SteadySolver):
     This solver will solve the problem using the steady state solver for every
     angle in angles.
 
-    Args: 
+    Args:
         problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
         angles (list): A list of wind inflow directions.
-    """ 
+    """
 
     def __init__(self,problem):
         super(TimeSeriesSolver, self).__init__(problem)

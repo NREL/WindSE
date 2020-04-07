@@ -75,7 +75,10 @@ class Optimizer(object):
 
         self.fprint("Define Optimizing Functional")
         if self.params["solver"]["type"] == "multiangle":
-            self.J = assemble(self.solver.J)
+            if self.solver.problem.dom.dim == 3:
+                self.J = assemble(self.solver.J)
+            else:
+                self.J = self.solver.J
             self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
             self.Jcurrent = self.J
         else:
