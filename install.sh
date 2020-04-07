@@ -19,5 +19,3 @@ pip install git+https://github.com/blechta/COFFEE.git@2018.1.0
 pip install git+https://github.com/blechta/FInAT.git@2018.1.0
 pip install singledispatch networkx pulp
 
-### Deactivate for safety
-conda deactivate
