@@ -22,7 +22,7 @@ before_install:
 install:
     - conda install conda-build
     - conda config --add channels conda-forge
-    - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION fenics dolfin-adjoint mshr matplotlib scipy pyyaml memory-profiler pytest
+    - conda create -q -f -n test-environment python=$TRAVIS_PYTHON_VERSION fenics dolfin-adjoint mshr matplotlib scipy pyyaml memory-profiler pytest
     - conda activate test-environment
     - pip install -e .
 
