@@ -20,10 +20,9 @@ before_install:
     - conda update --yes conda
 
 install:
-    - conda install conda-build
-    - conda config --add channels conda-forge
-    - conda create -q -f -n test-environment python=$TRAVIS_PYTHON_VERSION fenics dolfin-adjoint mshr matplotlib scipy pyyaml memory-profiler pytest
+    - conda create --yes -n test python=$PYTHON_VERSION
     - conda activate test-environment
+    - conda install --yes -c conda-forge fenics dolfin-adjoint mshr matplotlib scipy pyyaml memory-profiler pytest
     - pip install -e .
 
 
