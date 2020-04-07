@@ -21,7 +21,7 @@ before_install:
 
 install:
     - conda create --yes -n test python=$PYTHON_VERSION
-    - conda activate test-environment
+    - source activate test-environment
     - conda install --yes -c conda-forge fenics dolfin-adjoint mshr matplotlib scipy pyyaml memory-profiler pytest
     - pip install -e .
 
