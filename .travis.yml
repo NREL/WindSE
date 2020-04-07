@@ -1,6 +1,6 @@
 os:
     - linux
-    - osx
+    # - osx
 
 language: python
 
@@ -20,7 +20,7 @@ before_install:
     - conda update --yes conda
 
 install:
-    - conda create --yes -n test python=$PYTHON_VERSION
+    - conda create --yes -n test-environment python=$PYTHON_VERSION
     - source activate test-environment
     - conda install --yes -c conda-forge fenics dolfin-adjoint mshr matplotlib scipy pyyaml memory-profiler pytest
     - pip install -e .
