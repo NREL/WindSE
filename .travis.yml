@@ -1,33 +1,23 @@
 language: python
 
 matrix:
-  # This will launch a separate build for each Python version you add
-  # Feel free to add extra environment variables as needed
-  include:
-    - python: 3.8
+    include:
+        - python: 3.8
 
 before_install:
-  # Install the latest version of Miniconda
-  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-  - chmod +x miniconda.sh
-  - ./miniconda.sh -b
-  - export PATH=/home/travis/miniconda/bin:$PATH
-  - conda update --yes conda  # Update CONDA without command line prompt
+    - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+    - chmod +x miniconda.sh
+    - ./miniconda.sh -b
+    - export PATH=/home/travis/miniconda/bin:$PATH
+    - conda update --yes conda
 
-  install:
-  - conda install conda-build
-  # You can add any CONDA channels you may need here. CONDA supports
-  # both the commands add and append. The only difference is that 
-  # the add command places the channel at the front of the priority 
-  # list, while append does the opposite.
-  - conda config --add channels conda-forge
-
-  # Create and activate the test environment
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION fenics dolfin-adjoint mshr matplotlib scipy pyyaml memory-profiler pytest
-  - conda activate test-environment
-  - pip install -e .
+install:
+    - conda install conda-build
+    - conda config --add channels conda-forge
+    - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION fenics dolfin-adjoint mshr matplotlib scipy pyyaml memory-profiler pytest
+    - conda activate test-environment
+    - pip install -e .
 
 
 script:
-  # Run any test suite you may have
-  - pytest -v
+    - pytest -v
