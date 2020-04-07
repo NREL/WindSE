@@ -20,14 +20,15 @@ before_install:
     - conda update --yes conda
 
 install:
-    - conda create --yes -n test-environment python=$PYTHON_VERSION
-    - source activate test-environment
-    - conda install --yes -c conda-forge fenics dolfin-adjoint mshr matplotlib scipy pyyaml memory_profiler pytest
-    - pip install -e .
-    - pip install git+https://github.com/blechta/tsfc.git@2018.1.0
-    - pip install git+https://github.com/blechta/COFFEE.git@2018.1.0
-    - pip install git+https://github.com/blechta/FInAT.git@2018.1.0
-    - pip install singledispatch networkx pulp
+    - sh install.sh
+    # - conda create --yes -n test-environment python=$PYTHON_VERSION
+    # - source activate test-environment
+    # - conda install --yes -c conda-forge fenics dolfin-adjoint mshr matplotlib scipy pyyaml memory_profiler pytest
+    # - pip install -e .
+    # - pip install git+https://github.com/blechta/tsfc.git@2018.1.0
+    # - pip install git+https://github.com/blechta/COFFEE.git@2018.1.0
+    # - pip install git+https://github.com/blechta/FInAT.git@2018.1.0
+    # - pip install singledispatch networkx pulp
 
 script:
     - pytest -v
