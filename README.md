@@ -14,17 +14,7 @@ pip install -e .
 ```
 in the root folder. 
 
-### Conda Installation (Automatic):
-
-The best way to use WindSE is via a conda environment. To install conda check out this link: [Conda Installation.](https://conda.io/projects/conda/en/latest/user-guide/install/) After conda is installed, you need to download/clone the WindSE repo. Then can automatically setup the WindSE environment using:
-```
-conda create --name <enviroment_name>
-source activate <enviroment_name>
-conda install -c conda-forge windse
-```
-
-
-### Conda Installation (Source):
+### Source Installation (Recommended):
 
 If you want to use the latest version or just want to setup the environment manually, follow these steps. After conda is installed, create a new environment using:
 ```
@@ -44,3 +34,11 @@ pip install -e .
 ```
 in the root folder (where setup.py is located). 
 
+### Conda-Forge Installation (Automatic):
+
+The package is availible on conda-forge. To install conda check out this link: [Conda Installation.](https://conda.io/projects/conda/en/latest/user-guide/install/). Then WindSE automatically be setup using:
+```
+conda create --name <enviroment_name>
+source activate <enviroment_name>
+conda install -c conda-forge windse
+```
