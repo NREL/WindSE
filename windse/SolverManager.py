@@ -189,7 +189,6 @@ class GenericSolver(object):
 
                 # J += 0.5*A*C_pprime*(assemble(F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
                 J += (assemble(((0.5*A*C_pprime)**(1/3))*F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
-                print(type(J))
                 if self.save_power:
                     J_list[i] = 0.5*A*C_pprime*(assemble(F*T*D*u_d*dx)/assemble(F*T*D*dx))**3
 
