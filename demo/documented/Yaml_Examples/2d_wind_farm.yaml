@@ -77,14 +77,12 @@ refine:
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.25   # turbine radius multiplier    | -
     refine_custom: [
-        [1, custom, [[-1000,1200],[-200,200],[ 0,200]]],
-        # [1, custom, [[-1000,1200],[-100,100],[0,175]]],
-        # [1, custom, [[-1000,1200],  [-75,75],[25,175]]]
+        [box, [  [[-1000,1200],[-200,200]]]  ]
     ]
 function_space:
     type: taylor_hood
 
-boundary_condition:
+boundary_conditions:
     vel_profile: uniform
     HH_vel: 8.0
 

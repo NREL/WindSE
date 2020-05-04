@@ -28,6 +28,7 @@ wind_farm:
     jitter: 0            # Randomly perturb turbines| m
     seed: 8675309         # random seed for repeats  | -
     force: constant       # radial force distribution| -
+    turbine_method: dolfin
 
 
     ##################################################################
@@ -82,11 +83,10 @@ refine:
 
 function_space:
     type: taylor_hood
-    turbine_method: dolfin
     turbine_degree: 6
     turbine_space: Quadrature
     
-boundary_condition:
+boundary_conditions:
     vel_profile: uniform
     HH_vel: 8.0
 
@@ -103,8 +103,6 @@ solver:
     save_power: true
 
 optimization:
-    controls: [layout]
+    control_types: [layout]
     layout_bounds: [[-720, 720],[-720, 720]] 
-    taylor_test: False
-    optimize: False
     gradient: True

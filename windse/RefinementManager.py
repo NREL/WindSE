@@ -8,7 +8,7 @@ def CreateRefinementList(dom, farm, refine_params):
     turbine_num    = refine_params["turbine_num"]    
     turbine_type   = refine_params["turbine_type"]    
     turbine_factor = refine_params["turbine_factor"] 
-    refine_custom  = refine_params["refine_custom"]  
+    refine_custom  = refine_params["refine_custom"]  ### Need to fix for if the domain is scaled
 
     refine_list = []
 
@@ -50,7 +50,7 @@ def CreateRefinementList(dom, farm, refine_params):
                     center = [x0,y0]
                     radius = (bbox[1][1]-bbox[1][0])/2.0
                 length = bbox[0][1]-bbox[0][0]+6*RD
-                theta = dom.init_wind
+                theta = dom.inflow_angle
                 pivot_offset = 3*max(farm.RD)/2.0
                 refine_list.append(["stream",[center,radius,length,theta,pivot_offset,expand_factor]])
 
@@ -65,12 +65,12 @@ def CreateRefinementList(dom, farm, refine_params):
             elif turbine_type == 'wake':
                 radius = max(farm.RD)
                 length = 5*radius
-                theta = dom.init_wind
+                theta = dom.inflow_angle
                 refine_list.append(["wake",[radius,length,theta,expand_factor]])
 
             elif turbine_type == 'tear':
                 radius = max(farm.RD)
-                theta = dom.init_wind
+                theta = dom.inflow_angle
                 refine_list.append(["tear",[radius,theta,expand_factor]])
 
     if refine_custom is not None:
@@ -110,3 +110,15 @@ def RefineMesh(dom,farm):
 
         step_stop = time.time()
         fprint("Step {:d} of {:d} Finished: {:1.2f} s".format(i+1,num,step_stop-step_start), special="footer")
+
+def WarpMesh(dom):
+
+    warp_type      = dom.params["refine"]["warp_type"]      
+    warp_strength  = dom.params["refine"]["warp_strength"]  
+    warp_height    = dom.params["refine"]["warp_height"]    
+    warp_percent   = dom.params["refine"]["warp_percent"]  
+
+    if warp_type == "smooth":
+        dom.WarpSmooth(warp_strength)
+    elif warp_type == "split":
+        dom.WarpSplit(warp_height*dom.xscale,warp_percent)

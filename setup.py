@@ -9,6 +9,7 @@ setup(name ="windse",
       author="Ryan King, Jeffery Allen",
       author_email="ryan.king@nrel.gov",
       url="https://github.com/NREL/WindSE",
+      include_package_data=True,
       packages=['windse','windse_driver'],
       entry_points={'console_scripts' : ['windse = windse_driver.driver:main'],},
 

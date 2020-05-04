@@ -1,16 +1,6 @@
 """ 
 The BoundaryManager submodule contains the classes required for 
-defining the boundary conditions. The boundaries need to be numbered
-as follows:
-
-    * 1: Top
-    * 2: Bottom
-    * 3: Front
-    * 4: Back
-    * 5: Left
-    * 6: Right
-
-Currently, the inflow direction is the Left boundary.
+defining the boundary conditions. 
 """
 
 import __main__
@@ -49,11 +39,10 @@ class GenericBoundary(object):
         self.fprint = self.params.fprint
 
         ### Update attributes based on params file ###
-        for key, value in self.params["boundary_condition"].items():
+        for key, value in self.params["boundary_conditions"].items():
             setattr(self,key,value)
 
         ### Get solver parameters ###
-        self.init_wind = dom.init_wind
         self.final_time = self.params["solver"]["final_time"]
 
         ### Define the zero function based on domain dimension ###
@@ -88,8 +77,18 @@ class GenericBoundary(object):
             elif bc_type == "free_slip":
                 temp_list = list(self.boundary_names.keys()) # get ordered list
                 for b in bs:
-                    dim = math.floor(temp_list.index(b)/2.0) # get dim based on order
-                    bcu_eqns.append([self.fs.V.sub(dim), self.fs.W.sub(0).sub(dim), self.zero, self.boundary_names[b]])
+
+                    ### get a facet on the relevant boundary ###
+                    boundary_id = self.boundary_names[b]
+
+                    facet_ids = self.dom.boundary_markers.where_equal(boundary_id)
+                    test_facet = Facet(self.dom.mesh,facet_ids[int(len(facet_ids)/2.0)])
+
+                    ### get the function space sub form the normal ###
+                    facet_normal = test_facet.normal().array()
+                    field_id = int(np.argmin(abs(abs(facet_normal)-1.0)))
+
+                    bcu_eqns.append([self.fs.V.sub(field_id), self.fs.W.sub(0).sub(field_id), self.zero, boundary_id])
 
             elif bc_type == "no_stress":
                 for b in bs:
@@ -119,7 +118,7 @@ class GenericBoundary(object):
         self.fprint("Boundary Conditions Applied",offset=1)
         self.fprint("")
 
-    def PrepareVelocity(self,theta):
+    def PrepareVelocity(self,inflow_angle):
         length = len(self.unit_reference_velocity)
         ux_com = np.zeros(length)
         uy_com = np.zeros(length)
@@ -127,15 +126,15 @@ class GenericBoundary(object):
 
         for i in range(length):
             v = self.HH_vel * self.unit_reference_velocity[i]
-            ux_com[i] = math.cos(theta)*v
-            uy_com[i] = math.sin(theta)*v
+            ux_com[i] = math.cos(inflow_angle)*v
+            uy_com[i] = math.sin(inflow_angle)*v
             if self.dom.dim == 3:
                 uz_com[i] = 0.0   
         return [ux_com,uy_com,uz_com]
 
-    def RecomputeVelocity(self,theta):
+    def RecomputeVelocity(self,inflow_angle):
         self.fprint("Recomputing Velocity")
-        ux_com, uy_com, uz_com = self.PrepareVelocity(theta)
+        ux_com, uy_com, uz_com = self.PrepareVelocity(inflow_angle)
 
         self.ux = Function(self.fs.V0)
         self.uy = Function(self.fs.V1)
@@ -245,7 +244,7 @@ class UniformInflow(GenericBoundary):
         self.unit_reference_velocity = np.full(len(self.ux.vector()[:]),1.0)
         self.ux.vector()[:] = self.unit_reference_velocity
 
-        ux_com, uy_com, uz_com = self.PrepareVelocity(self.init_wind)
+        ux_com, uy_com, uz_com = self.PrepareVelocity(self.dom.inflow_angle)
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com
         if self.dom.dim == 3:
@@ -338,7 +337,7 @@ class PowerInflow(GenericBoundary):
 
         self.unit_reference_velocity = np.power(scaled_depth,self.power)
         # self.reference_velocity = np.multiply(self.HH_vel,np.power(scaled_depth,self.power))
-        ux_com, uy_com, uz_com = self.PrepareVelocity(self.init_wind)
+        ux_com, uy_com, uz_com = self.PrepareVelocity(self.dom.inflow_angle)
 
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com
@@ -401,7 +400,7 @@ class LogLayerInflow(GenericBoundary):
             scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+dom.ground_reference,(dom.ground_reference)))
             ustar = self.k/np.log(np.mean(farm.HH)/dom.ground_reference)
         self.unit_reference_velocity = np.multiply(ustar/self.k,np.log(scaled_depth))
-        ux_com, uy_com, uz_com = self.PrepareVelocity(self.init_wind)
+        ux_com, uy_com, uz_com = self.PrepareVelocity(self.dom.inflow_angle)
 
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com

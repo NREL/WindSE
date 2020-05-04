@@ -135,12 +135,14 @@ class Parameters(dict):
         self.fprint("Parameter Check Passed")
 
         ### Check is specific parameters were provided ###
+        yaml_bc = yaml_file.get("boundary_conditions",{})
         self.default_bc_names = True
-        if yaml_file["boundary_condition"].get("boundary_names",{}):
+        if yaml_bc.get("boundary_names",{}):
             self.default_bc_names = False
         self.default_bc_types = True
-        if yaml_file["boundary_condition"].get("boundary_types",{}):
+        if yaml_bc.get("boundary_types",{}):
             self.default_bc_types = False
+
         if yaml_file.get("optimization",{}):
             if not yaml_file["general"].get("dolfin_adjoint"):
                 print("Warning: Optimization options given, but general:dolfin_ajdoint is set to False")
@@ -151,6 +153,11 @@ class Parameters(dict):
         ### Create Instances of the general options ###
         for key, value in self["general"].items():
             setattr(self,key,value)
+
+        # print(self.dolfin_adjoint)
+        # for module in sys.modules:
+        #     if "adjoint" in module:
+        #         print(module)
 
         ### Set up the folder Structure ###
         timestamp=datetime.datetime.today().strftime('%Y%m%d_%H%M%S')

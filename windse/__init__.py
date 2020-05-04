@@ -28,8 +28,8 @@ def initialize(loc,updated_parameters=[]):
     global GridWindFarm, RandomWindFarm, ImportedWindFarm
     from windse.WindFarmManager import GridWindFarm, RandomWindFarm, ImportedWindFarm
 
-    global RefineMesh
-    from windse.RefinementManager import RefineMesh
+    global RefineMesh, WarpMesh
+    from windse.RefinementManager import RefineMesh, WarpMesh
 
     global LinearFunctionSpace, TaylorHoodFunctionSpace
     from windse.FunctionSpaceManager import LinearFunctionSpace, TaylorHoodFunctionSpace

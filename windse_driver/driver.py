@@ -1,4 +1,3 @@
-import sys
 import numpy as np
 import time
 import os.path as osp
@@ -42,142 +41,24 @@ def get_action():
 def run_action(params_loc=None):
     tick = time.time()
 
-    ### unload windse if previously loaded ###
-    if "windse" in sys.modules.keys():
-        del sys.modules["windse"]
-        mods_to_remove = []
-        for k in sys.modules.keys():
-            if "windse." in k:
-                mods_to_remove.append(k)
-        for i in range(len(mods_to_remove)):
-            del sys.modules[mods_to_remove[i]]
+    ### Clean up other module references ###
+    mods_to_remove = []
+    for k in sys.modules.keys():
+        if ("windse" in k):
+        # if ("windse" in k or "fenics" in k or "pyadjoint" in k or "dolfin" in k):
+            mods_to_remove.append(k)
+    for i in range(len(mods_to_remove)):
+        del sys.modules[mods_to_remove[i]]
 
+    ### Import fresh version of windse ###
     import windse
-    
-    parser = argparse.ArgumentParser(usage="windse run [options] params", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("params", nargs='?', help='path to yaml file containing the WindSE parameters')
-    parser.add_argument('-p', dest='updated_parameters', action='append',default=[], help='use this to override a parameter in the yaml file')
-    args, unknown = parser.parse_known_args()
+    from .driver_functions import SetupSimulation
 
-    if params_loc is None:
-        ### Check if parameters was provided ###
-        if args.params is None:
-            params_loc = "params.yaml"
-            print("Using default parameter location: ./params.yaml")
-        else:
-            params_loc = args.params
-            print("Using parameter location: "+params_loc)
+    ### Setup everything ###
+    params, problem, solver = SetupSimulation(params_loc)
 
-    ### Initialize WindSE ###
-    windse.initialize(params_loc,updated_parameters=args.updated_parameters)
-    
-    params=windse.windse_parameters
-
-    ### Setup the Domain ###
-    if params["domain"]["interpolated"]:
-        dom_dict = {"box":windse.InterpolatedBoxDomain,
-                    "cylinder":windse.InterpolatedCylinderDomain
-        }
-    else:
-        dom_dict = {"box":windse.BoxDomain,
-                    "rectangle":windse.RectangleDomain,
-                    "cylinder":windse.CylinderDomain,
-                    "circle":windse.CircleDomain,
-                    "imported":windse.ImportedDomain}
-    dom = dom_dict[params["domain"]["type"]]()
-
-    ### Setup the Wind farm ###
-    farm_dict = {"grid":windse.GridWindFarm,
-                 "random":windse.RandomWindFarm,
-                 "imported":windse.ImportedWindFarm}
-    farm = farm_dict[params["wind_farm"]["type"]](dom)
-    farm.Plot(params["wind_farm"]["display"])
-
-    ### Move and refine the mesh
-    if "refine" in params.keys():
-        if params["domain"]["scaled"]:
-            Sx = 1.0e-3
-        else:
-            Sx = 1.0
-        warp_type      = params["refine"]["warp_type"]      
-        warp_strength  = params["refine"]["warp_strength"]  
-        warp_height    = params["refine"]["warp_height"]    
-        warp_percent   = params["refine"]["warp_percent"]   
-        farm_num       = params["refine"]["farm_num"]       
-        farm_type      = params["refine"]["farm_type"]      
-        farm_factor    = params["refine"]["farm_factor"]    
-        farm_radius    = params["refine"]["farm_radius"]    
-        turbine_num    = params["refine"]["turbine_num"]    
-        turbine_factor = params["refine"]["turbine_factor"] 
-        refine_custom  = params["refine"]["refine_custom"]  
-
-        if warp_type == "smooth":
-            dom.WarpSmooth(warp_strength)
-        elif warp_type == "split":
-            dom.WarpSplit(warp_height*Sx,warp_percent)
-
-
-        if refine_custom is not None:
-            for refine_data in refine_custom:
-                if refine_data[1] == "full":
-                    dom.Refine(refine_data[0])
-                else:
-                    if refine_data[1] == "custom":
-                        region = np.array(refine_data[2])*Sx
-                    else:
-                        region = farm.CalculateFarmRegion(refine_data[1],length=refine_data[2]*Sx)
-                    dom.Refine(refine_data[0],region=region,region_type=refine_data[1])
-        
-        if farm_num > 0:
-            if farm_radius is not None:
-                farm_radius=farm_radius*Sx
-            region = farm.CalculateFarmRegion(farm_type,farm_factor,length=farm_radius)
-            dom.Refine(farm_num,region=region,region_type=farm_type)
-
-
-        if turbine_num > 0:
-            # print('yo', turbine_num)
-            farm.RefineTurbines(turbine_num,turbine_factor) 
-
-    ### Finalize the Domain ###
-    dom.Finalize()
-
-    # dom.Save()
-    # exit()
-    ### Function Space ###
-    func_dict = {"linear":windse.LinearFunctionSpace,
-                 "taylor_hood":windse.TaylorHoodFunctionSpace}
-    fs = func_dict[params["function_space"]["type"]](dom)
-
-    # dom.Save()
-    # exit()
-    
-    ### Setup Boundary Conditions ###
-    bc_dict = {"uniform":windse.UniformInflow,
-               "power":windse.PowerInflow,
-               "log":windse.LogLayerInflow,
-               "turbsim":windse.TurbSimInflow}
-    bc = bc_dict[params["boundary_condition"]["vel_profile"]](dom,fs,farm)
-
-    ### Generate the problem ###
-    prob_dict = {"stabilized":windse.StabilizedProblem,
-                 "taylor_hood":windse.TaylorHoodProblem,
-                 "unsteady":windse.UnsteadyProblem}
-    problem = prob_dict[params["problem"]["type"]](dom,farm,fs,bc)#,opt=opt)
-
-    ### Solve ###
-    solve_dict = {"steady":windse.SteadySolver,
-                  "unsteady":windse.UnsteadySolver,
-                  "multiangle":windse.MultiAngleSolver,
-                  "importedvelocity":windse.TimeSeriesSolver}
-    solver = solve_dict[params["solver"]["type"]](problem)
+    ### run the solver ###
     solver.Solve()
-
-
-    # import dolfin_adjoint as da
-    # tape = da.get_working_tape()
-    # tape.visualise()
-    # exit()
 
     ### Perform Optimization ###
     if params.dolfin_adjoint:

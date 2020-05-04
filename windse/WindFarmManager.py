@@ -60,6 +60,7 @@ class GenericWindFarm(object):
         self.optimize = False
         if self.params.dolfin_adjoint:
             self.layout_bounds = self.params["optimization"]["layout_bounds"]
+            self.control_types = self.params["optimization"]["control_types"]
             self.extra_kwarg["annotate"] = False
             self.optimize = True
 
@@ -80,7 +81,7 @@ class GenericWindFarm(object):
         if not os.path.exists(folder_string): os.makedirs(folder_string)
 
         ### Create a list that outlines the extent of the farm ###
-        if self.optimize and self.layout_bounds == "wind_farm":
+        if self.optimize and "layout" in self.control_types and self.layout_bounds == "wind_farm":
             ex_list_x = [self.layout_bounds[0][0],self.layout_bounds[0][1],self.layout_bounds[0][1],self.layout_bounds[0][0],self.layout_bounds[0][0]]
             ex_list_y = [self.layout_bounds[1][0],self.layout_bounds[1][0],self.layout_bounds[1][1],self.layout_bounds[1][1],self.layout_bounds[1][0]]
         else:
@@ -508,102 +509,102 @@ class GenericWindFarm(object):
 
 
 
-    def RefineTurbines(self,num,radius_multiplyer):
+    # def RefineTurbines(self,num,radius_multiplyer):
 
-        self.fprint("Refining Near Turbines",special="header")
-        mark_start = time.time()
+    #     self.fprint("Refining Near Turbines",special="header")
+    #     mark_start = time.time()
 
-        for i in range(num):
-            if num>1:
-                step_start = time.time()
-                self.fprint("Refining Mesh Step {:d} of {:d}".format(i+1,num), special="header")
+    #     for i in range(num):
+    #         if num>1:
+    #             step_start = time.time()
+    #             self.fprint("Refining Mesh Step {:d} of {:d}".format(i+1,num), special="header")
 
-            cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
-
-
-            expand_turbine_radius = True
-
-            if expand_turbine_radius:
-                radius = (num-i)*radius_multiplyer*np.array(self.RD)/2.0
-            else:
-                radius = radius_multiplyer*np.array(self.RD)/2.0
+    #         cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
 
 
-            if self.dom.dim == 3:
-                turb_x = np.array(self.x)
-                turb_x = np.tile(turb_x,(4,1)).T
-                turb_y = np.array(self.y)
-                turb_y = np.tile(turb_y,(4,1)).T
-                turb_z0 = self.dom.z_range[0]-radius
-                turb_z1 = self.z+radius
-            else:
-                turb_x = np.array(self.x)
-                turb_x = np.tile(turb_x,(3,1)).T
-                turb_y = np.array(self.y)
-                turb_y = np.tile(turb_y,(3,1)).T
-            n = self.numturbs
+    #         expand_turbine_radius = True
 
-            self.fprint("Marking Near Turbine")
-            for cell in cells(self.dom.mesh):
+    #         if expand_turbine_radius:
+    #             radius = (num-i)*radius_multiplyer*np.array(self.RD)/2.0
+    #         else:
+    #             radius = radius_multiplyer*np.array(self.RD)/2.0
 
-                pt = cell.get_vertex_coordinates()
-                if self.dom.dim == 3:
-                    x = pt[0:-2:3]
-                    x = np.tile(x,(n,1))
-                    y = pt[1:-1:3]
-                    y = np.tile(y,(n,1))
-                    z = pt[2::3]
-                else:
-                    x = pt[0:-1:2]
-                    x = np.tile(x,(n,1))
-                    y = pt[1::2]
-                    y = np.tile(y,(n,1))
 
-                ### For each turbine, find which vertex is closet using squared distance
-                force_cylindrical_refinement = True
+    #         if self.dom.dim == 3:
+    #             turb_x = np.array(self.x)
+    #             turb_x = np.tile(turb_x,(4,1)).T
+    #             turb_y = np.array(self.y)
+    #             turb_y = np.tile(turb_y,(4,1)).T
+    #             turb_z0 = self.dom.z_range[0]-radius
+    #             turb_z1 = self.z+radius
+    #         else:
+    #             turb_x = np.array(self.x)
+    #             turb_x = np.tile(turb_x,(3,1)).T
+    #             turb_y = np.array(self.y)
+    #             turb_y = np.tile(turb_y,(3,1)).T
+    #         n = self.numturbs
+
+    #         self.fprint("Marking Near Turbine")
+    #         for cell in cells(self.dom.mesh):
+
+    #             pt = cell.get_vertex_coordinates()
+    #             if self.dom.dim == 3:
+    #                 x = pt[0:-2:3]
+    #                 x = np.tile(x,(n,1))
+    #                 y = pt[1:-1:3]
+    #                 y = np.tile(y,(n,1))
+    #                 z = pt[2::3]
+    #             else:
+    #                 x = pt[0:-1:2]
+    #                 x = np.tile(x,(n,1))
+    #                 y = pt[1::2]
+    #                 y = np.tile(y,(n,1))
+
+    #             ### For each turbine, find which vertex is closet using squared distance
+    #             force_cylindrical_refinement = True
                 
-                if force_cylindrical_refinement:
-                    d_y = pt[1]
-                    d_z = pt[2] - self.HH[0]
-                    min_r = d_y**2 + d_z**2
-                else:
-                    min_r = np.min(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)
+    #             if force_cylindrical_refinement:
+    #                 d_y = pt[1]
+    #                 d_z = pt[2] - self.HH[0]
+    #                 min_r = d_y**2 + d_z**2
+    #             else:
+    #                 min_r = np.min(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)
 
-                downstream_teardrop_shape = False
+    #             downstream_teardrop_shape = False
 
-                if downstream_teardrop_shape:
-                    min_arg = np.argmin(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)
-                    min_arg = np.argmin(min_arg)
+    #             if downstream_teardrop_shape:
+    #                 min_arg = np.argmin(np.power(turb_x-x,2.0)+np.power(turb_y-y,2.0),axis=1)
+    #                 min_arg = np.argmin(min_arg)
 
-                    if np.any(turb_x[min_arg] < x):
-                        min_r = np.min(np.power(turb_x-x/2.0,2.0)+np.power(turb_y-y,2.0),axis=1)
-                    else:
-                        min_r = np.min(np.power(turb_x-x*2.0,2.0)+np.power(turb_y-y,2.0),axis=1)
+    #                 if np.any(turb_x[min_arg] < x):
+    #                     min_r = np.min(np.power(turb_x-x/2.0,2.0)+np.power(turb_y-y,2.0),axis=1)
+    #                 else:
+    #                     min_r = np.min(np.power(turb_x-x*2.0,2.0)+np.power(turb_y-y,2.0),axis=1)
 
 
-                in_circle = min_r <= radius**2.0
-                if self.dom.dim == 3:
-                    if force_cylindrical_refinement:
-                        in_z = -radius < pt[0]
-                    else:
-                        in_z = np.logical_and(turb_z0 <= max(z), turb_z1 >= min(z))
-                    near_turbine = np.logical_and(in_circle, in_z)
-                else:
-                    near_turbine = in_circle
+    #             in_circle = min_r <= radius**2.0
+    #             if self.dom.dim == 3:
+    #                 if force_cylindrical_refinement:
+    #                     in_z = -radius < pt[0]
+    #                 else:
+    #                     in_z = np.logical_and(turb_z0 <= max(z), turb_z1 >= min(z))
+    #                 near_turbine = np.logical_and(in_circle, in_z)
+    #             else:
+    #                 near_turbine = in_circle
 
-                if any(near_turbine):
-                    cell_f[cell] = True
-            mark_stop = time.time()
-            self.fprint("Marking Finished: {:1.2f} s".format(mark_stop-mark_start))
+    #             if any(near_turbine):
+    #                 cell_f[cell] = True
+    #         mark_stop = time.time()
+    #         self.fprint("Marking Finished: {:1.2f} s".format(mark_stop-mark_start))
 
-            self.dom.Refine(1,cell_markers=cell_f)
+    #         self.dom.Refine(1,cell_markers=cell_f)
 
-            if num>1:
-                step_stop = time.time()
-                self.fprint("Step {:d} of {:d} Finished: {:1.2f} s".format(i+1,num,step_stop-step_start), special="footer")
+    #         if num>1:
+    #             step_stop = time.time()
+    #             self.fprint("Step {:d} of {:d} Finished: {:1.2f} s".format(i+1,num,step_stop-step_start), special="footer")
 
-        self.CalculateHeights()
-        self.fprint("Turbine Refinement Finished",special="footer")
+    #     self.CalculateHeights()
+    #     self.fprint("Turbine Refinement Finished",special="footer")
 
     def YawTurbine(self,x,x0,yaw):
         """

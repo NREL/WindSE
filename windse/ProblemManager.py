@@ -50,11 +50,11 @@ class GenericProblem(object):
         for key, value in self.params["problem"].items():
             setattr(self,key,value)
 
-    def ComputeTurbineForce(self,u,theta,simTime=0.0):
+    def ComputeTurbineForce(self,u,inflow_angle,simTime=0.0):
 
         ### Compute the relative yaw angle ###
-        if theta is not None:
-            inflow_angle = theta-self.dom.init_wind
+        if inflow_angle is not None:
+            inflow_angle = inflow_angle-self.dom.inflow_angle
         else:
             inflow_angle = 0.0
 
@@ -89,30 +89,30 @@ class GenericProblem(object):
 
         return tf
 
-    def ChangeWindAngle(self,theta):
+    def ChangeWindAngle(self,inflow_angle):
         """
         This function recomputes all necessary components for a new wind direction
 
         Args: 
-            theta (float): The new wind angle in radians
+            inflow_angle (float): The new wind angle in radians
         """
         adj_start = time.time()
         self.fprint("Adjusting Wind Angle",special="header")
-        self.fprint("New Angle: {:1.8f} rads".format(theta))
-        self.dom.RecomputeBoundaryMarkers(theta)
-        self.bd.RecomputeVelocity(theta)
-        self.ComputeFunctional(theta)
+        self.fprint("New Angle: {:1.8f} rads".format(inflow_angle))
+        self.dom.RecomputeBoundaryMarkers(inflow_angle)
+        self.bd.RecomputeVelocity(inflow_angle)
+        self.ComputeFunctional(inflow_angle)
 
         adj_stop = time.time()
         self.fprint("Wind Angle Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")
 
         # self.tf.assign(tf_temp)
 
-    def ChangeWindSpeed(self,speed):
+    def ChangeWindSpeed(self,inflow_speed):
         adj_start = time.time()
         self.fprint("Adjusting Wind Speed",special="header")
-        self.fprint("New Speed: {:1.8f} m/s".format(speed/self.dom.xscale))
-        self.bd.HH_vel = speed
+        self.fprint("New Speed: {:1.8f} m/s".format(inflow_speed/self.dom.xscale))
+        self.bd.HH_vel = inflow_speed
         adj_stop = time.time()
         self.fprint("Wind Speed Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")
 
@@ -146,7 +146,7 @@ class StabilizedProblem(GenericProblem):
         self.ComputeFunctional()
 
 
-    def ComputeFunctional(self,theta=None):
+    def ComputeFunctional(self,inflow_angle=None):
         self.fprint("Setting Up Stabilized Problem",special="header")
 
         ### Create the test/trial/functions ###
@@ -162,14 +162,15 @@ class StabilizedProblem(GenericProblem):
         self.up_k.assign(self.bd.u0)
 
         # mem0=memory_usage()[0]
-        # mem_out, self.tf = memory_usage((self.ComputeTurbineForce,(self.u_k,theta),{}),max_usage=True,retval=True,max_iterations=1)
+        # mem_out, self.tf = memory_usage((self.ComputeTurbineForce,(self.u_k,inflow_angle),{}),max_usage=True,retval=True,max_iterations=1)
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
-        self.tf = self.ComputeTurbineForce(self.u_k,theta)
+        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
 
         ### These constants will be moved into the params file ###
         f = Constant((0.0,)*self.dom.dim)
         f.rename("f","f")
         
+        nu = self.viscosity
         vonKarman=0.41
         eps=Constant(1.0)
         eps.rename("eps","eps")
@@ -219,7 +220,10 @@ class StabilizedProblem(GenericProblem):
             dudx = Dx(self.u_next[0], 0)
             dvdy = Dx(self.u_next[1], 1)
 
-            term25 = (sin(self.dom.init_wind)*dudx*q + cos(self.dom.init_wind)*dvdy*q)*dx
+            if inflow_angle is None:
+                term25 = dvdy*q*dx
+            else:
+                term25 = (abs(sin(inflow_angle))*dudx*q + abs(cos(inflow_angle))*dvdy*q)*dx
 
             self.F -= term25
 
@@ -242,13 +246,15 @@ class TaylorHoodProblem(GenericProblem):
         ### Create Functional ###
         self.ComputeFunctional()
 
-    def ComputeFunctional(self,theta=None):
+    def ComputeFunctional(self,inflow_angle=None):
         self.fprint("Setting Up Taylor-Hood Problem",special="header")
 
         ### These constants will be moved into the params file ###
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
         eps=Constant(0.01)
+        nu = self.viscosity
+
 
         self.fprint("Viscosity:         {:1.2e}".format(float(self.viscosity)))
         self.fprint("Max Mixing Length: {:1.2e}".format(float(self.lmax)))
@@ -277,7 +283,7 @@ class TaylorHoodProblem(GenericProblem):
         self.nu_T=l_mix**2.*S
 
         ### Create the turbine force ###
-        self.tf = self.ComputeTurbineForce(self.u_k,theta)
+        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
 
         ### Create the functional ###
         self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
@@ -290,7 +296,10 @@ class TaylorHoodProblem(GenericProblem):
             dudx = Dx(self.u_k[0], 0)
             dvdy = Dx(self.u_k[1], 1)
 
-            term25 = (sin(self.dom.init_wind)*dudx*q + cos(self.dom.init_wind)*dvdy*q)*dx
+            if inflow_angle is None:
+                term25 = dvdy*q*dx
+            else:
+                term25 = (abs(sin(inflow_angle))*dudx*q + abs(cos(inflow_angle))*dvdy*q)*dx
 
             self.F -= term25
 
@@ -316,7 +325,7 @@ class UnsteadyProblem(GenericProblem):
         ### Create Functional ###
         self.ComputeFunctional()
 
-    def ComputeFunctional(self,theta=None):
+    def ComputeFunctional(self,inflow_angle=None):
         # ================================================================
 
         # Define fluid properties
@@ -409,7 +418,7 @@ class UnsteadyProblem(GenericProblem):
         # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
         # self.tf = Function(self.fs.V)
 
-        self.tf = self.ComputeTurbineForce(self.u_k,theta)
+        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
         self.u_k.assign(self.tf)
         self.u_k.assign(self.bd.bc_velocity)
 

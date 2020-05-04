@@ -34,6 +34,7 @@ class GenericFunctionSpace(object):
         ### Update attributes based on params file ###
         for key, value in self.params["function_space"].items():
             setattr(self,key,value)
+        self.turbine_method = self.params["wind_farm"]["turbine_method"]
 
         if self.turbine_space == "Quadrature" and (self.turbine_degree != self.quadrature_degree):
             raise ValueError("When using the numpy representation with the 'Quadrature' space, the turbine degree and quadrature degree must be equal.")

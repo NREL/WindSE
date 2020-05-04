@@ -23,78 +23,6 @@ if platform == 'darwin':
     matplotlib.use('TKAgg')
 import matplotlib.pyplot as plt
 
-### We need to override ALE move so that dolfin-adjoint can track the change ###
-backend_move = dolfin.ALE.move
-def move(mesh,bmesh, **kwargs):
-    """ Refine is overloaded to ensure that the returned mesh is overloaded.
-    """
-    with stop_annotating():
-        backend_move(mesh,bmesh, **kwargs)
-    overloaded = create_overloaded_object(mesh)
-    return overloaded
-dolfin.ALE.move = move
-
-def linalg_solve(*args, **kwargs):
-    """This function overrides dolfin_adjoints.compat.linalg_solve.
-
-    The original function doesn't allow for solver options because it uses
-     the::
-
-        dolfin.solve(A,x,b) 
-
-    form which doesn't accept keyword arguments. However, It does except 
-    additional arguments that defined some solver options, which we pass
-    in manually
-
-    Todo:
-
-        Eventually, we want to replace this with a full PetscKrylovSolver()
-        to get access to all the ksp options.
-
-    """
-    return dolfin_adjoint.backend.solve(*args,"mumps") 
-dolfin_adjoint.types.compat.linalg_solve = linalg_solve
-
-def assemble_adjoint_value(form, **kwargs):
-    """Wrapper that assembles a matrix with boundary conditions"""
-    bcs = kwargs.pop("bcs", ())
-    # print(form)
-    if windse_parameters["function_space"]["turbine_method"] == "numpy":
-        rep = 'tsfc'
-    else:
-        rep = 'uflacs'
-    result = dolfin_adjoint.backend.assemble(form,form_compiler_parameters={'representation': rep})
-    for bc in bcs:
-        bc.apply(result)
-    return result
-dolfin_adjoint.types.compat.assemble_adjoint_value = assemble_adjoint_value
-
-shutil.rmtree(windse_parameters.folder+"debug/", ignore_errors=True)
-def recompute_component(self, inputs, block_variable, idx, prepared):
-    file_exists = False
-
-
-    # print()
-    # print("hey Look at me I'm recomputing!")
-    # print()
-    """This function overrides 
-    dolfin_adjoint.solving.SolveBlock.recompute_component
-
-    The original function doesn't account for kwargs in a project so it 
-    doesn't pass them to this function. For now, we just supply the
-    solver_parameters manually in this case. 
-
-    Todo:
-
-        Eventually, we want to replace this with a full PetscKrylovSolver()
-        to get access to all the ksp options.
-
-    """
-    lhs = prepared[0]
-    rhs = prepared[1]
-    func = prepared[2]
-    bcs = prepared[3]
-
 def BaseHeight(x,y,ground,**kwargs):
     '''This is the adjoint version of RelativeHeight. It's goal is to 
     calculate the height of the turbine's base. At the same time, it creates
@@ -341,6 +269,73 @@ class ActuatorDiskForceBlock(Block):
 
 
 
+def Marker(u, simTime, out_file, **kwargs):
+    '''This is the adjoint version of RelativeHeight. It's goal is to 
+    calculate the height of the turbine's base. At the same time, it creates
+    a block that helps propagate the adjoint information.'''
+    annotate = annotate_tape(kwargs)
+    u = create_overloaded_object(u)
+
+    if annotate:        
+        block = MarkerBlock(u, simTime, out_file)
+        block.add_output(u.create_block_variable())
+
+        tape = get_working_tape()
+        tape.add_block(block)
+
+    return u
+
+
+
+
+
+
+
+class MarkerBlock(Block):
+    '''This is the Block class that will be used to calculate adjoint 
+    information for optimizations. '''
+    def __init__(self, u, simTime, out_file):
+        super(MarkerBlock, self).__init__()
+        self.simTime = simTime
+        self.out_file = out_file
+        self.saved = False
+        self.V = u.function_space() 
+        self.add_dependency(u)
+
+    def __str__(self):
+        return "MarkerBlock"
+
+    def recompute_component(self, inputs, block_variable, idx, prepared):
+        return inputs[0]
+
+    # @no_annotations
+    # def evaluate_adj(self, markings=False):
+    #     print("Saving Adjoint Function for timestep:" + repr(self.simTime))
+
+    #     output = self.get_outputs()
+    #     adj_input = output[0].adj_value
+
+    #     temp = dolfin_adjoint.Function(self.V, name="u_adjoint",annotate=False)
+    #     temp.vector().set_local(adj_input.get_local())
+    #     self.out_file.write(temp,self.simTime)
+
+
+
+    def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
+        if self.saved == False:
+            print("Saving Adjoint Function for timestep: " + repr(self.simTime))
+            temp = dolfin_adjoint.Function(self.V, name="u_adjoint",annotate=False)
+            temp.vector().set_local(adj_inputs[0].get_local())
+            self.out_file.write(temp,self.simTime)
+            self.saved = True
+
+        return adj_inputs[0]
+
+
+
+
+
+
 
 
 
@@ -512,7 +507,9 @@ def move(mesh,bmesh, **kwargs):
         backend_move(mesh,bmesh, **kwargs)
     overloaded = create_overloaded_object(mesh)
     return overloaded
-dolfin.ALE.move = move
+
+if "dolfin_adjoint_helper" not in dolfin.ALE.move.__module__:
+    dolfin.ALE.move = move
 
 def linalg_solve(*args, **kwargs):
     """This function overrides dolfin_adjoints.compat.linalg_solve.
@@ -534,7 +531,9 @@ def linalg_solve(*args, **kwargs):
     """
     # print("performing a solve")
     return dolfin_adjoint.backend.solve(*args)#,"mumps") 
-dolfin_adjoint.types.compat.linalg_solve = linalg_solve
+
+if "dolfin_adjoint_helper" not in dolfin_adjoint.types.compat.linalg_solve.__module__:
+    dolfin_adjoint.types.compat.linalg_solve = linalg_solve
 
 def assemble_adjoint_value(form, **kwargs):
     """Wrapper that assembles a matrix with boundary conditions"""
@@ -548,9 +547,12 @@ def assemble_adjoint_value(form, **kwargs):
     for bc in bcs:
         bc.apply(result)
     return result
-dolfin_adjoint.types.compat.assemble_adjoint_value = assemble_adjoint_value
+
+if "dolfin_adjoint_helper" not in dolfin_adjoint.types.compat.assemble_adjoint_value.__module__:
+    dolfin_adjoint.types.compat.assemble_adjoint_value = assemble_adjoint_value
 
 shutil.rmtree(windse_parameters.folder+"debug/", ignore_errors=True)
+
 def recompute_component(self, inputs, block_variable, idx, prepared):
     file_exists = False
     # print("resolving")
@@ -602,7 +604,8 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
             self.savefile << (u,self.solve_iteration)
     # print("assemble(func*dx): " + repr(float(dolfin.assemble(dolfin.inner(func,func)*dolfin.dx))))
     return func
-dolfin_adjoint.solving.SolveBlock.recompute_component = recompute_component
+if "dolfin_adjoint_helper" not in dolfin_adjoint.solving.SolveBlock.recompute_component.__module__:
+    dolfin_adjoint.solving.SolveBlock.recompute_component = recompute_component
 
 def _init_dependencies(self, *args, **kwargs):
     self.preconditioner_method = "default"
@@ -663,7 +666,8 @@ def _init_dependencies(self, *args, **kwargs):
 
     for c in self.lhs.coefficients():
         self.add_dependency(c, no_duplicates=True)
-dolfin_adjoint.solving.SolveBlock._init_dependencies = _init_dependencies
+if "dolfin_adjoint_helper" not in dolfin_adjoint.solving.SolveBlock._init_dependencies.__module__:
+    dolfin_adjoint.solving.SolveBlock._init_dependencies = _init_dependencies
 
 def _assemble_and_solve_adj_eq(self, dFdu_form, dJdu):
     dJdu_copy = dJdu.copy()
@@ -683,71 +687,10 @@ def _assemble_and_solve_adj_eq(self, dFdu_form, dJdu):
         dolfin.action(dFdu_form, adj_sol)))
 
     return adj_sol, adj_sol_bdy
-dolfin_adjoint.solving.SolveBlock._assemble_and_solve_adj_eq = _assemble_and_solve_adj_eq
+if "dolfin_adjoint_helper" not in dolfin_adjoint.solving.SolveBlock._assemble_and_solve_adj_eq.__module__:
+    dolfin_adjoint.solving.SolveBlock._assemble_and_solve_adj_eq = _assemble_and_solve_adj_eq
 
 
-
-
-
-
-
-
-def Marker(u, simTime, out_file, **kwargs):
-    '''This is the adjoint version of RelativeHeight. It's goal is to 
-    calculate the height of the turbine's base. At the same time, it creates
-    a block that helps propagate the adjoint information.'''
-    annotate = annotate_tape(kwargs)
-    u = create_overloaded_object(u)
-
-    if annotate:        
-        block = MarkerBlock(u, simTime, out_file)
-        block.add_output(u.create_block_variable())
-
-        tape = get_working_tape()
-        tape.add_block(block)
-
-    return u
-
-
-class MarkerBlock(Block):
-    '''This is the Block class that will be used to calculate adjoint 
-    information for optimizations. '''
-    def __init__(self, u, simTime, out_file):
-        super(MarkerBlock, self).__init__()
-        self.simTime = simTime
-        self.out_file = out_file
-        self.saved = False
-        self.V = u.function_space() 
-        self.add_dependency(u)
-
-    def __str__(self):
-        return "MarkerBlock"
-
-    def recompute_component(self, inputs, block_variable, idx, prepared):
-        return inputs[0]
-
-    # @no_annotations
-    # def evaluate_adj(self, markings=False):
-    #     print("Saving Adjoint Function for timestep:" + repr(self.simTime))
-
-    #     output = self.get_outputs()
-    #     adj_input = output[0].adj_value
-
-    #     temp = dolfin_adjoint.Function(self.V, name="u_adjoint",annotate=False)
-    #     temp.vector().set_local(adj_input.get_local())
-    #     self.out_file.write(temp,self.simTime)
-
-
-
-    def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
-        if self.saved == False:
-            print("Saving Adjoint Function for timestep: " + repr(self.simTime))
-            temp = dolfin_adjoint.Function(self.V, name="u_adjoint",annotate=False)
-            temp.vector().set_local(adj_inputs[0].get_local())
-            self.out_file.write(temp,self.simTime)
-            self.saved = True
-
-        return adj_inputs[0]
 
 
 

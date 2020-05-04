@@ -69,10 +69,12 @@ class Optimizer(object):
                 setattr(self,key,value)
 
         ### Process parameters ###
-        if isinstance(self.layout_bounds,str):
-            if self.layout_bounds == "wind_farm":
-                self.layout_bounds = np.array(self.farm.ex_x,self.farm.ex_y)
-        self.layout_bounds = self.layout_bounds*self.xscale
+        if "layout" in self.control_types:
+            if self.layout_bounds == "wind_farm" and "layout" in self.control_types:
+                self.layout_bounds = np.array([self.farm.ex_x,self.farm.ex_y])
+            else:
+                self.layout_bounds = np.array(self.layout_bounds)
+            self.layout_bounds = self.layout_bounds*self.xscale
 
         self.iteration = 0
 

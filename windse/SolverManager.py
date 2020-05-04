@@ -31,8 +31,8 @@ if main_file != "sphinx-build":
         from dolfin_adjoint import *
         from windse.dolfin_adjoint_helper import Marker
 
-        ### Import objective functions ###
-        import windse.ObjectiveFunctions as obj_funcs
+    ### Import objective functions ###
+    import windse.ObjectiveFunctions as obj_funcs
 
     ### This import improves the plotter functionality on Mac ###
     if platform == 'darwin':
@@ -76,15 +76,15 @@ class GenericSolver(object):
             self.extra_kwarg["annotate"] = False
             self.optimizing = True
             self.J = 0.0
-            self.objective_type = self.params["optimization"]["objective_type"]
-            self.objective_func = obj_funcs.objectives_dict[self.objective_type]
             self.wake_RD = int(self.params["optimization"]["wake_RD"])
             self.min_total = self.params["optimization"]["min_total"]
             self.adj_file = XDMFFile(self.params.folder+"timeSeries/local_adjoint.xdmf")
             self.adj_time_iter = 1
-            self.adj_time_list = [self.simTime]
+            self.adj_time_list = [0.0]
         else:
             self.optimizing = False
+        self.objective_type = self.params["optimization"]["objective_type"]
+        self.objective_func = obj_funcs.objectives_dict[self.objective_type]
 
         #Check if we need to save the power output
         if self.save_power:
@@ -113,49 +113,49 @@ class GenericSolver(object):
         u.vector()[:]=u.vector()[:]*self.problem.dom.xscale
         self.problem.dom.mesh.coordinates()[:]=self.problem.dom.mesh.coordinates()[:]*self.problem.dom.xscale
 
-    def ChangeWindSpeed(self,speed):
+    def ChangeWindSpeed(self,inflow_speed):
         """
         This function recomputes all necessary components for a new wind direction
 
         Args: 
             theta (float): The new wind angle in radians
         """
-        self.problem.ChangeWindSpeed(speed)
+        self.problem.ChangeWindSpeed(inflow_speed)
 
-    def ChangeWindAngle(self,theta):
+    def ChangeWindAngle(self,inflow_angle):
         """
         This function recomputes all necessary components for a new wind direction
 
         Args: 
             theta (float): The new wind angle in radians
         """
-        self.problem.ChangeWindAngle(theta)
+        self.problem.ChangeWindAngle(inflow_angle)
 
-    def SavePower(self,inflow_angle=0.0):
+    # def SavePower(self,inflow_angle=0.0):
 
-        J_list=np.zeros(self.problem.farm.numturbs+1)
+    #     J_list=np.zeros(self.problem.farm.numturbs+1)
 
-        if self.problem.farm.actuator_disks_list is not None:
-            for i in range(self.problem.farm.numturbs):
-                yaw = self.problem.farm.myaw[i]+inflow_angle
-                tf1 = self.problem.farm.actuator_disks_list[i] * cos(yaw)**2
-                tf2 = self.problem.farm.actuator_disks_list[i] * sin(yaw)**2
-                tf3 = self.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
-                tf = tf1*self.u_k[0]**2+tf2*self.u_k[1]**2+tf3*self.u_k[0]*self.u_k[1]
-                J_list[i] = assemble(dot(tf,self.u_k)*dx,**self.extra_kwarg)
-        J_list[-1]=sum(J_list)
+    #     if self.problem.farm.actuator_disks_list is not None:
+    #         for i in range(self.problem.farm.numturbs):
+    #             yaw = self.problem.farm.myaw[i]+inflow_angle
+    #             tf1 = self.problem.farm.actuator_disks_list[i] * cos(yaw)**2
+    #             tf2 = self.problem.farm.actuator_disks_list[i] * sin(yaw)**2
+    #             tf3 = self.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
+    #             tf = tf1*self.u_k[0]**2+tf2*self.u_k[1]**2+tf3*self.u_k[0]*self.u_k[1]
+    #             J_list[i] = assemble(dot(tf,self.u_k)*dx,**self.extra_kwarg)
+    #     J_list[-1]=sum(J_list)
 
-        folder_string = self.params.folder+"/data/"
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
+    #     folder_string = self.params.folder+"/data/"
+    #     if not os.path.exists(folder_string): os.makedirs(folder_string)
 
-        if self.J_saved:
-            f = open(folder_string+"power_data.txt",'ab')
-        else:
-            f = open(folder_string+"power_data.txt",'wb')
-            self.J_saved = True
+    #     if self.J_saved:
+    #         f = open(folder_string+"power_data.txt",'ab')
+    #     else:
+    #         f = open(folder_string+"power_data.txt",'wb')
+    #         self.J_saved = True
 
-        np.savetxt(f,[J_list])
-        f.close()
+    #     np.savetxt(f,[J_list])
+    #     f.close()
 
 
 
@@ -172,8 +172,8 @@ class SteadySolver(GenericSolver):
         problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
     """
     def __init__(self,problem):
-        self.u_k,self.p_k = split(self.problem.up_k)
         super(SteadySolver, self).__init__(problem)
+        self.u_k,self.p_k = split(self.problem.up_k)
 
     def Solve(self,iter_val=0):
         """
@@ -298,7 +298,7 @@ class SteadySolver(GenericSolver):
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
         # self.u_k,self.p_k = self.problem.up_k.split(True)
-        self.problem.u_k,self.problem.p_k = split(self.problem.up_k)
+        self.problem.u_k,self.problem.p_k = self.problem.up_k.split(True)
         # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
         self.nu_T = None
 
@@ -312,13 +312,13 @@ class SteadySolver(GenericSolver):
         ###################################
         ### Fix how angle is transfered ###
         ###################################
-        if self.save_power:
-            self.SavePower(((iter_val-self.problem.dom.init_wind)))
+        # if self.save_power:
+        #     self.SavePower(((iter_val-self.problem.dom.inflow_angle)))
 
 
-        if self.optimizing:
-            self.J += self.objective_func(self,(iter_val-self.problem.dom.init_wind)) 
-            print(self.outflow_markers)
+        if self.optimizing or self.save_power:
+            self.J += self.objective_func(self,(iter_val-self.problem.dom.inflow_angle)) 
+            # print(self.outflow_markers)
             # self.J += -dot(self.problem.farm.rotor_disks,self.u_k)*dx
 
         # self.fprint("Speed Percent of Inflow Speed")
@@ -538,7 +538,7 @@ class UnsteadySolver(GenericSolver):
                 self.adj_time_list.append(self.simTime)
 
                 # Calculate functional and compute running average
-                self.J += float(self.problem.dt)*self.objective_func(self,(iter_val-self.problem.dom.init_wind))
+                self.J += float(self.problem.dt)*self.objective_func(self,(iter_val-self.problem.dom.inflow_angle))
                 dt_sum += self.problem.dt 
                 J_new = float(self.J/dt_sum)
 
@@ -548,7 +548,7 @@ class UnsteadySolver(GenericSolver):
                     if min_count == self.min_total:
                         stable = True
                     else:
-                        min_count += self.min_total
+                        min_count += 1
                 J_diff_old = J_diff
                 J_old = J_new
 
@@ -1283,17 +1283,26 @@ class MultiAngleSolver(SteadySolver):
         if self.params["domain"]["type"] in ["imported"]:
             raise ValueError("Cannot use a Multi-Angle Solver with an "+self.params["domain"]["type"]+" domain.")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
-        if  self.wind_range is None:
-            self.wind_range = [0, 2.0*np.pi]
+        if self.problem.dom.inflow_angle is None:
+            self.wind_range = [0, 2.0*np.pi,self.num_wind_angles]
+        elif isinstance(self.problem.dom.inflow_angle,list):
+            if len(self.problem.dom.inflow_angle)==3:
+                self.wind_range = self.problem.dom.inflow_angle
+            else:
+                self.wind_range = [self.problem.dom.inflow_angle[0],self.problem.dom.inflow_angle[1],self.num_wind_angles]
+        else:
+            self.wind_range = [self.problem.dom.inflow_angle,self.problem.dom.inflow_angle+2.0*np.pi,self.num_wind_angles]
 
-        self.angles = np.linspace(self.wind_range[0],self.wind_range[1],self.num_wind_angles,endpoint=self.endpoint)
+
+
+        self.angles = np.linspace(*self.wind_range,endpoint=self.endpoint)
         self.angles += self.angle_offset
 
     def Solve(self):
         for i, theta in enumerate(self.angles):
             self.fprint("Performing Solve {:d} of {:d}".format(i+1,len(self.angles)),special="header")
             self.fprint("Wind Angle: "+repr(theta))
-            if i > 0 or not near(theta,self.problem.dom.init_wind):
+            if i > 0 or not near(theta,self.problem.dom.inflow_angle):
                 self.ChangeWindAngle(theta)
             self.orignal_solve(iter_val=theta)
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
@@ -1331,7 +1340,7 @@ class TimeSeriesSolver(SteadySolver):
             self.fprint("Wind Speed: "+repr(speed))
             if i > 0 or not near(speed,self.problem.bd.HH_vel):
                 self.ChangeWindSpeed(speed)
-            if i > 0 or not near(theta,self.problem.dom.init_wind):
+            if i > 0 or not near(theta,self.problem.dom.inflow_angle):
                 self.ChangeWindAngle(theta)
             self.orignal_solve(iter_val=time)
 

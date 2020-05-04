@@ -22,7 +22,8 @@ wind_farm:
     thickness:      Null      
     yaw:            Null            
     axial:          Null          
-    force:          sine 
+    force:          sine
+    turbine_method: dolfin
 
 domain: 
     type:             Null
@@ -73,16 +74,16 @@ refine:
 function_space:
     type: Null
     quadrature_degree: 6
-    turbine_method: dolfin
     turbine_space:  Quadrature
     turbine_degree: 6
 
-boundary_condition:
+boundary_conditions:
     vel_profile:    Null
     HH_vel:         8.0
     power:          0.25
     k:              0.4
     turbsim_path:   Null
+    inflow_angle:   Null
     boundary_names: 
         front:   Null
         back:    Null
@@ -107,18 +108,21 @@ problem:
 solver:
     type:              steady
     endpoint:          False
-    wind_range:        Null
-    num_wind_angles:   Null
+    num_wind_angles:   1
     velocity_path:     Null
     final_time:        1.0
     save_interval:     1.0
     nonlinear_solver:  snes
     newton_relaxation: 1.0
     save_power:        False
+    angle_offset:      0.0
 
 optimization:
-    control_types:      Null
-    layout_bounds: wind_farm
-    taylor_test:   False
-    optimize:      False
-    gradient:      False
+    control_types:  Null
+    layout_bounds:  wind_farm
+    objective_type: power
+    wake_RD:        5
+    min_total:      0
+    taylor_test:    False
+    optimize:       False
+    gradient:       False
