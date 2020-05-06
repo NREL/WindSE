@@ -383,19 +383,22 @@ class UnsteadySolver(GenericSolver):
 
         # Start a counter for the total simulation time
         self.simTime = 0.0
-        self.wake_RD = int(self.params["optimization"].get("wake_RD",5))
-        # recordTime = 250.0
-        # recordTime = tFinal-2.0*saveInterval
+        if self.optimizing:
+            self.wake_RD = int(self.params["optimization"].get("wake_RD",5))
+            # recordTime = 250.0
+            # recordTime = tFinal-2.0*saveInterval
+            recordTime = self.params["solver"]["record_time"]
 
-        recordTime = self.params["solver"]["record_time"]
-        if recordTime == "computed":
-            recordTime = 1.0*(self.wake_RD*self.problem.farm.RD[0]/self.problem.bd.HH_vel)
-            if tFinal < recordTime + 60.0/self.problem.rpm:
-                self.fprint("Warning: Final time is too small... overriding")
-                tFinal = recordTime + 60.0/self.problem.rpm
-                self.fprint("         New Final Time: {:1.2f} s".format(tFinal))
-        elif recordTime == "last":
-            recordTime = tFinal
+            if recordTime == "computed":
+                recordTime = 1.0*(self.wake_RD*self.problem.farm.RD[0]/self.problem.bd.HH_vel)
+                if tFinal < recordTime + 60.0/self.problem.rpm:
+                    self.fprint("Warning: Final time is too small... overriding")
+                    tFinal = recordTime + 60.0/self.problem.rpm
+                    self.fprint("         New Final Time: {:1.2f} s".format(tFinal))
+            elif recordTime == "last":
+                recordTime = tFinal
+        else:
+            recordTime = 0.0
 
 
         # self.record_delta = tFinal-recordTime
@@ -492,7 +495,8 @@ class UnsteadySolver(GenericSolver):
         J_old = 0
         J_diff_old = 100000
         min_count = 0
-        min_total = self.params["optimization"]["min_total"]
+        if self.optimizing:
+            min_total = self.params["optimization"]["min_total"]
         i = 0
         # while i < 2:
 
@@ -542,7 +546,10 @@ class UnsteadySolver(GenericSolver):
             # Step 1: Tentative velocity step
             b1 = assemble(self.problem.L1, tensor=b1)
             [bc.apply(b1) for bc in self.problem.bd.bcu]
-            solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default',adj_cb=save_adj)
+            if self.optimizing:
+                solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default',adj_cb=save_adj)
+            else:
+                solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default')
             # print("assemble(func*dx): " + repr(float(assemble(inner(self.problem.u_k,self.problem.u_k)*dx))))
 
             # Step 2: Pressure correction step
@@ -618,7 +625,8 @@ class UnsteadySolver(GenericSolver):
             self.fprint("%8.2f | %7.2f | %5.2f" % (self.simTime, self.problem.dt, u_max))
             i+=1
 
-        self.J = self.J/float(dt_sum)
+        if self.optimizing:
+            self.J = self.J/float(dt_sum)
 
         stop = time.time()
 
@@ -634,14 +642,16 @@ class UnsteadySolver(GenericSolver):
             self.velocity_file = self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime)
             self.pressure_file   = self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime)
             self.turb_force_file   = self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime)
-            self.adj_tape_file = XDMFFile(self.params.folder+"timeSeries/global_adjoint.xdmf")
-            self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
+            if self.optimizing:
+                self.adj_tape_file = XDMFFile(self.params.folder+"timeSeries/global_adjoint.xdmf")
+                self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
             self.first_save = False
         else:
             self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime,file=self.velocity_file)
             self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime,file=self.pressure_file)
             self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
-            self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
+            if self.optimizing:
+                self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
 
         # # Save velocity files (pointer in fp[0])
         # self.problem.u_k.rename('Velocity', 'Velocity')
