@@ -55,18 +55,6 @@ def CalculateInflowBoundary(dom,u):
 ######################## Define Tests #########################
 ###############################################################
 
-def test_mesh_values():
-    True_Cells = 39300
-    True_Verts = 19865
-    if dom.mesh.num_cells() != True_Cells:
-        print("Expected Cells: " + repr(True_Cells))
-        print("Actual Cells:   " + repr(dom.mesh.num_cells()))
-        raise ValueError("Box domain constructed with unexpected number of cells")
-    if dom.mesh.num_vertices() != True_Verts:
-        print("Expected Vertices: " + repr(True_Verts))
-        print("Actual Vertices:   " + repr(dom.mesh.num_vertices()))
-        raise ValueError("Box domain constructed with unexpected number of vertices")
-
 def test_volume():
     ### Calculate Volume ###
     Volume = assemble(u*dx)
