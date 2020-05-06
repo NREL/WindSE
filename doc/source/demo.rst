@@ -9,11 +9,14 @@ These examples show how to use the parameters file. See :doc:`params` page for m
 All of these examples can be run using ``windse run <file>``. Some file require
 inputs, which can be downloaded :download:`here <demos/Yaml_Examples/Input_Data.zip>`.
 
-1. :download:`2D Simulations <demos/Yaml_Examples/2d_wind_farm.yaml>`
-2. :download:`3D Simulations <demos/Yaml_Examples/3d_wind_farm.yaml>`
-3. :download:`Multi-Angle Simulations <demos/Yaml_Examples/multiangle_solve.yaml>`
-4. :download:`Yaw Optimization <demos/Yaml_Examples/yaw_optimization.yaml>`
-5. :download:`Multi-Angle Optimization <demos/Yaml_Examples/multiangle_optimization.yaml>`
+1. :download:`2D Simulations <demos/Yaml_Examples/0-wind_farm_2D.yaml>`
+2. :download:`2D Layout Optimization <demos/Yaml_Examples/1-wind_farm_2D_layout_opt.yaml>`
+3. :download:`3D Simulations <demos/Yaml_Examples/2-wind_farm_3D.yaml>`
+4. :download:`Multi-Angle Simulations <demos/Yaml_Examples/3-multiangle_solve.yaml>`
+5. :download:`Yaw Optimization <demos/Yaml_Examples/5-yaw_optimization.yaml>`
+6. :download:`Multi-Angle Optimization <demos/Yaml_Examples/4-multiangle_optimization.yaml>`
+
+Note: These demos are extremely coarse to lower runtime for automated testing. To get better results, play with the mesh resolution and refinements. 
 
 Example Driver Files
 --------------------
@@ -24,10 +27,11 @@ for details on the available functions.
 1. Constructing a Gridded Wind Farm on a 2D rectangular domain: :ref:`2D Demo <demo_2d_grid>`.
 
 
-.. All Demos
-.. ---------
-.. .. toctree::
-..    :maxdepth: 1
+Related Pages
+-------------
+.. toctree::
+   :maxdepth: 1
 
-..    demos/Driver_Example/2D_Grid_driver.py.rst
+   demos/Driver_Example/2D_Grid_driver.py.rst
+   demos/Driver_Example/parameters.rst
 

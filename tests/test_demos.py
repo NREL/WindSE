@@ -10,14 +10,22 @@ home_path = os.getcwd()
 demo_path = "../../demo/documented/"
 
 ### Get Yaml Files ###
-yamls = pathlib.Path(__file__, demo_path+"Yaml_Examples").resolve().glob('*.yaml')
+yamls = sorted(pathlib.Path(__file__, demo_path+"Yaml_Examples").resolve().glob('*.yaml'))
 
 ### Get Python Files ###
-scripts = pathlib.Path(__file__, demo_path+"Driver_Example").resolve().glob('*.py')
+drivers = sorted(pathlib.Path(__file__, demo_path+"Driver_Example").resolve().glob('*.py'))
 
 ###############################################################
 ######################### Define Tests ########################
 ###############################################################
+
+### Run Demo Drivers
+@pytest.mark.parametrize('driver', drivers, ids=lambda driver: driver.parts[-2]+"/"+driver.parts[-1])
+def test_driver_execution(driver):
+    folder = os.path.split(driver.as_posix())[0]
+    os.chdir(folder)
+    runpy.run_path(driver.as_posix())
+    os.chdir(home_path)
 
 ### Run Demo Yaml Files
 @pytest.mark.parametrize('yaml', yamls, ids=lambda yaml: yaml.parts[-2]+"/"+yaml.parts[-1])
@@ -25,13 +33,4 @@ def test_yaml_execution(yaml):
     folder = os.path.split(yaml.as_posix())[0]
     os.chdir(folder)
     windse_driver.driver.run_action(params_loc=yaml.as_posix())
-    os.chdir(home_path)
-
-
-### Run Demo Python Scripts
-@pytest.mark.parametrize('script', scripts, ids=lambda script: script.parts[-2]+"/"+script.parts[-1])
-def test_script_execution(script):
-    folder = os.path.split(script.as_posix())[0]
-    os.chdir(folder)
-    runpy.run_path(script.as_posix())
     os.chdir(home_path)

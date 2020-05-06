@@ -1,13 +1,15 @@
 import windse
 import pytest
+import numpy as np
 from dolfin import *
+import windse_driver.driver_functions as df
 
 ###############################################################
 ######################## Setup Objects ########################
 ###############################################################
 
 ### Alias Parameters ###
-params = windse.windse_parameters
+params = df.BlankParameters()
 
 ### Set General Parameters ###
 params["general"]["name"] = "Box_Domain_Test"
@@ -25,7 +27,7 @@ params["domain"]["ny"]      = 24
 params["domain"]["nz"]      = 6
 
 ### Initialize Parameters using those set above ###
-windse.initialize(None)
+windse.initialize(params)
 
 ### Create the Domain Object ###
 dom = windse.BoxDomain()
@@ -44,9 +46,15 @@ def CalculateInflowBoundary(dom,u):
     xy = Expression("(x[0]+pi)*(x[1]+pi)",degree=2,pi=pi)
     ds = Measure('ds', subdomain_data=dom.boundary_markers)
     val = 0
+    unique_id = np.unique(dom.boundary_markers.array())
     for blabel in dom.boundary_types["inflow"]: 
-        val += assemble(xy*u*ds(dom.boundary_names[blabel]))/assemble(u*ds(dom.boundary_names[blabel]))
+        if dom.boundary_names[blabel] in unique_id:
+            val += assemble(xy*u*ds(dom.boundary_names[blabel]))/assemble(u*ds(dom.boundary_names[blabel]))
     return val
+
+
+
+
 
 
 
@@ -94,7 +102,7 @@ def test_rotated_boundary():
 
     ### Test Rotated Boundary integral ###
     Boundary_Value = CalculateInflowBoundary(dom,u)
-    True_Boundary_Value = -6263.446098377401
+    True_Boundary_Value = -3131.723049188729
     if abs((Boundary_Value-True_Boundary_Value)/True_Boundary_Value) > 1e-5:
         print("Expected inflow: " + repr(True_Boundary_Value))
         print("Actual inflow:   " + repr(Boundary_Value))

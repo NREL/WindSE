@@ -6,25 +6,6 @@ general:
     output_type:        pvd
     dolfin_adjoint:     False
 
-wind_farm: 
-    type:           Null           
-    path:           Null
-    display:        False
-    ex_x:           Null    
-    ex_y:           Null    
-    grid_rows:      Null      
-    grid_cols:      Null      
-    jitter:         0.0          
-    numturbs:       Null
-    seed:           Null      
-    HH:             Null             
-    RD:             Null             
-    thickness:      Null      
-    yaw:            Null            
-    axial:          Null          
-    force:          sine
-    turbine_method: dolfin
-
 domain: 
     type:             Null
     path:             Null
@@ -32,11 +13,11 @@ domain:
     terrain_path:     Null
     bound_path:       Null
     filetype:         xml.gz
+    scaled:           False # Extremely experimental 
+    ground_reference: 0.0
     x_range:          Null
     y_range:          Null
     z_range:          Null
-    ground_reference: 0.0
-    scaled:           False # Extremely experimental 
     nx:               Null
     ny:               Null
     nz:               Null
@@ -58,6 +39,25 @@ domain:
         mx:        Null
         my:        Null
 
+wind_farm: 
+    type:           Null           
+    path:           Null
+    display:        False
+    ex_x:           Null    
+    ex_y:           Null    
+    grid_rows:      Null      
+    grid_cols:      Null      
+    jitter:         0.0          
+    numturbs:       Null
+    seed:           Null      
+    HH:             Null             
+    RD:             Null             
+    thickness:      Null      
+    yaw:            Null            
+    axial:          Null          
+    force:          sine
+    turbine_method: dolfin
+
 refine:
     warp_type:      Null
     warp_strength:  Null
@@ -72,10 +72,10 @@ refine:
     refine_custom:  Null
 
 function_space:
-    type: Null
+    type:              Null
     quadrature_degree: 6
-    turbine_space:  Quadrature
-    turbine_degree: 6
+    turbine_space:     Quadrature
+    turbine_degree:    6
 
 boundary_conditions:
     vel_profile:    Null
@@ -85,12 +85,12 @@ boundary_conditions:
     turbsim_path:   Null
     inflow_angle:   Null
     boundary_names: 
-        front:   Null
-        back:    Null
-        left:    Null
-        right:   Null
-        bottom:  Null
-        top:     Null
+        east:    Null   # positive x
+        north:   Null   # positive y
+        west:    Null   # negative x
+        south:   Null   # negative y
+        bottom:  Null   # negative z
+        top:     Null   # positive z
         inflow:  Null
         outflow: Null
     boundary_types: 
@@ -107,15 +107,14 @@ problem:
 
 solver:
     type:              steady
-    endpoint:          False
-    num_wind_angles:   1
-    velocity_path:     Null
     final_time:        1.0
     save_interval:     1.0
+    num_wind_angles:   1
+    endpoint:          False
+    velocity_path:     Null
+    save_power:        False
     nonlinear_solver:  snes
     newton_relaxation: 1.0
-    save_power:        False
-    angle_offset:      0.0
 
 optimization:
     control_types:  Null

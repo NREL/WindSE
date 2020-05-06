@@ -1,3 +1,10 @@
+# whitelist
+branches:
+  only:
+    - master
+    - dev
+    - dev-staged
+
 os:
     - linux
     # - osx
@@ -24,4 +31,4 @@ install:
     - source activate test-environment
 
 script:
-    - pytest -v
+    - pytest -vx --durations=0

@@ -1,13 +1,15 @@
 import windse
 import pytest
+import numpy as np
 from dolfin import *
+import windse_driver.driver_functions as df
 
 ###############################################################
 ######################## Setup Objects ########################
 ###############################################################
 
 ### Alias Parameters ###
-params = windse.windse_parameters
+params = df.BlankParameters()
 
 ### Set General Parameters ###
 params["general"]["name"] = "Circle_Domain_Test"
@@ -22,7 +24,7 @@ params["domain"]["nt"]        = 100
 params["domain"]["res"]       = 100
 
 ### Initialize Parameters using those set above ###
-windse.initialize(None)
+windse.initialize(params)
 
 ### Create the Domain Object ###
 dom = windse.CircleDomain()
@@ -41,8 +43,10 @@ def CalculateInflowBoundary(dom,u):
     xy = Expression("(x[0]+pi)*(x[1]+pi)",degree=2,pi=pi)
     ds = Measure('ds', subdomain_data=dom.boundary_markers)
     val = 0
+    unique_id = np.unique(dom.boundary_markers.array())
     for blabel in dom.boundary_types["inflow"]: 
-        val += assemble(xy*u*ds(dom.boundary_names[blabel]))/assemble(u*ds(dom.boundary_names[blabel]))
+        if dom.boundary_names[blabel] in unique_id:
+            val += assemble(xy*u*ds(dom.boundary_names[blabel]))/assemble(u*ds(dom.boundary_names[blabel]))
     return val
 
 

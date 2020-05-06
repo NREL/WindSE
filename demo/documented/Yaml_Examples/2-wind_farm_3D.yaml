@@ -22,9 +22,9 @@ domain:
     x_range: [-1200, 1200] # x-range of the domain | m
     y_range: [-600, 600] # y-range of the domain | m
     z_range: [0.04, 640]   # z-range of the domain | m
-    nx: 24                 # Number of x-nodes     | -
-    ny: 12                 # Number of y-nodes     | -
-    nz: 12                 # Number of z-nodes      | -
+    nx: 20                 # Number of x-nodes     | -
+    ny: 10                 # Number of y-nodes     | -
+    nz: 10                 # Number of z-nodes      | -
     ###################################################################
 
     ########################## Cylinder Domain ########################
@@ -66,9 +66,9 @@ boundary_conditions:
     inflow_angle: 1.13
     ######### Uncomment to test out custom BCs for BoxDomain ##########
     # boundary_types:
-    #     inflow: ["front"]
-    #     no_stress: ["back"]
-    #     free_slip: ["top","left","right"]
+    #     inflow: ["west"]
+    #     no_stress: ["east"]
+    #     free_slip: ["top","north","south"]
     #     no_slip: ["bottom"]
     ###################################################################
 

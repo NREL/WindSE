@@ -62,13 +62,16 @@ class GenericBoundary(object):
 
         self.fprint("Applying Boundary Conditions",offset=1)
 
+        unique_ids = np.unique(self.dom.boundary_markers.array())
+
         ### Assemble boundary conditions ###
         bcu_eqns = []
         bcp_eqns = []
         for bc_type, bs in self.boundary_types.items():
             if bc_type == "inflow":
                 for b in bs:
-                    bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
+                    if self.boundary_names[b] in unique_ids:
+                        bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
 
             elif bc_type == "no_slip":
                 for b in bs:
@@ -81,14 +84,17 @@ class GenericBoundary(object):
                     ### get a facet on the relevant boundary ###
                     boundary_id = self.boundary_names[b]
 
-                    facet_ids = self.dom.boundary_markers.where_equal(boundary_id)
-                    test_facet = Facet(self.dom.mesh,facet_ids[int(len(facet_ids)/2.0)])
+                    ### check to make sure the free slip boundary still exists ###
+                    if boundary_id in unique_ids:
 
-                    ### get the function space sub form the normal ###
-                    facet_normal = test_facet.normal().array()
-                    field_id = int(np.argmin(abs(abs(facet_normal)-1.0)))
+                        facet_ids = self.dom.boundary_markers.where_equal(boundary_id)
+                        test_facet = Facet(self.dom.mesh,facet_ids[int(len(facet_ids)/2.0)])
 
-                    bcu_eqns.append([self.fs.V.sub(field_id), self.fs.W.sub(0).sub(field_id), self.zero, boundary_id])
+                        ### get the function space sub form the normal ###
+                        facet_normal = test_facet.normal().array()
+                        field_id = int(np.argmin(abs(abs(facet_normal)-1.0)))
+
+                        bcu_eqns.append([self.fs.V.sub(field_id), self.fs.W.sub(0).sub(field_id), self.zero, boundary_id])
 
             elif bc_type == "no_stress":
                 for b in bs:

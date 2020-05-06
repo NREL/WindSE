@@ -5,15 +5,41 @@ import argparse
 import sys
 import windse
 
+def DefaultParameters():
+    """
+    return the default parameters list
+    """
+    return windse.windse_parameters.defaults
+
+def BlankParameters():
+    """
+    returns a nested dictionary that matches the first level of the parameters dictionary
+    """
+    params = {}
+    params["general"] = {}
+    params["domain"] = {}
+    params["wind_farm"] = {}
+    params["function_space"] = {}
+    params["boundary_conditions"] = {}
+    params["problem"] = {}
+    params["solver"] = {}
+    params["optimization"] = {}
+    return params
+
+
 def Initialize(params_loc=None):
     """
     This function initialized the windse parameters.
 
-    Args:
-        params_loc (str): the location of the parameter yaml file.
+    Parameters
+    ----------
+        params_loc : str
+            the location of the parameter yaml file.
 
-    Returns:
-        params (windse.Parameters): an overloaded dict containing all parameters.
+    Returns
+    -------
+        params : windse.Parameters
+            an overloaded dict containing all parameters.
     """
     parser = argparse.ArgumentParser(usage="windse run [options] params", formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("params", nargs='?', help='path to yaml file containing the WindSE parameters')
@@ -40,12 +66,17 @@ def BuildDomain(params):
     """
     This function build the domain and wind farm objects.
 
-    Args:
-        params (windse.Parameters): an overloaded dict containing all parameters.
+    Parameters
+    ----------
+    params : ``windse.Parameters``
+        an overloaded dict containing all parameters.
 
-    Returns:
-        dom (windse.GenericDomain): the domain object that contains all mesh related information.
-        farm (windse.GenericWindFarm): the wind farm object that contains the turbine information.
+    Returns
+    -------
+    dom : ``windse.GenericDomain``
+        the domain object that contains all mesh related information.
+    farm : ``windse.GenericWindFarm`` 
+        the wind farm object that contains the turbine information.
     """
 
     ### Build Domain ###
@@ -116,12 +147,17 @@ def BuildSolver(params,problem):
     """
     This function builds the solver object. Solve with solver.Solve()
 
-    Args:
-        params (windse.Parameters): an overloaded dict containing all parameters.
-        problem (windse.GenericProblem): contains all information about the simulation.
+    Parameters
+    ----------
+        params : windse.Parameters
+            an overloaded dict containing all parameters.
+        problem : windse.GenericProblem
+            contains all information about the simulation.
 
-    Returns:
-        solver (windse.GenericSolver): contains the solver routines.
+    Returns
+    -------
+        solver : windse.GenericSolver
+            contains the solver routines.
     """
 
     if isinstance(params["boundary_conditions"]["inflow_angle"],list):
@@ -129,7 +165,7 @@ def BuildSolver(params,problem):
     solve_dict = {"steady":windse.SteadySolver,
                   "unsteady":windse.UnsteadySolver,
                   "multiangle":windse.MultiAngleSolver,
-                  "importedvelocity":windse.TimeSeriesSolver}
+                  "imported_inflow":windse.TimeSeriesSolver}
     solver = solve_dict[params["solver"]["type"]](problem)
 
     return solver
@@ -138,15 +174,21 @@ def SetupSimulation(params_loc=None):
     """
     This function automatically sets up the entire simulation. Solve with solver.Solve()
 
-    Args:
-        params_loc (str): the location of the parameter yaml file.
+    Parameters
+    ----------
+        params_loc : str
+            the location of the parameter yaml file.
 
-    Returns:
-        params (windse.Parameters): an overloaded dict containing all parameters.
-        problem (windse.GenericProblem): contains all information about the simulation.
-        solver (windse.GenericSolver): contains the solver routines. Solve with solver.Solve()
+    Returns
+    -------
+        params : windse.Parameters
+            an overloaded dict containing all parameters.
+        problem : windse.GenericProblem
+            contains all information about the simulation.
+        solver : windse.GenericSolver
+            contains the solver routines. Solve with solver.Solve()
     """
-    params = Initialize()
+    params = Initialize(params_loc)
     dom, farm = BuildDomain(params)
     problem = BuildProblem(params,dom,farm)
     solver = BuildSolver(params,problem)

@@ -1296,7 +1296,7 @@ class MultiAngleSolver(SteadySolver):
 
 
         self.angles = np.linspace(*self.wind_range,endpoint=self.endpoint)
-        self.angles += self.angle_offset
+        # self.angles += self.angle_offset
 
     def Solve(self):
         for i, theta in enumerate(self.angles):

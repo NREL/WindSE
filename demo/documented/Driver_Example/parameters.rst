@@ -1,3 +1,6 @@
+
+.. _parameter_file:
+
 Setting up general options:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -89,4 +92,4 @@ These options are not actually used within the custom driver::
     type: taylor-hood
 
   solver:
-    type: taylor-hood
+    type: steady

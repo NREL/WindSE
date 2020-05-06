@@ -6,6 +6,7 @@ functions don't need to be accessed by the end user.
 
 import __main__
 import os
+import yaml
 
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
@@ -15,7 +16,6 @@ else:
     
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
-    import yaml
     import datetime
     import numpy as np
     from math import ceil
@@ -87,9 +87,9 @@ class Parameters(dict):
             if key not in default_keys:
                 suggestion = difflib.get_close_matches(key, default_keys, n=1)
                 if suggestion:
-                    raise AttributeError(out_string + key + " is not a valid parameter, did you mean: "+suggestion[0])
+                    raise KeyError(out_string + key + " is not a valid parameter, did you mean: "+suggestion[0])
                 else:
-                    raise AttributeError(out_string + key + " is not a valid parameter")
+                    raise KeyError(out_string + key + " is not a valid parameter")
             elif isinstance(updates[key],dict):
                 in_string =out_string + key + ":"
                 self.CheckParameters(updates[key],defaults[key],out_string=in_string)
@@ -118,9 +118,9 @@ class Parameters(dict):
         """
 
         ### Load the yaml file (requires PyYaml)
-        if loc == "defaults" or loc is None:
-            self.fprint("Loading Defaults")
-            yaml_file = self
+        if isinstance(loc,dict):
+            self.fprint("Loading from dictionary")
+            yaml_file = loc
         else:
             self.fprint("Loading: "+loc)
             yaml_file = yaml.load(open(loc),Loader=yaml.SafeLoader)
@@ -177,7 +177,7 @@ class Parameters(dict):
         sys.stdout = Logger(self.log)
 
         ### Copy params file to output folder ###
-        if loc != "defaults" and loc is not None:
+        if isinstance(loc,str):
             shutil.copy(loc,self.folder+"input_files/")
 
         ### Create checkpoint if required ###

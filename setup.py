@@ -5,9 +5,9 @@ from setuptools import setup
 
 setup(name ="windse",
       description="Wind Systems Engineering",
-      version="2018.1.0_0.8",
-      author="Ryan King, Jeffery Allen",
-      author_email="ryan.king@nrel.gov",
+      version="2020.5.0",
+      author="Ryan King, Jeffery Allen, Ethan Young",
+      author_email="ryan.king@nrel.gov, jeff.allen@nrel.gov",
       url="https://github.com/NREL/WindSE",
       include_package_data=True,
       packages=['windse','windse_driver'],

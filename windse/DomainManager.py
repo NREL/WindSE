@@ -120,6 +120,7 @@ class GenericDomain(object):
             self.inflow_angle = 0.0
         elif isinstance(self.inflow_angle,list):
             self.inflow_angle = self.inflow_angle[0]
+        self.initial_inflow_angle = self.inflow_angle
 
     def Plot(self):
         """
@@ -754,22 +755,25 @@ class BoxDomain(GenericDomain):
         mark_start = time.time()
         self.fprint("")
         self.fprint("Marking Boundaries")
-        front   = CompiledSubDomain("near(x[0], x0, tol) && on_boundary",x0 = self.x_range[0], tol = 1e-10)
-        back    = CompiledSubDomain("near(x[0], x1, tol) && on_boundary",x1 = self.x_range[1], tol = 1e-10)
-        left    = CompiledSubDomain("near(x[1], y0, tol) && on_boundary",y0 = self.y_range[0], tol = 1e-10)
-        right   = CompiledSubDomain("near(x[1], y1, tol) && on_boundary",y1 = self.y_range[1], tol = 1e-10)
+        east    = CompiledSubDomain("near(x[0], x1, tol) && on_boundary",x1 = self.x_range[1], tol = 1e-10)
+        north   = CompiledSubDomain("near(x[1], y1, tol) && on_boundary",y1 = self.y_range[1], tol = 1e-10)
+        west    = CompiledSubDomain("near(x[0], x0, tol) && on_boundary",x0 = self.x_range[0], tol = 1e-10)
+        south   = CompiledSubDomain("near(x[1], y0, tol) && on_boundary",y0 = self.y_range[0], tol = 1e-10)
         bottom  = CompiledSubDomain("near(x[2], z0, tol) && on_boundary",z0 = self.z_range[0], tol = 1e-10)
         top     = CompiledSubDomain("near(x[2], z1, tol) && on_boundary",z1 = self.z_range[1], tol = 1e-10)
-        self.boundary_subdomains = [front,back,left,right,bottom,top]
-        self.boundary_names = {"front":1,"back":2,"right":3,"left":4,"bottom":5,"top":6,"inflow":None,"outflow":None}
-        self.boundary_types = {"inflow":    ["front","right","left"],
+        self.boundary_subdomains = [east,north,west,south,bottom,top]
+        self.boundary_names = {"east":1,"north":2,"west":3,"south":4,"bottom":5,"top":6,"inflow":None,"outflow":None}
+        self.boundary_types = {"inflow":    ["west","south","north"],
                                "no_slip":   ["bottom"],
                                "free_slip": ["top"],
-                               "no_stress": ["back"]}
-        self.RecomputeBoundaryMarkers(self.inflow_angle)
+                               "no_stress": ["east"]}
 
         ### Generate the boundary markers for boundary conditions ###
         self.BuildBoundaryMarkers()
+
+        ### Rotate Boundary
+        if not near(self.inflow_angle,0.0):
+            self.RecomputeBoundaryMarkers(self.inflow_angle)
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
@@ -788,38 +792,47 @@ class BoxDomain(GenericDomain):
         self.fprint("")
         self.fprint("Remarking Boundaries")
 
+        ### Get ids for new markings ###
+        inflow_id  = self.boundary_names[self.boundary_types["inflow"][0]]
+        outflow_id = self.boundary_names[self.boundary_types["no_stress"][0]]
+        east_id    = self.boundary_names["east"]
+        north_id   = self.boundary_names["north"]
+        west_id    = self.boundary_names["west"]
+        south_id   = self.boundary_names["south"]
+        
+        ### Set up the baseline (angle=0) order ###
+        cardinal_ids = [east_id,north_id,west_id,south_id]
+        diagonal_ids = [outflow_id,outflow_id,inflow_id,inflow_id]
+
+        ### Count the number of pi/2 sections in the new inflow_angle ###
+        turns = inflow_angle/(pi/2)
+
+        ### New order ###
         tol = 1e-3
+        if turns % 1 <= tol: # we are at a cardinal direction
+            new_order = np.roll(cardinal_ids,int(turns))
+        else:
+            new_order = np.roll(diagonal_ids,int(turns))
 
-        ### This function rounds to the nearest ordinal direction ###
-        inflow45 = round((inflow_angle-pi/4.0)/(pi/2))*(pi/2)+pi/4.0
+        ### Get a list of all wall facets ###
+        wall_facets = []
+        for i in cardinal_ids:
+            wall_facets += self.boundary_markers.where_equal(i) 
 
-        ### Check if the wind angle is a ordinal direction ###
-        if   near(inflow45, 1.0*pi/4.0, eps=tol):
-            self.boundary_types["inflow"]    = ["front","right"]
-            self.boundary_types["no_stress"] = ["back","left"]
-        elif near(inflow45, 3.0*pi/4.0, eps=tol):
-            self.boundary_types["inflow"]    = ["back","right"]
-            self.boundary_types["no_stress"] = ["front","left"]
-        elif near(inflow45, 5.0*pi/4.0, eps=tol):
-            self.boundary_types["inflow"]    = ["back","left"]
-            self.boundary_types["no_stress"] = ["front","right"]
-        elif near(inflow45, 7.0*pi/4.0, eps=tol):
-            self.boundary_types["inflow"]    = ["front","left"]
-            self.boundary_types["no_stress"] = ["back","right"]
+        ### Iterate through facets remarking as prescribed by new_order ###
+        for facet_id in wall_facets:
 
-        ### Check the special cases that the wind angle is a cardinal direction ###
-        if   near(inflow_angle, 0.0*pi/2.0, eps=tol):
-            self.boundary_types["inflow"]    = ["front","left","right"]
-            self.boundary_types["no_stress"] = ["back"]
-        elif near(inflow_angle, 1.0*pi/2.0, eps=tol):
-            self.boundary_types["inflow"]    = ["front","back","right"]
-            self.boundary_types["no_stress"] = ["left"]
-        elif near(inflow_angle, 2.0*pi/2.0, eps=tol):
-            self.boundary_types["inflow"]    = ["back","left","right"]
-            self.boundary_types["no_stress"] = ["front"]
-        elif near(inflow_angle, 3.0*pi/2.0, eps=tol):
-            self.boundary_types["inflow"]    = ["front","back","left"]
-            self.boundary_types["no_stress"] = ["right"]
+            ### Get the facet normal
+            facet = Facet(self.mesh,facet_id)
+            facet_normal = facet.normal().array()
+            nx = np.sign(facet_normal[0])*(abs(facet_normal[0])>tol)
+            ny = np.sign(facet_normal[1])*(abs(facet_normal[1])>tol)
+
+            ### Map the normal to the order east, north, west, south
+            face_id = int(abs(nx+2*ny-1))
+
+            ### remark the boundary ###
+            self.boundary_markers.set_value(facet_id,new_order[face_id])
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
@@ -935,7 +948,7 @@ class CylinderDomain(GenericDomain):
         top     = CompiledSubDomain("near(x[2], z1, tol) && on_boundary",z1 = self.z_range[1],tol = 1e-10)
         bottom  = CompiledSubDomain("near(x[2], z0, tol) && on_boundary",z0 = self.z_range[0],tol = 1e-10)
         self.boundary_subdomains = [None,None,None,None,outflow,inflow,bottom,top]
-        self.boundary_names = {"front":None,"back":None,"right":None,"left":None,"bottom":7,"top":8,"inflow":6,"outflow":5}
+        self.boundary_names = {"west":None,"east":None,"south":None,"north":None,"bottom":7,"top":8,"inflow":6,"outflow":5}
         self.boundary_types = {"inflow":          ["inflow"],
                                "no_stress":       ["outflow"],
                                "free_slip":       ["top"],
@@ -943,6 +956,10 @@ class CylinderDomain(GenericDomain):
 
         ### Generate the boundary markers for boundary conditions ###
         self.BuildBoundaryMarkers()
+
+        ### Rotate Boundary
+        if not near(self.inflow_angle,0.0):
+            self.RecomputeBoundaryMarkers(self.inflow_angle)
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
@@ -1083,12 +1100,16 @@ class CircleDomain(GenericDomain):
         outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y)
         inflow  = CompiledSubDomain("nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, c0=self.center[0], c1=self.center[1])
         self.boundary_subdomains = [None,None,None,None,None,None,outflow,inflow]
-        self.boundary_names = {"front":None,"back":None,"right":None,"left":None,"bottom":None,"top":None,"inflow":8,"outflow":7}
+        self.boundary_names = {"west":None,"east":None,"south":None,"north":None,"bottom":None,"top":None,"inflow":8,"outflow":7}
         self.boundary_types = {"inflow":  ["inflow"],
                                "no_stress": ["outflow"]}
 
         ### Generate the boundary markers for boundary conditions ###
         self.BuildBoundaryMarkers()
+
+        ### Rotate Boundary
+        if not near(self.inflow_angle,0.0):
+            self.RecomputeBoundaryMarkers(self.inflow_angle)
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
@@ -1194,18 +1215,21 @@ class RectangleDomain(GenericDomain):
         mark_start = time.time()
         self.fprint("")
         self.fprint("Marking Boundaries")
-        front   = CompiledSubDomain("near(x[0], x0) && on_boundary",x0 = self.x_range[0])
-        back    = CompiledSubDomain("near(x[0], x1) && on_boundary",x1 = self.x_range[1])
-        left    = CompiledSubDomain("near(x[1], y0) && on_boundary",y0 = self.y_range[0])
-        right   = CompiledSubDomain("near(x[1], y1) && on_boundary",y1 = self.y_range[1])
-        self.boundary_subdomains = [front,back,left,right]
-        self.boundary_names = {"front":1,"back":2,"right":3,"left":4,"bottom":None,"top":None,"inflow":None,"outflow":None}
-        self.boundary_types = {"inflow":    ["front","right","left"],
-                               "no_stress": ["back"]}
-        self.RecomputeBoundaryMarkers(self.inflow_angle)
+        east   = CompiledSubDomain("near(x[0], x1) && on_boundary",x1 = self.x_range[1])
+        north  = CompiledSubDomain("near(x[1], y1) && on_boundary",y1 = self.y_range[1])
+        west   = CompiledSubDomain("near(x[0], x0) && on_boundary",x0 = self.x_range[0])
+        south  = CompiledSubDomain("near(x[1], y0) && on_boundary",y0 = self.y_range[0])
+        self.boundary_subdomains = [east,north,west,south]
+        self.boundary_names = {"east":1,"north":2,"west":3,"south":4,"bottom":None,"top":None,"inflow":None,"outflow":None}
+        self.boundary_types = {"inflow":    ["west","south","north"],
+                               "no_stress": ["east"]}
 
         ### Generate the boundary markers for boundary conditions ###
         self.BuildBoundaryMarkers()
+
+        ### Rotate Boundary
+        if not near(self.inflow_angle,0.0):
+            self.RecomputeBoundaryMarkers(self.inflow_angle)
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
@@ -1219,38 +1243,47 @@ class RectangleDomain(GenericDomain):
         self.fprint("")
         self.fprint("Remarking Boundaries")
 
+        ### Get ids for new markings ###
+        inflow_id  = self.boundary_names[self.boundary_types["inflow"][0]]
+        outflow_id = self.boundary_names[self.boundary_types["no_stress"][0]]
+        east_id    = self.boundary_names["east"]
+        north_id   = self.boundary_names["north"]
+        west_id    = self.boundary_names["west"]
+        south_id   = self.boundary_names["south"]
+        
+        ### Set up the baseline (angle=0) order ###
+        cardinal_ids = [east_id,north_id,west_id,south_id]
+        diagonal_ids = [outflow_id,outflow_id,inflow_id,inflow_id]
+
+        ### Count the number of pi/2 sections in the new inflow_angle ###
+        turns = inflow_angle/(pi/2)
+
+        ### New order ###
         tol = 1e-3
+        if turns % 1 <= tol: # we are at a cardinal direction
+            new_order = np.roll(cardinal_ids,int(turns))
+        else:
+            new_order = np.roll(diagonal_ids,int(turns))
 
-        ### This function rounds to the nearest ordinal direction ###
-        inflow45 = round((inflow_angle-pi/4.0)/(pi/2))*(pi/2)+pi/4.0
+        ### Get a list of all wall facets ###
+        wall_facets = []
+        for i in cardinal_ids:
+            wall_facets += self.boundary_markers.where_equal(i) 
 
-        ### Check if the wind angle is a ordinal direction ###
-        if   near(inflow45, 1.0*pi/4.0, eps=tol):
-            self.boundary_types["inflow"]    = ["front","right"]
-            self.boundary_types["no_stress"] = ["back","left"]
-        elif near(inflow45, 3.0*pi/4.0, eps=tol):
-            self.boundary_types["inflow"]    = ["back","right"]
-            self.boundary_types["no_stress"] = ["front","left"]
-        elif near(inflow45, 5.0*pi/4.0, eps=tol):
-            self.boundary_types["inflow"]    = ["back","left"]
-            self.boundary_types["no_stress"] = ["front","right"]
-        elif near(inflow45, 7.0*pi/4.0, eps=tol):
-            self.boundary_types["inflow"]    = ["front","left"]
-            self.boundary_types["no_stress"] = ["back","right"]
+        ### Iterate through facets remarking as prescribed by new_order ###
+        for facet_id in wall_facets:
 
-        ### Check the special cases that the wind angle is a cardinal direction ###
-        if   near(inflow_angle, 0.0*pi/2.0, eps=tol):
-            self.boundary_types["inflow"]    = ["front","left","right"]
-            self.boundary_types["no_stress"] = ["back"]
-        elif near(inflow_angle, 1.0*pi/2.0, eps=tol):
-            self.boundary_types["inflow"]    = ["front","back","right"]
-            self.boundary_types["no_stress"] = ["left"]
-        elif near(inflow_angle, 2.0*pi/2.0, eps=tol):
-            self.boundary_types["inflow"]    = ["back","left","right"]
-            self.boundary_types["no_stress"] = ["front"]
-        elif near(inflow_angle, 3.0*pi/2.0, eps=tol):
-            self.boundary_types["inflow"]    = ["front","back","left"]
-            self.boundary_types["no_stress"] = ["right"]
+            ### Get the facet normal
+            facet = Facet(self.mesh,facet_id)
+            facet_normal = facet.normal().array()
+            nx = np.sign(facet_normal[0])*(abs(facet_normal[0])>tol)
+            ny = np.sign(facet_normal[1])*(abs(facet_normal[1])>tol)
+
+            ### Map the normal to the order east, north, west, south
+            face_id = int(abs(nx+2*ny-1))
+
+            ### remark the boundary ###
+            self.boundary_markers.set_value(facet_id,new_order[face_id])
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
@@ -1352,11 +1385,11 @@ class ImportedDomain(GenericDomain):
         elif self.filetype == "xml.gz":
             self.boundary_markers = MeshFunction("size_t", self.mesh, self.boundary_path)
         print("Markers Imported")
-        self.boundary_names = {"front":1,"back":2,"right":3,"left":4,"bottom":5,"top":6,"inflow":None,"outflow":None}
-        self.boundary_types = {"inflow":    ["front","right","left"],
+        self.boundary_names = {"east":1,"north":2,"west":3,"south":4,"bottom":5,"top":6,"inflow":None,"outflow":None}
+        self.boundary_types = {"inflow":    ["west","south","north"],
                                "no_slip":   ["bottom"],
                                "free_slip": ["top"],
-                               "no_stress": ["back"]}
+                               "no_stress": ["east"]}
         mark_stop = time.time()
         self.fprint("Boundary Markers Imported: {:1.2f} s".format(mark_stop-mark_start))
 
