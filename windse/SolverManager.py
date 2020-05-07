@@ -457,7 +457,6 @@ class UnsteadySolver(GenericSolver):
         self.fprint("Sim Time | Next dt | U_max")
         self.fprint("--------------------------")
 
-        # Define a function for saving the adjoint
         def save_adj(adj):
             # print(len(self.adj_time_list),self.adj_time_iter)
             if self.adj_time_iter < len(self.adj_time_list):
@@ -487,7 +486,10 @@ class UnsteadySolver(GenericSolver):
             # Step 1: Tentative velocity step
             b1 = assemble(self.problem.L1, tensor=b1)
             [bc.apply(b1) for bc in self.problem.bd.bcu]
-            solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default',adj_cb=save_adj)
+            if self.optimizing:
+                solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default',adj_cb=save_adj)
+            else:
+                solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default')
             # print("assemble(func*dx): " + repr(float(assemble(inner(self.problem.u_k,self.problem.u_k)*dx))))
 
             # Step 2: Pressure correction step
@@ -568,7 +570,8 @@ class UnsteadySolver(GenericSolver):
             self.fprint("%8.2f | %7.2f | %5.2f" % (self.simTime, self.problem.dt, u_max))
             i+=1
 
-        self.J = self.J/float(dt_sum)
+        if self.optimizing:
+            self.J = self.J/float(dt_sum)
 
         stop = time.time()
 
@@ -584,14 +587,16 @@ class UnsteadySolver(GenericSolver):
             self.velocity_file = self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime)
             self.pressure_file   = self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime)
             self.turb_force_file   = self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime)
-            self.adj_tape_file = XDMFFile(self.params.folder+"timeSeries/global_adjoint.xdmf")
-            self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
+            if self.optimizing:
+                self.adj_tape_file = XDMFFile(self.params.folder+"timeSeries/global_adjoint.xdmf")
+                self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
             self.first_save = False
         else:
             self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime,file=self.velocity_file)
             self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime,file=self.pressure_file)
             self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
-            self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
+            if self.optimizing:
+                self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
 
         # # Save velocity files (pointer in fp[0])
         # self.problem.u_k.rename('Velocity', 'Velocity')

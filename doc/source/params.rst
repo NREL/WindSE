@@ -609,6 +609,7 @@ This section lists the solver options::
     solver:
         type:              <str>
         final_time:        <float>
+        record_time:       <str, float>
         save_interval:     <float>
         num_wind_angles:   <int>
         endpoint:          <bool>
@@ -631,6 +632,13 @@ This section lists the solver options::
 +------------------------+----------------------------------------------------------------+---------------------+---------------------+
 | ``final_time``         | The final time for an unsteady simulation                      | | no                | 1.0 s               |
 |                        |                                                                | | "unsteady"        |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``record_time``        | | The time when we start recording the objective function      | | no                | None                |
+|                        | | using a weighted average.                                    | | "unsteady"        |                     |
+|                        | | Choices:                                                     |                     |                     |
+|                        | |          "computed": Sets the time based on inflow speed     |                     |                     |
+|                        | |          "last": Only computes at the final time step        |                     |                     |
+|                        | |          <float>: use this specific time to start recording  |                     |                     |
 +------------------------+----------------------------------------------------------------+---------------------+---------------------+
 | ``save_interval``      | The amount of time between saving output fields                | | no                | 1.0 s               |
 |                        |                                                                | | "unsteady"        |                     |
