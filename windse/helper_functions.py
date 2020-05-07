@@ -411,6 +411,8 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
     # cl = cl_dolf.values()
     # cd = cd_dolf.values()
 
+    # TODO: Read from file
+
     cl = np.array(problem.mcl, dtype = float)
     cd = np.array(problem.mcd, dtype = float)
 
