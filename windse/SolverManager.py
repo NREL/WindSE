@@ -448,10 +448,11 @@ class UnsteadySolver(GenericSolver):
 
         # ================================================================
 
-        print('Using Actuator/Turbine Parameters...')
-        print('Hub Height: ', self.problem.farm.HH[0])
-        print('Yaw: ', self.problem.farm.yaw[0])
-        print('Radius: ', self.problem.farm.radius[0])
+        self.fprint('Turbine Parameters', special='header')
+        self.fprint('Hub Height: %.1f' % (self.problem.farm.HH[0]))
+        self.fprint('Yaw: %.4f' % (self.problem.farm.yaw[0]))
+        self.fprint('Radius: %.1f' % (self.problem.farm.radius[0]))
+        self.fprint('', special='footer')
 
         self.fprint("Solving",special="header")
         self.fprint("Sim Time | Next dt | U_max")

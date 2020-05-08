@@ -17,6 +17,7 @@ if main_file != "sphinx-build":
     from dolfin import *
     import numpy as np
     import time
+    import scipy.interpolate as interp
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters, CalculateActuatorLineTurbineForces
@@ -58,6 +59,8 @@ class GenericProblem(object):
         else:
             inflow_angle = 0.0
 
+        self.fprint('Computing turbine forces using %s' % (self.farm.turbine_method.upper()))
+
         ### Create the turbine force function ###
         if self.farm.turbine_method == "dolfin":
             self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
@@ -68,17 +71,68 @@ class GenericProblem(object):
         elif self.farm.turbine_method == 'alm':
             self.rpm = self.params["wind_farm"]["rpm"]
             self.num_blade_segments = 10
+            self.mchord = []
             self.mcl = []
             self.mcd = []
 
-            # cl = np.linspace(0.0, 2.0, self.num_blade_segments)
-            # cd = np.linspace(2.0, 0.0, self.num_blade_segments)
-            cl = np.ones(self.num_blade_segments)
-            cd = np.ones(self.num_blade_segments)
 
+            # Initialize the lift and drag files
+            for fn in ['lift', 'drag']:
+                fp = open('./output/%s/nodal_%s.csv' % (self.params.name, fn), 'w')
+                fp.write('sim_time, theta, ')
+
+                for j in range(self.num_blade_segments):
+                    if j < self.num_blade_segments-1:
+                        fp.write('%s_%02d, ' % (fn, j))
+                    else:
+                        fp.write('%s_%02d\n' % (fn, j))
+                fp.close()
+
+            turb_data = self.params["wind_farm"]["read_turb_data"]
+
+            if turb_data:
+                self.fprint('Setting chord, lift, and drag from file \'%s\'' % (turb_data))
+
+                actual_turbine_data = np.genfromtxt(turb_data, delimiter = ',', skip_header = 1)
+
+                actual_x = actual_turbine_data[:, 0]
+                actual_chord = actual_turbine_data[:, 1]
+                actual_cl = actual_turbine_data[:, 3]
+                actual_cd = actual_turbine_data[:, 4]
+
+                # if self.params.name == 'iea_rwt_10rpm_mod_chord':
+                #     chord_shift_amt = np.linspace(0.7, 1.3, np.size(actual_chord))
+                #     actual_chord = chord_shift_amt*actual_chord
+
+                # print('chord measured: ', actual_chord)
+                # print('lift measured: ', actual_cl)
+                # print('drag measured: ', actual_cd)
+
+                # Create interpolators for chord, lift, and drag
+                chord_interp = interp.interp1d(actual_x, actual_chord)
+                cl_interp = interp.interp1d(actual_x, actual_cl)
+                cd_interp = interp.interp1d(actual_x, actual_cd)
+
+                # Construct the points at which to generate interpolated values
+                interp_points = np.linspace(0.0, 1.0, self.num_blade_segments)
+
+                # Generate the interpolated values
+                chord = chord_interp(interp_points)
+                cl = cl_interp(interp_points)
+                cd = cd_interp(interp_points)
+
+            else:
+                # If not reading from a file, prescribe dummy values
+                chord = np.ones(self.num_blade_segments)
+                cl = np.ones(self.num_blade_segments)
+                cd = np.ones(self.num_blade_segments)
+
+            # Save the list of controls to self
             for k in range(self.num_blade_segments):
+                self.mchord.append(Constant(chord[k]))
                 self.mcl.append(Constant(cl[k]))
                 self.mcd.append(Constant(cd[k]))
+
             tf = CalculateActuatorLineTurbineForces(self, simTime)
         else:
             raise ValueError("Unknown turbine method: "+self.farm.turbine_method)

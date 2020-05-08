@@ -315,6 +315,19 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
         
         return Rz
 
+    def write_lift_and_drag(fn, simTime, theta, forceVec):
+        fp = open('./output/%s/nodal_%s.csv' % (problem.params.name, fn), 'a')
+        fp.write('%.5e, %.5e, ' % (simTime, theta))
+
+        N = np.size(forceVec)
+
+        for j in range(N):
+            if j < N-1:
+                fp.write('%.5e, ' % (forceVec[j]))
+            else:
+                fp.write('%.5e\n' % (forceVec[j]))
+        fp.close()
+
     #================================================================
     # Get Mesh Properties
     #================================================================
@@ -339,9 +352,6 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
     # Set the hub height
     hub_height = problem.farm.HH[0]
 
-    # Get the hub-height velocity
-    u_inf = 8.0
-
     # Set the rotational speed of the turbine
     RPM = problem.rpm
 
@@ -355,7 +365,8 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
     L = problem.farm.radius[0]
 
     # Chord length
-    c = L/20.0
+    # c = L/20.0
+    c = np.array(problem.mchord, dtype = float)
     # c = np.linspace(5.0, 2.0, problem.num_blade_segments)
 
     # Width of Gaussian
@@ -410,10 +421,6 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
     # cd_dolf = Constant((np.ones(problem.num_blade_segments)))
     # cl = cl_dolf.values()
     # cd = cd_dolf.values()
-
-    # TODO: Read from file
-    # Another change
-    # Third change
 
     cl = np.array(problem.mcl, dtype = float)
     cd = np.array(problem.mcd, dtype = float)
@@ -508,6 +515,11 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
         lift = (0.5*cl*rho*c*w*u_rel_mag**2)/(eps**3 * np.pi**1.5)
         drag = (0.5*cd*rho*c*w*u_rel_mag**2)/(eps**3 * np.pi**1.5)
         
+
+        write_lift_and_drag('lift', simTime, theta, lift)
+        write_lift_and_drag('drag', simTime, theta, drag)
+
+
         # Calculate the force magnitude at every mesh point due to every node [numGridPts x NumActuators]
         nodal_lift = lift*np.exp(-dist2/eps**2)
         nodal_drag = drag*np.exp(-dist2/eps**2)
@@ -607,8 +619,8 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
 
 #================================================================
 
-def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, tf=None):
-    if problem.params.get("optimization",{}):
+def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, tf=None, verbose=False):
+    if problem.params.get("optimization",{}) and verbose:
         print("Current Optimization Time: "+repr(simTime))
 
     if dfd is None:
