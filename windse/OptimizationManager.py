@@ -110,7 +110,7 @@ class Optimizer(object):
     def CreateControls(self):
         self.controls = []
         self.names = []
-        self.indexes = [[],[],[],[],[],[]]
+        self.indexes = [[],[],[],[],[],[],[]]
         self.init_vals = []
         j = 0
         if "layout" in self.control_types:
@@ -157,7 +157,15 @@ class Optimizer(object):
                 j+=1
                 self.names.append("drag_"+repr(i))
                 self.controls.append(Control(self.problem.mcd[i]))
-                self.init_vals.append(self.problem.mcl[i])
+                self.init_vals.append(self.problem.mcd[i])
+
+        if "chord" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                self.indexes[6].append(j)
+                j+=1
+                self.names.append("chord_"+repr(i))
+                self.controls.append(Control(self.problem.mchord[i]))
+                self.init_vals.append(self.problem.mchord[i])
 
     def CreateBounds(self):
         lower_bounds = []
@@ -189,6 +197,11 @@ class Optimizer(object):
             for i in range(self.problem.num_blade_segments):
                 lower_bounds.append(Constant(0))
                 upper_bounds.append(Constant(2.))
+
+        if "chord" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                lower_bounds.append(Constant(0.5))
+                upper_bounds.append(Constant(5.0))
 
         self.bounds = [lower_bounds,upper_bounds]
 

@@ -403,16 +403,22 @@ class ActuatorLineForceBlock(Block):
             self.problem.mcd[i].block_variable.tag = ("c_drag", i)
             self.add_dependency(self.problem.mcd[i])
 
+            self.problem.mchord[i].block_variable.tag = ("chord", i)
+            self.add_dependency(self.problem.mchord[i])
+
         # Tabulate which controls matter
         self.control_types = []
         if "lift" in problem.farm.control_types:
             self.control_types.append("c_lift")
         if "drag" in problem.farm.control_types:
             self.control_types.append("c_drag")
+        if "chord" in problem.farm.control_types:
+            self.control_types.append("chord")
 
         # Record the current values for controls
         self.old_c_lift = np.array(self.problem.mcl, dtype=float)
         self.old_c_drag = np.array(self.problem.mcd, dtype=float)
+        self.old_chord = np.array(self.problem.mchord, dtype=float)
 
 
     def __str__(self):
@@ -421,11 +427,13 @@ class ActuatorLineForceBlock(Block):
 
     def prepare_recompute_component(self, inputs, relevant_outputs):
         # update the new controls inside the windfarm
-        c_lift = inputs[0::2]
-        c_drag = inputs[1::2]
+        c_lift = inputs[0::3]
+        c_drag = inputs[1::3]
+        chord =  inputs[2::3]
 
-        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag)
+        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord)
 
+        # Since dfd=None here, prepared is a dolfin function (tf) [1 x numPts*ndim]
         prepared = backend_CalculateActuatorLineTurbineForces(self.problem, self.simTime)
 
         return prepared
@@ -435,16 +443,18 @@ class ActuatorLineForceBlock(Block):
 
     def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
         ### update the new controls inside the windfarm ###
-        c_lift = inputs[0::2]
-        c_drag = inputs[1::2]
+        c_lift = inputs[0::3]
+        c_drag = inputs[1::3]
+        chord =  inputs[2::3]
 
-        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag)
+        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord)
 
         prepared = {}
         for name in self.control_types:
             # pr = cProfile.Profile()
             # pr.enable()
             # print("calculating "+name+" derivatives")
+            # Since dfd is not None here, prepared is a Numpy array of derivatives [numPts*ndim x numControls] 
             prepared[name] = backend_CalculateActuatorLineTurbineForces(self.problem, self.simTime, dfd = name)
             # pr.disable()
             # pr.print_stats()

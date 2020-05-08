@@ -293,7 +293,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
 
 #================================================================
 
-def UpdateActuatorLineForce(problem, simTime, dfd, tf):
+def UpdateActuatorLineForce(problem, simTime, dfd):
     def rot_x(theta):
         Rx = np.array([[1, 0, 0],
                        [0, np.cos(theta), -np.sin(theta)],
@@ -364,15 +364,10 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
     # Blade length (turbine radius)
     L = problem.farm.radius[0]
 
-    # Chord length
-    # c = L/20.0
-    c = np.array(problem.mchord, dtype = float)
-    # c = np.linspace(5.0, 2.0, problem.num_blade_segments)
-
     # Width of Gaussian
-    # eps = 2.5*c
     eps = 2.0*problem.dom.mesh.hmin()/np.sqrt(3)
     # eps = 0.5*problem.dom.mesh.hmin()
+    # eps = 2.5*c
     # eps = c/4.3
     # print('eps:', eps)
 
@@ -425,6 +420,10 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
     cl = np.array(problem.mcl, dtype = float)
     cd = np.array(problem.mcd, dtype = float)
 
+    # Chord length
+    # c = L/20.0
+    c = np.array(problem.mchord, dtype = float)
+
     # cl = np.linspace(0.0, 2.0, problem.num_blade_segments) # Uncomment for controllability study
     # cd = np.linspace(2.0, 0.0, problem.num_blade_segments)
 
@@ -440,6 +439,10 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
     elif dfd == 'c_drag':
         cd = np.ones(problem.num_blade_segments)
         dfd_c_drag = np.zeros((np.size(coords), problem.num_blade_segments))
+
+    elif dfd == 'chord':
+        c = np.ones(problem.num_blade_segments)
+        dfd_chord = np.zeros((np.size(coords), problem.num_blade_segments))
 
     # cl = np.linspace(2.0, 0.0, problem.num_blade_segments) # Uncomment for controllability study
     # cd = np.linspace(0.0, 2.0, problem.num_blade_segments)
@@ -552,6 +555,10 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
             elif dfd == 'c_drag':
                 for j in range(ndim):
                     dfd_c_drag[j::ndim, k] += vector_nodal_drag[:, j]
+
+            elif dfd == 'chord':
+                for j in range(ndim):
+                    dfd_chord[j::ndim, k] += vector_nodal_lift[:, j] + vector_nodal_drag[:, j]
                 
     if dfd == None:
         # The total turbine force is the sum of lift and drag effects
@@ -564,7 +571,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
         # Remove near-zero values
         tf_vec[np.abs(tf_vec) < 1e-12] = 0.0
 
-        # if tf is None:
+        # Initialize turbine force (tf) dolfin function
         tf = Function(problem.fs.V)
 
         # Set the dolfin vector values
@@ -574,6 +581,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
 
         # else:
         #     # FIXME: We may need to use .assign() here instead of this
+        # FIXED, we assign it in solver manager now
         #     # tf.assign()
         #     tf.vector()[:] = tf_vec
 
@@ -617,22 +625,37 @@ def UpdateActuatorLineForce(problem, simTime, dfd, tf):
 
         return dfd_c_drag
 
+    elif dfd == 'chord':
+        save_chord = False
+
+        if save_chord:
+            dfdchord = Function(problem.fs.V)
+            dfdchord_fp = File('output/timeSeries/dfdchord.pvd')
+
+            for k in range(problem.num_blade_segments):
+                dfdchord_vec = np.copy(dfd_chord[:, k])
+                # print(dfdcl_vec.min(), dfdcl_vec.max())
+                # print(dfdcl_vec[0:20])
+                dfdchord_vec[np.abs(dfdchord_vec) < 1e-12] = 0.0
+                dfdchord.vector()[:] = dfdchord_vec
+
+                dfdchord.rename('dfdchord', 'dfdchord')
+
+                dfdchord_fp << (dfdchord, k)
+
+        return dfd_chord
+
 #================================================================
 
-def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, tf=None, verbose=False):
+def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, verbose=False):
     if problem.params.get("optimization",{}) and verbose:
         print("Current Optimization Time: "+repr(simTime))
 
-    if dfd is None:
-        # Return a dolfin function [1 x numPts*ndim]
-        tf = UpdateActuatorLineForce(problem, simTime, dfd, tf)
-    elif dfd == 'c_lift':
-        # Return a numpy array of derivatives [numPts*ndim x numControls]
-        tf = UpdateActuatorLineForce(problem, simTime, dfd, tf)
-    elif dfd == 'c_drag':
-        # Return a numpy array of derivatives [numPts*ndim x numControls]
-        tf = UpdateActuatorLineForce(problem, simTime, dfd, tf)
-    return tf
+    # if dfd is None, alm_output is a dolfin function (tf) [1 x numPts*ndim]
+    # otherwise, it returns a numpy array of derivatives [numPts*ndim x numControls]
+    alm_output = UpdateActuatorLineForce(problem, simTime, dfd)
+
+    return alm_output
 
 #================================================================
 

@@ -170,16 +170,19 @@ class GenericProblem(object):
         adj_stop = time.time()
         self.fprint("Wind Speed Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")
 
-    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None):
+    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None, chord = None):
 
         if c_lift is not None:
             cl = np.array(c_lift, dtype = float)
         if c_drag is not None:
             cd = np.array(c_drag, dtype = float)
+        if chord is not None:
+            chord = np.array(chord, dtype = float)
 
         for k in range(self.num_blade_segments):
             self.mcl[k] = Constant(cl[k])
             self.mcd[k] = Constant(cd[k])
+            self.mchord[k] = Constant(chord[k])
 
 
 class StabilizedProblem(GenericProblem):
