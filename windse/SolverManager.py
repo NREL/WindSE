@@ -78,6 +78,7 @@ class GenericSolver(object):
             self.J = 0.0
             self.wake_RD = int(self.params["optimization"]["wake_RD"])
             self.min_total = self.params["optimization"]["min_total"]
+            self.record_time = self.params["optimization"]["record_time"]
             self.adj_file = XDMFFile(self.params.folder+"timeSeries/local_adjoint.xdmf")
             self.adj_time_iter = 1
             self.adj_time_list = [0.0]

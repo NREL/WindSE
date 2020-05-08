@@ -125,6 +125,7 @@ optimization:
     objective_type: power
     wake_RD:        5
     min_total:      0
+    record_time:    computed
     taylor_test:    False
     optimize:       False
     gradient:       False

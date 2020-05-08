@@ -699,7 +699,7 @@ optimization make sure to set ``dolfin_adjoint`` to True.::
 |                        |                                                          |                 |              |
 +========================+==========================================================+=================+==============+
 | ``control_types``      | | Sets the parameters to optimize. Choose Any:           | yes             | None         |
-|                        | |   "yaw", "axial", "layout"                             |                 |              |
+|                        | |   "yaw", "axial", "layout", "lift", "drag", "chord"    |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
 | ``layout_bounds``      | The bounding box for the layout optimization             | no              | wind_farm    |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
@@ -715,6 +715,13 @@ optimization make sure to set ``dolfin_adjoint`` to True.::
 | ``min_total``          | | number of times the average wake deflection reaches a  | no              | 0            |
 |                        | | before the unsteady simulation is stopped. use 0 to    | wake_deflection |              |
 |                        | | run the full simulation                                |                 |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``record_time``        | | The amount of time to run the simulation before        | no              | computed     |
+|                        | | calculation of the objective function takes place      | wake_deflection |              |
+|                        | | Choices:                                               |                 |              |
+|                        | |   "computed": let the solver choose the best recording |                 |              |
+|                        | |   start time based on the flow speed and domain size   |                 |              |
+|                        | |   "last": only begin recording at the final_time       |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
 | ``taylor_test``        | | Performs a test to check the derivatives. Good         | no              | False        |
 |                        | | results have a convergence rate around 2.0             |                 |              |
