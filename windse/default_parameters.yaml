@@ -57,6 +57,8 @@ wind_farm:
     axial:          Null          
     force:          sine
     turbine_method: dolfin
+    rpm:            10.0
+    read_turb_data: Null           
 
 refine:
     warp_type:      Null

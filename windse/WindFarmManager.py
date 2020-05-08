@@ -329,7 +329,7 @@ class GenericWindFarm(object):
         refine_start = time.time()
 
         ### Calculate expanded values ###
-        radius = expand_factor*radius
+        radius = expand_factor*radius/2.0
         length = length+2*(expand_factor-1)*radius
 
         ### Create the cell markers ###

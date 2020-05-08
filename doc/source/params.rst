@@ -235,6 +235,8 @@ This section will define all the parameters for the wind farm::
         axial:          <float>
         force:          <str>
         turbine_method: <str>
+        rpm:            <float>
+        read_turb_data: <str>
 
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
 | Option                 | Description                                   | Required (for)     | Default  | Units       |
@@ -284,11 +286,20 @@ This section will define all the parameters for the wind farm::
 |                        | | Choices: "sine", "constant"                 |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
 | ``turbine_method``     | | determines how the turbine force is built   | no                 | "dolfin" | \-          |
-|                        | | Choices: "numpy", "dolfin"                  |                    |          |             |
+|                        | | Choices: "numpy", "dolfin" , "alm"          |                    |          |             |
 |                        | | "numpy"  - builds entirely using arrays,    |                    |          |             |
 |                        | |            works best for small farms       |                    |          |             |
 |                        | | "dolfin" - uses the FEniCS backend,         |                    |          |             |
 |                        | |            robust but potentially slow      |                    |          |             |
+|                        | | "alm" - an actuator line method using       |                    |          |             |
+|                        | |         numpy array, currently only         |                    |          |             |
+|                        | |         support single turbine farms        |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``rpm``                | | sets the revolutions per minute if using    | "alm"              | 10.0     | rev/min     | 
+|                        | | the alm turbine method                      |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``read_turb_data``     | | Path to .csv file with chord, lift, and     | no                 | None     | \-          |
+|                        | | drag coefficients                           |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
 
 To import a wind farm, create a .txt file with this formatting::

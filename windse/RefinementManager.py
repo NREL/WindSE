@@ -56,7 +56,7 @@ def CreateRefinementList(dom, farm, refine_params):
 
     if turbine_num > 0:
         for i in range(turbine_num,0,-1):
-            expand_factor = (farm_factor)**(i)
+            expand_factor = (turbine_factor)**(i)
 
             if turbine_type == 'simple':
                 radius = max(farm.RD)
