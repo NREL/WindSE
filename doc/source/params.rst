@@ -690,6 +690,7 @@ optimization make sure to set ``dolfin_adjoint`` to True.::
         objective_type: <str>
         wake_RD:        <int>
         min_total:      <int>
+        record_time:    <str>
         taylor_test:    <bool>
         optimize:       <bool>
         gradient:       <bool>
