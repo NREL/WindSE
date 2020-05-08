@@ -123,9 +123,9 @@ class GenericProblem(object):
 
             else:
                 # If not reading from a file, prescribe dummy values
-                chord = np.ones(self.num_blade_segments)
+                chord = self.farm.radius[0]/20.0*np.ones(self.num_blade_segments)
                 cl = np.ones(self.num_blade_segments)
-                cd = np.ones(self.num_blade_segments)
+                cd = 0.1*np.ones(self.num_blade_segments)
 
             # Save the list of controls to self
             for k in range(self.num_blade_segments):
