@@ -529,8 +529,16 @@ class UnsteadySolver(GenericSolver):
 
             # Update the turbine force
             if self.problem.farm.turbine_method == "alm":
+                # t1 = time.time()
                 new_tf = CalculateActuatorLineTurbineForces(self.problem, self.simTime)
                 self.problem.tf.assign(new_tf)
+                # t2 = time.time()
+                # print(t2-t1)
+
+                # Power [=] N*m/s 
+                self.problem.alm_power = self.problem.rotor_torque*(self.problem.rpm/60.0)
+                self.fprint('Rotor Power: %.3f' % (self.problem.alm_power))
+                # exit()
 
             # Adjust the timestep size, dt, for a balance of simulation speed and stability
             save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
