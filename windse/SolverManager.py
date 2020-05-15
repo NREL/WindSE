@@ -535,9 +535,9 @@ class UnsteadySolver(GenericSolver):
                 # t2 = time.time()
                 # print(t2-t1)
 
-                # Power [=] N*m/s 
-                self.problem.alm_power = self.problem.rotor_torque*(self.problem.rpm/60.0)
-                self.fprint('Rotor Power: %.3f' % (self.problem.alm_power))
+                # Power [=] N*m*rads/s 
+                self.problem.alm_power = self.problem.rotor_torque*(2.0*np.pi*self.problem.rpm/60.0)
+                self.fprint('Rotor Power: %.3f MW' % (self.problem.alm_power/1e6))
                 # exit()
 
             # Adjust the timestep size, dt, for a balance of simulation speed and stability

@@ -75,6 +75,8 @@ class GenericProblem(object):
             self.mcl = []
             self.mcd = []
 
+            self.num_times_called = 0
+
 
             # Initialize the lift and drag files
             for fn in ['lift', 'drag']:

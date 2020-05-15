@@ -374,9 +374,6 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
     # Set the hub height
     hub_height = problem.farm.HH[0]
 
-    # Set the rotational speed of the turbine
-    RPM = problem.rpm
-
     # Set the yaw of the turbine
     yaw = problem.farm.yaw[0]
 
@@ -387,58 +384,42 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
     L = problem.farm.radius[0]
 
     # Width of Gaussian
+    # Note: this sets the gaussian width to roughly twice the minimum cell length scale
     eps = 2.0*problem.dom.mesh.hmin()/np.sqrt(3)
-
-    # Initialize the sum of the torque on the rotor shaft to zero
-    problem.rotor_torque = 0.0
-
-
-    # eps = 0.5*problem.dom.mesh.hmin()
-    # eps = 2.5*c
-    # eps = c/4.3
-    # print('eps:', eps)
-
-    # print(problem.farm.x)
-    # print(problem.farm.y)
-    # print(problem.farm.HH)
-    # print(problem.farm.yaw)
-    # print(problem.farm.RD)
-    # print(problem.farm.radius)
-
-    # Discretize each blade into separate nodes
-    # problem.num_blade_segments 
 
     #================================================================
     # Set Derived Constants
     #================================================================
 
-    # Calculate the blade velocity
-    period = 60.0/RPM
-    tip_speed = np.pi*2.0*L*RPM/60.0
-    blade_vel = np.vstack((np.zeros(problem.num_blade_segments),
-                           np.zeros(problem.num_blade_segments),
-                           np.linspace(0.0, tip_speed, problem.num_blade_segments)))
-
-    # Set the initial angle of each blade
-    theta_vec = np.linspace(0.0, 2.0*np.pi, num_blades+1)
-    theta_vec = theta_vec[0:num_blades]
-
-    # Calculate discrete node positions
+    # Calculate the radial position of each actuator node
     rdim = np.linspace(0.0, L, problem.num_blade_segments)
 
-    # Calculate width of individual blade segment
+    # Calculate width of an individual blade segment
     w = rdim[1] - rdim[0]
 
-    # Calculate an array describing the x, y, z position of each point
-    xblade = np.vstack((np.zeros(problem.num_blade_segments),
+    # Calculate an array describing the x, y, z position of each actuator node
+    # Note: The basic blade is oriented along the +y-axis
+    blade_pos_base = np.vstack((np.zeros(problem.num_blade_segments),
                         rdim,
                         np.zeros(problem.num_blade_segments)))
 
+    # Calculate the blade velocity
+    tip_speed = np.pi*2.0*L*problem.rpm/60.0
+
+    # Specify the velocity vector at each actuator node
+    # Note: A blade with span oriented along the +y-axis moves in the +z direction
+    blade_vel_base = np.vstack((np.zeros(problem.num_blade_segments),
+                           np.zeros(problem.num_blade_segments),
+                           np.linspace(0.0, tip_speed, problem.num_blade_segments)))
+
+    # Set the spacing pf each blade
+    theta_vec = np.linspace(0.0, 2.0*np.pi, num_blades, endpoint = False)
+
     # Create unit vectors aligned with blade geometry
-    # blade_unit_vec[:, 0] = points along rotor shaft
-    # blade_unit_vec[:, 1] = points along blade span axis
-    # blade_unit_vec[:, 3] = points tangential to blade span axis (generates a torque about rotor shaft)
-    blade_unit_vec = np.array([[1.0, 0.0, 0.0],
+    # blade_unit_vec_base[:, 0] = points along rotor shaft
+    # blade_unit_vec_base[:, 1] = points along blade span axis
+    # blade_unit_vec_base[:, 3] = points tangential to blade span axis (generates a torque about rotor shaft)
+    blade_unit_vec_base = np.array([[1.0, 0.0, 0.0],
                                [0.0, 1.0, 0.0],
                                [0.0, 0.0, 1.0]])
 
@@ -452,16 +433,18 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
     # cl = cl_dolf.values()
     # cd = cd_dolf.values()
 
+    # Read cl and cd from the values specified in problem manager
     cl = np.array(problem.mcl, dtype = float)
     cd = np.array(problem.mcd, dtype = float)
 
-    # Chord length
+    # Read the chord length from the values specified in the problem manager
     # c = L/20.0
     c = np.array(problem.mchord, dtype = float)
 
-    # cl = np.linspace(0.0, 2.0, problem.num_blade_segments) # Uncomment for controllability study
-    # cd = np.linspace(2.0, 0.0, problem.num_blade_segments)
+    # Initialize the sum of the torque on the rotor shaft to zero
+    problem.rotor_torque = 0.0
 
+    # Initialze arrays depending on what this function will be returning
     if dfd is None:
         tf_vec = np.zeros(np.size(coords))
         lift_force = np.zeros((np.shape(coords)[0], ndim))
@@ -479,19 +462,22 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
         c = np.ones(problem.num_blade_segments)
         dfd_chord = np.zeros((np.size(coords), problem.num_blade_segments))
 
-    # cl = np.linspace(2.0, 0.0, problem.num_blade_segments) # Uncomment for controllability study
-    # cd = np.linspace(0.0, 2.0, problem.num_blade_segments)
-    # cl = np.ones(problem.num_blade_segments)
-    # cd = np.ones(problem.num_blade_segments)
+    save_debugging_files = True
 
-    # tf_lift_vec = np.zeros(np.size(coords))
-    # tf_drag_vec = np.zeros(np.size(coords))
+    if save_debugging_files:
+        blade_pos_paraview = np.zeros((problem.num_blade_segments*num_blades, 3))
+        lift_paraview = np.zeros((problem.num_blade_segments*num_blades, 3))
+        drag_paraview = np.zeros((problem.num_blade_segments*num_blades, 3))
+        torque_paraview = np.zeros((problem.num_blade_segments*num_blades, 3))
+
 
     # Calculate the blade position based on current simTime and turbine RPM
+    period = 60.0/problem.rpm
     theta_offset = simTime/period*2.0*np.pi
 
+
     # Treat each blade separately
-    for theta_0 in theta_vec:
+    for blade_ct, theta_0 in enumerate(theta_vec):
         theta = theta_0 + theta_offset
 
         # Generate a rotation matrix for this turbine blade
@@ -499,38 +485,40 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
         Rz = rot_z(yaw)
 
         # Rotate the entire [x; y; z] matrix using this matrix, then shift to the hub height
-        xblade_rotated = np.dot(Rz, np.dot(Rx, xblade))
-        xblade_rotated[2, :] += hub_height
+        blade_pos = np.dot(Rz, np.dot(Rx, blade_pos_base))
+        blade_pos[2, :] += hub_height
 
         # Initialize space to hold the fluid velocity at each actuator node
         u_fluid = np.zeros((3, problem.num_blade_segments))
 
         # Set if using local velocity around inidividual nodes
-        using_local_velocity = False
+        using_local_velocity = True
 
         if using_local_velocity:
             # Generate the fluid velocity from the actual node locations in the flow
             for k in range(problem.num_blade_segments):
-                u_fluid[:, k] = problem.u_k1(xblade_rotated[0, k],
-                                             xblade_rotated[1, k],
-                                             xblade_rotated[2, k])
+                u_fluid[:, k] = problem.u_k1(blade_pos[0, k],
+                                             blade_pos[1, k],
+                                             blade_pos[2, k])
                                 
         else:
             # Generate the fluid velocity using the inlet velocity (x-pos = x_range[0])        
             for k in range(problem.num_blade_segments):
                 u_fluid[:, k] = problem.u_k1(problem.dom.x_range[0],
-                                             xblade_rotated[1, k],
-                                             xblade_rotated[2, k])
+                                             blade_pos[1, k],
+                                             blade_pos[2, k])
                 
                 # Force inlet velocity (1, 0, 0) for debugging
                 # u_fluid[:, k] = np.array([1, 0, 0])
 
         
         # Rotate the blade velocity in the global x, y, z, coordinate system
-        blade_vel_rotated = np.dot(Rz, np.dot(Rx, -blade_vel))
+        # Note: blade_vel_base is negative since we seek the velocity of the fluid relative to a stationary blade
+        # and blade_vel_base is defined based on the movement of the blade
+        blade_vel = np.dot(Rz, np.dot(Rx, -blade_vel_base))
                         
         # Form the total relative velocity vector (including velocity from rotating blade)
-        u_rel = u_fluid + blade_vel_rotated
+        u_rel = u_fluid + blade_vel
 
         # Force fluid-only relative velocity for debugging
         # u_rel = u_fluid
@@ -538,24 +526,24 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
         # Create unit vectors in the direction of u_rel
         u_rel_mag = np.linalg.norm(u_rel, axis=0)
         u_rel_mag[u_rel_mag < 1e-6] = 1e-6
-        u_unit = u_rel/u_rel_mag
+        u_unit_vec = u_rel/u_rel_mag
         
         # Calculate the lift and drag forces using the relative velocity magnitude
         lift = (0.5*cl*rho*c*w*u_rel_mag**2)
         drag = (0.5*cd*rho*c*w*u_rel_mag**2)
 
+        # Write the lift and drag magnitude at each actuator node to a CSV file
         write_lift_and_drag('lift', simTime, theta, lift)
         write_lift_and_drag('drag', simTime, theta, drag)
 
-
         # Rotate the blade unit vectors to be pointing in the rotated positions
-        blade_unit_vec_rotated = np.dot(Rz, np.dot(Rx, blade_unit_vec))
+        blade_unit_vec = np.dot(Rz, np.dot(Rx, blade_unit_vec_base))
 
         # Tile the blade coordinates for every mesh point, [numGridPts*ndim x problem.num_blade_segments]
-        xblade_rotated_full = np.tile(xblade_rotated, (np.shape(coords)[0], 1))
+        blade_pos_full = np.tile(blade_pos, (np.shape(coords)[0], 1))
 
         # Subtract and square to get the dx^2 values in the x, y, and z directions
-        dx_full = (coordsLinear - xblade_rotated_full)**2
+        dx_full = (coordsLinear - blade_pos_full)**2
 
         # Add together to get |x^2 + y^2 + z^2|^2
         dist2 = dx_full[0::ndim] + dx_full[1::ndim] + dx_full[2::ndim]
@@ -563,29 +551,26 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
         # Calculate the force magnitude at every mesh point due to every node [numGridPts x NumActuators]
         nodal_lift = lift*np.exp(-dist2/eps**2)/(eps**3 * np.pi**1.5)
         nodal_drag = drag*np.exp(-dist2/eps**2)/(eps**3 * np.pi**1.5)
-
-        # Calculate a vector in the direction of the blade
-        #blade_unit = xblade_rotated[:, -1] - np.array([0.0, 0.0, hub_height])
             
         for k in range(problem.num_blade_segments):
             # The drag unit simply points opposite the relative velocity unit vector
-            drag_unit = -u_unit[:, k]
+            drag_unit_vec = -np.copy(u_unit_vec[:, k])
             
             # The lift is normal to the plane generated by the blade and relative velocity
-            lift_unit = np.cross(drag_unit, blade_unit_vec_rotated[:, 1])
+            lift_unit_vec = np.cross(drag_unit_vec, blade_unit_vec[:, 1])
 
-            # lift_unit_mag = np.linalg.norm(lift_unit)
+            # lift_unit_mag = np.linalg.norm(lift_unit_vec)
             # if lift_unit_mag < 1e-6:
             #     lift_unit_mag = 1e-6
-            # lift_unit = lift_unit/lift_unit_mag
+            # lift_unit_vec = lift_unit_vec/lift_unit_mag
 
             # All force magnitudes get multiplied by the correctly-oriented unit vector
-            vector_nodal_lift = np.outer(nodal_lift[:, k], lift_unit)
-            vector_nodal_drag = np.outer(nodal_drag[:, k], drag_unit)
+            vector_nodal_lift = np.outer(nodal_lift[:, k], lift_unit_vec)
+            vector_nodal_drag = np.outer(nodal_drag[:, k], drag_unit_vec)
 
             if dfd == None:
-                drag_force += vector_nodal_drag
                 lift_force += vector_nodal_lift
+                drag_force += vector_nodal_drag
 
             elif dfd == 'c_lift':
                 for j in range(ndim):
@@ -600,17 +585,64 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
                     dfd_chord[j::ndim, k] += vector_nodal_lift[:, j] + vector_nodal_drag[:, j]
 
             # Compute the total force vector [x, y, z] at a single actuator node
-            actuator_force = -(lift[k]*lift_unit + drag[k]*drag_unit)
+            actuator_lift = lift[k]*lift_unit_vec
+            actuator_drag = drag[k]*drag_unit_vec
+
+            # Note: since this will be used to define the force (torque) from fluid -> blade
+            # we reverse the direction that otherwise gives the turbine force from blade -> fluid
+            actuator_force = -(actuator_lift + actuator_drag)
 
             # Find the component in the direction tangential to the blade
-            tangential_actuator_force = np.dot(actuator_force, blade_unit_vec_rotated[:, 2])
+            tangential_actuator_force = np.dot(actuator_force, blade_unit_vec[:, 2])
 
             # Multiply by the distance away from the hub to get a torque
             actuator_torque = tangential_actuator_force*rdim[k]
 
             # Add to the total torque
             problem.rotor_torque += actuator_torque
-                
+
+            if save_debugging_files:
+                idx = problem.num_blade_segments*blade_ct + k
+                blade_pos_paraview[idx, :] = blade_pos[:, k]
+                lift_paraview[idx, :] = actuator_lift
+                drag_paraview[idx, :] = actuator_drag
+                torque_paraview[idx, :] = tangential_actuator_force*blade_unit_vec[:, 2]
+
+    if save_debugging_files:
+        fp = open('./output/%s/timeSeries/actuatorForces%05d.vtk' % (problem.params.name, problem.num_times_called), 'w')
+        fp.write('# vtk DataFile Version 2.0\n')
+        fp.write('Lift, Drag, and Torque Forces\n')
+        fp.write('ASCII\n')
+        fp.write('DATASET UNSTRUCTURED_GRID\n')
+
+        def write_paraview_vector(name, data):
+            num_points = np.shape(data)[0]
+
+            if name is None:
+                fp.write('POINTS %d float\n' % (num_points))
+            else:        
+                fp.write('VECTORS %s float\n' % (name))
+            for k in range(num_points):
+                x_val = data[k, 0]
+                y_val = data[k, 1]
+                z_val = data[k, 2]
+                if k < num_points-1:
+                    fp.write('%.3e %.3e %.3e  ' % (x_val, y_val, z_val))
+                else:
+                    fp.write('%.3e %.3e %.3e\n\n' % (x_val, y_val, z_val))
+                    
+            if name is None:
+                fp.write('POINT_DATA %d\n' % (num_points))
+
+        write_paraview_vector(None, blade_pos_paraview)
+        write_paraview_vector('Lift', lift_paraview)
+        write_paraview_vector('Drag', drag_paraview)
+        write_paraview_vector('Torque', torque_paraview)
+
+        problem.num_times_called += 1
+        fp.close()
+
+
     if dfd == None:
         # The total turbine force is the sum of lift and drag effects
         turbine_force = drag_force + lift_force
@@ -637,7 +669,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
         #     tf.vector()[:] = tf_vec
 
     elif dfd == 'c_lift':
-        save_c_lift = True
+        save_c_lift = False
 
         if save_c_lift:
             save_derivative_file('dfdcl', dfd_c_lift)
@@ -653,7 +685,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
         return dfd_c_drag
 
     elif dfd == 'chord':
-        save_chord = False
+        save_chord = True
 
         if save_chord:
             save_derivative_file('dfdchord', dfd_chord)
