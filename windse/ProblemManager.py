@@ -102,9 +102,14 @@ class GenericProblem(object):
                 actual_cl = actual_turbine_data[:, 3]
                 actual_cd = actual_turbine_data[:, 4]
 
-                # if self.params.name == 'iea_rwt_10rpm_mod_chord':
-                #     chord_shift_amt = np.linspace(0.7, 1.3, np.size(actual_chord))
-                #     actual_chord = chord_shift_amt*actual_chord
+                modify_chord = False
+
+                if modify_chord:
+                    shift_amt = 0.25
+                    low_end = 1.0 - shift_amt
+                    high_end = 1.0 + shift_amt
+                    chord_shift_amt = np.linspace(low_end, high_end, np.size(actual_chord))
+                    actual_chord = chord_shift_amt*actual_chord
 
                 # print('chord measured: ', actual_chord)
                 # print('lift measured: ', actual_cl)

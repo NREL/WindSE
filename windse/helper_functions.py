@@ -492,7 +492,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
         u_fluid = np.zeros((3, problem.num_blade_segments))
 
         # Set if using local velocity around inidividual nodes
-        using_local_velocity = True
+        using_local_velocity = False
 
         if using_local_velocity:
             # Generate the fluid velocity from the actual node locations in the flow

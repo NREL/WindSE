@@ -479,6 +479,8 @@ class UnsteadySolver(GenericSolver):
         stable = False
         tip_speed = self.problem.rpm*2.0*np.pi*self.problem.farm.radius[0]/60.0
 
+        # self.problem.alm_power_sum = 0.0
+
         while not stable and self.simTime < self.final_time:
             self.problem.bd.UpdateVelocity(self.simTime)
 
@@ -537,7 +539,12 @@ class UnsteadySolver(GenericSolver):
 
                 # Power [=] N*m*rads/s 
                 self.problem.alm_power = self.problem.rotor_torque*(2.0*np.pi*self.problem.rpm/60.0)
-                self.fprint('Rotor Power: %.3f MW' % (self.problem.alm_power/1e6))
+                
+                # self.problem.alm_power_sum += self.problem.alm_power*self.problem.dt
+
+                # self.problem.alm_power_average = self.problem.alm_power_sum/self.simTime
+
+                self.fprint('Average Power: %.3f MW' % (self.problem.alm_power/1e6))
                 # exit()
 
             # Adjust the timestep size, dt, for a balance of simulation speed and stability
