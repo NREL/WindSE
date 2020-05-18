@@ -5,7 +5,6 @@ import numpy as np
 import chaospy as cp
 from pystatreduce.active_subspace import ActiveSubspace, BifidelityActiveSubspace
 import pystatreduce.utils as utils
-from demo.documented.Active_Subspace.wind_farm_qoi import WindFarm
 
 # Plotting specific imports
 from mpl_toolkits import mplot3d
@@ -16,12 +15,12 @@ np.set_printoptions(linewidth=150)
 
 # Boolean Options
 read_case_npzs = False # REad in npz files. needed if you want to compute active subspace
-compute_active_subspace = False # Bool to either read a file with eigenmodes in it
+compute_active_subspace = True # Bool to either read a file with eigenmodes in it
 use_single_fidelity = False
 compute_subspace_angles = False
-plot_eigenvals = False # Plots the eigenvalues
+plot_eigenvals = True # Plots the eigenvalues
 plot_shadow_plot = False # Plots the shadow plot
-get_trendline = True
+get_trendline = False
 
 n_turbines = 137
 distribution_type = "uniform"
@@ -46,6 +45,7 @@ if read_case_npzs:
 
 
 if compute_active_subspace:
+    from demo.documented.Active_Subspace.wind_farm_qoi import WindFarm
     # Create the joint distribution
     if distribution_type is "uniform":
         print("Using uniform distribution")
@@ -110,7 +110,7 @@ if compute_active_subspace:
     eigenvecs = active_subspace.iso_eigenvecs
 
     # Plot the most prominent eigenvector on the windfarm
-    pruf_qoi.plot_eigenvector_on_farm(eigenvecs[:,0], show=False)
+    pruf_qoi.plot_eigenvector_on_farm(-eigenvecs[:,0], show=False)
 
 if compute_subspace_angles:
     eigenmode_path1 = 'pruf_active_eigenmodes_unifi.npz'
@@ -124,7 +124,7 @@ if compute_subspace_angles:
 
 if plot_eigenvals:
 
-    n_eigenmodes=137
+    n_eigenmodes=10
     xrange = np.arange(n_eigenmodes)
     normalized_eigenvals = eigenvals / eigenvals[0]
 

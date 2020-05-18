@@ -76,7 +76,6 @@ class GenericBoundary(object):
 
             elif bc_type == "horizontal_slip":
                 for b in bs:
-                    print("\n\nself.dom.mesh.topology().dim() = ", self.dom.mesh.topology().dim())
                     if self.dom.mesh.topology().dim() == 3:
                         bcs_eqns.append([self.fs.W.sub(0).sub(2), self.zero, self.boundary_names[b]])
                     elif self.dom.mesh.topology().dim() == 2:
