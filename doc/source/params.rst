@@ -3,6 +3,9 @@
 The Parameter File
 ==================
 
+This is a comprehensive list of all the available parameters. The default values are stored within ``default_parameters.yaml`` located in the windse directory of the python source files 
+
+
 .. contents:: :local:
 
 
@@ -15,13 +18,14 @@ This section is for options about the run itself. The basic format is::
         name:               <str>
         preappend_datetime: <bool>
         output:             <str list>
+        output_folder:      <str> 
         output_type:        <str>
         dolfin_adjoint:     <bool>
 
 +------------------------+-----------------------------------------------------+----------+-----------------------+
 | Option                 | Description                                         | Required | Default               |
 +========================+=====================================================+==========+=======================+
-| ``name``               | Name of the run and the folder in ``output/``.      | no       | Test                  |
+| ``name``               | Name of the run and the folder in ``output/``.      | no       | "Test"                |
 +------------------------+-----------------------------------------------------+----------+-----------------------+
 | ``preappend_datetime`` | Append the date to the output folder name.          | no       | False                 |
 +------------------------+-----------------------------------------------------+----------+-----------------------+
@@ -29,6 +33,8 @@ This section is for options about the run itself. The basic format is::
 |                        | | Select any combination of the following:          |          |                       |
 |                        | |   "mesh", "initial_guess", "height",              |          |                       |
 |                        | |   "turbine_force", "solution", "debug"            |          |                       |
++------------------------+-----------------------------------------------------+----------+-----------------------+
+| ``output_folder``      | The folder location for all the output              | no       | "output/"             |
 +------------------------+-----------------------------------------------------+----------+-----------------------+
 | ``output_type``        | Output format: "pvd" or "xdmf".                     | no       | "pvd"                 |
 +------------------------+-----------------------------------------------------+----------+-----------------------+
@@ -43,31 +49,37 @@ Domain Options
 This section will define all the parameters for the domain::
 
     domain: 
-        type:         <str>
-        path:         <str>
-        mesh_path:    <str>
-        typo_path:    <str>
-        bound_path:   <str>
-        filetype:     <str>
-        x_range:      <float list>
-        y_range:      <float list>
-        z_range:      <float list>
-        nx:           <int>
-        ny:           <int>
-        nz:           <int>
-        mesh_type:    <str>
-        center:       <float list>
-        radius:       <float>
-        nt:           <int>
-        res:          <int>
-        interpolated: <bool>
-        analytic:     <bool>
+        type:             <str>
+        path:             <str>
+        mesh_path:        <str>
+        terrain_path:     <str>
+        bound_path:       <str>
+        filetype:         <str>
+        scaled:           <bool>
+        ground_reference: <float>
+        x_range:          <float list>
+        y_range:          <float list>
+        z_range:          <float list>
+        nx:               <int>
+        ny:               <int>
+        nz:               <int>
+        mesh_type:        <str>
+        center:           <float list>
+        radius:           <float>
+        nt:               <int>
+        res:              <int>
+        interpolated:     <bool>
+        analytic:         <bool>
         gaussian: 
             center:   <float list>
+            theta:    <float>
             amp:      <float>
             sigma_x:  <float>
             sigma_y:  <float>
-            theta:    <float>
+        plane:
+            intercept: <float list>
+            mx:        <float>
+            my:        <float>
 
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | Option                 | Description                                   | Required (for)     | Default     | Units       |
@@ -83,8 +95,8 @@ This section will define all the parameters for the domain::
 | ``mesh_path``          | | Location of specific mesh file              | | no               |             | \-          |
 |                        | | Default file name: "mesh"                   | | "imported"       | ``path``    |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
-| ``typo_path``          | | Location of specific topology file          | | no               |             | \-          |
-|                        | | Default file name: "topology.txt"           | | "imported"       | ``path``    |             |
+| ``terrain_path``       | | Location of specific terrain file           | | no               |             | \-          |
+|                        | | Default file name: "terrain.txt"            | | "imported"       | ``path``    |             |
 |                        | | Note: Only file required by "interpolated"  |                    |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``bound_path``         | | Location of specific boundary marker data   | | no               |             | \-          |
@@ -92,6 +104,12 @@ This section will define all the parameters for the domain::
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``filetype``           | file type for imported mesh: "xml.gz", "h5"   | | no               | "xml.gz"    | \-          |
 |                        |                                               | | "imported"       |             |             |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+| ``scaled``             | | Scales the domain to km instead of m.       | no                 | False       | \-          |
+|                        | | WARNING: extremely experimental!            |                    |             |             |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+| ``ground_reference``   | | The height (z coordinate) that is           | no                 | 0.0         | m           |
+|                        | | considered ground                           |                    |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``x_range``            | List of two floats defining the x range       | | "rectangle"      | None        | m           |
 |                        |                                               | | "box"            |             |             |
@@ -135,9 +153,10 @@ This section will define all the parameters for the domain::
 |                        | | from file or function.                      | | "box"            | False       |             |
 |                        |                                               | | "cylinder"       |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
-| ``analytic``           | | Indicates if the interpolated function is   | "interpolated"     |             | \-          |
-|                        | | analytic.                                   |                    | False       |             |
-|                        |                                               |                    |             |             |
+| ``analytic``           | | Indicates if the interpolated function is   | no                 | False       | \-          |
+|                        | | analytic or from file.                      |                    |             |             |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``gaussian``           | | If analytic is true, a Gaussian hill will   | | "interpolated"   | None        | \-          |
 |                        | | be created using the following parameters.  | | "analytic"       |             |             |
@@ -153,6 +172,18 @@ This section will define all the parameters for the domain::
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``theta``              | The rotation of the hill.                     | no                 | 0.0         | rad         |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+
++------------------------+-----------------------------------------------+--------------------+---------------+-----------+
+| ``plane``              | | If analytic is true, the ground will be     | | "interpolated"   | None          | \-        |
+|                        | | represented as a plane                      | | "analytic"       |               |           |
+|                        | | Note: requires interpolated and analytic.   |                    |               |           |
++------------------------+-----------------------------------------------+--------------------+---------------+-----------+
+| ``intercept``          | The equation of a plane intercept             | no                 | [0.0,0.0,0.0] | m         |
++------------------------+-----------------------------------------------+--------------------+---------------+-----------+
+| ``mx``                 | The slope in the x direction                  | yes                | None          | m         |
++------------------------+-----------------------------------------------+--------------------+---------------+-----------+
+| ``my``                 | The slope in the y direction                  | yes                | None          | m         |
++------------------------+-----------------------------------------------+--------------------+---------------+-----------+
 
 To import a domain, three files are required: 
 
@@ -187,70 +218,89 @@ Wind Farm Options
 This section will define all the parameters for the wind farm::
 
     wind_farm: 
-        type:      <str>
-        path:      <str>
-        display:   <str>
-        ex_x:      <float list>
-        ex_y:      <float list>
-        grid_rows: <int>
-        grid_cols: <int>
-        jitter:    <float>
-        numturbs:  <int>
-        seed:      <int>
-        HH:        <float>
-        RD:        <float>
-        thickness: <float>
-        yaw:       <float>
-        axial:     <float>
-        force:     <str>
+        type:           <str>
+        path:           <str>
+        display:        <str>
+        ex_x:           <float list>
+        ex_y:           <float list>
+        grid_rows:      <int>
+        grid_cols:      <int>
+        jitter:         <float>
+        numturbs:       <int>
+        seed:           <int>
+        HH:             <float>
+        RD:             <float>
+        thickness:      <float>
+        yaw:            <float>
+        axial:          <float>
+        force:          <str>
+        turbine_method: <str>
+        rpm:            <float>
+        read_turb_data: <str>
 
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| Option                 | Description                                   | Required (for)     | Default | Units       |
-|                        |                                               |                    |         |             |
-+========================+===============================================+====================+=========+=============+
-| ``type``               | | Sets the type of farm. Choices:             | yes                | None    | \-          |
-|                        | |   "grid", "random", "imported"              |                    |         |             |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``path``               | Location of the wind farm text file           | "imported"         | None    | \-          |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``display``            | | Displays a plot of the wind farm            | no                 | False   | \-          |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``ex_x``               | | The x extents of the farm where turbines    | | "grid"           | None    | m           |
-|                        | | can be placed                               | | "random"         |         |             |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``ex_y``               | | The y extents of the farm where turbines    | | "grid"           | None    | m           |
-|                        | | can be placed                               | | "random"         |         |             |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``grid_rows``          | The number of turbines in the x direction     | "grid"             | None    | \-          |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``grid_cols``          | The number of turbines in the y direction     | "grid"             | None    | \-          |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``jitter``             | | Displaces turbines in a random direction    | | no               | 0.0     | m           |
-|                        | | by this amount                              | | "grid"           |         |             |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``numturbs``           | The total number of turbines                  | "random"           | None    | \-          |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``seed``               | | The random seed used to generate/jitter the | | no               | None    | \-          |
-|                        | | farm. Useful for repeating random runs      | | "random"         |         |             |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``HH``                 | The hub height of the turbine from ground     | | "grid"           | None    | m           |
-|                        |                                               | | "random"         |         |             |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``RD``                 | The rotor diameter                            | | "grid"           | None    | m           |
-|                        |                                               | | "random"         |         |             |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``thickness``          | The effective thickness of the rotor disk     | | "grid"           | None    | m           |
-|                        |                                               | | "random"         |         |             |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``yaw``                | | Determins the yaw of all turbines. Yaw is   | | "grid"           | None    | rad         |
-|                        | | relative to the wind inflow direction       | | "random"         |         |             |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``axial``              | The axial induction factor                    | | "grid"           | None    | \-          |
-|                        |                                               | | "random"         |         |             |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
-| ``force``              | | the radial distribution of force            | no                 | "sine"  | \-          |
-|                        | | Choices: "sine", "constant"                 |                    |         |             |
-+------------------------+-----------------------------------------------+--------------------+---------+-------------+
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| Option                 | Description                                   | Required (for)     | Default  | Units       |
+|                        |                                               |                    |          |             |
++========================+===============================================+====================+==========+=============+
+| ``type``               | | Sets the type of farm. Choices:             | yes                | None     | \-          |
+|                        | |   "grid", "random", "imported"              |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``path``               | Location of the wind farm text file           | "imported"         | None     | \-          |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``display``            | | Displays a plot of the wind farm            | no                 | False    | \-          |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``ex_x``               | | The x extents of the farm where turbines    | | "grid"           | None     | m           |
+|                        | | can be placed                               | | "random"         |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``ex_y``               | | The y extents of the farm where turbines    | | "grid"           | None     | m           |
+|                        | | can be placed                               | | "random"         |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``grid_rows``          | The number of turbines in the x direction     | "grid"             | None     | \-          |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``grid_cols``          | The number of turbines in the y direction     | "grid"             | None     | \-          |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``jitter``             | | Displaces turbines in a random direction    | | no               | 0.0      | m           |
+|                        | | by this amount                              | | "grid"           |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``numturbs``           | The total number of turbines                  | "random"           | None     | \-          |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``seed``               | | The random seed used to generate/jitter the | | no               | None     | \-          |
+|                        | | farm. Useful for repeating random runs      | | "random"         |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``HH``                 | The hub height of the turbine from ground     | | "grid"           | None     | m           |
+|                        |                                               | | "random"         |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``RD``                 | The rotor diameter                            | | "grid"           | None     | m           |
+|                        |                                               | | "random"         |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``thickness``          | The effective thickness of the rotor disk     | | "grid"           | None     | m           |
+|                        |                                               | | "random"         |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``yaw``                | | Determins the yaw of all turbines. Yaw is   | | "grid"           | None     | rad         |
+|                        | | relative to the wind inflow direction       | | "random"         |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``axial``              | The axial induction factor                    | | "grid"           | None     | \-          |
+|                        |                                               | | "random"         |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``force``              | | the radial distribution of force            | no                 | "sine"   | \-          |
+|                        | | Choices: "sine", "constant"                 |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``turbine_method``     | | determines how the turbine force is built   | no                 | "dolfin" | \-          |
+|                        | | Choices: "numpy", "dolfin" , "alm"          |                    |          |             |
+|                        | | "numpy"  - builds entirely using arrays,    |                    |          |             |
+|                        | |            works best for small farms       |                    |          |             |
+|                        | | "dolfin" - uses the FEniCS backend,         |                    |          |             |
+|                        | |            robust but potentially slow      |                    |          |             |
+|                        | | "alm" - an actuator line method using       |                    |          |             |
+|                        | |         numpy array, currently only         |                    |          |             |
+|                        | |         support single turbine farms        |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``rpm``                | | sets the revolutions per minute if using    | "alm"              | 10.0     | rev/min     | 
+|                        | | the alm turbine method                      |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``read_turb_data``     | | Path to .csv file with chord, lift, and     | no                 | None     | \-          |
+|                        | | drag coefficients                           |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
 
 To import a wind farm, create a .txt file with this formatting::
 
@@ -287,6 +337,7 @@ The options are::
         farm_type:      <str>
         farm_factor:    <float>
         turbine_num:    <int>
+        turbine_type:   <str>
         turbine_factor: <float>
         refine_custom:  <list list>
 
@@ -309,18 +360,23 @@ The options are::
 | ``farm_num``           | Number of farm refinements                    |
 +------------------------+-----------------------------------------------+
 | ``farm_type``          | | The shape of the refinement around the farm |
-|                        | | Choices: "square", "circle", "farm_circle"  |
-|                        | | "square" and "circle" are centered at the   |
-|                        | | center of the domain, whereas, "farm_circle"|
-|                        | | is centered at the farm                     |
+|                        | | Choices:                                    |
+|                        | | "full" - refines the full mesh              |
+|                        | | "box" - refines in a box near the farm      |
+|                        | | "cylinder" - cylinder centered at the farm  |
+|                        | | "stream" - stream-wise cylinder around farm |
+|                        | |            (use for 1 row farms)            |
 +------------------------+-----------------------------------------------+
 | ``farm_factor``        | | A scaling factor to make the refinement     |
 |                        | | area larger or smaller                      |
 +------------------------+-----------------------------------------------+
-| ``farm_radius``        | | Similar to ``farm_factor``, except defines  |
-|                        | | an exact length                             |
-+------------------------+-----------------------------------------------+
 | ``turbine_num``        | Number of turbine refinements                 |
++------------------------+-----------------------------------------------+
+| ``turbine_type``       | | The shape of the refinement around turbines |
+|                        | | Choices:                                    |
+|                        | | "simple" - cylinder around turbine          |
+|                        | | "tear" - tear drop shape around turbine     |
+|                        | | "wake" - cylinder to capture wake           |
 +------------------------+-----------------------------------------------+
 | ``turbine_factor``     | | A scaling factor to make the refinement     |
 |                        | | area larger or smaller                      |
@@ -330,16 +386,17 @@ The options are::
 |                        | | complex refinement options. Example below   |
 +------------------------+-----------------------------------------------+
 
-To use the "refine_custom" option create a list of where each element defines
+To use the "refine_custom" option, define a list of lists where each element defines
 refinement based on a list of parameters. Example::
 
     refine_custom: [
-        [2,full],
-        [1, custom, [[-1200,1200],[-1200,1200],[0,140]]],
-        [1, circle, 1020]
-        [1, farm_circle, 1020]
-        [1, square, 500]
-    ] 
+        [ "full",     [ ]                                 ],
+        [ "full",     [ ]                                 ],
+        [ "box",      [ [[-500,500],[-500,500],[0,150]] ] ],
+        [ "cylinder", [ [0,0,0], 750, 150 ]               ],
+        [ "simple",   [ 100 ]                             ],
+        [ "tear",     [ 50, 0.7853 ]                      ]
+    ]
 
 For each refinement, the first option indicates how many time this specific
 refinement will happen. The second option indicates the type of refinement:
@@ -349,11 +406,27 @@ indicates the extent of the refinement.
 The example up above will result in five refinements:
 
     1. Two full refinements
-    2. One custom refinement bounded by the box: [[-1200,1200],[-1200,1200],[0,140]]
-    3. One circle centered at the center of the domain with radius 1020 m
-    4. One circle centered at the center of the farm with radius 1020 m 
-    5. One square centered at the center of the farm with side length 500 m
+    2. One box refinement bounded by: [[-500,500],[-500,500],[0,150]]
+    3. One cylinder centered at origin with radius 750 m and a height of 150 m
+    4. One simple turbine refinement with radius 100 m 
+    5. One teardrop shaped turbine refinement radius 500 m and rotated by 0.7853 rad
 
+The syntax for each refinement type is::
+
+        [ "full",     [ ]                                                             ]
+        [ "box",      [ [[x_min,x_max],[y_min,y_max],[z_min,z_max]], expand_factor ]  ]
+        [ "cylinder", [ [c_x,c_y,c_z], radius, height, expand_factor ]                ]
+        [ "stream",   [ [c_x,c_y,c_z], radius, length, theta, offset, expand_factor ] ]
+        [ "simple",   [ radius, expand_factor ]                                       ]
+        [ "tear",     [ radius, theta, expand_factor ]                                ]
+        [ "wake",     [ radius, length, theta, expand_factor ]                        ]
+
+Notes::
+
+    * For cylinder, the center is the base of the cylinder
+    * For stream, the center is the start of the vertical base and offset indicates the rotation offset
+    * For stream, wake, length is the distance center to the downstream end of the cylinder
+    * For stream, tear, wake, theta rotates the shape around the center
 
 Function Space Options
 ----------------------
@@ -362,15 +435,30 @@ This section list the function space options::
 
     function_space:
         type: <str>
+        quadrature_degree: <int>
+        turbine_space:     <str>
+        turbine_degree:    <int>
 
-+------------------------+----------------------------------------------------------+--------------+---------+
-| Option                 | Description                                              | Required     | Default |
-|                        |                                                          |              |         |
-+========================+==========================================================+==============+=========+
-| ``type``               | | Sets the type of farm. Choices:                        | yes          | None    |
-|                        | |   "linear": P1 elements for both velocity and pressure |              |         |
-|                        | |   "taylor_hood": P2 for velocity, P1 for pressure      |              |         |
-+------------------------+----------------------------------------------------------+--------------+---------+
++------------------------+----------------------------------------------------------+--------------+------------+
+| Option                 | Description                                              | Required     | Default    |
+|                        |                                                          |              |            |
++========================+==========================================================+==============+============+
+| ``type``               | | Sets the type of farm. Choices:                        | yes          | None       |
+|                        | |   "linear": P1 elements for both velocity and pressure |              |            |
+|                        | |   "taylor_hood": P2 for velocity, P1 for pressure      |              |            |
++------------------------+----------------------------------------------------------+--------------+------------+
+| ``quadrature_degree``  | | Sets the quadrature degree for all integration and     | no           | 6          |
+|                        | | interpolation for the whole simulation                 |              |            |
++------------------------+----------------------------------------------------------+--------------+------------+
+| ``turbine_space``      | | Sets the function space for the turbine. Only needed   | no           | Quadrature |
+|                        | | if using "numpy" for ``turbine_method``                |              |            |
+|                        | | Choices: "Quadrature", "CG"                            |              |            |
++------------------------+----------------------------------------------------------+--------------+------------+
+| ``turbine_degree``     | | The quadrature degree for specifically the turbine     | no           | 6          |
+|                        | | force representation. Only works "numpy" method        |              |            |
+|                        | | Note: if using Quadrature space, this value must equal |              |            |
+|                        | | the ``quadrature_degree``                              |              |            |
++------------------------+----------------------------------------------------------+--------------+------------+
 
 
 
@@ -383,26 +471,25 @@ prescribed on boundary facing into the wind, no slip on the ground and
 no stress on all other faces. These options describe the inflow boundary
 velocity profile.::
 
-    boundary_condition:
-        boundary_names: <dict>
-        boundary_types: <dict>
+    boundary_conditions:
         vel_profile:    <str>
         HH_vel:         <float>
         power:          <float>
         k:              <float>
+        turbsim_path    <str>
+        inflow_angle:   <float, list>
+        boundary_names: <dict>
+        boundary_types: <dict>
 
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
 | Option                 | Description                                                                                   | Required     | Default    |
 |                        |                                                                                               |              |            |
 +========================+===============================================================================================+==============+============+
-| ``boundary_names``     | A dictionary used to identify the boundaries                                                  | no           | See Below  |
-+------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
-| ``boundary_types``     | A dictionary for defining boundary conditions                                                 | no           | See Below  |
-+------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
 | ``vel_profile``        | | Sets the velocity profile. Choices:                                                         | yes          | None       |
 |                        | |   "uniform": constant velocity of :math:`u_{HH}`                                            |              |            |
 |                        | |   "power": a power profile                                                                  |              |            |
 |                        | |   "log": log layer profile                                                                  |              |            |
+|                        | |   "turbsim": use a turbsim simulation as inflow                                             |              |            |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
 | ``HH_vel``             | The velocity at hub height, :math:`u_{HH}`, in m/s.                                           | no           | 8.0        |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
@@ -410,61 +497,87 @@ velocity profile.::
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
 | ``k``                  | The constant used in the log layer flow                                                       | no           | 0.4        |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
+| ``inflow_angle``       | | Sets the initial inflow angle for the boundary condition. A multiangle solve can be         | no           | None       |
+|                        | | indicated by setting this value to a list with values: [start, stop, n] where the solver    |              |            |
+|                        | | will perform n solves, sweeping uniformly through the start and stop angles. The number of  |              |            |
+|                        | | solves, n, can also be defined in the solver parameters.                                    |              |            |
++------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
+| ``turbsim_path``       | The location of turbsim profiles used as inflow boundary conditions                           | | yes        | None       |
+|                        |                                                                                               | | "turbsim"  |            |
++------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
+| ``boundary_names``     | A dictionary used to identify the boundaries                                                  | no           | See Below  |
++------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
+| ``boundary_types``     | A dictionary for defining boundary conditions                                                 | no           | See Below  |
++------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
 
 ..
     of :math:`u_x=u_{max} \left( \frac{z-z_0}{z_1-z_0} \right)^{p}`
 
-If you are importing a mesh, you can specify the boundary markers using ``names`` and ``types``.
+If you are importing a mesh or want more control over boundary conditions, you can specify the boundary markers using ``names`` and ``types``.
 The default for these two are
+
 Rectangular Mesh::
 
     boundary_condition:
         boundary_names: 
-            front: 1
-            back: 2
-            left: 3
-            right: 4
+            east:  1
+            north: 2
+            west:  3
+            south: 4
         boundary_types: 
-            inflow: ["front","left","right"],
-            no_stress: ["back"]
+            inflow:    ["west","north","south"]
+            no_stress: ["east"]
 
 Box Mesh::
 
     boundary_condition:
         boundary_names: 
-            top: 1
-            bottom: 2
-            front: 3
-            back: 4
-            left: 5
-            right: 6
+            east:   1
+            north:  2
+            west:   3
+            south:  4
+            bottom: 5
+            top:    6
         boundary_types: 
-            inflow: ["top","front","left","right"],
+            inflow:    ["west","north","south"]
+            free_slip: ["top"]
             no_slip:   ["bottom"]
-            no_stress: ["back"]
+            no_stress: ["east"]
 
-Cylinder/Interpolated Mesh::
+Circle Mesh::
 
     boundary_condition:
         boundary_names: 
-            inflow: 1
-            outflow: 2
-            top: 3
-            bottom: 4
+            outflow: 7
+            inflow:  8
         boundary_types: 
-            inflow: ["inflow","top"],
+            inflow:    ["inflow"]
+            no_stress: ["outflow"]
+
+Cylinder Mesh::
+
+    boundary_condition:
+        boundary_names: 
+            outflow: 5
+            inflow:  6
+            bottom:  7
+            top:     8
+        boundary_types: 
+            inflow:    ["inflow"]
+            free_slip: ["top"]
             no_slip:   ["bottom"]
             no_stress: ["outflow"]
 
-These defaults corrispond to an inflow wind direction from West to East.
-Feel free to mimic these defaults when creating the boundary input file. 
-Alternatively, you can name you boundaries whatever you want as long as you
-set up the corresponding ``boundary_types``. Additionally, you can set 
-change the ``boundary_types`` if using one of the built in domain types. 
-This way you can customize the boundary conditions without importing a whole
-new mesh.
+These defaults correspond to an inflow wind direction from West to East.
 
-
+When marking a rectangular/box domains, from a top-down perspective, start from 
+the boundary in the positive x direction and go counter clockwise, the boundary 
+names are: "easy", "north", "west", "south". Additionally, in 3D there are also
+"top" and "bottom". For a circular/cylinder domains, the boundary names are
+"inflow" and "outflow". Likewise, in 3D there are also "top" and "bottom". 
+Additionally, you can change the ``boundary_types`` if using one of the built 
+in domain types. This way you can customize the boundary conditions without 
+importing a whole new mesh.
 
 Problem Options
 ---------------
@@ -473,9 +586,9 @@ This section describes the problem options::
 
     problem:
         type:          <str>
+        use_25d_model: <bool>
         viscosity:     <float>
         lmax:          <float>
-        use_25d_model: <bool>
 
 +------------------------+--------------------------------------------------------------+--------------+---------+
 | Option                 | Description                                                  | Required     | Default |
@@ -506,40 +619,60 @@ This section lists the solver options::
 
     solver:
         type:              <str>
-        wind_range:        <float list>
-        endpoint:          <bool>
+        final_time:        <float>
+        record_time:       <str, float>
+        save_interval:     <float>
         num_wind_angles:   <int>
+        endpoint:          <bool>
+        velocity_path:     <str>
         save_power:        <bool>
         nonlinear_solver:  <str>
         newton_relaxation: <float>
 
-+------------------------+----------------------------------------------------------+-------------------+---------------------+
-| Option                 | Description                                              | Required (for)    | Default             |
-|                        |                                                          |                   |                     |
-+========================+==========================================================+===================+=====================+
-| ``type``               | | Sets the solver type. Choices:                         | yes               | None                |
-|                        | |   "steady": solves for the steady state solution       |                   |                     |
-|                        | |   "multiangle": iterates through inflow angles         |                   |                     |
-+------------------------+----------------------------------------------------------+-------------------+---------------------+
-| ``wind_range``         | The start and end angles to sweep over                   | | no              | [0.0, :math:`2\pi`] |
-|                        |                                                          | | "multiangle"    |                     |
-+------------------------+----------------------------------------------------------+-------------------+---------------------+
-| ``endpoint``           | Should the end point be included in the run              | | no              | False               |
-|                        |                                                          | | "multiangle"    |                     |
-+------------------------+----------------------------------------------------------+-------------------+---------------------+
-| ``num_wind_angles``    | Sets the number of angles                                | | yes             | None                |
-|                        |                                                          | | "multiangle"    |                     |
-+------------------------+----------------------------------------------------------+-------------------+---------------------+
-| ``save_power``         | Save the power for each turbine to a text file in        | no                | False               |
-|                        | output/``name``/data/                                    |                   |                     |
-+------------------------+----------------------------------------------------------+-------------------+---------------------+
-| ``nonlinear_solver``   | | Specify the nonlinear solver type. Choices:            | no                | "snes"              |
-|                        | |   "newton": uses the standard newton solver            |                   |                     |
-|                        | |   "snes": PETSc SNES solver                            |                   |                     |
-+------------------------+----------------------------------------------------------+-------------------+---------------------+
-| ``newton_relaxation``  | Set the relaxation parameter if using newton solver      | | no              | 1.0                 |
-|                        |                                                          | | "newton"        |                     |
-+------------------------+----------------------------------------------------------+-------------------+---------------------+
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| Option                 | Description                                                    | Required (for)      | Default             |
+|                        |                                                                |                     |                     |
++========================+================================================================+=====================+=====================+
+| ``type``               | | Sets the solver type. Choices:                               | yes                 | None                |
+|                        | |   "steady": solves for the steady state solution             |                     |                     |
+|                        | |   "unsteady": solves for a time varying solution             |                     |                     |
+|                        | |   "multiangle": iterates through inflow angles               |                     |                     |
+|                        | |                 uses ``inflow_angle`` or [0, :math:`2\pi`]   |                     |                     |
+|                        | |   "imported_inflow": runs multiple steady solves with        |                     |                     |
+|                        | |                      imported list of inflow conditions      |                     |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``final_time``         | The final time for an unsteady simulation                      | | no                | 1.0 s               |
+|                        |                                                                | | "unsteady"        |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``record_time``        | | The time when we start recording the objective function      | | no                | None                |
+|                        | | using a weighted average.                                    | | "unsteady"        |                     |
+|                        | | Choices:                                                     |                     |                     |
+|                        | |          "computed": Sets the time based on inflow speed     |                     |                     |
+|                        | |          "last": Only computes at the final time step        |                     |                     |
+|                        | |          <float>: use this specific time to start recording  |                     |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``save_interval``      | The amount of time between saving output fields                | | no                | 1.0 s               |
+|                        |                                                                | | "unsteady"        |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``num_wind_angles``    | Sets the number of angles. can also be set in ``inflow_angle`` | | no                | 1                   |
+|                        |                                                                | | "multiangle"      |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``endpoint``           | Should the final inflow angle be simulated                     | | no                | False               |
+|                        |                                                                | | "multiangle"      |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``velocity_path``      | The location of a list of inflow conditions                    | | yes               |                     |
+|                        |                                                                | | "imported_inflow" |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``save_power``         | Save the power for each turbine to a text file in              | no                  | False               |
+|                        | output/``name``/data/                                          |                     |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``nonlinear_solver``   | | Specify the nonlinear solver type. Choices:                  | no                  | "snes"              |
+|                        | |   "newton": uses the standard newton solver                  |                     |                     |
+|                        | |   "snes": PETSc SNES solver                                  |                     |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``newton_relaxation``  | Set the relaxation parameter if using newton solver            | | no                | 1.0                 |
+|                        |                                                                | | "newton"          |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
 
 The "multiangle" solver uses the steady solver to solve the RANS formulation.
 Currently, the "multiangle" solver does not support imported domains. 
@@ -552,23 +685,43 @@ This section lists the optimization options. If you are planning on doing
 optimization make sure to set ``dolfin_adjoint`` to True.::
 
     optimization:
-        controls:     <str list>
-        layout_bounds <float list>
-        taylor_test:  <bool>
-        optimize:     <bool>
+        control_types:  <str list>
+        layout_bounds:  <float list>
+        objective_type: <str>
+        wake_RD:        <int>
+        min_total:      <int>
+        taylor_test:    <bool>
+        optimize:       <bool>
+        gradient:       <bool>
 
-+------------------------+----------------------------------------------------------+-------------+--------------+
-| Option                 | Description                                              | Required    | Default      |
-|                        |                                                          |             |              |
-+========================+==========================================================+=============+==============+
-| ``controls``           | | Sets the parameters to optimize. Choose Any:           | yes         | None         |
-|                        | |   "yaw", "axial", "layout"                             |             |              |
-+------------------------+----------------------------------------------------------+-------------+--------------+
-| ``taylor_test``        | | Performs a test to check the derivatives. Good         | no          | False        |
-|                        | | results have a convergence rate around 2.0             |             |              |
-+------------------------+----------------------------------------------------------+-------------+--------------+
-| ``optimize``           | | Optimize the given controls using the power output as  | no          | True         |
-|                        | | the objective function using SLSQP from scipy.         |             |              |
-+------------------------+----------------------------------------------------------+-------------+--------------+
-| ``layout_bounds``      | The bounding box for the layout optimization             | no          | wind_farm    |
-+------------------------+----------------------------------------------------------+-------------+--------------+
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| Option                 | Description                                              | Required        | Default      |
+|                        |                                                          |                 |              |
++========================+==========================================================+=================+==============+
+| ``control_types``      | | Sets the parameters to optimize. Choose Any:           | yes             | None         |
+|                        | |   "yaw", "axial", "layout"                             |                 |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``layout_bounds``      | The bounding box for the layout optimization             | no              | wind_farm    |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``objective_type``     | | Sets the objective function for optimization           | no              | power        |
+|                        | | Choices:                                               |                 |              |
+|                        | |   "power": simple power calculation                    |                 |              |
+|                        | |   "2d_power": power calculation optimized for 2D runs  |                 |              |
+|                        | |   "wake_deflection": metric for measuring wake movement|                 |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``wake_RD``            | | number of rotor diameters downstream where the wake is | no              | 5            |
+|                        | | measured                                               | wake_deflection |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``min_total``          | | number of times the average wake deflection reaches a  | no              | 0            |
+|                        | | before the unsteady simulation is stopped. use 0 to    | wake_deflection |              |
+|                        | | run the full simulation                                |                 |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``taylor_test``        | | Performs a test to check the derivatives. Good         | no              | False        |
+|                        | | results have a convergence rate around 2.0             |                 |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``optimize``           | | Optimize the given controls using the power output as  | no              | False        |
+|                        | | the objective function using SLSQP from scipy.         |                 |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``gradient``           | | returns the gradient values of the objective with      | no              | False        |
+|                        | | respect to the controls                                |                 |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+

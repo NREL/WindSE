@@ -17,7 +17,10 @@ import os
 import numpy as np
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
+if hasattr(__main__,"__file__"):
+    main_file = os.path.basename(__main__.__file__)
+else:
+    main_file = "ipython"
 
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
@@ -25,12 +28,14 @@ if main_file != "sphinx-build":
     import numpy as np
     import copy
     from sys import platform
+    import time
+    from memory_profiler import memory_usage
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
 
     ### Check if we need dolfin_adjoint ###
-    if windse_parameters["general"].get("dolfin_adjoint", False):
+    if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
 
     ### This import improves the plotter functionality on Mac ###
@@ -55,10 +60,24 @@ class Optimizer(object):
         self.problem = solver.problem
         self.farm = solver.problem.farm
         self.fprint = self.params.fprint
+        self.xscale = self.problem.dom.xscale
 
-        self.control_types = self.params["optimization"]["controls"]
-        print('control type:', self.control_types)
-        self.layout_bounds = self.params["optimization"].get("layout_bounds",[self.farm.ex_x,self.farm.ex_y])
+        ### Update attributes based on params file ###
+        for key, value in self.params["optimization"].items():
+            if isinstance(value,list):
+                setattr(self,key,np.array(value))
+            else:
+                setattr(self,key,value)
+
+        ### Process parameters ###
+        if "layout" in self.control_types:
+            if isinstance(self.layout_bounds,list):
+                self.layout_bounds = np.array(self.layout_bounds)
+            elif self.layout_bounds == "wind_farm":
+                self.layout_bounds = np.array([self.farm.ex_x,self.farm.ex_y])
+            else:
+                self.layout_bounds = np.array([[0,0],[0,0]])
+            self.layout_bounds = self.layout_bounds*self.xscale
 
         self.iteration = 0
 
@@ -74,15 +93,10 @@ class Optimizer(object):
         self.get_minimum_distance_constraint_func(self.controls, 2*np.mean(self.problem.farm.HH))
 
         self.fprint("Define Optimizing Functional")
-        if self.params["solver"]["type"] == "multiangle":
-            if self.solver.problem.dom.dim == 3:
-                self.J = assemble(self.solver.J)
-            else:
-                self.J = self.solver.J
-            self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
-            self.Jcurrent = self.J
-        else:
-            self.PowerFunctional()
+        self.J = self.solver.J
+        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
+
+        self.Jcurrent = self.J
 
         self.fprint("Number of Controls: {:d}".format(len(self.controls)),special="header")
         self.OptPrintFunction(self.init_vals)
@@ -97,7 +111,7 @@ class Optimizer(object):
     def CreateControls(self):
         self.controls = []
         self.names = []
-        self.indexes = [[],[],[],[]]
+        self.indexes = [[],[],[],[],[],[]]
         self.init_vals = []
         j = 0
         if "layout" in self.control_types:
@@ -130,6 +144,22 @@ class Optimizer(object):
                 self.controls.append(Control(self.farm.ma[i]))
                 self.init_vals.append(self.farm.ma[i])
 
+        if "lift" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                self.indexes[4].append(j)
+                j+=1
+                self.names.append("lift_"+repr(i))
+                self.controls.append(Control(self.problem.mcl[i]))
+                self.init_vals.append(self.problem.mcl[i])
+
+        if "drag" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                self.indexes[5].append(j)
+                j+=1
+                self.names.append("drag_"+repr(i))
+                self.controls.append(Control(self.problem.mcd[i]))
+                self.init_vals.append(self.problem.mcl[i])
+
     def CreateBounds(self):
         lower_bounds = []
         upper_bounds = []
@@ -143,107 +173,108 @@ class Optimizer(object):
 
         if "yaw" in self.control_types:
             for i in range(self.farm.numturbs):
-                lower_bounds.append(Constant(-pi/4.))
-                upper_bounds.append(Constant(pi/4.))
+                lower_bounds.append(Constant(0.0))
+                upper_bounds.append(Constant(25*pi/180.0))
 
         if "axial" in self.control_types:
             for i in range(self.farm.numturbs):
                 lower_bounds.append(Constant(0))
                 upper_bounds.append(Constant(1.))
 
+        if "lift" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                lower_bounds.append(Constant(0))
+                upper_bounds.append(Constant(2.))
+
+        if "drag" in self.control_types:
+            for i in range(self.problem.num_blade_segments):
+                lower_bounds.append(Constant(0))
+                upper_bounds.append(Constant(2.))
+
         self.bounds = [lower_bounds,upper_bounds]
-
-    def AssignControls(self):
-        if "layout" in self.control_types:
-            self.farm.mx = self.controls[self.indexes[0]]
-            self.farm.my = self.controls[self.indexes[1]]
-        if "yaw" in self.control_types:
-            self.farm.myaw = self.controls[self.indexes[2]]
-        if "axial" in self.control_types:
-            self.farm.ma = self.controls[self.indexes[3]]
-
-
-
-    def PowerFunctional(self):
-        """
-        Creates the power functional that will be optimized
-
-        Args:
-            tf (dolfin.Function): Turbine Force function
-            u (dolfin.Function): Velocity vector.
-        """
-
-        self.J = assemble(-(dot(self.problem.tf,self.solver.u_next))*dx)
-        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
-        self.Jcurrent = self.J
 
     def Gradient(self):
         """
         Returns a gradient of the objective function
         """
-        dJdma= compute_gradient(self.J, self.controls)
-        # gradient_list = [float(dd) for dd in dJdma] # Gradient given in a list from Fenics
-        gradient_list = np.array(dJdma, dtype=np.float)
-        # print(gradient_list)
+        mem0=memory_usage()[0]
+        tick = time.time()
+        capture_memory = False
+        if capture_memory:
+            mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True,max_iterations=1)
+        else:
+            mem_out = 2*mem0
+            der = self.Jhat.derivative()
+        folder_string = self.params.folder+"data/"
+        if not os.path.exists(folder_string): os.makedirs(folder_string)
+        f = open(folder_string+"gradient_data.txt",'w')
+        for i, d in enumerate(der):
+            d_out = str("dJd"+self.names[i] +": " +repr(float(d)))
+            self.fprint(d_out)
+            f.write(d_out+"\n")
+        f.close()
+        tock = time.time()
+        self.fprint("Time Elapsed: {:1.2f} s".format(tock-tick))
+        if capture_memory:
+            self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
+        return np.array(der, dtype=float)
 
-        return gradient_list
+    def RecomputeReducedFunctional(self):
+        self.CreateControls()
+        self.J = self.solver.J
+        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
+        self.Jcurrent = self.J
+
+    # def Gradient(self):
+    #     """
+    #     Returns a gradient of the objective function
+    #     """
+    #     mem0=memory_usage()[0]
+    #     tick = time.time()
+    #     mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True,max_iterations=1)
+    #     for i, d in enumerate(der):
+    #         self.fprint("dJd"+self.names[i] +": " +repr(float(d)))
+    #     tock = time.time()
+    #     self.fprint("Time Elapsed: {:1.2f} s".format(tock-tick))
+    #     self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
+    #     return np.array(der, dtype=float)
 
     def ListControls(self,m):
-        if "layout" in self.control_types:
-            for i in range(self.farm.numturbs):
-                self.fprint("Turbine {0:} of {1:}: {2: 4.2f}, {3: 4.2f}".format(i,self.farm.numturbs,self.x_val[i],self.y_val[i]))
 
-    def PlotLayout(self,m,show=False):
-        self.x_val = []
-        self.y_val = []
+        self.fprint("Current Objective Value: " + repr(float(self.Jcurrent)))
 
-        for i,val in enumerate(m):
-            if "x_" in self.names[i]:
-                self.x_val.append(float(m[i]))
-            elif "y_" in self.names[i]:
-                self.y_val.append(float(m[i]))
+        # if "layout" in self.control_types:
+        #     for i in range(self.farm.numturbs):
+        #         self.fprint("Location Turbine {0:} of {1:}: {2: 4.2f}, {3: 4.2f}".format(i+1,self.farm.numturbs,self.farm.x[i],self.farm.y[i]))
 
-        z_val = self.problem.dom.Ground(self.x_val,self.y_val)+self.problem.farm.HH
+        # if "yaw" in self.control_types:
+        #     for i in range(self.farm.numturbs):
+        #         self.fprint("Yaw Turbine {0:} of {1:}: {2: 4.6f}".format(i+1,self.farm.numturbs,self.farm.yaw[i]))
 
-        ### Create the path names ###
-        folder_string = self.params.folder+"/plots/"
-        file_string = self.params.folder+"/plots/wind_farm_step_"+repr(self.iteration)+".pdf"
-
-        ### Check if folder exists ###
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
-
-        ### Create a list that outlines the extent of the farm ###
-        ex_list_x = [self.layout_bounds[0][0],self.layout_bounds[0][1],self.layout_bounds[0][1],self.layout_bounds[0][0],self.layout_bounds[0][0]]
-        ex_list_y = [self.layout_bounds[1][0],self.layout_bounds[1][0],self.layout_bounds[1][1],self.layout_bounds[1][1],self.layout_bounds[1][0]]
-
-        ### Generate and Save Plot ###
-        plt.clf()
-        if hasattr(self.problem.dom,"boundary_line"):
-            plt.plot(*self.problem.dom.boundary_line,c="k")
-        plt.plot(ex_list_x,ex_list_y,c="r")
-        p=plt.scatter(self.x_val,self.y_val,c=z_val,cmap="coolwarm",edgecolors=(0, 0, 0, 1))
-        # p=plt.scatter(self.x_val,self.y_val,c="k",s=70)
-        # p=plt.scatter(self.x_val,self.y_val,c=range(self.farm.numturbs))
-        plt.xlim(self.problem.dom.x_range[0],self.problem.dom.x_range[1])
-        plt.ylim(self.problem.dom.y_range[0],self.problem.dom.y_range[1])
-        clb = plt.colorbar(p)
-        clb.ax.set_ylabel('Hub Elevation')
-
-        plt.title("Power Output: {: 5.2f}".format(-self.Jcurrent))
-        plt.savefig(file_string, transparent=True)
-        if show:
-            plt.show()
+        for i, val in enumerate(m):
+            self.fprint(self.names[i] +": " +repr(float(val)))
 
     def SaveControls(self,m):
 
         folder_string = self.params.folder+"/data/"
         if not os.path.exists(folder_string): os.makedirs(folder_string)
 
+        new_values = {}
+        m_f = np.array(m,dtype=float)
         if "layout" in self.control_types:
-            self.problem.farm.UpdateConstants(m=m,control_types=self.control_types,indexes=self.indexes)
-            self.problem.farm.SaveWindFarm(val=self.iteration)
+            new_values["x"]   = m_f[self.indexes[0]]
+            new_values["y"]   = m_f[self.indexes[1]]
+        if "yaw" in self.control_types:
+            new_values["yaw"] = m_f[self.indexes[2]]
+        if "axial" in self.control_types:
+            new_values["a"]   = m_f[self.indexes[3]]
+
+        self.problem.farm.UpdateControls(**new_values)
+        self.problem.farm.SaveWindFarm(val=self.iteration)
 
         if self.iteration == 0:
+
+            #### ADD HEADER ####
             self.last_m = np.zeros(len(m))
             for i in range(len(m)):
                 self.last_m[i]=float(m[i])
@@ -260,12 +291,10 @@ class Optimizer(object):
         f.close()
 
     def OptPrintFunction(self,m):
-
-        if "layout" in self.control_types:
-            self.PlotLayout(m,show=False)
-
         self.SaveControls(m)
         self.ListControls(m)
+
+        self.problem.farm.Plot(filename="wind_farm_step_"+repr(self.iteration),power=-self.Jcurrent)
 
         self.iteration += 1
 
@@ -281,15 +310,22 @@ class Optimizer(object):
         self.fprint("Beginning Optimization",special="header")
 
         if "layout" in self.control_types:
-            # m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
-            m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
+            m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
         else:
             m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
         # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
         self.fprint("Assigning New Values")
-        self.problem.farm.UpdateConstants(m=m_opt,control_types=self.control_types,indexes=self.indexes)
-        # self.AssignControls()
+        new_values = {}
+        m_f = np.array(m_opt,dtype=float)
+        if "layout" in self.control_types:
+            new_values["x"]   = m_f[self.indexes[0]]
+            new_values["y"]   = m_f[self.indexes[1]]
+        if "yaw" in self.control_types:
+            new_values["yaw"] = m_f[self.indexes[2]]
+        if "axial" in self.control_types:
+            new_values["a"]   = m_f[self.indexes[3]]
+        self.problem.farm.UpdateControls(**new_values)
 
         self.fprint("Solving With New Values")
         self.solver.Solve()
@@ -302,8 +338,9 @@ class Optimizer(object):
 
         self.fprint("Beginning Taylor Test",special="header")
 
-        h = [Constant(10)]*(len(self.controls))
-        # h = [Constant(0.001)]*(len(self.controls))
+        h = []
+        for i,c in enumerate(self.controls):
+            h.append(Constant(1*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
 
         conv_rate = taylor_test(self.Jhat, self.init_vals, h)
 
@@ -313,6 +350,8 @@ class Optimizer(object):
         self.fprint("")
 
         self.fprint("Taylor Test Finished",special="footer")
+
+
 
         return conv_rate
 

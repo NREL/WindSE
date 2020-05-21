@@ -1,0 +1,48 @@
+# General options
+general: 
+    name: "6_turbines_medium"       # Name of the output folder
+    preappend_datetime: false  # Place the date and time before the folder name
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                     # Description              | Units
+    type: imported            #                          |
+    path: Input_Data/6_turbine_farm.txt
+
+# Domain Constants for a Box Domain
+domain: 
+    #                      # Description           | Units
+    type: box              #                       |
+    x_range: [0, 3500]     # x-range of the domain | m
+    y_range: [-500, 500]   # y-range of the domain | m
+    z_range: [0.04, 500]   # z-range of the domain | m
+    nx: 70                 # Number of x-nodes     | -
+    ny: 20                 # Number of y-nodes     | -
+    nz: 8                  # Number of z-nodes     | -
+
+refine:
+    #                      # Description                  | Units
+    warp_type: "split"
+    warp_percent: 0.75     # percent of cells moved       | -
+    warp_height: 200       # move cell below this value   | m
+    farm_num: 1            # number of farm refinements   | -
+    farm_type: square      # type of refinement at farm   | -
+    farm_factor: 1.3       # farm radius multiplier       | -
+    turbine_num: 1         # number of turbine refinements| -
+    turbine_factor: 1.2    # turbine radius multiplier    | -
+
+function_space:
+    type: linear
+
+boundary_condition:
+    vel_profile: power
+    max_vel: 8.0
+    power: 0.25
+
+problem:
+    type: stabilized
+
+solver:
+    type: steady
+    save_power: true

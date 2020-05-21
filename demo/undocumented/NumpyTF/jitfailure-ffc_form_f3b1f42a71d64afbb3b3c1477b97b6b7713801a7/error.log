@@ -1,0 +1,22 @@
+/var/folders/f2/9t75z6s91ys6b6fb6p2r9r8dr978wq/T/tmpsovmnme2/ffc_form_f3b1f42a71d64afbb3b3c1477b97b6b7713801a7.cpp:163:26: error: use of undeclared identifier 'FE2_C0_Q24'; did you mean 'FE6_C0_Q24'?
+        BF0[iq] += fw0 * FE2_C0_Q24[0][iq][iq];
+                         ^~~~~~~~~~
+                         FE6_C0_Q24
+/var/folders/f2/9t75z6s91ys6b6fb6p2r9r8dr978wq/T/tmpsovmnme2/ffc_form_f3b1f42a71d64afbb3b3c1477b97b6b7713801a7.cpp:88:37: note: 'FE6_C0_Q24' declared here
+    alignas(32) static const double FE6_C0_Q24[1][24][4] =
+                                    ^
+/var/folders/f2/9t75z6s91ys6b6fb6p2r9r8dr978wq/T/tmpsovmnme2/ffc_form_f3b1f42a71d64afbb3b3c1477b97b6b7713801a7.cpp:165:26: error: use of undeclared identifier 'FE2_C0_Q24'; did you mean 'FE6_C0_Q24'?
+        BF1[iq] += fw1 * FE2_C0_Q24[0][iq][iq];
+                         ^~~~~~~~~~
+                         FE6_C0_Q24
+/var/folders/f2/9t75z6s91ys6b6fb6p2r9r8dr978wq/T/tmpsovmnme2/ffc_form_f3b1f42a71d64afbb3b3c1477b97b6b7713801a7.cpp:88:37: note: 'FE6_C0_Q24' declared here
+    alignas(32) static const double FE6_C0_Q24[1][24][4] =
+                                    ^
+/var/folders/f2/9t75z6s91ys6b6fb6p2r9r8dr978wq/T/tmpsovmnme2/ffc_form_f3b1f42a71d64afbb3b3c1477b97b6b7713801a7.cpp:167:26: error: use of undeclared identifier 'FE2_C0_Q24'; did you mean 'FE6_C0_Q24'?
+        BF2[iq] += fw2 * FE2_C0_Q24[0][iq][iq];
+                         ^~~~~~~~~~
+                         FE6_C0_Q24
+/var/folders/f2/9t75z6s91ys6b6fb6p2r9r8dr978wq/T/tmpsovmnme2/ffc_form_f3b1f42a71d64afbb3b3c1477b97b6b7713801a7.cpp:88:37: note: 'FE6_C0_Q24' declared here
+    alignas(32) static const double FE6_C0_Q24[1][24][4] =
+                                    ^
+3 errors generated.

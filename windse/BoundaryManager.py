@@ -1,23 +1,16 @@
-"""
+""" 
 The BoundaryManager submodule contains the classes required for
-defining the boundary conditions. The boundaries need to be numbered
-as follows:
-
-    * 1: Top
-    * 2: Bottom
-    * 3: Front
-    * 4: Back
-    * 5: Left
-    * 6: Right
-
-Currently, the inflow direction is the Left boundary.
+defining the boundary conditions.
 """
 
 import __main__
 import os
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
+if hasattr(__main__,"__file__"):
+    main_file = os.path.basename(__main__.__file__)
+else:
+    main_file = "ipython"
 
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
@@ -28,10 +21,12 @@ if main_file != "sphinx-build":
     from windse import windse_parameters
 
     ### Check if we need dolfin_adjoint ###
-    if windse_parameters["general"].get("dolfin_adjoint", False):
+    if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
 
     import math
+    from scipy.interpolate import RegularGridInterpolator
+
 
 class GenericBoundary(object):
     def __init__(self,dom,fs,farm):
@@ -43,18 +38,22 @@ class GenericBoundary(object):
         self.height_first_save = True
         self.fprint = self.params.fprint
 
-        ### Check if boundary information is given in the params file ###
-        bcs_params = self.params.get("boundary_condition",{})
-        self.boundary_names = bcs_params.get("boundary_names", dom.boundary_names)
-        self.boundary_types = bcs_params.get("boundary_types", dom.boundary_types)
-        self.HH_vel = bcs_params.get("HH_vel", 8.0)
-        self.power = bcs_params.get("power", 0.25)
-        self.k = bcs_params.get("k", 0.4)
-        self.init_wind = dom.init_wind
+        ### Update attributes based on params file ###
+        for key, value in self.params["boundary_conditions"].items():
+            setattr(self,key,value)
+
+        ### Get solver parameters ###
+        self.final_time = self.params["solver"]["final_time"]
 
         ### Define the zero function based on domain dimension ###
         self.zeros = Constant(dom.mesh.topology().dim()*(0.0,))
         self.zero  = Constant(0.0)
+
+        ### Use custom boundary tags if provided ###
+        if self.params.default_bc_names:
+            self.boundary_names = self.dom.boundary_names
+        if self.params.default_bc_types:
+            self.boundary_types = self.dom.boundary_types
 
     def SetupBoundaries(self):
         ### Create the equations need for defining the boundary conditions ###
@@ -63,41 +62,69 @@ class GenericBoundary(object):
 
         self.fprint("Applying Boundary Conditions",offset=1)
 
+        unique_ids = np.unique(self.dom.boundary_markers.array())
+
         ### Assemble boundary conditions ###
-        bcs_eqns = []
+        bcu_eqns = []
+        bcp_eqns = []
         for bc_type, bs in self.boundary_types.items():
             if bc_type == "inflow":
                 for b in bs:
-                    bcs_eqns.append([self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
+                    if self.boundary_names[b] in unique_ids:
+                        bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
 
             elif bc_type == "no_slip":
                 for b in bs:
-                    bcs_eqns.append([self.fs.W.sub(0), self.zeros, self.boundary_names[b]])
+                    bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.zeros, self.boundary_names[b]])
 
-            elif bc_type == "horizontal_slip":
+            elif bc_type == "free_slip":
+                temp_list = list(self.boundary_names.keys()) # get ordered list
                 for b in bs:
-                    if self.dom.mesh.topology().dim() == 3:
-                        bcs_eqns.append([self.fs.W.sub(0).sub(2), self.zero, self.boundary_names[b]])
-                    elif self.dom.mesh.topology().dim() == 2:
-                        bcs_eqns.append([self.fs.W.sub(0).sub(1), self.zero, self.boundary_names[b]])
+
+                    ### get a facet on the relevant boundary ###
+                    boundary_id = self.boundary_names[b]
+
+                    ### check to make sure the free slip boundary still exists ###
+                    if boundary_id in unique_ids:
+
+                        facet_ids = self.dom.boundary_markers.where_equal(boundary_id)
+                        test_facet = Facet(self.dom.mesh,facet_ids[int(len(facet_ids)/2.0)])
+
+                        ### get the function space sub form the normal ###
+                        facet_normal = test_facet.normal().array()
+                        field_id = int(np.argmin(abs(abs(facet_normal)-1.0)))
+
+                        bcu_eqns.append([self.fs.V.sub(field_id), self.fs.W.sub(0).sub(field_id), self.zero, boundary_id])
 
             elif bc_type == "no_stress":
                 for b in bs:
-                    bcs_eqns.append([None, None, self.boundary_names[b]])
+                    bcu_eqns.append([None, None, None, self.boundary_names[b]])
+                    bcp_eqns.append([self.fs.Q, self.fs.W.sub(1), self.zero, self.boundary_names[b]])
 
             else:
                 raise ValueError(bc_type+" is not a recognized boundary type")
-
+        bcs_eqns = bcu_eqns#+bcp_eqns
 
         ### Set the boundary conditions ###
+        self.bcu = []
+        for i in range(len(bcu_eqns)):
+            if bcu_eqns[i][0] is not None:
+                self.bcu.append(DirichletBC(bcu_eqns[i][0], bcu_eqns[i][2], self.dom.boundary_markers, bcu_eqns[i][3]))
+
+        self.bcp = []
+        for i in range(len(bcp_eqns)):
+            if bcp_eqns[i][0] is not None:
+                self.bcp.append(DirichletBC(bcp_eqns[i][0], bcp_eqns[i][2], self.dom.boundary_markers, bcp_eqns[i][3]))
+
         self.bcs = []
         for i in range(len(bcs_eqns)):
             if bcs_eqns[i][0] is not None:
-                self.bcs.append(DirichletBC(bcs_eqns[i][0], bcs_eqns[i][1], self.dom.boundary_markers, bcs_eqns[i][2]))
+                self.bcs.append(DirichletBC(bcs_eqns[i][1], bcs_eqns[i][2], self.dom.boundary_markers, bcs_eqns[i][3]))
+
         self.fprint("Boundary Conditions Applied",offset=1)
         self.fprint("")
 
-    def PrepareVelocity(self,theta):
+    def PrepareVelocity(self,inflow_angle):
         length = len(self.unit_reference_velocity)
         ux_com = np.zeros(length)
         uy_com = np.zeros(length)
@@ -105,15 +132,15 @@ class GenericBoundary(object):
 
         for i in range(length):
             v = self.HH_vel * self.unit_reference_velocity[i]
-            ux_com[i] = math.cos(theta)*v
-            uy_com[i] = math.sin(theta)*v
+            ux_com[i] = math.cos(inflow_angle)*v
+            uy_com[i] = math.sin(inflow_angle)*v
             if self.dom.dim == 3:
                 uz_com[i] = 0.0
         return [ux_com,uy_com,uz_com]
 
-    def RecomputeVelocity(self,theta):
+    def RecomputeVelocity(self,inflow_angle):
         self.fprint("Recomputing Velocity")
-        ux_com, uy_com, uz_com = self.PrepareVelocity(theta)
+        ux_com, uy_com, uz_com = self.PrepareVelocity(inflow_angle)
 
         self.ux = Function(self.fs.V0)
         self.uy = Function(self.fs.V1)
@@ -127,6 +154,8 @@ class GenericBoundary(object):
 
         ### Assigning Velocity
         self.bc_velocity = Function(self.fs.V)
+        self.bc_velocity.rename("bc_velocity","bc_velocity")
+
         if self.dom.dim == 3:
             self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
         else:
@@ -142,10 +171,16 @@ class GenericBoundary(object):
 
         self.SetupBoundaries()
 
+    def UpdateVelocity(self, simTime):
+        pass
+
     def SaveInitialGuess(self,val=0):
         """
         This function saves the turbine force if exists to output/.../functions/
         """
+        self.bc_velocity.vector()[:]=self.bc_velocity.vector()[:]/self.dom.xscale
+        self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]/self.dom.xscale
+
         if self.ig_first_save:
             self.u0_file = self.params.Save(self.bc_velocity,"u0",subfolder="functions/",val=val)
             self.p0_file = self.params.Save(self.bc_pressure,"p0",subfolder="functions/",val=val)
@@ -153,11 +188,16 @@ class GenericBoundary(object):
         else:
             self.params.Save(self.bc_velocity,"u0",subfolder="functions/",val=val,file=self.u0_file)
             self.params.Save(self.bc_pressure,"p0",subfolder="functions/",val=val,file=self.p0_file)
+        self.bc_velocity.vector()[:]=self.bc_velocity.vector()[:]*self.dom.xscale
+        self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]*self.dom.xscale
 
     def SaveHeight(self,val=0):
         """
         This function saves the turbine force if exists to output/.../functions/
         """
+        self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]/self.dom.xscale
+        self.height.vector()[:]=self.height.vector()[:]/self.dom.xscale
+        self.depth.vector()[:]=self.depth.vector()[:]/self.dom.xscale
         if self.height_first_save:
             self.height_file = self.params.Save(self.height,"height",subfolder="functions/",val=val)
             self.depth_file = self.params.Save(self.depth,"depth",subfolder="functions/",val=val)
@@ -165,6 +205,9 @@ class GenericBoundary(object):
         else:
             self.params.Save(self.height,"height",subfolder="functions/",val=val,file=self.height_file)
             self.params.Save(self.depth,"depth",subfolder="functions/",val=val,file=self.depth_file)
+        self.height.vector()[:]=self.height.vector()[:]*self.dom.xscale
+        self.depth.vector()[:]=self.depth.vector()[:]*self.dom.xscale
+        self.dom.mesh.coordinates()[:]=self.dom.mesh.coordinates()[:]*self.dom.xscale
 
     def CalculateHeights(self):
         ### Calculate the distance to the ground for the Q function space ###
@@ -187,6 +230,8 @@ class GenericBoundary(object):
             z_dist_V_val[i] = V_coords[i,2]-self.dom.Ground(V_coords[i,0],V_coords[i,1])
         self.depth_V.vector()[:]=z_dist_V_val
 
+        self.V0_coords = self.fs.V0.tabulate_dof_coordinates()
+
 
 class UniformInflow(GenericBoundary):
     def __init__(self,dom,fs,farm):
@@ -205,7 +250,7 @@ class UniformInflow(GenericBoundary):
         self.unit_reference_velocity = np.full(len(self.ux.vector()[:]),1.0)
         self.ux.vector()[:] = self.unit_reference_velocity
 
-        ux_com, uy_com, uz_com = self.PrepareVelocity(self.init_wind)
+        ux_com, uy_com, uz_com = self.PrepareVelocity(self.dom.inflow_angle)
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com
         if self.dom.dim == 3:
@@ -288,7 +333,7 @@ class PowerInflow(GenericBoundary):
         #################
         #################
         #################
-        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-dom.z_range[0])))
+        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-dom.ground_reference)))
         # scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-0.0)))
         #################
         #################
@@ -298,7 +343,7 @@ class PowerInflow(GenericBoundary):
 
         self.unit_reference_velocity = np.power(scaled_depth,self.power)
         # self.reference_velocity = np.multiply(self.HH_vel,np.power(scaled_depth,self.power))
-        ux_com, uy_com, uz_com = self.PrepareVelocity(self.init_wind)
+        ux_com, uy_com, uz_com = self.PrepareVelocity(self.dom.inflow_angle)
 
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com
@@ -352,16 +397,16 @@ class LogLayerInflow(GenericBoundary):
         self.ux = Function(fs.V0)
         self.uy = Function(fs.V1)
         self.uz = Function(fs.V2)
-        if dom.z_range[0] == 0:
-            scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+0.01,0.01))
-            ustar = self.k/np.log(np.mean(farm.HH)/0.01)
-        elif dom.z_range[0] <= 0:
+        if dom.ground_reference == 0:
+            scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+0.0001,0.0001))
+            ustar = self.k/np.log(np.mean(farm.HH)/0.0001)
+        elif dom.ground_reference <= 0:
             raise ValueError("Log profile cannot be used with negative z values")
         else:
-            scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+dom.z_range[0],(dom.z_range[0])))
-            ustar = self.k/np.log(np.mean(farm.HH)/dom.z_range[0])
+            scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+dom.ground_reference,(dom.ground_reference)))
+            ustar = self.k/np.log(np.mean(farm.HH)/dom.ground_reference)
         self.unit_reference_velocity = np.multiply(ustar/self.k,np.log(scaled_depth))
-        ux_com, uy_com, uz_com = self.PrepareVelocity(self.init_wind)
+        ux_com, uy_com, uz_com = self.PrepareVelocity(self.dom.inflow_angle)
 
         self.ux.vector()[:] = ux_com
         self.uy.vector()[:] = uy_com
@@ -386,5 +431,70 @@ class LogLayerInflow(GenericBoundary):
         self.SetupBoundaries()
         self.fprint("Boundary Condition Setup",special="footer")
 
-# class LogLayerInflow(object):
-#     def __init__(self,dom,fs):
+class TurbSimInflow(LogLayerInflow):
+    def __init__(self,dom,fs,farm):
+        super(TurbSimInflow, self).__init__(dom,fs,farm)
+
+        ### Get the path for turbsim data ###
+        if self.turbsim_path is None:
+            raise ValueError("Please provide the path to the turbsim data")
+
+        ### Load Turbsim Data ###
+        uTotal = np.load(self.turbsim_path+'turb_u.npy')
+        vTotal = np.load(self.turbsim_path+'turb_v.npy')
+        wTotal = np.load(self.turbsim_path+'turb_w.npy')
+
+        ### Extract number of data points ###
+        ny = np.shape(uTotal)[1]
+        nz = np.shape(uTotal)[0]
+        nt = np.shape(uTotal)[2]
+
+        ### Create the data bounds ###
+        y = np.linspace(self.dom.y_range[0], self.dom.y_range[1], ny)
+        z = np.linspace(self.dom.z_range[0], self.dom.z_range[1], nz)
+        t = np.linspace(0.0, self.final_time, nt)
+
+        ### Build interpolating functions ###
+        self.interp_u = RegularGridInterpolator((z, y, t), uTotal)
+        self.interp_v = RegularGridInterpolator((z, y, t), vTotal)
+        self.interp_w = RegularGridInterpolator((z, y, t), wTotal)
+
+        ### Locate Boundary DOFS indexes ###
+        # Define tolerance
+        tol = 1e-6
+
+        ##### FIX MAKE WORK FOR ALL BOUNDARY INFLOW ####
+        # Iterate and fine the boundary IDs
+        self.boundaryIDs = []
+        for k, pos in enumerate(self.V0_coords):
+            if pos[0] < self.dom.x_range[0] + tol:
+                self.boundaryIDs.append(k)
+
+        self.UpdateVelocity(0.0)
+
+    def UpdateVelocity(self, simTime):
+
+        # Define tolerance
+        tol = 1e-6
+
+        # Interpolate a value at each boundary coordinate
+        for k in self.boundaryIDs:
+            # Get the position corresponding to this boundary id
+            pos = self.V0_coords[k, :]
+
+            # The interpolation point specifies a 3D (z, y, time) point
+            xi = np.array([pos[2], pos[1], simTime])
+
+            # Get the interpolated value at this point
+            self.ux.vector()[k] = self.interp_u(xi)
+            self.uy.vector()[k] = self.interp_v(xi)
+            self.uz.vector()[k] = self.interp_w(xi)
+
+        ### Assigning Velocity
+        self.bc_velocity = Function(self.fs.V)
+        if self.dom.dim == 3:
+            self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
+        else:
+            self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy])
+
+        self.SetupBoundaries()
