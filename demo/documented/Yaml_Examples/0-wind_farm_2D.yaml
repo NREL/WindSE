@@ -9,7 +9,7 @@ wind_farm:
     ####################### Imported Wind Farm #######################
     type: imported                   #                          |
     path: Input_Data/wind_farm.txt   # location of wind farm    | -
-    force: constant                      # radial force distribution| -
+    force: sine                      # radial force distribution| -
     ###################################################################
 
 
@@ -30,7 +30,7 @@ wind_farm:
     ###################################################################
 
 
-    ########################## Grid Wind Farm #########################
+    ######################### Random Wind Farm ########################
     # type: random          #                          |
     # numturbs: 9           # number of turbines       | -
     # ex_x: [-600, 600]     # x-extent of the farm     | m
@@ -49,23 +49,23 @@ wind_farm:
 # Domain Parameters: Uncomment a set to change domain shape
 domain: 
     
-    # ####################### Rectangle Domain #########################
-    # type: rectangle                              |
+    ####################### Rectangle Domain #########################
+    # type: rectangle        #                      |
     # x_range: [-1200, 1200] # x-range of the domain | m
-    # y_range: [-400, 400] # y-range of the domain | m
-    # nx: 300                # Number of x-nodes     | -
+    # y_range: [-1200, 1200] # y-range of the domain | m
+    # nx: 100                # Number of x-nodes     | -
     # ny: 100                # Number of y-nodes     | -
-    # ##################################################################
+    ##################################################################
     
 
-    ########################### Circle Domain #########################
+    # ########################### Circle Domain #########################
     type: circle                                  
     mesh_type: mshr         # squircular, elliptic, stretch
     radius: 1200            # x-range of the domain | m
     center: [0.0, 0.0]      # y-range of the domain | m
-    nt: 50                  # segments around circle| -
+    nt: 62                  # segments around circle| -
     res: 50                 # resolution for mshr   | -
-    ###################################################################
+    # ###################################################################
 
 
 
@@ -76,13 +76,15 @@ refine:
     # farm_factor: 1.25       # farm radius multiplier       | -
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.25   # turbine radius multiplier    | -
-
+    refine_custom: [
+        [box, [  [[-1000,1200],[-200,200]]]  ]
+    ]
 function_space:
     type: taylor_hood
 
-boundary_condition:
+boundary_conditions:
     vel_profile: uniform
-    max_vel: 8.0
+    HH_vel: 8.0
 
 problem:
     use_25d_model: True

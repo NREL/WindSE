@@ -1,0 +1,44 @@
+general:
+    name: "iea_rwt"
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+
+wind_farm:
+    type: imported               # Wind farm will be specified via input file
+    path: Input_Data/iea_rwt.txt # Path to the wind farm description
+    turbine_method: "alm"        # Actuator Line Method (ALM)
+    rpm: 4.0                     # Rotor revolutions per minute (RPM) | rev/min
+
+domain:
+    type: box                    # A box domain, specified by x, y, and z dimensions
+    
+    # Diameter for IEA RWT = 130 m, relevant for domain sizing
+    x_range: [-260, 780]         # x-range of the domain, [-2D, 6D] | m
+    y_range: [-260, 260]         # y-range of the domain, [-2D, 2D] | m
+    z_range: [0.04, 520]         # z-range of the domain, [ ~0, 4D] | m
+    
+    # Coarse values recommended for testing, comments show more refined suggestions
+    nx: 40 # 60                  # Number of x-nodes | -
+    ny: 20 # 30                  # Number of y-nodes | -
+    nz: 20 # 30                  # Number of z-nodes | -
+
+refine:
+    turbine_num: 1 # 2           # Number of turbine refinements | -
+    turbine_factor: 1.5          # Turbine radius multiplier | -
+    turbine_type: "wake"         # Build cylindrical refinement zone to capture downstream wake | -
+
+function_space:
+    type: linear                 # Use linear finite elements for both pressure and velocity
+
+boundary_conditions:
+    vel_profile: log             # Specify a log-profile velocity at the inlet
+    HH_vel: 9.0                  # The velocity at the turbine hub height | m
+    k: 0.4                       # The von Karman constant
+
+problem:
+    type: unsteady               # The unsteady solver is required for ALM simulations
+    viscosity: 0.000015          # The kinematic viscosity of the fluid | m^2/s
+
+solver:
+    type: unsteady               # The unsteady solver is required for ALM simulations
+    save_interval: 5.0           # Save the velocity and pressure files at intervals of "save_interval" | s
+    final_time: 10.0             # The total duration of the simulation | s

@@ -2,7 +2,8 @@ import warnings
 import numpy as np
 from pystatreduce.quantity_of_interest import QuantityOfInterest
 import windse
-from windse_driver.new_driver import run_driver, run_model, initialize_analysis, setup_problem, solve_problem
+from windse_driver.driver_functions import SetupSimulation
+# from windse_driver.new_driver import run_driver, run_model, initialize_analysis, setup_problem, solve_problem
 
 # Plotting specific imports - Temporary
 from mpl_toolkits import mplot3d
@@ -15,41 +16,49 @@ class WindFarm(QuantityOfInterest):
     def __init__(self, systemsize, param_file, initial_solve=True, mpi_comm=None):
         QuantityOfInterest.__init__(self, systemsize)
 
-        # Construct the WindSE problem
-        self.initial_solve = initial_solve
-        if self.initial_solve:
-            self.windse_params, self.windse_problem, self.windse_solver = run_model(params_loc=param_file, comm=mpi_comm)
-        else:
-            warnings.warn("The solver object has not been created. This QoI is a compatibility object cannot be used for function evaluation")
-            self.windse_params = initialize_analysis(params_loc=param_file, comm=None)
-            self.windse_problem = setup_problem(self.windse_params)
+        # Get the necessary attributes
+        self.windse_params, self.windse_problem, self.windse_solver = SetupSimulation(param_file)
 
-        assert self.systemsize == self.windse_problem.farm.numturbs
+        if initial_solve:
+            self.windse_solver.Solve()
 
-        if hasattr(self, 'windse_solver'):
+        if self.windse_params.dolfin_adjoint:
             self.windse_opt = windse.Optimizer(self.windse_solver)
-        else:
-            pass
 
-        # # Create the WindSE optimization object
-        # self.windse_opt = windse.Optimizer(self.windse_solver)
+
+        ##### OLD CODE #####
+        # # Construct the WindSE problem
+        # self.initial_solve = initial_solve
+        # if self.initial_solve:
+        #     self.windse_params, self.windse_problem, self.windse_solver = run_model(params_loc=param_file, comm=mpi_comm)
+        # else:
+        #     warnings.warn("The solver object has not been created. This QoI is a compatibility object cannot be used for function evaluation")
+        #     self.windse_params = initialize_analysis(params_loc=param_file, comm=None)
+        #     self.windse_problem = setup_problem(self.windse_params)
+        # assert self.systemsize == self.windse_problem.farm.numturbs
+        # if hasattr(self, 'windse_solver'):
+        #     self.windse_opt = windse.Optimizer(self.windse_solver)
+        # else:
+        #     pass
 
 
     def eval_QoI(self, mu, xi):
         rv = mu + xi
-        self.windse_problem.farm.a[:] = rv
-        self.windse_problem.params.full_farm.UpdateConstants()
+        self.windse_problem.farm.UpdateControls(a=rv)
+        self.windse_solver.J = 0 # # ALways zero out!!!!
         self.windse_problem.ComputeFunctional()
         self.windse_solver.Solve()
         return self.windse_solver.J
 
     def eval_QoIGradient(self, mu, xi):
         rv = mu + xi
-        self.windse_problem.farm.a[:] = rv
-        self.windse_problem.params.full_farm.UpdateConstants()
+        self.windse_problem.farm.UpdateControls(a=rv)
+        self.windse_solver.J = 0 # ALways zero out!!!!
         self.windse_problem.ComputeFunctional()
         self.windse_solver.Solve()
-        return self.windse_opt.Gradient()
+        self.windse_opt.RecomputeReducedFunctional()
+        val = self.windse_opt.Gradient()
+        return val
 
     def plot_eigenvector_on_farm(self, eigenvec, show=True):
         """
@@ -57,13 +66,8 @@ class WindFarm(QuantityOfInterest):
         temporary home for this function as it doesnt really belong in here.
         """
         # Get the wind farm bounds
-        x, y, z = self.windse_problem.farm.GetLocations()
-        # fname = 'eigenvector_overlay.pdf'
-        # fig = plt.figure('eigenvectors')
-        # ax = plt.axes()
-        # s = ax.scatter(x, y, c=eigenvec, cmap="coolwarm", edgecolors=(0,0,0,1))
-        # plt.tight_layout()
-        # plt.show()
+        x = self.windse_problem.farm.x
+        y = self.windse_problem.farm.y
 
         plt.figure()
         # if hasattr(self.dom,"boundary_line"):
@@ -91,20 +95,24 @@ class WindFarm(QuantityOfInterest):
 
 if __name__ == '__main__':
 
+    import copy
     from mpi4py import MPI
+
     comm = MPI.COMM_WORLD
     params_file = "./3x3/2d_wind_farm_induction_factor_opt.yaml"
-    # params_file = "./pruf/2d_wind_farm_PRUF.yaml"
     n_turbines = 9
-    windfarm = WindFarm(n_turbines, params_file, mpi_comm=comm)
+    windfarm = WindFarm(n_turbines, params_file, initial_solve=True, mpi_comm=comm)
+    og_J = copy.deepcopy(windfarm.windse_solver.J)
 
-    # windfarm.plot_eigenmodes(np.ones(n_turbines))
+    windfarm.plot_eigenvector_on_farm(np.ones(n_turbines))
 
-    rv_val = 0.25*np.ones(n_turbines)
+    rv_val = 0.25*np.ones(n_turbines) # + 0.1*np.random.randn(n_turbines)
     fval = windfarm.eval_QoI(rv_val, np.zeros(n_turbines))
+    err = og_J - fval
 
     grad_val = windfarm.eval_QoIGradient(rv_val, np.zeros(n_turbines))
 
     # Print it
     print('fval = ', fval)
+    print("err = ", err)
     print('grad_val = \n', grad_val)

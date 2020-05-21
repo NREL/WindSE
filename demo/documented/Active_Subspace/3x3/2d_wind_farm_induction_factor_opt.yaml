@@ -3,7 +3,7 @@ general:
     name: 2_5D_Wind_Farm_Layout      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: true
-    output_directory: ./3x3_output
+    output_folder: ./3x3_output
 
 # Wind Farm Parameters: Uncomment a set to change the type of wind farm
 wind_farm:
@@ -84,9 +84,9 @@ refine:
 function_space:
     type: taylor_hood
 
-boundary_condition:
+boundary_conditions:
     vel_profile: uniform
-    max_vel: 8.0
+    HH_vel: 8.0
 
 problem:
     use_25d_model: True
@@ -101,7 +101,7 @@ solver:
     save_power: true
 
 optimization:
-    controls: [axial]
+    control_types: [axial]
     layout_bounds: [[-720, 720],[-720, 720]]
     taylor_test: False
     optimize: False

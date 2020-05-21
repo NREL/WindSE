@@ -6,13 +6,16 @@ functions don't need to be accessed by the end user.
 
 import __main__
 import os
+import yaml
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
+if hasattr(__main__,"__file__"):
+    main_file = os.path.basename(__main__.__file__)
+else:
+    main_file = "ipython"
 
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
-    import yaml
     import datetime
     import numpy as np
     from math import ceil
@@ -20,6 +23,8 @@ if main_file != "sphinx-build":
     from dolfin import *
     import sys
     import ast
+    import difflib
+    import copy
 
     # set_log_level(LogLevel.CRITICAL)
 
@@ -31,6 +36,7 @@ if main_file != "sphinx-build":
 ### THis is a special class that allows prints to go to file and terminal
 class Logger(object):
     def __init__(self,filename):
+        self.__dict__ = sys.stdout.__dict__.copy()
         self.terminal = sys.stdout
         self.log = open(filename, "a")
         self.log.seek(0)
@@ -45,6 +51,9 @@ class Logger(object):
         self.log.flush()
         pass
 
+    def isatty(self):
+        return self.terminal.isatty()
+
 class Parameters(dict):
     """
     Parameters is a subclass of pythons *dict* that adds
@@ -53,11 +62,14 @@ class Parameters(dict):
     def __init__(self):
         super(Parameters, self).__init__()
         self.current_tab = 0
+        self.windse_path = os.path.dirname(os.path.realpath(__file__))
+        self.defaults = yaml.load(open(self.windse_path+"/default_parameters.yaml"),Loader=yaml.SafeLoader)
+        self.update(self.defaults)
 
-    def NestedUpdate(self,dic,keys,value):
+    def TerminalUpdate(self,dic,keys,value):
         if len(keys) > 1:
             next_dic = dic.setdefault(keys[0],{})
-            self.NestedUpdate(next_dic,keys[1:],value)
+            self.TerminalUpdate(next_dic,keys[1:],value)
         elif len(keys) == 1:
             current_value = dic.get(keys[0],"")
             if isinstance(current_value,int):
@@ -69,6 +81,31 @@ class Parameters(dict):
             elif isinstance(current_value,list):
                 dic[keys[0]] = ast.literal_eval(value)
 
+    def CheckParameters(self,updates,defaults,out_string=""):
+        default_keys = defaults.keys()
+        for key in updates.keys():
+            if key not in default_keys:
+                suggestion = difflib.get_close_matches(key, default_keys, n=1)
+                if suggestion:
+                    raise KeyError(out_string + key + " is not a valid parameter, did you mean: "+suggestion[0])
+                else:
+                    raise KeyError(out_string + key + " is not a valid parameter")
+            elif isinstance(updates[key],dict):
+                in_string =out_string + key + ":"
+                self.CheckParameters(updates[key],defaults[key],out_string=in_string)
+
+    def NestedUpdate(self,dic,subdic=None):
+        if subdic is None:
+            target_dic = self
+        else:
+            target_dic = subdic
+
+        for key, value in dic.items():
+            if isinstance(value,dict):
+                target_dic[key] = self.NestedUpdate(value,subdic=target_dic[key])
+            else:
+                target_dic[key] = value
+        return target_dic
 
     def Load(self, loc,updated_parameters=[]):
         """
@@ -81,25 +118,46 @@ class Parameters(dict):
         """
 
         ### Load the yaml file (requires PyYaml)
-        yaml_file = yaml.load(open(loc),Loader=yaml.SafeLoader)
+        if isinstance(loc,dict):
+            self.fprint("Loading from dictionary")
+            yaml_file = loc
+        else:
+            self.fprint("Loading: "+loc)
+            yaml_file = yaml.load(open(loc),Loader=yaml.SafeLoader)
 
         ### update any parameters if supplied ###
         for p in updated_parameters:
             keys_list = p.split(":")
-            self.NestedUpdate(yaml_file,keys_list[:-1],keys_list[-1])
+            self.TerminalUpdate(yaml_file,keys_list[:-1],keys_list[-1])
 
-        ### Set the parameters
-        self.update(yaml_file)
+        ### Check for incorrect parameters ###
+        self.CheckParameters(yaml_file,self.defaults)
+        self.fprint("Parameter Check Passed")
+
+        ### Check is specific parameters were provided ###
+        yaml_bc = yaml_file.get("boundary_conditions",{})
+        self.default_bc_names = True
+        if yaml_bc.get("boundary_names",{}):
+            self.default_bc_names = False
+        self.default_bc_types = True
+        if yaml_bc.get("boundary_types",{}):
+            self.default_bc_types = False
+
+        if yaml_file.get("optimization",{}):
+            if not yaml_file["general"].get("dolfin_adjoint"):
+                print("Warning: Optimization options given, but general:dolfin_ajdoint is set to False")
+
+        ### Set the parameters ###
+        self.update(self.NestedUpdate(yaml_file))
 
         ### Create Instances of the general options ###
-        self.name = self["general"].get("name", "Test")
-        self.preappend_datetime = self["general"].get("preappend_datetime", False)
-        self.output_type = self["general"].get("output_type", "pvd")
-        self.dolfin_adjoint = self["general"].get("dolfin_adjoint", False)
-        self.output = self["general"].get("output", ["solution"])
-        self.output_directory = self["general"].get("output_directory", "output/")
+        for key, value in self["general"].items():
+            setattr(self,key,value)
 
-        ### Print some stats ###
+        # print(self.dolfin_adjoint)
+        # for module in sys.modules:
+        #     if "adjoint" in module:
+        #         print(module)
 
         ### Set up the folder Structure ###
         timestamp=datetime.datetime.today().strftime('%Y%m%d_%H%M%S')
@@ -107,7 +165,7 @@ class Parameters(dict):
         if self.preappend_datetime:
             self.name = timestamp+"-"+self.name
             self["general"]["name"]=self.name
-        self.folder = self.output_directory + "/" + self.name+"/"
+        self.folder = self.output_folder+self.name+"/"
         self["general"]["folder"] = self.folder
 
         ### Make sure folder exists ###
@@ -119,7 +177,8 @@ class Parameters(dict):
         sys.stdout = Logger(self.log)
 
         ### Copy params file to output folder ###
-        shutil.copy(loc,self.folder+"input_files/")
+        if isinstance(loc,str):
+            shutil.copy(loc,self.folder+"input_files/")
 
         ### Create checkpoint if required ###
         # if self.save_file_type == "hdf5":

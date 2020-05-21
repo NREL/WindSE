@@ -23,13 +23,13 @@ rstprocess.process()
 # -- Project information -----------------------------------------------------
 
 project = u'WindSE'
-copyright = u'2019, Ryan King and Jeffery Allen'
-author = u'Ryan King and Jeffery Allen'
+copyright = u'2019, Ryan King, Jeffery Allen and Ethan Young'
+author = u'Ryan King, Jeffery Allen and Ethan Young'
 
 # The short X.Y version
 version = u''
 # The full version, including alpha/beta/rc tags
-release = u'2018.1'
+release = u'2020.5.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -148,7 +148,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'WindSE.tex', u'WindSE Documentation',
-     u'Ryan King and Jeffery Allen', 'manual'),
+     u'Ryan King, Jeffery Allen, Ethan Young', 'manual'),
 ]
 
 

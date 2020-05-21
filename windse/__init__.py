@@ -15,28 +15,30 @@ def initialize(loc,updated_parameters=[]):
 
     windse_parameters.Load(loc,updated_parameters=updated_parameters)
 
-    global BaseHeight, Optimizer#, ReducedFunctional
+    global BaseHeight, CalculateDiskTurbineForces, CalculateActuatorLineTurbineForces, Optimizer#, ReducedFunctional
     if windse_parameters["general"].get("dolfin_adjoint", False):
-        from windse.dolfin_adjoint_helper import BaseHeight#, ReducedFunctional
+        from windse.dolfin_adjoint_helper import BaseHeight, CalculateDiskTurbineForces, CalculateActuatorLineTurbineForces#, ReducedFunctional
         from windse.OptimizationManager import Optimizer
     else:
-        from windse.helper_functions import BaseHeight
-        
+        from windse.helper_functions import BaseHeight, CalculateDiskTurbineForces, CalculateActuatorLineTurbineForces
+    
     global BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain
     from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain
 
     global GridWindFarm, RandomWindFarm, ImportedWindFarm
     from windse.WindFarmManager import GridWindFarm, RandomWindFarm, ImportedWindFarm
 
+    global RefineMesh, WarpMesh
+    from windse.RefinementManager import RefineMesh, WarpMesh
+
     global LinearFunctionSpace, TaylorHoodFunctionSpace
     from windse.FunctionSpaceManager import LinearFunctionSpace, TaylorHoodFunctionSpace
 
-    global PowerInflow, UniformInflow, LogLayerInflow
-    from windse.BoundaryManager import PowerInflow, UniformInflow, LogLayerInflow
+    global PowerInflow, UniformInflow, LogLayerInflow, TurbSimInflow
+    from windse.BoundaryManager import PowerInflow, UniformInflow, LogLayerInflow, TurbSimInflow
 
-    global StabilizedProblem, TaylorHoodProblem
-    from windse.ProblemManager import StabilizedProblem, TaylorHoodProblem
+    global StabilizedProblem, TaylorHoodProblem, UnsteadyProblem
+    from windse.ProblemManager import StabilizedProblem, TaylorHoodProblem, UnsteadyProblem
 
-    global SteadySolver, MultiAngleSolver, TimeSeriesSolver
-    from windse.SolverManager import SteadySolver, MultiAngleSolver, TimeSeriesSolver
-
+    global SteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
+    from windse.SolverManager import SteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver

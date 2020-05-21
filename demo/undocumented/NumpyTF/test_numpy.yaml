@@ -1,13 +1,12 @@
 # General options
 general: 
-    name: Multiangle_Optimization      # Name of the output folder
+    name: numpy_test      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: true
 
 # Wind Farm constants for a grid farm
 wind_farm: 
-
-    ########################## Grid Wind Farm #########################
+    #                     # Description              | Units
     type: grid            #                          |
     jitter: false         #                          |
     ex_x: [-520, 520]     # x-extent of the farm     | m
@@ -15,18 +14,18 @@ wind_farm:
     grid_rows: 3          # Number of rows           | -
     grid_cols: 3          # Number of columns        | -
     HH: 80                # Hub Height               | m
-    RD: 80.0              # Turbine Diameter         | m
+    RD: 80.0             # Turbine Diameter         | m
     thickness: 20         # Effective Thickness      | m
     yaw: 0.0              # Yaw                      | rads
     axial: 0.33           # Axial Induction          | -
-    ###################################################################
-
-
+    force: sine
+    turbine_method: numpy
+    turbine_degree: 1
+    turbine_space: CG
 
 # Domain Constants for a Box Domain
 domain: 
-
-    ######################## Rectangle Domain #########################
+    #                      # Description           | Units
     type: box              #                       |
     x_range: [-1200, 1200] # x-range of the domain | m
     y_range: [-1200, 1200] # y-range of the domain | m
@@ -34,11 +33,9 @@ domain:
     nx: 15                 # Number of x-nodes     | -
     ny: 15                 # Number of y-nodes     | -
     nz: 3                 # Number of z-nodes      | -
-    scaled: false
     interpolated: true 
-    terrain_path: Input_Data/skew_terrain.txt
-    ###################################################################
-
+    scaled: false
+    typo_path: Input_Data/skew_typo.txt
 
 
 refine:
@@ -47,8 +44,10 @@ refine:
     warp_strength: 1.2     # percent of cells moved       | -
     refine_custom: [
         [1,full],
+        # [1, custom, [[-1200,1200],[-1200,1200],[0,140]]],
         [1, circle, 1020]
     ]
+
 function_space:
     type: linear
 
@@ -64,11 +63,11 @@ problem:
 
 solver:
     type: multiangle
-    num_wind_angles: 3
+    num_wind_angles: 1
     save_power: true
 
 optimization:
     controls: [layout]
     layout_bounds: [[-720, 720],[-720, 720]] 
-    taylor_test: true
-    optimize: false
+    taylor_test: false
+    optimize: true
