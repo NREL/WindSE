@@ -2,7 +2,10 @@ import __main__
 import os
 
 ### Get the name of program importing this package ###
-main_file = os.path.basename(__main__.__file__)
+if hasattr(__main__,"__file__"):
+    main_file = os.path.basename(__main__.__file__)
+else:
+    main_file = "ipython"
 
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
@@ -328,11 +331,11 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
                 fp.write('%.5e\n' % (forceVec[j]))
         fp.close()
 
-    def save_derivative_file(filename, deriv_array):
+    def save_derivative_file(folder,filename, deriv_array):
 
         dolfin_function = Function(problem.fs.V)
 
-        fp = File('output/timeSeries/%s.pvd' % (filename))
+        fp = File(folder+'%s.pvd' % (filename))
 
         for k in range(problem.num_blade_segments):
             vec = np.copy(deriv_array[:, k])
@@ -462,7 +465,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
         c = np.ones(problem.num_blade_segments)
         dfd_chord = np.zeros((np.size(coords), problem.num_blade_segments))
 
-    save_debugging_files = True
+    save_debugging_files = False
 
     if save_debugging_files:
         blade_pos_paraview = np.zeros((problem.num_blade_segments*num_blades, 3))
@@ -599,7 +602,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
             actuator_torque = tangential_actuator_force*rdim[k]
 
             # Add to the total torque
-            problem.rotor_torque += actuator_torque
+            problem.rotor_torque += actuator_torque  ### Should this be an output?
 
             if save_debugging_files:
                 idx = problem.num_blade_segments*blade_ct + k
@@ -609,7 +612,9 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
                 torque_paraview[idx, :] = tangential_actuator_force*blade_unit_vec[:, 2]
 
     if save_debugging_files:
-        fp = open('./output/%s/timeSeries/actuatorForces%05d.vtk' % (problem.params.name, problem.num_times_called), 'w')
+        folder_string = problem.params.folder+"timeSeries/"
+        if not os.path.exists(folder_string): os.makedirs(folder_string)
+        fp = open(folder_string +('actuatorForces%05d.vtk' % (problem.num_times_called)), 'w')
         fp.write('# vtk DataFile Version 2.0\n')
         fp.write('Lift, Drag, and Torque Forces\n')
         fp.write('ASCII\n')
@@ -672,7 +677,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
         save_c_lift = False
 
         if save_c_lift:
-            save_derivative_file('dfdcl', dfd_c_lift)
+            save_derivative_file(problem.params.folder+"timeSeries/",'dfdcl', dfd_c_lift)
 
         return dfd_c_lift
 
@@ -680,27 +685,29 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
         save_c_drag = False
 
         if save_c_drag:
-            save_derivative_file('dfdcd', dfd_c_drag)
+            save_derivative_file(problem.params.folder+"timeSeries/",'dfdcd', dfd_c_drag)
 
         return dfd_c_drag
 
     elif dfd == 'chord':
-        save_chord = True
+        save_chord = False
 
         if save_chord:
-            save_derivative_file('dfdchord', dfd_chord)
+            save_derivative_file(problem.params.folder+"timeSeries/",'dfdchord', dfd_chord)
 
         return dfd_chord
 
 #================================================================
 
 def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, verbose=False):
-    if problem.params.get("optimization",{}) and verbose:
-        print("Current Optimization Time: "+repr(simTime))
 
     # if dfd is None, alm_output is a dolfin function (tf) [1 x numPts*ndim]
     # otherwise, it returns a numpy array of derivatives [numPts*ndim x numControls]
+    tic = time.time()
     alm_output = UpdateActuatorLineForce(problem, simTime, dfd)
+    toc = time.time()
+    if verbose:
+        print("Current Optimization Time: "+repr(simTime)+ ", it took: "+repr(toc-tic)+" seconds")
 
     return alm_output
 

@@ -104,6 +104,13 @@ class Optimizer(object):
 
         self.fprint("Optimizer Setup",special="footer")
 
+    def RecomputeReducedFunctional(self):
+        self.CreateControls()
+        self.J = self.solver.J
+        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
+
+        self.Jcurrent = self.J
+
     def ReducedFunctionalCallback(self, j, m):
         self.Jcurrent = j 
 
@@ -209,14 +216,36 @@ class Optimizer(object):
         """
         Returns a gradient of the objective function
         """
+
         mem0=memory_usage()[0]
         tick = time.time()
-        mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True,max_iterations=1)
+
+        capture_memory = False
+        if capture_memory:
+            mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True,max_iterations=1)
+        else: 
+            mem_out = 2*mem0
+            der = self.Jhat.derivative()
+
+        folder_string = self.params.folder+"data/"
+        if not os.path.exists(folder_string): os.makedirs(folder_string)
+        f = open(folder_string+"gradient_data.txt",'w')
+        f_header = "control    value    derivative"
+        f.write(f_header+"\n")
+
         for i, d in enumerate(der):
-            self.fprint("dJd"+self.names[i] +": " +repr(float(d)))
+            ctl_val = float(self.controls[i].values())
+            d_out = str(self.names[i] + "    " +repr(ctl_val)+ "    " +repr(float(d)))
+            self.fprint(d_out)
+            f.write(d_out+"\n")
+        f.close()
+
         tock = time.time()
         self.fprint("Time Elapsed: {:1.2f} s".format(tock-tick))
-        self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
+        if capture_memory:
+            self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
+
+        return np.array(der, dtype=float)
 
     def ListControls(self,m):
 

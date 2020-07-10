@@ -66,9 +66,14 @@ class GenericSolver(object):
         self.nu_T = self.problem.nu_T
         self.first_save = True
         self.fprint = self.params.fprint
+        self.simTime = 0.0
 
         ### Update attributes based on params file ###
         for key, value in self.params["solver"].items():
+            setattr(self,key,value)
+
+        ### Update attributes based on params file ###
+        for key, value in self.params["optimization"].items():
             setattr(self,key,value)
 
         self.extra_kwarg = {}
@@ -76,21 +81,20 @@ class GenericSolver(object):
             self.extra_kwarg["annotate"] = False
             self.optimizing = True
             self.J = 0.0
-            self.wake_RD = int(self.params["optimization"]["wake_RD"])
-            self.min_total = self.params["optimization"]["min_total"]
-            self.record_time = self.params["optimization"]["record_time"]
+            self.wake_RD = int(self.wake_RD)
             self.adj_file = XDMFFile(self.params.folder+"timeSeries/local_adjoint.xdmf")
             self.adj_time_iter = 1
             self.adj_time_list = [0.0]
+            self.objective_func = obj_funcs.objectives_dict[self.objective_type]
+            self.J_saved = False
         else:
             self.optimizing = False
-        self.objective_type = self.params["optimization"]["objective_type"]
-        self.objective_func = obj_funcs.objectives_dict[self.objective_type]
 
         #Check if we need to save the power output
         if self.save_power:
+            self.power_func = obj_funcs.objectives_dict[self.power_type]
             self.J = 0.0
-            self.J_saved = False
+            self.pwr_saved = False
 
     def Save(self,val=0):
         """
@@ -317,8 +321,14 @@ class SteadySolver(GenericSolver):
         #     self.SavePower(((iter_val-self.problem.dom.inflow_angle)))
 
 
-        if self.optimizing or self.save_power:
+
+
+        if self.optimizing:
             self.J += self.objective_func(self,(iter_val-self.problem.dom.inflow_angle)) 
+
+        if self.save_power and "power" not in self.objective_type:
+            self.power_func(self,(iter_val-self.problem.dom.inflow_angle))
+
             # print(self.outflow_markers)
             # self.J += -dot(self.problem.farm.rotor_disks,self.u_k)*dx
 
@@ -365,14 +375,13 @@ class UnsteadySolver(GenericSolver):
         # ================================================================
         
         # Start a counter for the total simulation time
-        self.simTime = 0.0
         self.fprint("dt: %.4f" % (self.problem.dt))
         self.fprint("Final Time: %.1f" % (self.final_time))
 
         # Calculate the time to start recording if optimizing
         if self.optimizing:
             if self.record_time == "computed":
-                self.record_time = 1.0*(self.wake_RD*self.problem.farm.RD[0]/self.problem.bd.HH_vel)
+                self.record_time = 1.0*(self.wake_RD*self.problem.farm.RD[0]/(self.problem.bd.HH_vel*0.75))
                 if self.final_time < self.record_time + 60.0/self.problem.rpm:
                     self.fprint("Warning: Final time is too small... overriding")
                     self.final_time = self.record_time + 60.0/self.problem.rpm
@@ -577,6 +586,10 @@ class UnsteadySolver(GenericSolver):
 
                 print("Current Objective Value: "+repr(float(self.J/dt_sum)))
                 print("Change in Objective    : "+repr(float(J_diff)))
+
+            # to only call the power functional once, check if a) the objective is the power, b) that we are before record time
+            if self.save_power and ("power" not in self.objective_type or ("power" in self.objective_type and self.simTime < self.record_time) ):
+                self.power_func(self,(iter_val-self.problem.dom.inflow_angle))
 
             # After changing timestep size, A1 must be reassembled
             # FIXME: This may be unnecessary (or could be sped up by changing only the minimum amount necessary)

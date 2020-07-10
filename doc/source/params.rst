@@ -620,11 +620,11 @@ This section lists the solver options::
     solver:
         type:              <str>
         final_time:        <float>
-        record_time:       <str, float>
         save_interval:     <float>
         num_wind_angles:   <int>
         endpoint:          <bool>
         velocity_path:     <str>
+        power_type:        <str>
         save_power:        <bool>
         nonlinear_solver:  <str>
         newton_relaxation: <float>
@@ -644,13 +644,6 @@ This section lists the solver options::
 | ``final_time``         | The final time for an unsteady simulation                      | | no                | 1.0 s               |
 |                        |                                                                | | "unsteady"        |                     |
 +------------------------+----------------------------------------------------------------+---------------------+---------------------+
-| ``record_time``        | | The time when we start recording the objective function      | | no                | None                |
-|                        | | using a weighted average.                                    | | "unsteady"        |                     |
-|                        | | Choices:                                                     |                     |                     |
-|                        | |          "computed": Sets the time based on inflow speed     |                     |                     |
-|                        | |          "last": Only computes at the final time step        |                     |                     |
-|                        | |          <float>: use this specific time to start recording  |                     |                     |
-+------------------------+----------------------------------------------------------------+---------------------+---------------------+
 | ``save_interval``      | The amount of time between saving output fields                | | no                | 1.0 s               |
 |                        |                                                                | | "unsteady"        |                     |
 +------------------------+----------------------------------------------------------------+---------------------+---------------------+
@@ -663,8 +656,13 @@ This section lists the solver options::
 | ``velocity_path``      | The location of a list of inflow conditions                    | | yes               |                     |
 |                        |                                                                | | "imported_inflow" |                     |
 +------------------------+----------------------------------------------------------------+---------------------+---------------------+
-| ``save_power``         | Save the power for each turbine to a text file in              | no                  | False               |
-|                        | output/``name``/data/                                          |                     |                     |
+| ``power_type``         | | Sets the power functional                                    | no                  | "power"             |
+|                        | | Choices:                                                     |                     |                     |
+|                        | |   "power": simple power calculation                          |                     |                     |
+|                        | |   "2d_power": power calculation optimized for 2D runs        |                     |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``save_power``         | | Save the power for each turbine to a text file in            | no                  | True                |
+|                        | | output/``name``/data/power_data.txt                          |                     |                     |
 +------------------------+----------------------------------------------------------------+---------------------+---------------------+
 | ``nonlinear_solver``   | | Specify the nonlinear solver type. Choices:                  | no                  | "snes"              |
 |                        | |   "newton": uses the standard newton solver                  |                     |                     |
@@ -688,9 +686,12 @@ optimization make sure to set ``dolfin_adjoint`` to True.::
         control_types:  <str list>
         layout_bounds:  <float list>
         objective_type: <str>
+        save_objective: <bool>
+        record_time:    <str, float>
         wake_RD:        <int>
         min_total:      <int>
-        record_time:    <str>
+        wake_radius:    <float>
+        wake_length:    <float>
         taylor_test:    <bool>
         optimize:       <bool>
         gradient:       <bool>
@@ -708,21 +709,34 @@ optimization make sure to set ``dolfin_adjoint`` to True.::
 |                        | | Choices:                                               |                 |              |
 |                        | |   "power": simple power calculation                    |                 |              |
 |                        | |   "2d_power": power calculation optimized for 2D runs  |                 |              |
-|                        | |   "wake_deflection": metric for measuring wake movement|                 |              |
+|                        | |   "alm_power": power calculation for actuator lines    |                 |              |
+|                        | |   "wake_center": centroid of wake at RD slice          |                 |              |
+|                        | |   "wake_deficit": deficit in the x direction           |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
-| ``wake_RD``            | | number of rotor diameters downstream where the wake is | no              | 5            |
-|                        | | measured                                               | wake_deflection |              |
-+------------------------+----------------------------------------------------------+-----------------+--------------+
-| ``min_total``          | | number of times the average wake deflection reaches a  | no              | 0            |
-|                        | | before the unsteady simulation is stopped. use 0 to    | wake_deflection |              |
-|                        | | run the full simulation                                |                 |              |
+| ``save_objective``     | | Save the the value of the objective function           | no              | True         |
+|                        | | output/``name``/data/objective_data.txt                |                 |              |
+|                        | | Note: power objects are saved as power_data.txt        |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
 | ``record_time``        | | The amount of time to run the simulation before        | no              | computed     |
-|                        | | calculation of the objective function takes place      | wake_deflection |              |
+|                        | | calculation of the objective function takes place      | unsteady        |              |
 |                        | | Choices:                                               |                 |              |
 |                        | |   "computed": let the solver choose the best recording |                 |              |
 |                        | |   start time based on the flow speed and domain size   |                 |              |
 |                        | |   "last": only begin recording at the final_time       |                 |              |
+|                        | |   <float>: time in seconds to start recording          |                 |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``wake_RD``            | | number of rotor diameters downstream where the wake is | no              | 5            |
+|                        | | measured                                               | wake_center     |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``min_total``          | | number of times the average wake deflection reaches a  | no              | 0            |
+|                        | | before the unsteady simulation is stopped. use 0 to    | wake_center     |              |
+|                        | | run the full simulation                                |                 |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``wake_length``        | The length of the recorded wake deficit in RD            | no              | 5 RD         |
+|                        |                                                          | wake_deficit    |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``wake_radius``        | The length of the recorded wake deficit in RD            | no              | 1 RD         |
+|                        |                                                          | wake_deficit    |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
 | ``taylor_test``        | | Performs a test to check the derivatives. Good         | no              | False        |
 |                        | | results have a convergence rate around 2.0             |                 |              |

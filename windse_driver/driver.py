@@ -76,6 +76,8 @@ def run_action(params_loc=None):
 
     return runtime
 
+def mesh_action():
+    raise NotImplementedError
 
 def test_demo(demo):
     try:
@@ -88,7 +90,8 @@ def test_demo(demo):
 
 
 def main():
-    actions = {"run":  run_action}
+    actions = {"run":  run_action,
+               "mesh": mesh_action}
     actions[get_action()]()
 
 if __name__ == "__main__":

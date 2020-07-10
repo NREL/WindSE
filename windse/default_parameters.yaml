@@ -110,12 +110,12 @@ problem:
 solver:
     type:              steady
     final_time:        1.0
-    record_time:       Null
     save_interval:     1.0
     num_wind_angles:   1
     endpoint:          False
     velocity_path:     Null
-    save_power:        False
+    power_type:        power
+    save_power:        True
     nonlinear_solver:  snes
     newton_relaxation: 1.0
 
@@ -123,8 +123,11 @@ optimization:
     control_types:  Null
     layout_bounds:  wind_farm
     objective_type: power
+    save_objective: True
     wake_RD:        5
     min_total:      0
+    wake_length:    5
+    wake_radius:    0.5
     record_time:    computed
     taylor_test:    False
     optimize:       False

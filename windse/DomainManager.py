@@ -320,6 +320,12 @@ class GenericDomain(object):
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")  
 
     def Refine(self, cellmarkers=None):
+
+        # print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        # print(parameters["refinement_algorithm"])
+        # print(cellmarkers)
+        # print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
         old_verts = self.mesh.num_vertices()
         old_cells = self.mesh.num_cells()
         self.fprint("Refining Mesh")
@@ -669,6 +675,12 @@ class GenericDomain(object):
         else:
             raise ValueError(self.analytic + "is not an implemented type")
 
+    def ground_function(self,x,y,dx=0,dy=0):
+        if dx == 0 and dy == 0:
+            return self.ground_reference
+        else:
+            return 0.0
+
     def Ground(self,x,y,dx=0,dy=0):
         """
         Ground returns the ground height given an (*x*, *y*) coordinate.
@@ -698,6 +710,10 @@ class GenericDomain(object):
                     return z
             else:
                 return float(self.ground_function(x,y,dx=dx,dy=dy))
+
+    def RecomputeBoundaryMarkers(self,inflow_angle):
+        raise NotImplementedError("This Domain type does not support nonzero inflow angles.")
+
 
 class BoxDomain(GenericDomain):
     """
@@ -780,12 +796,6 @@ class BoxDomain(GenericDomain):
 
 
         self.fprint("Initial Domain Setup",special="footer")
-
-    def ground_function(self,x,y,dx=0,dy=0):
-        if dx == 0 and dy == 0:
-            return self.ground_reference
-        else:
-            return 0.0
 
     def RecomputeBoundaryMarkers(self,inflow_angle):
         mark_start = time.time()
@@ -965,12 +975,6 @@ class CylinderDomain(GenericDomain):
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
         self.fprint("Initial Domain Setup",special="footer")
 
-    def ground_function(self,x,y,dx=0,dy=0):
-        if dx == 0 and dy == 0:
-            return self.ground_reference
-        else:
-            return 0.0
-
     def RecomputeBoundaryMarkers(self,inflow_angle):
         mark_start = time.time()
         self.fprint("")
@@ -1115,9 +1119,6 @@ class CircleDomain(GenericDomain):
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
         self.fprint("Initial Domain Setup",special="footer")
 
-    def ground_function(self,x,y,dx=0,dy=0):
-        return 0.0
-
     def RecomputeBoundaryMarkers(self,inflow_angle):
         mark_start = time.time()
         self.fprint("")
@@ -1235,9 +1236,6 @@ class RectangleDomain(GenericDomain):
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
         self.fprint("Initial Domain Setup",special="footer")
 
-    def ground_function(self,x,y,dx=0,dy=0):
-        return 0.0
-
     def RecomputeBoundaryMarkers(self,inflow_angle):
         mark_start = time.time()
         self.fprint("")
@@ -1336,7 +1334,8 @@ class ImportedDomain(GenericDomain):
             self.mesh_path  = self.path + "mesh." + self.filetype
             if self.filetype == "xml.gz":
                 self.boundary_path = self.path + "boundaries." + self.filetype
-            self.terrain_path  = self.path + "terrain.txt"
+            if self.interpolated:
+                self.terrain_path  = self.path + "terrain.txt"
 
         ### Copy Files to input folder ###
         shutil.copy(self.mesh_path,self.params.folder+"input_files/")
@@ -1398,7 +1397,8 @@ class ImportedDomain(GenericDomain):
         self.fprint("")
         self.fprint("Building Interpolating Function")
 
-        self.SetupInterpolatedGround()
+        if self.interpolated:
+            self.SetupInterpolatedGround()
 
         interp_stop = time.time()
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))

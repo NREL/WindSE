@@ -434,7 +434,7 @@ class ActuatorLineForceBlock(Block):
         self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord)
 
         # Since dfd=None here, prepared is a dolfin function (tf) [1 x numPts*ndim]
-        prepared = backend_CalculateActuatorLineTurbineForces(self.problem, self.simTime)
+        prepared = backend_CalculateActuatorLineTurbineForces(self.problem, self.simTime, verbose=True)
 
         return prepared
 
@@ -455,7 +455,7 @@ class ActuatorLineForceBlock(Block):
             # pr.enable()
             # print("calculating "+name+" derivatives")
             # Since dfd is not None here, prepared is a Numpy array of derivatives [numPts*ndim x numControls] 
-            prepared[name] = backend_CalculateActuatorLineTurbineForces(self.problem, self.simTime, dfd = name)
+            prepared[name] = backend_CalculateActuatorLineTurbineForces(self.problem, self.simTime, dfd = name, verbose=True)
             # pr.disable()
             # pr.print_stats()
 
