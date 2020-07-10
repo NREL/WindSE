@@ -391,6 +391,8 @@ class UnsteadySolver(GenericSolver):
             self.fprint("Recording Time: %.1f" % (self.record_time))
             # self.record_time = 250.0
             # self.record_time = self.final_time-2.0*saveInterval
+        else:
+            self.record_time = 0.0
 
         # ================================================================
 
@@ -489,6 +491,8 @@ class UnsteadySolver(GenericSolver):
         tip_speed = self.problem.rpm*2.0*np.pi*self.problem.farm.radius[0]/60.0
 
         # self.problem.alm_power_sum = 0.0
+        init_average = True
+        average_start_time = 0.0
 
         while not stable and self.simTime < self.final_time:
             self.problem.bd.UpdateVelocity(self.simTime)
@@ -553,8 +557,25 @@ class UnsteadySolver(GenericSolver):
 
                 # self.problem.alm_power_average = self.problem.alm_power_sum/self.simTime
 
-                self.fprint('Average Power: %.3f MW' % (self.problem.alm_power/1e6))
+                # self.fprint('Rotor Power: %.6f MW' % (self.problem.alm_power/1e6))
+                output_str = 'Rotor Power: %s MW' % (np.array2string(self.problem.alm_power/1.0e6, precision=3, separator=', '))
+                self.fprint(output_str)
+
                 # exit()
+
+            if self.simTime > average_start_time:
+                if init_average:
+                    average_vel = Function(self.problem.fs.V)
+                    average_vel.vector()[:] = self.problem.u_k1.vector()[:]*self.problem.dt
+
+                    average_power = self.problem.alm_power*self.problem.dt
+
+                    init_average = False
+                else:
+                    average_vel.vector()[:] += self.problem.u_k1.vector()[:]*self.problem.dt
+
+                    average_power += self.problem.alm_power*self.problem.dt
+
 
             # Adjust the timestep size, dt, for a balance of simulation speed and stability
             save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
@@ -602,6 +623,19 @@ class UnsteadySolver(GenericSolver):
 
         if self.optimizing:
             self.J = self.J/float(dt_sum)
+
+
+        if self.simTime > average_start_time:
+            average_vel.vector()[:] = average_vel.vector()[:]/(self.simTime-average_start_time)
+            fp = File('./output/%s/average_vel.pvd' % (self.params.name))
+            average_vel.rename('average_vel', 'average_vel')
+            fp << average_vel
+
+            average_power = average_power/(self.simTime-average_start_time)
+            # self.fprint('AVERAGE Rotor Power: %.6f MW' % (average_power/1e6))
+            output_str = 'Rotor Power: %s MW' % (np.array2string(average_power/1.0e6, precision=3, separator=', '))
+            self.fprint(output_str)
+
 
         stop = time.time()
 

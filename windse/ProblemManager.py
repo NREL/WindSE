@@ -135,10 +135,19 @@ class GenericProblem(object):
                 cd = 0.1*np.ones(self.num_blade_segments)
 
             # Save the list of controls to self
-            for k in range(self.num_blade_segments):
-                self.mchord.append(Constant(chord[k]))
-                self.mcl.append(Constant(cl[k]))
-                self.mcd.append(Constant(cd[k]))
+            for turb_i in range(self.farm.numturbs):
+                turb_i_chord = []
+                turb_i_lift = []
+                turb_i_drag = []
+
+                for k in range(self.num_blade_segments):
+                    turb_i_chord.append(Constant(chord[k]))
+                    turb_i_lift.append(Constant(cl[k]))
+                    turb_i_drag.append(Constant(cd[k]))
+
+                self.mchord.append(turb_i_chord)
+                self.mcl.append(turb_i_lift)
+                self.mcd.append(turb_i_drag)
 
             tf = CalculateActuatorLineTurbineForces(self, simTime)
         else:
