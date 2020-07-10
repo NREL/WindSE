@@ -70,7 +70,13 @@ class GenericProblem(object):
 
         elif self.farm.turbine_method == 'alm':
             self.rpm = self.params["wind_farm"]["rpm"]
-            self.num_blade_segments = 10
+
+            hmin = self.dom.mesh.hmin()/np.sqrt(3)
+            # self.num_blade_segments = 10
+            # self.num_blade_segments = int(10.0*self.farm.radius[0]/hmin)
+            self.num_blade_segments = int(self.farm.radius[0]/hmin)
+            print('Num blade segments: ', self.num_blade_segments)
+
             self.mchord = []
             self.mcl = []
             self.mcd = []
