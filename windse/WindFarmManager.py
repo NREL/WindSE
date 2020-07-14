@@ -134,7 +134,7 @@ class GenericWindFarm(object):
 
         plt.close()
 
-    def PlotChord(self,show=False,filename="chord_profiles",power=None):
+    def PlotChord(self,show=False,filename="chord_profiles",power=None, bounds=None):
 
         ### Create the path names ###
         folder_string = self.params.folder+"/plots/"
@@ -149,8 +149,21 @@ class GenericWindFarm(object):
         ### Plot Chords ###
         plt.figure()
         plt.plot(x,self.baseline_chord,label="baseline",c="k")
-        plt.plot(x,self.baseline_chord/2.0,"--r",label="opt_bounds")
-        plt.plot(x,self.baseline_chord*2.0,"--r")
+        if bounds is None:
+            lower=[]
+            upper=[]
+            c_avg = 0
+            for k, seg_chord in enumerate(self.baseline_chord):
+                    modifier = 2.0
+                    max_chord = self.max_chord
+                    lower.append(seg_chord/modifier)
+                    upper.append(max(min(seg_chord*modifier,max_chord),c_avg))
+                    c_avg = (c_avg*k+seg_chord)/(k+1)
+            plt.plot(x,lower,"--r",label="opt_bounds")
+            plt.plot(x,upper,"--r")
+        else:
+            plt.plot(x,bounds[0][-self.blade_segments:],"--r",label="opt_bounds")
+            plt.plot(x,bounds[1][-self.blade_segments:],"--r")
 
         for i in range(self.numturbs):
             y = np.array(self.mchord[i],dtype=float)

@@ -14,7 +14,8 @@ wind_farm:
     turbine_method: "alm"
     rpm: 10.6
     read_turb_data: 'baseline.csv'
-    blade_segments: 10           
+    blade_segments: 10
+    max_chord: 100       
 
 # Domain Constants for a Box Domain
 domain: 
@@ -50,8 +51,8 @@ problem:
  
 solver:
     type: unsteady
-    save_interval: 5.0
-    final_time: 10.0
+    save_interval: 1.0
+    final_time: 1.0
     power_type: alm_power
 
 optimization:

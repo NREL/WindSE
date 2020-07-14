@@ -93,7 +93,7 @@ class Optimizer(object):
 
         self.fprint("Define Optimizing Functional")
         self.J = self.solver.J
-        self.Jhat = ReducedFunctional(-self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
+        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
 
         self.Jcurrent = self.J
 
@@ -107,7 +107,7 @@ class Optimizer(object):
     def RecomputeReducedFunctional(self):
         self.CreateControls()
         self.J = self.solver.J
-        self.Jhat = ReducedFunctional(-self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
+        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
 
         self.Jcurrent = self.J
 
@@ -212,11 +212,14 @@ class Optimizer(object):
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
+                c_avg = 0
                 for k in range(self.problem.num_blade_segments):
                     modifier = 2.0
-                    seg_chord = self.problem.mchord[i][k]
+                    max_chord = self.problem.farm.max_chord
+                    seg_chord = self.problem.farm.baseline_chord[k]
                     lower_bounds.append(Constant(seg_chord/modifier))
-                    upper_bounds.append(Constant(seg_chord*modifier))
+                    upper_bounds.append(Constant(np.maximum(np.minimum(seg_chord*modifier,max_chord),c_avg)))
+                    c_avg = (c_avg*k+seg_chord)/(k+1)
 
         self.bounds = [lower_bounds,upper_bounds]
 
@@ -312,10 +315,12 @@ class Optimizer(object):
         self.ListControls(m)
 
         if "layout" in self.control_types or "yaw" in self.control_types:
-            self.problem.farm.PlotFarm(filename="wind_farm_step_"+repr(self.iteration),power=self.Jcurrent)
+            self.problem.farm.PlotFarm(filename="wind_farm_step_"+repr(self.iteration),power=-self.Jcurrent)
 
         if "chord" in self.control_types:
-            self.problem.farm.PlotChord(filename="chord_step_"+repr(self.iteration),power=self.Jcurrent)
+            c_lower = np.array(self.bounds[0])[self.indexes[6]] 
+            c_upper = np.array(self.bounds[1])[self.indexes[6]] 
+            self.problem.farm.PlotChord(filename="chord_step_"+repr(self.iteration),power=-self.Jcurrent,bounds=[c_lower,c_upper])
         
         self.iteration += 1
 

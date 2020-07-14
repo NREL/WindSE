@@ -1,5 +1,5 @@
 import __main__
-import os
+import os, sys
 
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
@@ -720,6 +720,7 @@ def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, verbose=False
     toc = time.time()
     if verbose:
         print("Current Optimization Time: "+repr(simTime)+ ", it took: "+repr(toc-tic)+" seconds")
+        sys.stdout.flush()
 
     return alm_output
 

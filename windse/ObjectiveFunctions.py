@@ -214,6 +214,7 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
     u_ref = solver.problem.bd.bc_velocity
     u     = solver.problem.u_k
     u_dif_mag = sqrt((u[0]-u_ref[0])**2.0+(u[1]-u_ref[1])**2.0+(u[2]-u_ref[2])**2.0)
+    print(type(u_dif_mag))
     # u_dif_mag = sqrt((u[0]-u_ref[0])**2.0)
 
     ### Calculate the Centroids for each RD ###
@@ -244,7 +245,9 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
         ### Return Objective Function ###
         if annotate:
             print("RD"+repr(i+1)+" Centroid: "+repr((Mx/M,My/M,Mz/M)))
-            J = sqrt(My/M*My/M)
+            # J = -pow(My/M*My/M,1.0/2.0) ## if need to be strictly positive
+            J = -My/M
+
 
     ### Save Data ###
     if solver.save_objective:
