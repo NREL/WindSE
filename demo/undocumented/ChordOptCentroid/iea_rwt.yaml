@@ -50,15 +50,15 @@ problem:
  
 solver:
     type: unsteady
-    save_interval: 50.0
-    final_time: 150.0
+    save_interval: 5.0
+    final_time: 10.0
     power_type: alm_power
 
 optimization:
     control_types: [chord]
     objective_type: wake_center
     # opt_turb_id : -1
-    record_time: computed
+    record_time: 0.0
     wake_RD: 5
     optimize: True
 

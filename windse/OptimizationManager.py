@@ -93,7 +93,7 @@ class Optimizer(object):
 
         self.fprint("Define Optimizing Functional")
         self.J = self.solver.J
-        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
+        self.Jhat = ReducedFunctional(-self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
 
         self.Jcurrent = self.J
 
@@ -107,7 +107,7 @@ class Optimizer(object):
     def RecomputeReducedFunctional(self):
         self.CreateControls()
         self.J = self.solver.J
-        self.Jhat = ReducedFunctional(self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
+        self.Jhat = ReducedFunctional(-self.J, self.controls, eval_cb_post=self.ReducedFunctionalCallback)
 
         self.Jcurrent = self.J
 
@@ -331,9 +331,9 @@ class Optimizer(object):
         self.fprint("Beginning Optimization",special="header")
 
         if "layout" in self.control_types:
-            m_opt=minimize(-self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+            m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
         else:
-            m_opt=minimize(-self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
+            m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
         # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
         self.fprint("Assigning New Values")
