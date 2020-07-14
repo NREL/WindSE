@@ -151,28 +151,31 @@ class Optimizer(object):
                 self.init_vals.append(self.farm.ma[i])
 
         if "lift" in self.control_types:
-            for i in range(self.problem.num_blade_segments):
-                self.indexes[4].append(j)
-                j+=1
-                self.names.append("lift_"+repr(i))
-                self.controls.append(Control(self.problem.mcl[i]))
-                self.init_vals.append(self.problem.mcl[i])
+            for i in self.solver.opt_turb_id:
+                for k in range(self.problem.num_blade_segments):
+                    self.indexes[4].append(j)
+                    j+=1
+                    self.names.append("lift_"+repr(i)+"_"+repr(k))
+                    self.controls.append(Control(self.problem.mcl[i][k]))
+                    self.init_vals.append(self.problem.mcl[i][k])
 
         if "drag" in self.control_types:
-            for i in range(self.problem.num_blade_segments):
-                self.indexes[5].append(j)
-                j+=1
-                self.names.append("drag_"+repr(i))
-                self.controls.append(Control(self.problem.mcd[i]))
-                self.init_vals.append(self.problem.mcd[i])
+            for i in self.solver.opt_turb_id:
+                for k in range(self.problem.num_blade_segments):
+                    self.indexes[5].append(j)
+                    j+=1
+                    self.names.append("drag_"+repr(i)+"_"+repr(k))
+                    self.controls.append(Control(self.problem.mcd[i][k]))
+                    self.init_vals.append(self.problem.mcd[i][k])
 
         if "chord" in self.control_types:
-            for i in range(self.problem.num_blade_segments):
-                self.indexes[6].append(j)
-                j+=1
-                self.names.append("chord_"+repr(i))
-                self.controls.append(Control(self.problem.mchord[i]))
-                self.init_vals.append(self.problem.mchord[i])
+            for i in self.solver.opt_turb_id:
+                for k in range(self.problem.num_blade_segments):
+                    self.indexes[6].append(j)
+                    j+=1
+                    self.names.append("chord_"+repr(i)+"_"+repr(k))
+                    self.controls.append(Control(self.problem.mchord[i][k]))
+                    self.init_vals.append(self.problem.mchord[i][k])
 
     def CreateBounds(self):
         lower_bounds = []
@@ -196,19 +199,24 @@ class Optimizer(object):
                 upper_bounds.append(Constant(1.))
 
         if "lift" in self.control_types:
-            for i in range(self.problem.num_blade_segments):
-                lower_bounds.append(Constant(0))
-                upper_bounds.append(Constant(2.))
+            for i in self.solver.opt_turb_id:
+                for i in range(self.problem.num_blade_segments):
+                    lower_bounds.append(Constant(0))
+                    upper_bounds.append(Constant(2.))
 
         if "drag" in self.control_types:
-            for i in range(self.problem.num_blade_segments):
-                lower_bounds.append(Constant(0))
-                upper_bounds.append(Constant(2.))
+            for i in self.solver.opt_turb_id:
+                for k in range(self.problem.num_blade_segments):
+                    lower_bounds.append(Constant(0))
+                    upper_bounds.append(Constant(2.))
 
         if "chord" in self.control_types:
-            for i in range(self.problem.num_blade_segments):
-                lower_bounds.append(Constant(0.5))
-                upper_bounds.append(Constant(5.0))
+            for i in self.solver.opt_turb_id:
+                for k in range(self.problem.num_blade_segments):
+                    modifier = 2.0
+                    seg_chord = self.problem.mchord[i][k]
+                    lower_bounds.append(Constant(seg_chord/modifier))
+                    upper_bounds.append(Constant(seg_chord*modifier))
 
         self.bounds = [lower_bounds,upper_bounds]
 
@@ -248,7 +256,7 @@ class Optimizer(object):
         return np.array(der, dtype=float)
 
     def ListControls(self,m):
-
+        self.fprint("Iteration "+repr(self.iteration)+" Complete",special="header")
         self.fprint("Current Objective Value: " + repr(float(self.Jcurrent)))
 
         # if "layout" in self.control_types:
@@ -261,6 +269,7 @@ class Optimizer(object):
 
         for i, val in enumerate(m):
             self.fprint(self.names[i] +": " +repr(float(val)))
+        self.fprint("Iteration "+repr(self.iteration)+" Complete",special="footer")
 
     def SaveControls(self,m):
 
@@ -302,7 +311,11 @@ class Optimizer(object):
         self.SaveControls(m)
         self.ListControls(m)
 
-        self.problem.farm.Plot(filename="wind_farm_step_"+repr(self.iteration),power=-self.Jcurrent)
+        if "layout" in self.control_types or "yaw" in self.control_types:
+            self.problem.farm.PlotFarm(filename="wind_farm_step_"+repr(self.iteration),power=self.Jcurrent)
+
+        if "chord" in self.control_types:
+            self.problem.farm.PlotChord(filename="chord_step_"+repr(self.iteration),power=self.Jcurrent)
         
         self.iteration += 1
 
@@ -318,9 +331,9 @@ class Optimizer(object):
         self.fprint("Beginning Optimization",special="header")
 
         if "layout" in self.control_types:
-            m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+            m_opt=minimize(-self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
         else:
-            m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
+            m_opt=minimize(-self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
         # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
         self.fprint("Assigning New Values")

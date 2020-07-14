@@ -98,7 +98,6 @@ def BuildDomain(params):
                  "random":windse.RandomWindFarm,
                  "imported":windse.ImportedWindFarm}
     farm = farm_dict[params["wind_farm"]["type"]](dom)
-    farm.Plot(params["wind_farm"]["display"])
 
     ### warp and refine the mesh
     windse.WarpMesh(dom)
@@ -192,5 +191,9 @@ def SetupSimulation(params_loc=None):
     dom, farm = BuildDomain(params)
     problem = BuildProblem(params,dom,farm)
     solver = BuildSolver(params,problem)
+
+    farm.PlotFarm(params["wind_farm"]["display"])
+    farm.PlotChord(params["wind_farm"]["display"])
+
 
     return params, problem, solver

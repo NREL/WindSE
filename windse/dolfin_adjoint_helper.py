@@ -396,15 +396,23 @@ class ActuatorLineForceBlock(Block):
         self.simTime = simTime
 
         # Add dependencies on the controls
-        for i in range(self.problem.num_blade_segments):
-            self.problem.mcl[i].block_variable.tag = ("c_lift", i)
-            self.add_dependency(self.problem.mcl[i])
+        ####################################
+        ####################################
+        ####################################
+        # fix the [-1] for the ability to select which turbine to optimize
+        ####################################
+        ####################################
+        ####################################
+        for i in range(self.problem.farm.numturbs):
+            for j in range(self.problem.num_blade_segments):
+                self.problem.mcl[i][j].block_variable.tag = ("c_lift", i, j)
+                self.add_dependency(self.problem.mcl[i][j])
 
-            self.problem.mcd[i].block_variable.tag = ("c_drag", i)
-            self.add_dependency(self.problem.mcd[i])
+                self.problem.mcd[i][j].block_variable.tag = ("c_drag", i, j)
+                self.add_dependency(self.problem.mcd[i][j])
 
-            self.problem.mchord[i].block_variable.tag = ("chord", i)
-            self.add_dependency(self.problem.mchord[i])
+                self.problem.mchord[i][j].block_variable.tag = ("chord", i, j)
+                self.add_dependency(self.problem.mchord[i][j])
 
         # Tabulate which controls matter
         self.control_types = []
@@ -466,10 +474,16 @@ class ActuatorLineForceBlock(Block):
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
 
         ### Get the control type and turbine index ###
-        name, segment_index = block_variable.tag
+        name, turbine_number, segment_index = block_variable.tag
         # print("calculating: " + name + "_" + repr(segment_index))
 
         ### Get the vectors ###
+
+        ########################
+        ########################
+        # Need to modify to select the correct turbine
+        ########################
+        ########################
         comp_vec = prepared[name][:, segment_index]
         adj_vec = adj_inputs[0].get_local()
 

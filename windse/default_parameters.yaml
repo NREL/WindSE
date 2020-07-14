@@ -58,7 +58,8 @@ wind_farm:
     force:          sine
     turbine_method: dolfin
     rpm:            10.0
-    read_turb_data: Null           
+    read_turb_data: Null
+    blade_segments: computed           
 
 refine:
     warp_type:      Null
@@ -124,6 +125,7 @@ optimization:
     layout_bounds:  wind_farm
     objective_type: power
     save_objective: True
+    opt_turb_id :   -1          # int or list or "all" 
     wake_RD:        5
     min_total:      0
     wake_length:    5

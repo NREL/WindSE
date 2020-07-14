@@ -74,7 +74,11 @@ class GenericProblem(object):
             hmin = self.dom.mesh.hmin()/np.sqrt(3)
             # self.num_blade_segments = 10
             # self.num_blade_segments = int(10.0*self.farm.radius[0]/hmin)
-            self.num_blade_segments = int(self.farm.radius[0]/hmin)
+            if self.farm.blade_segments == "computed":
+                self.num_blade_segments = int(self.farm.radius[0]/hmin)
+                self.farm.blade_segments = self.num_blade_segments
+            else:
+                self.num_blade_segments = self.farm.blade_segments
             print('Num blade segments: ', self.num_blade_segments)
 
             self.mchord = []
@@ -133,6 +137,7 @@ class GenericProblem(object):
                 chord = chord_interp(interp_points)
                 cl = cl_interp(interp_points)
                 cd = cd_interp(interp_points)
+                self.farm.baseline_chord = np.array(chord)
 
             else:
                 # If not reading from a file, prescribe dummy values
@@ -156,6 +161,8 @@ class GenericProblem(object):
                 self.mcd.append(turb_i_drag)
 
             tf = CalculateActuatorLineTurbineForces(self, simTime)
+
+            self.CopyALMtoWindFarm()
         else:
             raise ValueError("Unknown turbine method: "+self.farm.turbine_method)
         
@@ -164,6 +171,21 @@ class GenericProblem(object):
             tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
 
         return tf
+
+
+    ############################################
+    ############################################
+    ### this is a hack to accommodate the fact that
+    ### alm values are not stored in the wind_farm
+    ### object. eventually we might want to move
+    ### it there.
+    ############################################
+    ############################################
+    def CopyALMtoWindFarm(self):
+        self.farm.mcl = self.mcl
+        self.farm.mcd = self.mcd
+        self.farm.mchord = self.mchord
+
 
     def ChangeWindAngle(self,inflow_angle):
         """
@@ -201,10 +223,14 @@ class GenericProblem(object):
         if chord is not None:
             chord = np.array(chord, dtype = float)
 
-        for k in range(self.num_blade_segments):
-            self.mcl[k] = Constant(cl[k])
-            self.mcd[k] = Constant(cd[k])
-            self.mchord[k] = Constant(chord[k])
+        for i in range(self.farm.numturbs):
+            for k in range(self.num_blade_segments):
+                m = self.num_blade_segments*i+k
+                self.mcl[i][k] = Constant(cl[m])
+                self.mcd[i][k] = Constant(cd[m])
+                self.mchord[i][k] = Constant(chord[m])
+        
+        self.CopyALMtoWindFarm()
 
 
 class StabilizedProblem(GenericProblem):

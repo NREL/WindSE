@@ -59,21 +59,12 @@ def CalculatePowerFunctional(solver,inflow_angle = 0.0):
     return J
 
 def CalculateActuatorLinePowerFunctional(solver,inflow_angle = 0.0):
-    J = solver.problem.alm_power
+    J = sum(solver.problem.alm_power)
 
     if solver.save_power or solver.save_objective:
         J_list=np.zeros(solver.problem.farm.numturbs+2)
         J_list[0]=solver.simTime
-        if getattr(solver.problem.farm,"actuator_disks_list",None) is not None:
-            for i in range(solver.problem.farm.numturbs):
-                yaw = solver.problem.farm.myaw[i]+inflow_angle
-                tf1 = solver.problem.farm.actuator_disks_list[i] * cos(yaw)**2
-                tf2 = solver.problem.farm.actuator_disks_list[i] * sin(yaw)**2
-                tf3 = solver.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
-                tf = tf1*solver.u_k[0]**2+tf2*solver.u_k[1]**2+tf3*solver.u_k[0]*solver.u_k[1]
-                J_list[i+1] = assemble(dot(tf,solver.u_k)*dx,**solver.extra_kwarg)
-            else:
-                print("WARNING: missing individual turbine actuator disk, only able to report full farm power")
+        J_list[1:-1]=solver.problem.alm_power
         J_list[-1]=float(J)
 
         folder_string = solver.params.folder+"data/"
@@ -159,15 +150,17 @@ def Calculate2DPowerFunctional(solver,inflow_angle = 0.0):
 
 def CalculateWakeCenter(solver,inflow_angle = 0.0):
 
+    turb_id = solver.opt_turb_id[0]
+
     ### Get the maximum number of Roter Diameters down stream ###
-    nRD = math.ceil((solver.problem.dom.x_range[1]-solver.problem.farm.x[0])/(solver.problem.farm.RD[0]))
+    nRD = math.ceil((solver.problem.dom.x_range[1]-solver.problem.farm.x[turb_id])/(solver.problem.farm.RD[turb_id]))
     record_RD = min(nRD,solver.wake_RD)
 
     ### Get the mesh nodes that are closest to each Rotor Diameter ###
     xunique = np.unique(solver.problem.dom.mesh.coordinates()[:,0])
     x0 = []
     for i in range(nRD):
-        xtarget = solver.problem.farm.x[0]+(i+1)*solver.problem.farm.RD[0]
+        xtarget = solver.problem.farm.x[turb_id]+(i+1)*solver.problem.farm.RD[turb_id]
         x0.append(xunique[np.argmin(np.abs(xunique-xtarget))])
 
     ### If we haven't made the markers yet, do it ###
@@ -176,9 +169,9 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
         ### Get some parameters ###
         y_factor = 2.0
         z_factor = 1.2
-        HH = solver.problem.farm.HH[0]
-        y0 = solver.problem.farm.y[0]
-        R = solver.problem.farm.RD[0]/2.0
+        HH = solver.problem.farm.HH[turb_id]
+        y0 = solver.problem.farm.y[turb_id]
+        R = solver.problem.farm.RD[turb_id]/2.0
         ly=y0-y_factor*R
         uy=y0+y_factor*R
         lz=HH-z_factor*R
@@ -234,7 +227,7 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
 
         ### Switch measure depending on location of RD ###
         if abs(x0[i] - solver.problem.dom.x_range[1]) <= 1e-2:
-            print("External for " +repr(x0[i]))
+            # print("External for " +repr(x0[i]))
             M = assemble(u_dif_mag*ds_external(i+1), annotate = annotate)
             Mx = assemble(x[0]*u_dif_mag*ds_external(i+1), annotate = False)
             My = assemble(x[1]*u_dif_mag*ds_external(i+1), annotate = annotate)
@@ -251,7 +244,7 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
         ### Return Objective Function ###
         if annotate:
             print("RD"+repr(i+1)+" Centroid: "+repr((Mx/M,My/M,Mz/M)))
-            J = My/M
+            J = sqrt(My/M*My/M)
 
     ### Save Data ###
     if solver.save_objective:
@@ -261,15 +254,16 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
     return J
 
 def CalculateWakeDeficit(solver,inflow_angle = 0.0):
+    turb_id = solver.opt_turb_id[0]
 
     ### If we haven't made the markers yet, do it ###
     if not hasattr(solver,"outflow_markers"):
 
         ### Get some parameters ###
-        z0 = solver.problem.farm.HH[0]
-        x0 = solver.problem.farm.x[0]
-        y0 = solver.problem.farm.y[0]
-        RD = solver.problem.farm.RD[0]
+        z0 = solver.problem.farm.HH[turb_id]
+        x0 = solver.problem.farm.x[turb_id]
+        y0 = solver.problem.farm.y[turb_id]
+        RD = solver.problem.farm.RD[turb_id]
         R = solver.wake_radius*RD
         L = solver.wake_length*RD
         lx=x0

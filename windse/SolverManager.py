@@ -87,6 +87,10 @@ class GenericSolver(object):
             self.adj_time_list = [0.0]
             self.objective_func = obj_funcs.objectives_dict[self.objective_type]
             self.J_saved = False
+            if isinstance(self.opt_turb_id,int):
+                self.opt_turb_id = [self.opt_turb_id]
+            elif self.opt_turb_id == "all":
+                self.opt_turb_id = range(self.problem.farm.numturbs) 
         else:
             self.optimizing = False
 

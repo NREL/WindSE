@@ -65,7 +65,7 @@ class GenericWindFarm(object):
             self.optimize = True
 
 
-    def Plot(self,show=False,filename="wind_farm",power=None):
+    def PlotFarm(self,show=False,filename="wind_farm",power=None):
         """
         This function plots the locations of each wind turbine and
         saves the output to output/.../plots/
@@ -89,10 +89,10 @@ class GenericWindFarm(object):
             ex_list_y = [self.ex_y[0],self.ex_y[0],self.ex_y[1],self.ex_y[1],self.ex_y[0]]
 
         ### Generate and Save Plot ###
-        plt.figure()
+        fig, ax = plt.subplots()
         if hasattr(self.dom,"boundary_line"):
-            plt.plot(*self.dom.boundary_line/self.dom.xscale,c="k")
-        plt.plot(np.array(ex_list_x)/self.dom.xscale, np.array(ex_list_y)/self.dom.xscale,c="r")
+            ax.plot(*self.dom.boundary_line/self.dom.xscale,c="k")
+        ax.plot(np.array(ex_list_x)/self.dom.xscale, np.array(ex_list_y)/self.dom.xscale,c="r")
 
         ### Plot Blades
         for i in range(self.numturbs):
@@ -100,7 +100,7 @@ class GenericWindFarm(object):
             rr = self.RD[i]/2.0
             blade_x = np.array([self.x[i]+rr*blade_n[1],self.x[i]-rr*blade_n[1]])/self.dom.xscale
             blade_y = np.array([self.y[i]-rr*blade_n[0],self.y[i]+rr*blade_n[0]])/self.dom.xscale
-            plt.plot(blade_x,blade_y,c='k',linewidth=2,zorder=1)
+            ax.plot(blade_x,blade_y,c='k',linewidth=2,zorder=1)
 
         ### Choose coloring for the turbines ###
         if isinstance(power,(list,np.ndarray)):
@@ -109,19 +109,63 @@ class GenericWindFarm(object):
             coloring = np.array(self.z)/self.dom.xscale
 
         ### Plot Hub Locations
-        p=plt.scatter(self.x/self.dom.xscale,self.y/self.dom.xscale,c=coloring,cmap="coolwarm",edgecolors=(0, 0, 0, 1),s=20,zorder=2)
+        p=ax.scatter(self.x/self.dom.xscale,self.y/self.dom.xscale,c=coloring,cmap="coolwarm",edgecolors=(0, 0, 0, 1),s=20,zorder=2)
         # p=plt.scatter(self.x,self.y,c="k",s=70)
         plt.xlim(self.dom.x_range[0]/self.dom.xscale,self.dom.x_range[1]/self.dom.xscale)
         plt.ylim(self.dom.y_range[0]/self.dom.xscale,self.dom.y_range[1]/self.dom.xscale)
         clb = plt.colorbar(p)
         clb.ax.set_ylabel('Hub Elevation')
 
+        ### Annotate ###
+        for i in range(self.numturbs):
+            ax.annotate(i, (self.x[i]/self.dom.xscale,self.y[i]/self.dom.xscale),(5,0),textcoords='offset pixels')
+
         if power is None:
             plt.title("Location of the Turbines")
         elif isinstance(power,(list,np.ndarray)):
-            plt.title("Power Output: {: 5.2f}".format(sum(power)))
+            plt.title("Objective Value: {: 5.2f}".format(sum(power)))
         else:
-            plt.title("Power Output: {: 5.2f}".format(power))
+            plt.title("Objective Value: {: 5.2f}".format(power))
+
+        plt.savefig(file_string, transparent=True)
+
+        if show:
+            plt.show()
+
+        plt.close()
+
+    def PlotChord(self,show=False,filename="chord_profiles",power=None):
+
+        ### Create the path names ###
+        folder_string = self.params.folder+"/plots/"
+        file_string = self.params.folder+"/plots/"+filename+".pdf"
+
+        ### Check if folder exists ###
+        if not os.path.exists(folder_string): os.makedirs(folder_string)
+
+        ### Calculate x values ###
+        x = np.linspace(0,1,self.blade_segments)
+
+        ### Plot Chords ###
+        plt.figure()
+        plt.plot(x,self.baseline_chord,label="baseline",c="k")
+        plt.plot(x,self.baseline_chord/2.0,"--r",label="opt_bounds")
+        plt.plot(x,self.baseline_chord*2.0,"--r")
+
+        for i in range(self.numturbs):
+            y = np.array(self.mchord[i],dtype=float)
+            plt.plot(x,y,label=i)
+
+        plt.xlim(0,1)
+        if power is None:
+            plt.title("Chord along blade span")
+        elif isinstance(power,(list,np.ndarray)):
+            plt.title("Objective Value: {: 5.6f}".format(sum(power)))
+        else:
+            plt.title("Objective Value: {: 5.6f}".format(power)) 
+        plt.xlabel("Blade Span")      
+        plt.ylabel("Chord")
+        plt.legend()      
 
         plt.savefig(file_string, transparent=True)
 
@@ -150,6 +194,10 @@ class GenericWindFarm(object):
         Sx = self.dom.xscale
         output = np.array([self.x/Sx, self.y/Sx, self.HH/Sx, self.yaw, self.RD/Sx, self.thickness/Sx, self.axial])
         np.savetxt(file_string,output.T,header=head_str)
+
+    def SaveALMData(self):
+        pass
+
 
     def SaveActuatorDisks(self,val=0):
         """
