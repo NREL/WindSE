@@ -486,7 +486,8 @@ class UnsteadySolver(GenericSolver):
 
         # Initialize need loop objects
         start = time.time()
-        dt_sum = 0
+        # dt_sum = 1.0
+        dt_sum = 0.0
         J_old = 0
         J_diff_old = 100000
         min_count = 0
@@ -549,20 +550,30 @@ class UnsteadySolver(GenericSolver):
             # Update the turbine force
             if self.problem.farm.turbine_method == "alm":
                 # t1 = time.time()
-                new_tf = CalculateActuatorLineTurbineForces(self.problem, self.simTime)
-                self.problem.tf.assign(new_tf)
+
+                if self.problem.ALM_force_method == 'multiple':
+                    new_tf = CalculateActuatorLineTurbineForces(self.problem, self.simTime)
+
+                elif self.problem.ALM_force_method == 'single':
+                    alm_outputs = CalculateActuatorLineTurbineForces(self.problem, self.simTime)
+                    new_tf = sum(alm_outputs)
+
+                self.problem.tf = new_tf
                 # t2 = time.time()
                 # print(t2-t1)
 
                 # Power [=] N*m*rads/s 
                 self.problem.alm_power = self.problem.rotor_torque*(2.0*np.pi*self.problem.rpm/60.0)
+                self.problem.alm_power_dolfin = self.problem.rotor_torque_dolfin*(2.0*np.pi*self.problem.rpm/60.0)
                 
                 # self.problem.alm_power_sum += self.problem.alm_power*self.problem.dt
 
                 # self.problem.alm_power_average = self.problem.alm_power_sum/self.simTime
 
                 # self.fprint('Rotor Power: %.6f MW' % (self.problem.alm_power/1e6))
-                output_str = 'Rotor Power: %s MW' % (np.array2string(self.problem.alm_power/1.0e6, precision=3, separator=', '))
+                output_str = 'Rotor Power  (numpy): %s MW' % (np.array2string(self.problem.alm_power/1.0e6, precision=5, separator=', '))
+                self.fprint(output_str)
+                output_str = 'Rotor Power (dolfin): %s MW' % (np.array2string(self.problem.alm_power_dolfin/1.0e6, precision=5, separator=', '))
                 self.fprint(output_str)
 
                 # exit()
@@ -626,6 +637,7 @@ class UnsteadySolver(GenericSolver):
             i+=1
 
         if self.optimizing:
+            # if dt_sum > 0.0:
             self.J = self.J/float(dt_sum)
 
 
@@ -654,7 +666,7 @@ class UnsteadySolver(GenericSolver):
         if self.first_save:
             self.velocity_file = self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime)
             self.pressure_file   = self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime)
-            self.turb_force_file   = self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime)
+            # self.turb_force_file   = self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime)
             if self.optimizing:
                 self.adj_tape_file = XDMFFile(self.params.folder+"timeSeries/global_adjoint.xdmf")
                 self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
@@ -662,7 +674,7 @@ class UnsteadySolver(GenericSolver):
         else:
             self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime,file=self.velocity_file)
             self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime,file=self.pressure_file)
-            self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
+            # self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
             if self.optimizing:
                 self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
 

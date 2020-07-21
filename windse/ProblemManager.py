@@ -160,7 +160,17 @@ class GenericProblem(object):
                 self.mcl.append(turb_i_lift)
                 self.mcd.append(turb_i_drag)
 
-            tf = CalculateActuatorLineTurbineForces(self, simTime)
+
+            self.ALM_force_method = 'multiple'
+            # self.ALM_force_method = 'single'
+
+            if self.ALM_force_method == 'multiple':
+                tf = CalculateActuatorLineTurbineForces(self, simTime)
+
+            elif self.ALM_force_method == 'single':
+                alm_output_list = CalculateActuatorLineTurbineForces(self, simTime)
+                tf = sum(alm_output_list)
+
 
             self.CopyALMtoWindFarm()
         else:

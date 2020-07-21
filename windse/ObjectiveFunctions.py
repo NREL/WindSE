@@ -59,7 +59,8 @@ def CalculatePowerFunctional(solver,inflow_angle = 0.0):
     return J
 
 def CalculateActuatorLinePowerFunctional(solver,inflow_angle = 0.0):
-    J = sum(solver.problem.alm_power)
+    # J = assemble(dot(-solver.problem.tf_individual, solver.problem.cyld)*dx, annotate=True)
+    J = -assemble((2.0*np.pi*solver.problem.rpm/60.0)*dot(-solver.problem.tf, solver.problem.cyld)*dx, annotate=True)
 
     if solver.save_power or solver.save_objective:
         J_list=np.zeros(solver.problem.farm.numturbs+2)

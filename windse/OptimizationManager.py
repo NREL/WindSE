@@ -177,6 +177,8 @@ class Optimizer(object):
                     self.controls.append(Control(self.problem.mchord[i][k]))
                     self.init_vals.append(self.problem.mchord[i][k])
 
+        # print(self.controls)
+
     def CreateBounds(self):
         lower_bounds = []
         upper_bounds = []
@@ -367,6 +369,10 @@ class Optimizer(object):
         h = []
         for i,c in enumerate(self.controls):
             h.append(Constant(1*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
+            # h.append(Constant(1.0))
+            print('h', i, '=', h[-1].values())
+
+        # h = Constant(0.1)
 
         conv_rate = taylor_test(self.Jhat, self.init_vals, h)
 

@@ -167,7 +167,7 @@ class GenericWindFarm(object):
 
         for i in range(self.numturbs):
             y = np.array(self.mchord[i],dtype=float)
-            plt.plot(x,y,label=i)
+            plt.plot(x,y,'.-',label=i)
 
         plt.xlim(0,1)
         if power is None:

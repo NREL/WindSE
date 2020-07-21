@@ -11,10 +11,10 @@ else:
 if main_file != "sphinx-build":
     from windse import windse_parameters
     if windse_parameters.dolfin_adjoint:
-        from dolfin import dx, File
-        from dolfin_adjoint import Constant, Function, assemble
+        from dolfin import dx, File, dot
+        from dolfin_adjoint import Constant, Function, Expression, assemble
     else:
-        from dolfin import Constant, Function, dx, assemble, File
+        from dolfin import Constant, Function, Expression, dot, dx, assemble, File
 
     import numpy as np
     import time
@@ -296,7 +296,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
 
 #================================================================
 
-def UpdateActuatorLineForce(problem, simTime, dfd):
+def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
     def rot_x(theta):
         Rx = np.array([[1, 0, 0],
                        [0, np.cos(theta), -np.sin(theta)],
@@ -366,6 +366,16 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
     # Resape a linear copy of the coordinates for every mesh point
     coordsLinear = np.copy(coords.reshape(-1, 1))
 
+    # Initialize a single turbine force function (contains only a single turbine for power calculations)
+    tf_individual = Function(problem.fs.V)
+
+    # Initialize a cumulative turbine force function (contains all turbines)
+    tf = Function(problem.fs.V)
+    tf.vector()[:] = 0.0
+
+    # Initialize a cylindrical field function
+    cyld = Function(problem.fs.V)
+
     #================================================================
     # Set Turbine and Fluid Properties
     #================================================================
@@ -383,8 +393,11 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
     # Initialize the sum of the torque on the rotor shaft to zero
     # problem.rotor_torque = 0.0
     problem.rotor_torque = np.zeros(problem.farm.numturbs)
+    problem.rotor_torque_dolfin = np.zeros(problem.farm.numturbs)
 
-    for turb_i in range(problem.farm.numturbs):
+    # for turb_i in range(problem.farm.numturbs):
+    for turb_i in turb_index:
+        # print(turb_i)
 
         # # Set the hub height
         # hub_height = problem.farm.HH[turb_i]
@@ -471,9 +484,9 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
             c = np.ones(problem.num_blade_segments)
             dfd_chord = np.zeros((np.size(coords), problem.num_blade_segments))
 
-        save_debugging_files = False
+        save_safety_switch_files = False
 
-        if save_debugging_files:
+        if save_safety_switch_files:
             blade_pos_paraview = np.zeros((problem.num_blade_segments*num_blades, 3))
             lift_paraview = np.zeros((problem.num_blade_segments*num_blades, 3))
             drag_paraview = np.zeros((problem.num_blade_segments*num_blades, 3))
@@ -522,7 +535,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
                                                  blade_pos[1, k],
                                                  blade_pos[2, k])
                     
-                    # Force inlet velocity (1, 0, 0) for debugging
+                    # Force inlet velocity (1, 0, 0) for safe_mode
                     # u_fluid[:, k] = np.array([1, 0, 0])
 
             
@@ -534,7 +547,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
             # Form the total relative velocity vector (including velocity from rotating blade)
             u_rel = u_fluid + blade_vel
 
-            # Force fluid-only relative velocity for debugging
+            # Force fluid-only relative velocity for safe_mode
             # u_rel = u_fluid
 
             # Create unit vectors in the direction of u_rel
@@ -615,14 +628,14 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
                 # Add to the total torque
                 problem.rotor_torque[turb_i] += actuator_torque  ### Should this be an output?
 
-                if save_debugging_files:
+                if save_safety_switch_files:
                     idx = problem.num_blade_segments*blade_ct + k
                     blade_pos_paraview[idx, :] = blade_pos[:, k]
                     lift_paraview[idx, :] = actuator_lift
                     drag_paraview[idx, :] = actuator_drag
                     torque_paraview[idx, :] = tangential_actuator_force*blade_unit_vec[:, 2]
 
-        if save_debugging_files:
+        if save_safety_switch_files:
             folder_string = problem.params.folder+"timeSeries/"
             if not os.path.exists(folder_string): os.makedirs(folder_string)
             fp = open(folder_string +('actuatorForces%05d.vtk' % (problem.num_times_called)), 'w')
@@ -670,16 +683,39 @@ def UpdateActuatorLineForce(problem, simTime, dfd):
             # Remove near-zero values
             tf_vec[np.abs(tf_vec) < 1e-12] = 0.0
 
-            if turb_i == 0:
-                # Initialize turbine force (tf) dolfin function
-                tf = Function(problem.fs.V)
+            # Assign the individual turbine force
+            tf_individual.vector()[:] = tf_vec
 
-                # Set the dolfin vector values
-                tf.vector()[:] = tf_vec
+            # Create a cylindrical expression aligned with the position of this turbine
+            cyld_expr = Expression(('sin(yaw)*(x[2]-zs)', '-cos(yaw)*(x[2]-zs)', '(x[1]-ys)*cos(yaw)-(x[0]-xs)*sin(yaw)'),
+                degree=1,
+                yaw=problem.farm.yaw[turb_i],
+                xs=problem.farm.x[turb_i],
+                ys=problem.farm.y[turb_i],
+                zs=problem.farm.HH[turb_i])
+
+            cyld.interpolate(cyld_expr)
+
+            # Integrate dot(Force, In-Plane-Vector) to get total torque
+            problem.rotor_torque_dolfin[turb_i] = assemble(dot(-tf_individual, cyld)*dx)
+
+            # Add to the cumulative turbine force
+            tf.vector()[:] += tf_vec
+
+            # if turb_i == 0:
+            #     # Initialize turbine force (tf) dolfin function
+            #     tf = Function(problem.fs.V)
+
+            #     # Set the dolfin vector values
+            #     tf.vector()[:] = tf_vec
                 
-            else:
-                tf.vector()[:] += tf_vec
+            # else:
+            #     tf.vector()[:] += tf_vec
 
+    # Test storing them here for objective function calc
+    # problem.tf_individual = tf_individual
+    problem.cyld = cyld
+    # print('just saved turb %.0d at x = %f, y = %.0f, yaw = %.4f' % (turb_i, problem.farm.x[turb_i], problem.farm.y[turb_i], problem.farm.yaw[turb_i]))
 
     if dfd == None:
 
@@ -715,14 +751,45 @@ def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, verbose=False
 
     # if dfd is None, alm_output is a dolfin function (tf) [1 x numPts*ndim]
     # otherwise, it returns a numpy array of derivatives [numPts*ndim x numControls]
+
+    # for all turbs:
+    #     tf, tf_ind = BuildSingleALM(problem, simTime, dfd, turb_i)
+
+
     tic = time.time()
-    alm_output = UpdateActuatorLineForce(problem, simTime, dfd)
+
+    if problem.ALM_force_method == 'multiple':
+        # Calculate turbines all at once
+        # alm_output will be a single function with the effect of every turbine
+
+        turb_index = [k for k in range(problem.farm.numturbs)]
+        alm_output = UpdateActuatorLineForce(problem, simTime, dfd, turb_index)
+
+    elif problem.ALM_force_method == 'single':
+        # Calculate turbines one at a time, storing each in a list
+        # alm_output will be a function with the effect of a single turbine
+        # alm_output_list contains all and can be summed for inclusion in forms or objectives
+
+        alm_output_list = []
+
+        for turb_index in range(problem.farm.numturbs):
+            alm_output = UpdateActuatorLineForce(problem, simTime, dfd, [turb_index])
+            alm_output_list.append(alm_output)
+
+
     toc = time.time()
+
     if verbose:
         print("Current Optimization Time: "+repr(simTime)+ ", it took: "+repr(toc-tic)+" seconds")
         sys.stdout.flush()
 
-    return alm_output
+
+    if problem.ALM_force_method == 'multiple':
+        return alm_output
+
+    elif problem.ALM_force_method == 'single':
+        # Return a list of all turbine forces stored individually
+        return alm_output_list
 
 #================================================================
 
