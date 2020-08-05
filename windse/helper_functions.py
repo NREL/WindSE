@@ -881,7 +881,7 @@ def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, verbose=False
         # alm_output will be a single function with the effect of every turbine
 
         turb_index = [k for k in range(problem.farm.numturbs)]
-        alm_output = UpdateActuatorLineForce(problem, simTime, dfd, turb_index)
+        alm_output_list = [UpdateActuatorLineForce(problem, simTime, dfd, turb_index)]
 
     elif problem.ALM_force_method == 'single':
         # Calculate turbines one at a time, storing each in a list
@@ -889,10 +889,8 @@ def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, verbose=False
         # alm_output_list contains all and can be summed for inclusion in forms or objectives
 
         alm_output_list = []
-
         for turb_index in range(problem.farm.numturbs):
-            alm_output = UpdateActuatorLineForce(problem, simTime, dfd, [turb_index])
-            alm_output_list.append(alm_output)
+            alm_output_list.append(UpdateActuatorLineForce(problem, simTime, dfd, [turb_index]))
 
 
     toc = time.time()
@@ -901,13 +899,9 @@ def CalculateActuatorLineTurbineForces(problem, simTime, dfd=None, verbose=False
         print("Current Optimization Time: "+repr(simTime)+ ", it took: "+repr(toc-tic)+" seconds")
         sys.stdout.flush()
 
+    return alm_output_list
 
-    if problem.ALM_force_method == 'multiple':
-        return alm_output
 
-    elif problem.ALM_force_method == 'single':
-        # Return a list of all turbine forces stored individually
-        return alm_output_list
 
 #================================================================
 

@@ -177,8 +177,6 @@ class Optimizer(object):
                     self.controls.append(Control(self.problem.mchord[i][k]))
                     self.init_vals.append(self.problem.mchord[i][k])
 
-        # print(self.controls)
-
     def CreateBounds(self):
         lower_bounds = []
         upper_bounds = []
@@ -343,20 +341,20 @@ class Optimizer(object):
             m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
         # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
-        self.fprint("Assigning New Values")
-        new_values = {}
-        m_f = np.array(m_opt,dtype=float)
-        if "layout" in self.control_types:
-            new_values["x"]   = m_f[self.indexes[0]]
-            new_values["y"]   = m_f[self.indexes[1]]
-        if "yaw" in self.control_types:
-            new_values["yaw"] = m_f[self.indexes[2]]
-        if "axial" in self.control_types:
-            new_values["a"]   = m_f[self.indexes[3]]
-        self.problem.farm.UpdateControls(**new_values)
+        # self.fprint("Assigning New Values")
+        # new_values = {}
+        # m_f = np.array(m_opt,dtype=float)
+        # if "layout" in self.control_types:
+        #     new_values["x"]   = m_f[self.indexes[0]]
+        #     new_values["y"]   = m_f[self.indexes[1]]
+        # if "yaw" in self.control_types:
+        #     new_values["yaw"] = m_f[self.indexes[2]]
+        # if "axial" in self.control_types:
+        #     new_values["a"]   = m_f[self.indexes[3]]
+        # self.problem.farm.UpdateControls(**new_values)
         
-        self.fprint("Solving With New Values")
-        self.solver.Solve()
+        # self.fprint("Solving With New Values")
+        # self.solver.Solve()
 
         self.fprint("Optimization Finished",special="header")
 
@@ -369,10 +367,6 @@ class Optimizer(object):
         h = []
         for i,c in enumerate(self.controls):
             h.append(Constant(1*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
-            # h.append(Constant(1.0))
-            print('h', i, '=', h[-1].values())
-
-        # h = Constant(0.1)
 
         conv_rate = taylor_test(self.Jhat, self.init_vals, h)
 

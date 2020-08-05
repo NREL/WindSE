@@ -551,14 +551,11 @@ class UnsteadySolver(GenericSolver):
             if self.problem.farm.turbine_method == "alm":
                 # t1 = time.time()
 
-                if self.problem.ALM_force_method == 'multiple':
-                    new_tf = CalculateActuatorLineTurbineForces(self.problem, self.simTime)
+                new_tf_list = CalculateActuatorLineTurbineForces(self.problem, self.simTime)
 
-                elif self.problem.ALM_force_method == 'single':
-                    alm_outputs = CalculateActuatorLineTurbineForces(self.problem, self.simTime)
-                    new_tf = sum(alm_outputs)
+                for i in len(self.problem.tf_list):
+                    self.problem.tf_list[i].assign(new_tf_list[i])
 
-                self.problem.tf = new_tf
                 # t2 = time.time()
                 # print(t2-t1)
 

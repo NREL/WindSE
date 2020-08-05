@@ -212,16 +212,9 @@ class GenericProblem(object):
                 self.mcd.append(turb_i_drag)
 
 
-            self.ALM_force_method = 'multiple'
-            # self.ALM_force_method = 'single'
-
-            if self.ALM_force_method == 'multiple':
-                tf = CalculateActuatorLineTurbineForces(self, simTime)
-
-            elif self.ALM_force_method == 'single':
-                alm_output_list = CalculateActuatorLineTurbineForces(self, simTime)
-                tf = sum(alm_output_list)
-
+            # self.ALM_force_method = 'multiple'
+            self.ALM_force_method = 'single'
+            self.tf_list = CalculateActuatorLineTurbineForces(self, simTime)
 
             self.CopyALMtoWindFarm()
         else:
@@ -230,7 +223,8 @@ class GenericProblem(object):
         ### Convolve TF with u ###
         if self.farm.turbine_method != 'alm':
             tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
-
+        else:
+            tf = sum(self.tf_list)
         return tf
 
 
@@ -585,7 +579,6 @@ class UnsteadyProblem(GenericProblem):
         # self.tf = Function(self.fs.V)
 
         self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
-        self.u_k.assign(self.tf)
         self.u_k.assign(self.bd.bc_velocity)
 
 
