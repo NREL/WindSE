@@ -385,7 +385,7 @@ class GenericWindFarm(object):
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
 
-    def WakeRefine(self,radius,length,theta=0.0,expand_factor=1):
+    def WakeRefine(self,radius,length,theta=0.0,expand_factor=1,centered=False):
         self.fprint("Wake Refinement Near Turbines",special="header")
         refine_start = time.time()
 
@@ -423,8 +423,17 @@ class GenericWindFarm(object):
             y = (np.sin(theta)*(x_diff)+np.cos(theta)*(y_diff) + turb_y)
 
             ### Determine if in wake ###
-            x0 = turb_x - radius
-            x1 = turb_x + length
+            if centered:
+                # Center the refinement region around the turbine
+                # upstream and downstream by length/2
+                x0 = turb_x - length/2.0
+                x1 = turb_x + length/2.0
+            else:
+                # Otherwise, refine the default amount upstream (R)
+                # and the full length amount downstreeam
+                x0 = turb_x - radius
+                x1 = turb_x + length
+
             in_wake = np.logical_and(np.greater(x,x0),np.less(x,x1))
             in_wake = np.any(in_wake,axis=0)
 

@@ -2,13 +2,14 @@ import time
 import numpy as np
 
 def CreateRefinementList(dom, farm, refine_params):  
-    farm_num       = refine_params["farm_num"]       
-    farm_type      = refine_params["farm_type"]      
-    farm_factor    = refine_params["farm_factor"]    
-    turbine_num    = refine_params["turbine_num"]    
-    turbine_type   = refine_params["turbine_type"]    
-    turbine_factor = refine_params["turbine_factor"] 
-    refine_custom  = refine_params["refine_custom"]  ### Need to fix for if the domain is scaled
+    farm_num          = refine_params["farm_num"]       
+    farm_type         = refine_params["farm_type"]      
+    farm_factor       = refine_params["farm_factor"]    
+    turbine_num       = refine_params["turbine_num"]    
+    turbine_type      = refine_params["turbine_type"]    
+    turbine_factor    = refine_params["turbine_factor"] 
+    refine_custom     = refine_params["refine_custom"]  ### Need to fix for if the domain is scaled
+    refine_power_calc = refine_params["refine_power_calc"]
 
     refine_list = []
 
@@ -72,6 +73,14 @@ def CreateRefinementList(dom, farm, refine_params):
                 radius = max(farm.RD)
                 theta = dom.inflow_angle
                 refine_list.append(["tear",[radius,theta,expand_factor]])
+
+        if refine_power_calc:
+            radius = max(farm.RD)
+            length = radius/5.0
+            theta = dom.inflow_angle
+            centered = True
+            refine_list.append(["wake",[radius,length,theta,expand_factor,centered]])
+
 
     if refine_custom is not None:
         refine_list = refine_list+refine_custom

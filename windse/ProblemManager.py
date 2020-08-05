@@ -72,10 +72,19 @@ class GenericProblem(object):
             self.rpm = self.params["wind_farm"]["rpm"]
 
             hmin = self.dom.mesh.hmin()/np.sqrt(3)
+            # self.gaussian_width = 2.0*hmin/3.0
+            # Recommendation from Churchfield et al.
+            self.gaussian_width = 2.0*0.035*2.0*self.farm.radius[0]
+
+            CHORD_SCALING_FACTOR = 1.0
+
+            print('Minimum Space Between Mesh: ', hmin)
+            print('Gaussian Width: ', self.gaussian_width)
+
             # self.num_blade_segments = 10
             # self.num_blade_segments = int(10.0*self.farm.radius[0]/hmin)
             if self.farm.blade_segments == "computed":
-                self.num_blade_segments = int(self.farm.radius[0]/hmin)
+                self.num_blade_segments = int(2.0*self.farm.radius[0]/self.gaussian_width)
                 self.farm.blade_segments = self.num_blade_segments
             else:
                 self.num_blade_segments = self.farm.blade_segments
@@ -86,7 +95,9 @@ class GenericProblem(object):
             self.mcd = []
 
             self.num_times_called = 0
-
+            self.first_call_to_function = True
+            self.blade_pos_previous = [[], [], []]
+            self.simTime_list = [0]
 
             # Initialize the lift and drag files
             for fn in ['lift', 'drag']:
@@ -108,7 +119,7 @@ class GenericProblem(object):
                 actual_turbine_data = np.genfromtxt(turb_data, delimiter = ',', skip_header = 1)
 
                 actual_x = actual_turbine_data[:, 0]
-                actual_chord = actual_turbine_data[:, 1]
+                actual_chord = CHORD_SCALING_FACTOR*actual_turbine_data[:, 1]
                 actual_cl = actual_turbine_data[:, 3]
                 actual_cd = actual_turbine_data[:, 4]
 
@@ -130,6 +141,36 @@ class GenericProblem(object):
                 cl_interp = interp.interp1d(actual_x, actual_cl)
                 cd_interp = interp.interp1d(actual_x, actual_cd)
 
+                if self.params['problem']['script_iterator'] == 1:
+                    actual_x_override = np.linspace(0.0, 1.0, 10)
+                    actual_chord_override = np.array([4.749999999999964473e+00,
+                        4.749999999999989342e+00,
+                        4.750000000000000000e+00,
+                        4.749999999999996447e+00,
+                        4.749999999999998224e+00,
+                        4.749999999999999112e+00,
+                        4.450663333333332083e+00,
+                        3.867691040375480060e+00,
+                        8.488750327288195896e-01,
+                        1.000000000000000056e-01])
+
+                    chord_interp_override = interp.interp1d(actual_x_override, actual_chord_override)
+
+                if self.params['problem']['script_iterator'] == 2:
+                    actual_x_override = np.linspace(0.0, 1.0, 10)
+                    actual_chord_override = np.array([5.200000000000000178e+00,
+                        7.027575555710222410e+00,
+                        8.476945227498621449e+00,
+                        8.280660000000001020e+00,
+                        6.990223354798463795e+00,
+                        5.499632522453062222e+00,
+                        4.450663333333333860e+00,
+                        3.867691040375480060e+00,
+                        8.488750327288112629e-01,
+                        1.000000000000000056e-01])
+
+                    chord_interp_override = interp.interp1d(actual_x_override, actual_chord_override)
+
                 # Construct the points at which to generate interpolated values
                 interp_points = np.linspace(0.0, 1.0, self.num_blade_segments)
 
@@ -138,6 +179,9 @@ class GenericProblem(object):
                 cl = cl_interp(interp_points)
                 cd = cd_interp(interp_points)
                 self.farm.baseline_chord = np.array(chord)
+
+                if self.params['problem']['script_iterator'] > 0:
+                    chord_override = chord_interp_override(interp_points)
 
             else:
                 # If not reading from a file, prescribe dummy values
@@ -151,10 +195,17 @@ class GenericProblem(object):
                 turb_i_lift = []
                 turb_i_drag = []
 
+                if turb_i == 0 and self.params['problem']['script_iterator'] > 0:
+                    chord_to_use = chord_override
+                else:
+                    chord_to_use = chord
+
                 for k in range(self.num_blade_segments):
-                    turb_i_chord.append(Constant(chord[k]))
+                    turb_i_chord.append(Constant(chord_to_use[k]))
                     turb_i_lift.append(Constant(cl[k]))
                     turb_i_drag.append(Constant(cd[k]))
+
+                print('Turbine #%d: Chord = ' % (turb_i), chord_to_use)
 
                 self.mchord.append(turb_i_chord)
                 self.mcl.append(turb_i_lift)
