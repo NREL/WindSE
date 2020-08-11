@@ -18,6 +18,7 @@ if main_file != "sphinx-build":
     import numpy as np
     import time
     import scipy.interpolate as interp
+    import glob
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters, CalculateActuatorLineTurbineForces
@@ -76,7 +77,8 @@ class GenericProblem(object):
             # Recommendation from Churchfield et al.
             self.gaussian_width = 2.0*0.035*2.0*self.farm.radius[0]
 
-            CHORD_SCALING_FACTOR = 1.0
+            self.chord_factor = float(self.params["wind_farm"]["chord_factor"])
+
 
             print('Minimum Space Between Mesh: ', hmin)
             print('Gaussian Width: ', self.gaussian_width)
@@ -91,13 +93,25 @@ class GenericProblem(object):
             print('Num blade segments: ', self.num_blade_segments)
 
             self.mchord = []
+            self.mtwist = []
             self.mcl = []
             self.mcd = []
 
             self.num_times_called = 0
-            self.first_call_to_function = True
-            self.blade_pos_previous = [[], [], []]
+            self.first_call_to_alm = True
             self.simTime_list = [0]
+
+            self.aoa_file = './output/%s/angle_of_attack.csv' % (self.params.name)
+
+
+            fp = open(self.aoa_file, 'w')
+
+            for j in range(3):
+                for k in range(self.num_blade_segments):
+                    fp.write('r%d_n%03d, ' % (j, k))
+            fp.write('\n')
+            fp.close()
+
 
             # Initialize the lift and drag files
             for fn in ['lift', 'drag']:
@@ -114,14 +128,52 @@ class GenericProblem(object):
             turb_data = self.params["wind_farm"]["read_turb_data"]
 
             if turb_data:
+
+                def build_lift_and_drag_tables(airfoil_data_path):
+
+                    # Determine the number of files in airfoil_data_path
+                    num_files = len(glob.glob('%s/*.txt' % (airfoil_data_path)))
+
+                    for file_id in range(num_files):
+                        print('Reading Airfoil Data #%d' % (file_id))
+                        data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, file_id), skip_header=1, delimiter=' ')
+
+                        if file_id == 0:
+                            # If this is the first file, store the angle data
+                            interp_angles = data[:, 0]
+                            num_angles = np.size(interp_angles)
+                            
+                            # If this is the first file, allocate space for the tables        
+                            lift_table = np.zeros((num_angles, num_files))
+                            drag_table = np.zeros((num_angles, num_files))
+                            
+                        # Store all the lift and drag data in the file_id column
+                        lift_table[:, file_id] = data[:, 1]
+                        drag_table[:, file_id] = data[:, 2]
+
+                    return lift_table, drag_table, interp_angles
+
+
                 self.fprint('Setting chord, lift, and drag from file \'%s\'' % (turb_data))
 
                 actual_turbine_data = np.genfromtxt(turb_data, delimiter = ',', skip_header = 1)
 
                 actual_x = actual_turbine_data[:, 0]
-                actual_chord = CHORD_SCALING_FACTOR*actual_turbine_data[:, 1]
+
+                actual_chord = self.chord_factor*actual_turbine_data[:, 1]
+
+                # Baseline twist is expressed in degrees, convert to radians
+                actual_twist = actual_turbine_data[:, 2]/180.0*np.pi
+
                 actual_cl = actual_turbine_data[:, 3]
                 actual_cd = actual_turbine_data[:, 4]
+
+
+                lift_table, drag_table, interp_angles = build_lift_and_drag_tables('airfoil_polars')
+                self.lift_table = lift_table
+                self.drag_table = drag_table
+                self.interp_angles = interp_angles
+
 
                 modify_chord = False
 
@@ -138,6 +190,7 @@ class GenericProblem(object):
 
                 # Create interpolators for chord, lift, and drag
                 chord_interp = interp.interp1d(actual_x, actual_chord)
+                twist_interp = interp.interp1d(actual_x, actual_twist)
                 cl_interp = interp.interp1d(actual_x, actual_cl)
                 cd_interp = interp.interp1d(actual_x, actual_cd)
 
@@ -176,9 +229,10 @@ class GenericProblem(object):
 
                 # Generate the interpolated values
                 chord = chord_interp(interp_points)
+                twist = twist_interp(interp_points)
                 cl = cl_interp(interp_points)
                 cd = cd_interp(interp_points)
-                self.farm.baseline_chord = np.array(chord)
+                self.farm.baseline_chord = np.array(chord)/self.chord_factor
 
                 if self.params['problem']['script_iterator'] > 0:
                     chord_override = chord_interp_override(interp_points)
@@ -186,12 +240,14 @@ class GenericProblem(object):
             else:
                 # If not reading from a file, prescribe dummy values
                 chord = self.farm.radius[0]/20.0*np.ones(self.num_blade_segments)
+                twist = np.zeros(self.num_blade_segments)
                 cl = np.ones(self.num_blade_segments)
                 cd = 0.1*np.ones(self.num_blade_segments)
 
             # Save the list of controls to self
             for turb_i in range(self.farm.numturbs):
                 turb_i_chord = []
+                turb_i_twist = []
                 turb_i_lift = []
                 turb_i_drag = []
 
@@ -202,18 +258,20 @@ class GenericProblem(object):
 
                 for k in range(self.num_blade_segments):
                     turb_i_chord.append(Constant(chord_to_use[k]))
+                    turb_i_twist.append(Constant(twist[k]))
                     turb_i_lift.append(Constant(cl[k]))
                     turb_i_drag.append(Constant(cd[k]))
 
                 print('Turbine #%d: Chord = ' % (turb_i), chord_to_use)
 
                 self.mchord.append(turb_i_chord)
+                self.mtwist.append(turb_i_twist)
                 self.mcl.append(turb_i_lift)
                 self.mcd.append(turb_i_drag)
 
 
-            # self.ALM_force_method = 'multiple'
-            self.ALM_force_method = 'single'
+            self.ALM_force_method = 'multiple'
+            # self.ALM_force_method = 'single'
             self.tf_list = CalculateActuatorLineTurbineForces(self, simTime)
 
             self.CopyALMtoWindFarm()

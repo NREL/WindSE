@@ -553,7 +553,7 @@ class UnsteadySolver(GenericSolver):
 
                 new_tf_list = CalculateActuatorLineTurbineForces(self.problem, self.simTime)
 
-                for i in len(self.problem.tf_list):
+                for i in range(len(self.problem.tf_list)):
                     self.problem.tf_list[i].assign(new_tf_list[i])
 
                 # t2 = time.time()

@@ -17,6 +17,7 @@ if main_file != "sphinx-build":
         from dolfin import Constant, Function, Expression, dot, dx, assemble, File
 
     import numpy as np
+    import scipy.interpolate as interp
     import time
     from scipy.special import gamma
 
@@ -353,6 +354,90 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
             fp << (dolfin_function, k)
 
 
+    def build_lift_and_drag(problem, u_rel, blade_unit_vec, rdim, twist, c):
+
+        def get_angle_between_vectors(a, b, n):
+            a_x_b = np.dot(np.cross(n, a), b)
+
+            norm_a = np.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2])
+            norm_b = np.sqrt(b[0]*b[0] + b[1]*b[1] + b[2]*b[2])
+
+            c1 = a_x_b/(norm_a*norm_b)
+            c1 = np.clip(c1, -1.0, 1.0)
+            aoa_1 = np.arcsin(c1)
+
+            c2 = np.dot(a, b)/(norm_a*norm_b)
+            c2 = np.clip(c2, -1.0, 1.0)
+            aoa_2 = np.arccos(c2)
+            
+            if aoa_2 > np.pi/2.0:
+                if aoa_1 < 0:
+                    aoa_1 = -np.pi - aoa_1
+                else:
+                    aoa_1 = np.pi - aoa_1
+            
+            aoa_1_deg = aoa_1/np.pi*180.0
+            
+            return aoa_1
+
+
+        # If this is the first time calling the function...
+        if problem.first_call_to_alm:
+            # build the lift-drag table interpolators
+            rdim_all = np.linspace(0, rdim[-1], np.shape(problem.lift_table)[1])
+            problem.interp_lift = interp.RectBivariateSpline(problem.interp_angles, rdim_all, problem.lift_table)
+            problem.interp_drag = interp.RectBivariateSpline(problem.interp_angles, rdim_all, problem.drag_table)
+
+
+        # Initialize the real cl and cd profiles
+        real_cl = np.zeros(problem.num_blade_segments)
+        real_cd = np.zeros(problem.num_blade_segments)
+
+        fp = open(problem.aoa_file, 'a')
+
+        for k in range(problem.num_blade_segments):
+            # Get the relative wind velocity at this node
+            wind_vec = u_rel[:, k]
+
+            # Remove the component in the radial direction (along the blade span)
+            wind_vec -= np.dot(wind_vec, blade_unit_vec[:, 1])*blade_unit_vec[:, 1]
+
+            # aoa = get_angle_between_vectors(arg1, arg2, arg3)
+            # arg1 = in-plane vector pointing opposite rotation (blade sweep direction)
+            # arg2 = relative wind vector at node k, including blade rotation effects (wind direction)
+            # arg3 = unit vector normal to plane of rotation, in this case, radially along span
+            aoa = get_angle_between_vectors(-blade_unit_vec[:, 2], wind_vec, -blade_unit_vec[:, 1])
+
+            # Remove the portion of the angle due to twist
+            aoa -= twist[k]
+
+
+            # if np.abs(problem.farm.baseline_chord[k] - c[k]) > 1e-6:
+            #     # print('Chord differs from baseline at node %d:' % (k))
+            #     c_factor = c[k]/problem.farm.baseline_chord[k]
+
+            #     # Penalize by 10 degrees if the chord is doubled
+            #     penalty = c_factor*(np.pi*5.0/180.0)
+
+            #     aoa -= penalty
+
+            #     # real_cd[k] *= c_factor
+
+
+            # Store the cl and cd by interpolating this (aoa, span) pair from the tables
+            real_cl[k] = problem.interp_lift(aoa, rdim[k])
+            real_cd[k] = problem.interp_drag(aoa, rdim[k])
+
+
+
+            # Write the aoa to a file for future reference
+            fp.write('%.5f, ' % (aoa/np.pi*180.0))
+
+        fp.close()
+
+        return real_cl, real_cd
+
+
     #================================================================
     # Get Mesh Properties
     #================================================================
@@ -463,8 +548,18 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
         # cd = cd_dolf.values()
 
         # Read cl and cd from the values specified in problem manager
+        twist = np.array(problem.mtwist[turb_i], dtype = float)
+
+        using_lift_and_drag_tables = True
+
         cl = np.array(problem.mcl[turb_i], dtype = float)
         cd = np.array(problem.mcd[turb_i], dtype = float)
+
+
+        # if problem.first_call_to_alm:
+        #     print('twist', twist)
+        #     print('lift-table', problem.lift_table)
+        #     print('drag-table', problem.drag_table)
 
         # cl = np.ones(problem.num_blade_segments)
         # cd = np.ones(problem.num_blade_segments)
@@ -493,7 +588,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
             c = np.ones(problem.num_blade_segments)
             dfd_chord = np.zeros((np.size(coords), problem.num_blade_segments))
 
-        save_safety_switch_files = False
+        save_safety_switch_files = True
 
         if save_safety_switch_files:
             blade_pos_paraview = np.zeros((problem.num_blade_segments*num_blades, 3))
@@ -543,20 +638,25 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
             Rx = rot_x(theta)
             Rz = rot_z(problem.farm.yaw[turb_i])
 
+            # Rotate the blade velocity in the global x, y, z, coordinate system
+            # Note: blade_vel_base is negative since we seek the velocity of the fluid relative to a stationary blade
+            # and blade_vel_base is defined based on the movement of the blade
+            blade_vel = np.dot(Rz, np.dot(Rx, -blade_vel_base))
+
+            # Rotate the blade unit vectors to be pointing in the rotated positions
+            blade_unit_vec = np.dot(Rz, np.dot(Rx, blade_unit_vec_base))
+
             # Rotate the entire [x; y; z] matrix using this matrix, then shift to the hub location
             blade_pos = np.dot(Rz, np.dot(Rx, blade_pos_base))
             blade_pos[0, :] += problem.farm.x[turb_i]
             blade_pos[1, :] += problem.farm.y[turb_i]
             blade_pos[2, :] += problem.farm.HH[turb_i]
 
-
             time_offset = 1
             if len(problem.simTime_list) < time_offset:
                 theta_behind = theta_0 + problem.simTime_list[0]/period*2.0*np.pi
             else:
                 theta_behind = theta_0 + problem.simTime_list[-time_offset]/period*2.0*np.pi
-                if blade_ct == 0:
-                    print('SimTime = %f, using %f' % (simTime, problem.simTime_list[-time_offset]))
 
             Rx_alt = rot_x(theta_behind)
             blade_pos_alt = np.dot(Rz, np.dot(Rx_alt, blade_pos_base))
@@ -564,10 +664,6 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
             blade_pos_alt[1, :] += problem.farm.y[turb_i]
             blade_pos_alt[2, :] += problem.farm.HH[turb_i]
 
-
-            # print('turbine %d x-pos = %f, y-pos = %f, hh = %f, yaw = %f' % (turb_i,
-            #     problem.farm.x[turb_i], problem.farm.y[turb_i], problem.farm.HH[turb_i], problem.farm.yaw[turb_i]))
-    
             # Initialize space to hold the fluid velocity at each actuator node
             u_fluid = np.zeros((3, problem.num_blade_segments))
 
@@ -577,23 +673,9 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
             if using_local_velocity:
                 # Generate the fluid velocity from the actual node locations in the flow
                 for k in range(problem.num_blade_segments):
-
                     u_fluid[:, k] = problem.u_k1(blade_pos_alt[0, k],
                              blade_pos_alt[1, k],
                              blade_pos_alt[2, k])
-
-
-                    # if problem.first_call_to_function:
-                    #     u_fluid[:, k] = problem.u_k1(blade_pos[0, k],
-                    #                                  blade_pos[1, k],
-                    #                                  blade_pos[2, k])
-                    #     # print('first time calling function')
-                    # else:
-                    #     u_fluid[:, k] = problem.u_k1(problem.blade_pos_previous[blade_ct][0, k],
-                    #                                  problem.blade_pos_previous[blade_ct][1, k],
-                    #                                  problem.blade_pos_previous[blade_ct][2, k])
-                    #     # print('not first time calling function')
-
 
                     # u_fluid[0, k] *= 0.5
                     u_fluid[1, k] = 0.0
@@ -608,19 +690,10 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
 
                     # Force inlet velocity (1, 0, 0) for safe_mode
                     # u_fluid[:, k] = np.array([1, 0, 0])
-
-            problem.blade_pos_previous[blade_ct] = blade_pos
             
-            # Rotate the blade velocity in the global x, y, z, coordinate system
-            # Note: blade_vel_base is negative since we seek the velocity of the fluid relative to a stationary blade
-            # and blade_vel_base is defined based on the movement of the blade
-            blade_vel = np.dot(Rz, np.dot(Rx, -blade_vel_base))
-
-            # Rotate the blade unit vectors to be pointing in the rotated positions
-            blade_unit_vec = np.dot(Rz, np.dot(Rx, blade_unit_vec_base))
-                            
+            
             # Form the total relative velocity vector (including velocity from rotating blade)
-            u_rel = u_fluid + blade_vel
+            u_rel = blade_vel + u_fluid
 
             # Force fluid-only relative velocity for safe_mode
             # u_rel = u_fluid
@@ -629,6 +702,10 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
             u_rel_mag = np.linalg.norm(u_rel, axis=0)
             u_rel_mag[u_rel_mag < 1e-6] = 1e-6
             u_unit_vec = u_rel/u_rel_mag
+
+
+            if using_lift_and_drag_tables:
+                cl, cd = build_lift_and_drag(problem, u_rel, blade_unit_vec, rdim, twist, c)
             
             # Calculate the lift and drag forces using the relative velocity magnitude
             lift = (0.5*cl*rho*c*w*u_rel_mag**2)
@@ -777,7 +854,6 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
             write_paraview_vector('u_fluid', u_fluid_paraview)
             write_paraview_vector('u_blade', u_blade_paraview)
 
-            problem.num_times_called += 1
             fp.close()
 
 
@@ -828,7 +904,12 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
     problem.cyld = cyld
     # print('just saved turb %.0d at x = %f, y = %.0f, yaw = %.4f' % (turb_i, problem.farm.x[turb_i], problem.farm.y[turb_i], problem.farm.yaw[turb_i]))
 
-    problem.first_call_to_function = False
+    fp = open(problem.aoa_file, 'a')
+    fp.write('\n')
+    fp.close()
+
+    problem.num_times_called += 1
+    problem.first_call_to_alm = False
     problem.simTime_list.append(simTime)
 
     # fp = File('%s/timeSeries/gauss.pvd' % (problem.params.folder))
