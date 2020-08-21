@@ -415,7 +415,9 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
                 tip_loss[k] = 1.0
             else:
                 loss_exponent = 3.0/2.0*(rdim[-1]-rdim[k])/(rdim[k]*np.sin(aoa))
-                tip_loss[k] = 2.0/np.pi*np.arccos(np.exp(-loss_exponent))
+                acos_arg = np.exp(-loss_exponent)
+                acos_arg = np.clip(acos_arg, -1.0, 1.0)
+                tip_loss[k] = 2.0/np.pi*np.arccos(acos_arg)
 
             # Remove the portion of the angle due to twist
             aoa -= twist[k]
