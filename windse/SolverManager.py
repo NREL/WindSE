@@ -535,6 +535,7 @@ class UnsteadySolver(GenericSolver):
 
             # Update the simulation time
             self.simTime += self.problem.dt
+            
             if save_next_timestep:
                 # Read in new inlet values
                 # bcu = self.updateInletVelocityFromFile(saveCount, bcu)
@@ -546,6 +547,9 @@ class UnsteadySolver(GenericSolver):
                 # Save output files
                 # self.SaveTimeSeries(fp, self.simTime)
                 self.SaveTimeSeries(self.simTime)
+
+            # Adjust the timestep size, dt, for a balance of simulation speed and stability
+            save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
 
             # Update the turbine force
             if self.problem.farm.turbine_method == "alm":
@@ -568,9 +572,9 @@ class UnsteadySolver(GenericSolver):
                 # self.problem.alm_power_average = self.problem.alm_power_sum/self.simTime
 
                 # self.fprint('Rotor Power: %.6f MW' % (self.problem.alm_power/1e6))
-                output_str = 'Rotor Power  (numpy): %s MW' % (np.array2string(self.problem.alm_power/1.0e6, precision=5, separator=', '))
+                output_str = 'Rotor Power  (numpy): %s MW' % (np.array2string(self.problem.alm_power/1.0e6, precision=8, separator=', '))
                 self.fprint(output_str)
-                output_str = 'Rotor Power (dolfin): %s MW' % (np.array2string(self.problem.alm_power_dolfin/1.0e6, precision=5, separator=', '))
+                output_str = 'Rotor Power (dolfin): %s MW' % (np.array2string(self.problem.alm_power_dolfin/1.0e6, precision=8, separator=', '))
                 self.fprint(output_str)
 
                 # exit()
@@ -589,8 +593,8 @@ class UnsteadySolver(GenericSolver):
                     average_power += self.problem.alm_power*self.problem.dt
 
 
-            # Adjust the timestep size, dt, for a balance of simulation speed and stability
-            save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
+            # # Adjust the timestep size, dt, for a balance of simulation speed and stability
+            # save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
 
             # Calculate the objective function
             if self.optimizing and self.simTime >= self.record_time:
@@ -708,6 +712,7 @@ class UnsteadySolver(GenericSolver):
 
         # Set the CFL target (0.2 is a good value for stability and speed, YMMV)
         cfl_target = 0.5
+        cfl_target = 1.0
 
         # Enforce a minimum timestep size
         dt_min = 0.01

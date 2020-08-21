@@ -76,9 +76,9 @@ class GenericProblem(object):
             # self.gaussian_width = 2.0*hmin/3.0
             # Recommendation from Churchfield et al.
             self.gaussian_width = 2.0*0.035*2.0*self.farm.radius[0]
+            self.gaussian_width = float(self.params["wind_farm"]["gauss_factor"])*hmin
 
             self.chord_factor = float(self.params["wind_farm"]["chord_factor"])
-
 
             print('Minimum Space Between Mesh: ', hmin)
             print('Gaussian Width: ', self.gaussian_width)
@@ -556,7 +556,7 @@ class UnsteadyProblem(GenericProblem):
         # Define time step size (this value is used only for step 1 if adaptive timestepping is used)
         # FIXME: change variable name to avoid confusion within dolfin adjoint
         self.dt = 0.1*self.dom.mesh.hmin()/self.bd.HH_vel
-        # self.dt = 0.04
+        self.dt = 0.05
         self.dt_c  = Constant(self.dt)
 
         self.fprint("Viscosity: {:1.2e}".format(float(self.viscosity)))
@@ -665,10 +665,20 @@ class UnsteadyProblem(GenericProblem):
         self.a2 = dot(nabla_grad(p), nabla_grad(q))*dx
         self.L2 = dot(nabla_grad(self.p_k1), nabla_grad(q))*dx - (1.0/self.dt_c)*div(self.u_k)*q*dx
 
+        # phi = p - self.p_k
+        # F2 = inner(grad(q), grad(phi))*dx - (1.0/self.dt_c)*div(u_k)*q*dx
+        # self.a2 = lhs(F2)
+        # self.L2 = rhs(F2)
+
         # Define variational problem for step 3: velocity update
         self.a3 = dot(u, v)*dx
         self.L3 = dot(self.u_k, v)*dx - self.dt_c*dot(nabla_grad(self.p_k - self.p_k1), v)*dx
-    
+
+        # F3 = inner(u, v)*dx - inner(self.u_k, v)*dx + self.dt_c*inner(phi, v)*dx
+        # self.a3 = lhs(F3)
+        # self.L3 = rhs(F3)
+
+
         # ================================================================
 
         self.fprint("Unsteady Problem Setup",special="footer")

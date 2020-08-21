@@ -395,6 +395,8 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
 
         fp = open(problem.aoa_file, 'a')
 
+        tip_loss = np.zeros(problem.num_blade_segments)
+
         for k in range(problem.num_blade_segments):
             # Get the relative wind velocity at this node
             wind_vec = u_rel[:, k]
@@ -407,6 +409,13 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
             # arg2 = relative wind vector at node k, including blade rotation effects (wind direction)
             # arg3 = unit vector normal to plane of rotation, in this case, radially along span
             aoa = get_angle_between_vectors(-blade_unit_vec[:, 2], wind_vec, -blade_unit_vec[:, 1])
+
+            # Compute tip-loss factor
+            if rdim[k] < 1e-12:
+                tip_loss[k] = 1.0
+            else:
+                loss_exponent = 3.0/2.0*(rdim[-1]-rdim[k])/(rdim[k]*np.sin(aoa))
+                tip_loss[k] = 2.0/np.pi*np.arccos(np.exp(-loss_exponent))
 
             # Remove the portion of the angle due to twist
             aoa -= twist[k]
@@ -435,7 +444,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
 
         fp.close()
 
-        return real_cl, real_cd
+        return real_cl, real_cd, tip_loss
 
 
     #================================================================
@@ -554,6 +563,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
 
         cl = np.array(problem.mcl[turb_i], dtype = float)
         cd = np.array(problem.mcd[turb_i], dtype = float)
+        tip_loss = np.ones(problem.num_blade_segments)
 
 
         # if problem.first_call_to_alm:
@@ -588,6 +598,7 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
             c = np.ones(problem.num_blade_segments)
             dfd_chord = np.zeros((np.size(coords), problem.num_blade_segments))
 
+        # save_safety_switch_files = False
         save_safety_switch_files = True
 
         if save_safety_switch_files:
@@ -604,8 +615,14 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
 
         # Calculate the blade position based on current simTime and turbine RPM
         period = 60.0/problem.rpm
-        theta_offset = simTime/period*2.0*np.pi
+        # theta_offset = simTime/period*2.0*np.pi
+        theta_offset = (simTime+0.5*problem.dt)/period*2.0*np.pi
         # theta_offset = 0.0
+
+        # print('k-1/2, measuring fluid at  : ', 0.5*(problem.simTime_list[-1] + simTime))
+        # print('k    , simTime:              ', simTime)
+        # print('k+1/2, calculating force at: ', simTime+0.5*problem.dt)
+        # print('k+1  , next sim Time:        ', simTime+problem.dt)
 
 
         baseline_chord = problem.farm.baseline_chord
@@ -652,11 +669,14 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
             blade_pos[1, :] += problem.farm.y[turb_i]
             blade_pos[2, :] += problem.farm.HH[turb_i]
 
-            time_offset = 1
-            if len(problem.simTime_list) < time_offset:
-                theta_behind = theta_0 + problem.simTime_list[0]/period*2.0*np.pi
-            else:
-                theta_behind = theta_0 + problem.simTime_list[-time_offset]/period*2.0*np.pi
+            # time_offset = 1
+            # if len(problem.simTime_list) < time_offset:
+            #     theta_behind = theta_0 + problem.simTime_list[0]/period*2.0*np.pi
+            # else:
+            #     theta_behind = theta_0 + problem.simTime_list[-time_offset]/period*2.0*np.pi
+
+            offset_time = 0.5*(problem.simTime_list[-1] + simTime)
+            theta_behind = theta_0 + offset_time/period*2.0*np.pi
 
             Rx_alt = rot_x(theta_behind)
             blade_pos_alt = np.dot(Rz, np.dot(Rx_alt, blade_pos_base))
@@ -678,8 +698,10 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
                              blade_pos_alt[2, k])
 
                     # u_fluid[0, k] *= 0.5
-                    u_fluid[1, k] = 0.0
-                    u_fluid[2, k] = 0.0
+                    # u_fluid[1, k] = 0.0
+                    # u_fluid[2, k] = 0.0
+
+                    u_fluid[:, k] -= np.dot(u_fluid[:, k], blade_unit_vec[:, 1])*blade_unit_vec[:, 1]
 
             else:
                 # Generate the fluid velocity using the inlet velocity (x-pos = x_range[0])        
@@ -705,11 +727,12 @@ def UpdateActuatorLineForce(problem, simTime, dfd, turb_index=0):
 
 
             if using_lift_and_drag_tables:
-                cl, cd = build_lift_and_drag(problem, u_rel, blade_unit_vec, rdim, twist, c)
+                cl, cd, tip_loss = build_lift_and_drag(problem, u_rel, blade_unit_vec, rdim, twist, c)
+
             
             # Calculate the lift and drag forces using the relative velocity magnitude
-            lift = (0.5*cl*rho*c*w*u_rel_mag**2)
-            drag = (0.5*cd*rho*c*w*u_rel_mag**2)
+            lift = tip_loss*(0.5*cl*rho*c*w*u_rel_mag**2)
+            drag = tip_loss*(0.5*cd*rho*c*w*u_rel_mag**2)
 
             # Write the lift and drag magnitude at each actuator node to a CSV file
             write_lift_and_drag('lift', simTime, theta, lift)

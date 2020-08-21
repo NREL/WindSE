@@ -62,6 +62,7 @@ wind_farm:
     blade_segments: computed
     max_chord:      4.75
     chord_factor:   1.0           
+    gauss_factor:   3.0           
 
 refine:
     warp_type:      Null
