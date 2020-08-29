@@ -98,7 +98,7 @@ class Optimizer(object):
         self.Jcurrent = self.J
 
         self.fprint("Number of Controls: {:d}".format(len(self.controls)),special="header")
-        self.OptPrintFunction(self.init_vals)
+        self.OptPrintFunction(self.init_vals,None)
         self.fprint("",special="footer")
 
 
@@ -116,6 +116,7 @@ class Optimizer(object):
 
     def CreateControls(self):
         self.controls = []
+        self.control_pointers = []
         self.names = []
         self.indexes = [[],[],[],[],[],[],[]]
         self.init_vals = []
@@ -126,12 +127,14 @@ class Optimizer(object):
                 j+=1
                 self.names.append("x_"+repr(i))
                 self.controls.append(Control(self.farm.mx[i]))
+                self.control_pointers.append(self.farm.mx[i])
                 self.init_vals.append(self.farm.mx[i])
 
                 self.indexes[1].append(j)
                 j+=1
                 self.names.append("y_"+repr(i))
                 self.controls.append(Control(self.farm.my[i]))
+                self.control_pointers.append(self.farm.my[i])
                 self.init_vals.append(self.farm.my[i])
 
         if "yaw" in self.control_types:
@@ -140,6 +143,7 @@ class Optimizer(object):
                 j+=1
                 self.names.append("yaw_"+repr(i))
                 self.controls.append(Control(self.farm.myaw[i]))
+                self.control_pointers.append(self.farm.myaw[i])
                 self.init_vals.append(self.farm.myaw[i])
 
         if "axial" in self.control_types:
@@ -148,6 +152,7 @@ class Optimizer(object):
                 j+=1
                 self.names.append("axial_"+repr(i))
                 self.controls.append(Control(self.farm.ma[i]))
+                self.control_pointers.append(self.farm.ma[i])
                 self.init_vals.append(self.farm.ma[i])
 
         if "lift" in self.control_types:
@@ -157,6 +162,7 @@ class Optimizer(object):
                     j+=1
                     self.names.append("lift_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.problem.mcl[i][k]))
+                    self.control_pointers.append(self.problem.mcl[i][k])
                     self.init_vals.append(self.problem.mcl[i][k])
 
         if "drag" in self.control_types:
@@ -166,6 +172,7 @@ class Optimizer(object):
                     j+=1
                     self.names.append("drag_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.problem.mcd[i][k]))
+                    self.control_pointers.append(self.problem.mcd[i][k])
                     self.init_vals.append(self.problem.mcd[i][k])
 
         if "chord" in self.control_types:
@@ -175,6 +182,7 @@ class Optimizer(object):
                     j+=1
                     self.names.append("chord_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.problem.mchord[i][k]))
+                    self.control_pointers.append(self.problem.mchord[i][k])
                     self.init_vals.append(self.problem.mchord[i][k])
 
     def CreateBounds(self):
@@ -190,8 +198,8 @@ class Optimizer(object):
 
         if "yaw" in self.control_types:
             for i in range(self.farm.numturbs):
-                lower_bounds.append(Constant(0.0))
-                upper_bounds.append(Constant(25*pi/180.0))
+                lower_bounds.append(Constant(-60*pi/180.0))
+                upper_bounds.append(Constant(60*pi/180.0))
 
         if "axial" in self.control_types:
             for i in range(self.farm.numturbs):
@@ -269,9 +277,15 @@ class Optimizer(object):
         # if "yaw" in self.control_types:
         #     for i in range(self.farm.numturbs):
         #         self.fprint("Yaw Turbine {0:} of {1:}: {2: 4.6f}".format(i+1,self.farm.numturbs,self.farm.yaw[i]))
+        self.fprint("Previous Control Values",special="header")
+        for i in range(len(m)):
+            self.fprint(self.names[i] +": " +repr(float(self.control_pointers[i])))
+        self.fprint("",special="footer")
 
+        self.fprint("Next Control Values",special="header")
         for i, val in enumerate(m):
             self.fprint(self.names[i] +": " +repr(float(val)))
+        self.fprint("",special="footer")
         self.fprint("Iteration "+repr(self.iteration)+" Complete",special="footer")
 
     def SaveControls(self,m):
@@ -280,7 +294,7 @@ class Optimizer(object):
         if not os.path.exists(folder_string): os.makedirs(folder_string)
 
         new_values = {}
-        m_f = np.array(m,dtype=float)
+        m_f = np.array(self.control_pointers,dtype=float)
         if "layout" in self.control_types:
             new_values["x"]   = m_f[self.indexes[0]]
             new_values["y"]   = m_f[self.indexes[1]]
@@ -299,18 +313,27 @@ class Optimizer(object):
             for i in range(len(m)):
                 self.last_m[i]=float(m[i])
             err = 0.0
-            f = open(folder_string+"opt_data.txt",'wb')
+            f = open(folder_string+"opt_data.txt",'w')
         else:
             err = np.linalg.norm(m-self.last_m)
-            self.last_m = m
-            f = open(folder_string+"opt_data.txt",'ab')
+            self.last_m = copy.copy(m)
+            f = open(folder_string+"opt_data.txt",'a')
 
-        output_data = np.concatenate(((self.Jcurrent, err),m))
+        m_new = np.array(m,dtype=float)
+        m_old = np.array(self.control_pointers,dtype=float)
+        output_data = np.concatenate(((self.Jcurrent, err, len(m_old)),m_old))
+        output_data = np.concatenate((output_data,(len(m_new),)))
+        output_data = np.concatenate((output_data,m_new))
 
         np.savetxt(f,[output_data])
         f.close()
 
-    def OptPrintFunction(self,m):
+    def OptPrintFunction(self,m,test=None):
+        if test is not None:
+            print("Hey, this method actually gives us more info")
+        # print(np.array(m,dtype=float))
+        # print(np.array(self.control_pointers,dtype=float))
+        # print(np.array(self.problem.farm.myaw,dtype=float))
         self.SaveControls(m)
         self.ListControls(m)
 
@@ -366,7 +389,12 @@ class Optimizer(object):
 
         h = []
         for i,c in enumerate(self.controls):
-            h.append(Constant(1*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
+            # h.append(Constant(0.1))
+            # h.append(Constant(0.01*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
+            h.append(Constant(10.0*abs(float(self.bounds[1][i])+float(self.bounds[0][i]))/2.0))
+            # h.append(Constant(0.01*abs(np.mean(self.bounds[1])+np.mean(self.bounds[0]))/2.0))
+
+        print(np.array(h,dtype=float))
 
         conv_rate = taylor_test(self.Jhat, self.init_vals, h)
 

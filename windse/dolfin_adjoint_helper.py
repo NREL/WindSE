@@ -9,7 +9,7 @@ import ufl
 
 from windse.helper_functions import BaseHeight as backend_BaseHeight
 from windse.helper_functions import CalculateDiskTurbineForces as backend_CalculateDiskTurbineForces
-from windse.helper_functions import CalculateActuatorLineTurbineForces as backend_CalculateActuatorLineTurbineForces
+from windse.helper_functions import UpdateActuatorLineForce as backend_UpdateActuatorLineForce
 from windse import windse_parameters
 from pyadjoint.tape import get_working_tape, annotate_tape, stop_annotating, no_annotations
 from pyadjoint.block import Block
@@ -350,7 +350,7 @@ class MarkerBlock(Block):
 # ================================================================
 # ================================================================
 
-def CalculateActuatorLineTurbineForces(problem, simTime, **kwargs):
+def UpdateActuatorLineForce(problem, u_local, simTime, turb_index, **kwargs):
     '''This is the adjoint version of RelativeHeight. It's goal is to 
     calculate the height of the turbine's base. At the same time, it creates
     a block that helps propagate the adjoint information.'''
@@ -361,11 +361,11 @@ def CalculateActuatorLineTurbineForces(problem, simTime, **kwargs):
 
     ### Get the actual output ###
     with stop_annotating():
-        func_output = backend_CalculateActuatorLineTurbineForces(problem, simTime, **kwargs)
+        func_output = backend_UpdateActuatorLineForce(problem, u_local, simTime, turb_index, **kwargs)
 
     ### Create the block object ###
     if annotate:
-        block = ActuatorLineForceBlock(problem, simTime,**kwargs)
+        block = ActuatorLineForceBlock(problem, u_local, simTime, turb_index, **kwargs)
 
     ### Prepare outputs for recording on tape ###
     r = []
@@ -390,29 +390,37 @@ def CalculateActuatorLineTurbineForces(problem, simTime, **kwargs):
 class ActuatorLineForceBlock(Block):
     '''This is the Block class that will be used to calculate adjoint 
     information for optimizations. '''
-    def __init__(self, problem, simTime, **kwargs):
+    def __init__(self, problem, u_local, simTime, turb_index, **kwargs):
         super(ActuatorLineForceBlock, self).__init__()
+        # self.problem = copy.copy(problem)
+        # self.simTime = copy.copy(simTime)
+        # self.turb_index = copy.copy(turb_index)
+        # self.u_local = u_local.copy()
+
+
+
         self.problem = problem
-        self.simTime = simTime
+        self.simTime = copy.copy(simTime)
+        self.turb_index = turb_index
+        self.u_local = u_local.copy()
 
         # Add dependencies on the controls
-        ####################################
-        ####################################
-        ####################################
-        # fix the [-1] for the ability to select which turbine to optimize
-        ####################################
-        ####################################
-        ####################################
-        for i in range(self.problem.farm.numturbs):
-            for j in range(self.problem.num_blade_segments):
-                self.problem.mcl[i][j].block_variable.tag = ("c_lift", i, j)
-                self.add_dependency(self.problem.mcl[i][j])
+        for j in range(self.problem.num_blade_segments):
+            self.problem.mcl[self.turb_index][j].block_variable.tag = ("c_lift", self.turb_index, j)
+            self.add_dependency(self.problem.mcl[self.turb_index][j])
 
-                self.problem.mcd[i][j].block_variable.tag = ("c_drag", i, j)
-                self.add_dependency(self.problem.mcd[i][j])
+            self.problem.mcd[self.turb_index][j].block_variable.tag = ("c_drag", self.turb_index, j)
+            self.add_dependency(self.problem.mcd[self.turb_index][j])
 
-                self.problem.mchord[i][j].block_variable.tag = ("chord", i, j)
-                self.add_dependency(self.problem.mchord[i][j])
+            self.problem.mchord[self.turb_index][j].block_variable.tag = ("chord", self.turb_index, j)
+            self.add_dependency(self.problem.mchord[self.turb_index][j])
+
+
+        self.problem.farm.myaw[self.turb_index].block_variable.tag = ("yaw", self.turb_index, -1)
+        self.add_dependency(self.problem.farm.myaw[self.turb_index])
+
+        self.problem.u_k1.block_variable.tag = ("u_local",self.turb_index,-1)
+        self.add_dependency(self.problem.u_k1)
 
         # Tabulate which controls matter
         self.control_types = []
@@ -422,6 +430,8 @@ class ActuatorLineForceBlock(Block):
             self.control_types.append("c_drag")
         if "chord" in problem.farm.control_types:
             self.control_types.append("chord")
+        if "yaw" in problem.farm.control_types:
+            self.control_types.append("yaw")
 
         # Record the current values for controls
         self.old_c_lift = np.array(self.problem.mcl, dtype=float)
@@ -435,14 +445,35 @@ class ActuatorLineForceBlock(Block):
 
     def prepare_recompute_component(self, inputs, relevant_outputs):
         # update the new controls inside the windfarm
-        c_lift = inputs[0::3]
-        c_drag = inputs[1::3]
-        chord =  inputs[2::3]
+        c_lift = inputs[0:-2:3]
+        c_drag = inputs[1:-2:3]
+        chord =  inputs[2:-2:3]
+        yaw  = inputs[-2]
+        u_k1 = inputs[-1]
 
-        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord)
+
+        # print()
+        # print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        # print("current controls from dolfin_adjoint_helper")
+        # print(np.array(chord,dtype=float))
+        # print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        # print()
+
+        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord, yaw=yaw, turb_index=self.turb_index)
+
+        # print()
+        # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.u_k.vector()[:])))
+        # print("uk1("+repr(self.simTime)+")  = "+repr(np.mean(self.problem.u_k1.vector()[:])))
+        # print("uk2("+repr(self.simTime)+")  = "+repr(np.mean(self.problem.u_k2.vector()[:])))
+        # print("uloc("+repr(self.simTime)+") = "+repr(np.mean(self.u_local.vector()[:])))
+        # print("u_k1 = "+repr(np.mean(u_k1.vector()[:])))
+        # print("uloc = "+repr(np.mean(self.u_local.vector()[:])))
+
 
         # Since dfd=None here, prepared is a dolfin function (tf) [1 x numPts*ndim]
-        prepared = backend_CalculateActuatorLineTurbineForces(self.problem, self.simTime, verbose=True)
+        prepared = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime, self.turb_index, verbose=True)
+        # print("tf   = "+repr(np.mean(prepared.vector()[:])))
+        # print()
 
         return prepared
 
@@ -451,23 +482,83 @@ class ActuatorLineForceBlock(Block):
 
     def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
         ### update the new controls inside the windfarm ###
-        c_lift = inputs[0::3]
-        c_drag = inputs[1::3]
-        chord =  inputs[2::3]
+        c_lift = inputs[0:-2:3]
+        c_drag = inputs[1:-2:3]
+        chord =  inputs[2:-2:3]
+        yaw  = inputs[-2]
+        u_k1 = inputs[-1]
 
-        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord)
+        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord, yaw=yaw, turb_index=self.turb_index)
 
         prepared = {}
-        for name in self.control_types:
-            # pr = cProfile.Profile()
-            # pr.enable()
-            # print("calculating "+name+" derivatives")
-            # Since dfd is not None here, prepared is a Numpy array of derivatives [numPts*ndim x numControls] 
-            prepared[name] = backend_CalculateActuatorLineTurbineForces(self.problem, self.simTime, dfd = name, verbose=True)
-            # pr.disable()
-            # pr.print_stats()
+        # for name in self.control_types:
+        #     # pr = cProfile.Profile()
+        #     # pr.enable()
+        #     # print("calculating "+name+" derivatives")
+        #     # Since dfd is not None here, prepared is a Numpy array of derivatives [numPts*ndim x numControls] 
+        #     prepared[name] = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime, self.turb_index, dfd=name, verbose=True)
+        #     # pr.disable()
+        #     # pr.print_stats()
 
-            # exit()
+        #     # exit()
+
+
+        if "chord" in self.control_types:
+            prepared["chord"] = []
+            for i in range(self.problem.num_blade_segments):
+                old_chord_value = copy.copy(chord[i])
+                h_mag = 0.01#*old_chord_value
+                chord[i] = old_chord_value+h_mag
+                self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
+                temp_uph = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime, self.turb_index, verbose=True)
+                chord[i] = old_chord_value-h_mag
+                self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
+                temp_umh = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime, self.turb_index)
+                chord[i] = old_chord_value
+                self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
+                dtf_dc = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
+                prepared["chord"].append(dtf_dc)
+            prepared["chord"] = np.array(prepared["chord"]).T
+
+        if "yaw" in self.control_types:
+            prepared["yaw"] = []
+            old_yaw_value = copy.copy(yaw)
+            h_mag = 0.01#*old_chord_value
+            yaw = old_yaw_value+h_mag
+            self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
+            temp_uph = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime, self.turb_index, verbose=True)
+            yaw = old_yaw_value-h_mag
+            self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
+            temp_umh = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime, self.turb_index)
+            yaw = old_yaw_value
+            self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
+            dyaw_dc = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
+            # print(min(temp_uph.vector().get_local()),max(temp_uph.vector().get_local()))
+            # print(min(temp_umh.vector().get_local()),max(temp_umh.vector().get_local()))
+            prepared["yaw"] = dyaw_dc
+
+        h_mag = 0.01#*np.linalg.norm(u_local_vec)
+        u_local_vec = u_k1.vector().get_local()
+        # print(np.linalg.norm(u_local_vec))
+
+        prepared["u_local"] = []
+
+        for i in range(self.problem.dom.dim):
+            h = np.zeros(u_local_vec.shape)
+            h[i::3] = h_mag
+        
+            u_mh = dolfin.Function(u_k1.function_space())
+            u_mh.vector()[:] = u_local_vec-h
+
+
+            u_ph = dolfin.Function(u_k1.function_space())
+            u_ph.vector()[:] = u_local_vec+h
+
+            temp_umh = backend_UpdateActuatorLineForce(self.problem, u_mh, self.simTime, self.turb_index)
+            temp_uph = backend_UpdateActuatorLineForce(self.problem, u_ph, self.simTime, self.turb_index)
+            dtf_du = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
+
+            prepared["u_local"].append(dtf_du)
 
         return prepared
 
@@ -477,19 +568,73 @@ class ActuatorLineForceBlock(Block):
         name, turbine_number, segment_index = block_variable.tag
         # print("calculating: " + name + "_" + repr(segment_index))
 
-        ### Get the vectors ###
 
-        ########################
-        ########################
-        # Need to modify to select the correct turbine
-        ########################
-        ########################
-        comp_vec = prepared[name][:, segment_index]
-        adj_vec = adj_inputs[0].get_local()
+
+        if name == "u_local":
+            # print("I depend on u_local")
+            #
+            # prepared["u_local"] =  tf_x/u_x tf_y/u_x tf_z/u_x
+            #                        tf_x/u_y tf_y/u_y tf_z/u_y
+            #                        tf_x/u_z tf_y/u_z tf_z/u_z
+            #
+            # we need to calculate D = \nabla_u(tf)\cdot\nabla_c(u) which equals
+            # 
+            #    D_1 = tf_x/u_x * u_x/c + tf_x/u_x * u_x/c + tf_x/u_x * u_x/c
+            #    D_2 = tf_y/u_x * u_x/c + tf_y/u_x * u_x/c + tf_y/u_x * u_x/c
+            #    D_3 = tf_z/u_x * u_x/c + tf_z/u_x * u_x/c + tf_z/u_x * u_x/c
+            #
+            # u_j/c    = adj_vec[j::3]
+            # tf_i/u_j = prepared["u_local"][j][i::3]
+            # D_i      = comp_vec[i::3]
+            #
+            #
+            #
+
+            adj_vec = adj_inputs[0].get_local()
+            comp_vec = np.zeros(adj_vec.shape)
+
+            for i in range(3):
+                for j in range(3):
+                    comp_vec[i::3] += prepared[name][j][j::3]*adj_vec[j::3]
+                    # comp_vec[i::3] += np.inner(prepared[name][j][i::3],adj_vec[j::3])
+
+            # for i in range(3):
+            #     comp_vec += prepared[name][i]*adj_vec
+            #         # comp_vec[i::3] += np.inner(prepared[name][j][i::3],adj_vec[j::3])
+
+            adj_output = dolfin.Function(self.u_local.function_space())
+            adj_output.vector()[:] = comp_vec
+
+
+            # adj_output_vec = 0
+            # for i in range(3):
+            #     comp_vec = prepared[name][i]
+            #     adj_vec = adj_inputs[0].get_local()
+            #     adj_output_vec += np.inner(comp_vec, adj_vec)
+
+            # adj_output = dolfin.Function(self.u_local.function_space())
+            # adj_output.vector()[:] = adj_output_vec
+
+
+            # adj_vec = adj_inputs[0].get_local()
+            # adj_output = dolfin.Function(self.u_local.function_space())
+            # adj_output.vector()[:] = (prepared[name][0]+prepared[name][1]+prepared[name][2])*adj_vec
+
+
+            return adj_output.vector()
+        elif name == "yaw":
+            comp_vec = prepared[name]
+            adj_vec = adj_inputs[0].get_local()
+            adj_output = np.inner(comp_vec, adj_vec)
+            return np.array(adj_output)
+        else:
+            comp_vec = prepared[name][:, segment_index]
+            adj_vec = adj_inputs[0].get_local()
+            adj_output = np.inner(comp_vec, adj_vec)
+            return np.array(adj_output)
+
 
         ### Apply derivative to previous in tape ###
-        adj_output = np.inner(comp_vec, adj_vec)
-        return np.array(adj_output)
 
 # ================================================================
 # ================================================================
@@ -607,6 +752,8 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
         dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters={'linear_solver': 'mumps'})
     else:
         dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, **self.forward_kwargs)
+        # print()
+        # print("func = "+repr(np.mean(func.vector().get_local())))
 
         if "debug" in windse_parameters.output:
             if hasattr(self, 'solve_iteration'):

@@ -24,7 +24,7 @@ if main_file != "sphinx-build":
     from mpmath import hyper
 
     ### Import the cumulative parameters ###
-    from windse import windse_parameters, CalculateActuatorLineTurbineForces
+    from windse import windse_parameters
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
@@ -498,6 +498,7 @@ class UnsteadySolver(GenericSolver):
         # self.problem.alm_power_sum = 0.0
         init_average = True
         average_start_time = 200.0
+        # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.u_k.vector()[:])))
 
         while not stable and self.simTime < self.final_time:
             self.problem.bd.UpdateVelocity(self.simTime)
@@ -512,17 +513,20 @@ class UnsteadySolver(GenericSolver):
                 solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default',adj_cb=save_adj)
             else:
                 solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default')
+            # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.u_k.vector()[:])))
             # print("assemble(func*dx): " + repr(float(assemble(inner(self.problem.u_k,self.problem.u_k)*dx))))
 
             # Step 2: Pressure correction step
             b2 = assemble(self.problem.L2, tensor=b2)
             [bc.apply(b2) for bc in self.problem.bd.bcp]
             solve(A2, self.problem.p_k.vector(), b2, 'gmres', 'hypre_amg')
+            # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.p_k.vector()[:])))
             # print("assemble(func*dx): " + repr(float(assemble(inner(self.problem.p_k,self.problem.p_k)*dx))))
 
             # Step 3: Velocity correction step
             b3 = assemble(self.problem.L3, tensor=b3)
             solve(A3, self.problem.u_k.vector(), b3, 'gmres', 'default')
+            # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.u_k.vector()[:])))
             # print("assemble(func*dx): " + repr(float(assemble(inner(self.problem.u_k,self.problem.u_k)*dx))))
 
             # Old <- New update step
@@ -551,9 +555,9 @@ class UnsteadySolver(GenericSolver):
             if self.problem.farm.turbine_method == "alm":
                 # t1 = time.time()
 
-                new_tf_list = CalculateActuatorLineTurbineForces(self.problem, self.simTime)
+                new_tf_list = self.problem.farm.CalculateActuatorLineTurbineForces(self.problem, self.simTime)
 
-                for i in len(self.problem.tf_list):
+                for i in range(len(self.problem.tf_list)):
                     self.problem.tf_list[i].assign(new_tf_list[i])
 
                 # t2 = time.time()
@@ -660,10 +664,20 @@ class UnsteadySolver(GenericSolver):
     def SaveTimeSeries(self, simTime):
 
 
+        if hasattr(self.problem,"tf_save"):
+            self.problem.tf_save.vector()[:] = 0
+            for fun in self.problem.tf_list:
+                self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.vector()[:]
+        else:
+            self.problem.tf_save = Function(self.problem.fs.V)
+            for fun in self.problem.tf_list:
+                self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.vector()[:]
+
+
         if self.first_save:
             self.velocity_file = self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime)
             self.pressure_file   = self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime)
-            self.turb_force_file   = self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime)
+            self.turb_force_file   = self.params.Save(self.problem.tf_save,"turbine_force",subfolder="timeSeries/",val=simTime)
             if self.optimizing:
                 self.adj_tape_file = XDMFFile(self.params.folder+"timeSeries/global_adjoint.xdmf")
                 self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
@@ -671,7 +685,7 @@ class UnsteadySolver(GenericSolver):
         else:
             self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime,file=self.velocity_file)
             self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime,file=self.pressure_file)
-            self.params.Save(self.problem.tf,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
+            self.params.Save(self.problem.tf_save,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
             if self.optimizing:
                 self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
 

@@ -59,14 +59,37 @@ def CalculatePowerFunctional(solver,inflow_angle = 0.0):
     return J
 
 def CalculateActuatorLinePowerFunctional(solver,inflow_angle = 0.0):
-    # J = assemble(dot(-solver.problem.tf_individual, solver.problem.cyld)*dx, annotate=True)
-    J = -assemble((2.0*np.pi*solver.problem.rpm/60.0)*dot(-solver.problem.tf, solver.problem.cyld)*dx, annotate=True)
+    # J = assemble(solver.problem.tf_list[0]*dx)
+    # J = assemble(solver.problem.tf_list[0][0]*solver.problem.tf_list[0][0]*dx)
+    # J = assemble(-2.0*np.pi*solver.problem.rpm/60.0*abs(inner(solver.problem.tf_list[0],solver.problem.cyld_expr_list[0]))*dx)
+    # J = assemble(-inner(solver.problem.tf_list[0],solver.problem.cyld_expr_list[0])**2.0*dx)
+
+    # J = assemble(inner(solver.problem.u_k,solver.problem.u_k)*dx)
+    # J = assemble(inner(solver.problem.tf,solver.problem.tf)*dx)
+    # J = assemble(2.0*np.pi*solver.problem.rpm/60.0*dot(solver.problem.tf,solver.problem.u_k)*dx)
+
+    # cyld_expr = Expression(('sin(yaw)*(x[2]-zs)', '-cos(yaw)*(x[2]-zs)', '(x[1]-ys)*cos(yaw)-(x[0]-xs)*sin(yaw)'),
+    #     degree=6,
+    #     yaw=solver.problem.farm.yaw[0],
+    #     xs=solver.problem.farm.x[0],
+    #     ys=solver.problem.farm.y[0],
+    #     zs=solver.problem.farm.z[0])
+
+    # J = assemble(2.0*np.pi*solver.problem.rpm/60.0*dot(solver.problem.tf,cyld_expr)*dx)
+    # J = assemble(inner(solver.problem.u_k,as_vector((1.0,0.0,0.0)))*dx)
+    # J = assemble(inner(solver.problem.u_k,as_vector((1.0,0.0,0.0)))*dx)
+
+
+    J_list=np.zeros(solver.problem.farm.numturbs+2)
+    J_list[0]=solver.simTime
+    J = 0.0
+    for i in range(solver.problem.farm.numturbs):
+        J_temp = -assemble((2.0*np.pi*solver.problem.rpm/60.0)*inner(-solver.problem.tf_list[i], solver.problem.cyld_expr_list[i])*dx, annotate=True)
+        J_list[i+1] = J_temp
+        J += J_temp
+    J_list[-1] = float(J)
 
     if solver.save_power or solver.save_objective:
-        J_list=np.zeros(solver.problem.farm.numturbs+2)
-        J_list[0]=solver.simTime
-        J_list[1:-1]=solver.problem.alm_power
-        J_list[-1]=float(J)
 
         folder_string = solver.params.folder+"data/"
         if not os.path.exists(folder_string): os.makedirs(folder_string)

@@ -20,7 +20,7 @@ if main_file != "sphinx-build":
     import scipy.interpolate as interp
 
     ### Import the cumulative parameters ###
-    from windse import windse_parameters, CalculateActuatorLineTurbineForces
+    from windse import windse_parameters
     # from memory_profiler import memory_usage
 
     ### Check if we need dolfin_adjoint ###
@@ -97,7 +97,8 @@ class GenericProblem(object):
             self.num_times_called = 0
             self.first_call_to_function = True
             self.blade_pos_previous = [[], [], []]
-            self.simTime_list = [0]
+            self.simTime_list = []
+            self.simTime_id = 0
 
             # Initialize the lift and drag files
             for fn in ['lift', 'drag']:
@@ -211,10 +212,8 @@ class GenericProblem(object):
                 self.mcl.append(turb_i_lift)
                 self.mcd.append(turb_i_drag)
 
-
-            # self.ALM_force_method = 'multiple'
-            self.ALM_force_method = 'single'
-            self.tf_list = CalculateActuatorLineTurbineForces(self, simTime)
+            self.cyld_expr_list = [None]*self.farm.numturbs
+            self.tf_list = self.farm.CalculateActuatorLineTurbineForces(self, simTime)
 
             self.CopyALMtoWindFarm()
         else:
@@ -269,22 +268,25 @@ class GenericProblem(object):
         adj_stop = time.time()
         self.fprint("Wind Speed Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")
 
-    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None, chord = None):
+    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None, chord = None, yaw = None, turb_index = 0):
 
         if c_lift is not None:
             cl = np.array(c_lift, dtype = float)
+            for k in range(self.num_blade_segments):
+                self.mcl[turb_index][k].assign(Constant(cl[k]))
         if c_drag is not None:
             cd = np.array(c_drag, dtype = float)
+            for k in range(self.num_blade_segments):
+                self.mcd[turb_index][k].assign(Constant(cd[k]))
         if chord is not None:
             chord = np.array(chord, dtype = float)
-
-        for i in range(self.farm.numturbs):
             for k in range(self.num_blade_segments):
-                m = self.num_blade_segments*i+k
-                self.mcl[i][k] = Constant(cl[m])
-                self.mcd[i][k] = Constant(cd[m])
-                self.mchord[i][k] = Constant(chord[m])
+                self.mchord[turb_index][k].assign(Constant(chord[k]))
+        if yaw is not None:
+            yaw = float(yaw)
+            self.farm.myaw[turb_index].assign(Constant(yaw))
         
+
         self.CopyALMtoWindFarm()
 
 

@@ -23,7 +23,7 @@ if main_file != "sphinx-build":
     from scipy.special import gamma
 
     ### Import the cumulative parameters ###
-    from windse import windse_parameters, BaseHeight, CalculateDiskTurbineForces
+    from windse import windse_parameters, BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
@@ -286,16 +286,16 @@ class GenericWindFarm(object):
             self.axial = np.array(a,dtype=float)
 
         for i in range(self.numturbs):
-            self.mx[i]=Constant(self.x[i])
-            self.my[i]=Constant(self.y[i])
+            self.mx[i].assign(self.x[i])
+            self.my[i].assign(self.y[i])
             # if self.analytic:
             #     self.mz[i] = self.dom.Ground(self.mx[i],self.my[i])+float(self.HH[i])
             # else:
             self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
             self.z[i] = float(self.mz[i])
             self.ground[i] = self.z[i] - self.HH[i]
-            self.ma[i]=Constant(self.axial[i])
-            self.myaw[i]=Constant(self.yaw[i])
+            self.ma[i].assign((self.axial[i]))
+            self.myaw[i].assign(self.yaw[i])
 
     def CreateLists(self):
         """
@@ -822,6 +822,38 @@ class GenericWindFarm(object):
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
         return (tf1, tf2, tf3)
 
+    def CalculateActuatorLineTurbineForces(self, problem, simTime, dfd=None, verbose=False):
+        # if dfd is None, alm_output is a dolfin function (tf) [1 x numPts*ndim]
+        # otherwise, it returns a numpy array of derivatives [numPts*ndim x numControls]
+
+        # for all turbs:
+        #     tf, tf_ind = BuildSingleALM(problem, simTime, dfd, turb_i)
+
+        tic = time.time()
+        problem.simTime_list.append(simTime)
+
+        alm_output_list = []
+        for turb_index in range(problem.farm.numturbs):
+            alm_output_list.append(UpdateActuatorLineForce(problem, problem.u_k1, problem.simTime_id, turb_index, dfd=dfd))
+            # print("tf   = "+repr(np.mean(alm_output_list[-1].vector()[:])))
+
+        problem.simTime_id += 1
+        toc = time.time()
+
+        if verbose:
+            print("Current Optimization Time: "+repr(simTime)+ ", it took: "+repr(toc-tic)+" seconds")
+            sys.stdout.flush()
+
+        return alm_output_list
+
+
+
+####### NOTE TO SELF turb_index is a list, got to account for that in dolfin_helper
+
+
+
+
+
 class GridWindFarm(GenericWindFarm):
     """
     A GridWindFarm produces turbines on a grid. The params.yaml file determines
@@ -914,6 +946,7 @@ class GridWindFarm(GenericWindFarm):
         self.params["wind_farm"]["ex_z"] = self.ex_z
 
         self.fprint("Wind Farm Generated",special="footer")
+
 
 class RandomWindFarm(GenericWindFarm):
     """
