@@ -834,7 +834,7 @@ class GenericWindFarm(object):
 
         alm_output_list = []
         for turb_index in range(problem.farm.numturbs):
-            alm_output_list.append(UpdateActuatorLineForce(problem, problem.u_k1, problem.simTime_id, turb_index, dfd=dfd))
+            alm_output_list.append(UpdateActuatorLineForce(problem, problem.u_k1, problem.simTime_id, problem.dt, turb_index, dfd=dfd))
             # print("tf   = "+repr(np.mean(alm_output_list[-1].vector()[:])))
 
         problem.simTime_id += 1

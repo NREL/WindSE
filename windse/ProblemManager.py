@@ -18,6 +18,7 @@ if main_file != "sphinx-build":
     import numpy as np
     import time
     import scipy.interpolate as interp
+    import glob
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -75,8 +76,9 @@ class GenericProblem(object):
             # self.gaussian_width = 2.0*hmin/3.0
             # Recommendation from Churchfield et al.
             self.gaussian_width = 2.0*0.035*2.0*self.farm.radius[0]
+            self.gaussian_width = float(self.params["wind_farm"]["gauss_factor"])*hmin
 
-            CHORD_SCALING_FACTOR = 1.0
+            self.chord_factor = float(self.params["wind_farm"]["chord_factor"])
 
             print('Minimum Space Between Mesh: ', hmin)
             print('Gaussian Width: ', self.gaussian_width)
@@ -91,14 +93,28 @@ class GenericProblem(object):
             print('Num blade segments: ', self.num_blade_segments)
 
             self.mchord = []
+            self.mtwist = []
             self.mcl = []
             self.mcd = []
 
             self.num_times_called = 0
             self.first_call_to_function = True
+            self.first_call_to_alm = True
             self.blade_pos_previous = [[], [], []]
             self.simTime_list = []
             self.simTime_id = 0
+
+            self.aoa_file = './output/%s/angle_of_attack.csv' % (self.params.name)
+
+
+            fp = open(self.aoa_file, 'w')
+
+            for j in range(3):
+                for k in range(self.num_blade_segments):
+                    fp.write('r%d_n%03d, ' % (j, k))
+            fp.write('\n')
+            fp.close()
+
 
             # Initialize the lift and drag files
             for fn in ['lift', 'drag']:
@@ -115,14 +131,52 @@ class GenericProblem(object):
             turb_data = self.params["wind_farm"]["read_turb_data"]
 
             if turb_data:
+
+                def build_lift_and_drag_tables(airfoil_data_path):
+
+                    # Determine the number of files in airfoil_data_path
+                    num_files = len(glob.glob('%s/*.txt' % (airfoil_data_path)))
+
+                    for file_id in range(num_files):
+                        print('Reading Airfoil Data #%d' % (file_id))
+                        data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, file_id), skip_header=1, delimiter=' ')
+
+                        if file_id == 0:
+                            # If this is the first file, store the angle data
+                            interp_angles = data[:, 0]
+                            num_angles = np.size(interp_angles)
+                            
+                            # If this is the first file, allocate space for the tables        
+                            lift_table = np.zeros((num_angles, num_files))
+                            drag_table = np.zeros((num_angles, num_files))
+                            
+                        # Store all the lift and drag data in the file_id column
+                        lift_table[:, file_id] = data[:, 1]
+                        drag_table[:, file_id] = data[:, 2]
+
+                    return lift_table, drag_table, interp_angles
+
+
                 self.fprint('Setting chord, lift, and drag from file \'%s\'' % (turb_data))
 
                 actual_turbine_data = np.genfromtxt(turb_data, delimiter = ',', skip_header = 1)
 
                 actual_x = actual_turbine_data[:, 0]
-                actual_chord = CHORD_SCALING_FACTOR*actual_turbine_data[:, 1]
+
+                actual_chord = self.chord_factor*actual_turbine_data[:, 1]
+
+                # Baseline twist is expressed in degrees, convert to radians
+                actual_twist = actual_turbine_data[:, 2]/180.0*np.pi
+
                 actual_cl = actual_turbine_data[:, 3]
                 actual_cd = actual_turbine_data[:, 4]
+
+
+                lift_table, drag_table, interp_angles = build_lift_and_drag_tables('airfoil_polars')
+                self.lift_table = lift_table
+                self.drag_table = drag_table
+                self.interp_angles = interp_angles
+
 
                 modify_chord = False
 
@@ -139,6 +193,7 @@ class GenericProblem(object):
 
                 # Create interpolators for chord, lift, and drag
                 chord_interp = interp.interp1d(actual_x, actual_chord)
+                twist_interp = interp.interp1d(actual_x, actual_twist)
                 cl_interp = interp.interp1d(actual_x, actual_cl)
                 cd_interp = interp.interp1d(actual_x, actual_cd)
 
@@ -177,9 +232,10 @@ class GenericProblem(object):
 
                 # Generate the interpolated values
                 chord = chord_interp(interp_points)
+                twist = twist_interp(interp_points)
                 cl = cl_interp(interp_points)
                 cd = cd_interp(interp_points)
-                self.farm.baseline_chord = np.array(chord)
+                self.farm.baseline_chord = np.array(chord)/self.chord_factor
 
                 if self.params['problem']['script_iterator'] > 0:
                     chord_override = chord_interp_override(interp_points)
@@ -187,12 +243,14 @@ class GenericProblem(object):
             else:
                 # If not reading from a file, prescribe dummy values
                 chord = self.farm.radius[0]/20.0*np.ones(self.num_blade_segments)
+                twist = np.zeros(self.num_blade_segments)
                 cl = np.ones(self.num_blade_segments)
                 cd = 0.1*np.ones(self.num_blade_segments)
 
             # Save the list of controls to self
             for turb_i in range(self.farm.numturbs):
                 turb_i_chord = []
+                turb_i_twist = []
                 turb_i_lift = []
                 turb_i_drag = []
 
@@ -203,12 +261,14 @@ class GenericProblem(object):
 
                 for k in range(self.num_blade_segments):
                     turb_i_chord.append(Constant(chord_to_use[k]))
+                    turb_i_twist.append(Constant(twist[k]))
                     turb_i_lift.append(Constant(cl[k]))
                     turb_i_drag.append(Constant(cd[k]))
 
                 print('Turbine #%d: Chord = ' % (turb_i), chord_to_use)
 
                 self.mchord.append(turb_i_chord)
+                self.mtwist.append(turb_i_twist)
                 self.mcl.append(turb_i_lift)
                 self.mcd.append(turb_i_drag)
 
@@ -273,18 +333,19 @@ class GenericProblem(object):
         if c_lift is not None:
             cl = np.array(c_lift, dtype = float)
             for k in range(self.num_blade_segments):
-                self.mcl[turb_index][k].assign(Constant(cl[k]))
+                self.mcl[turb_index][k].assign(cl[k])
         if c_drag is not None:
             cd = np.array(c_drag, dtype = float)
             for k in range(self.num_blade_segments):
-                self.mcd[turb_index][k].assign(Constant(cd[k]))
+                self.mcd[turb_index][k].assign(cd[k])
         if chord is not None:
             chord = np.array(chord, dtype = float)
             for k in range(self.num_blade_segments):
-                self.mchord[turb_index][k].assign(Constant(chord[k]))
+                self.mchord[turb_index][k].assign(chord[k])
         if yaw is not None:
             yaw = float(yaw)
-            self.farm.myaw[turb_index].assign(Constant(yaw))
+            self.farm.yaw[turb_index] = yaw
+            self.farm.myaw[turb_index].assign(yaw)
         
 
         self.CopyALMtoWindFarm()
@@ -500,7 +561,7 @@ class UnsteadyProblem(GenericProblem):
         # Define time step size (this value is used only for step 1 if adaptive timestepping is used)
         # FIXME: change variable name to avoid confusion within dolfin adjoint
         self.dt = 0.1*self.dom.mesh.hmin()/self.bd.HH_vel
-        # self.dt = 0.04
+        self.dt = 0.05
         self.dt_c  = Constant(self.dt)
 
         self.fprint("Viscosity: {:1.2e}".format(float(self.viscosity)))
@@ -609,10 +670,20 @@ class UnsteadyProblem(GenericProblem):
         self.a2 = dot(nabla_grad(p), nabla_grad(q))*dx
         self.L2 = dot(nabla_grad(self.p_k1), nabla_grad(q))*dx - (1.0/self.dt_c)*div(self.u_k)*q*dx
 
+        # phi = p - self.p_k
+        # F2 = inner(grad(q), grad(phi))*dx - (1.0/self.dt_c)*div(u_k)*q*dx
+        # self.a2 = lhs(F2)
+        # self.L2 = rhs(F2)
+
         # Define variational problem for step 3: velocity update
         self.a3 = dot(u, v)*dx
         self.L3 = dot(self.u_k, v)*dx - self.dt_c*dot(nabla_grad(self.p_k - self.p_k1), v)*dx
-    
+
+        # F3 = inner(u, v)*dx - inner(self.u_k, v)*dx + self.dt_c*inner(phi, v)*dx
+        # self.a3 = lhs(F3)
+        # self.L3 = rhs(F3)
+
+
         # ================================================================
 
         self.fprint("Unsteady Problem Setup",special="footer")

@@ -329,21 +329,21 @@ class Optimizer(object):
         f.close()
 
     def OptPrintFunction(self,m,test=None):
-        if test is not None:
-            print("Hey, this method actually gives us more info")
-        # print(np.array(m,dtype=float))
-        # print(np.array(self.control_pointers,dtype=float))
-        # print(np.array(self.problem.farm.myaw,dtype=float))
-        self.SaveControls(m)
-        self.ListControls(m)
+        # if test is not None:
+        #     print("Hey, this method actually gives us more info")
+        # # print(np.array(m,dtype=float))
+        # # print(np.array(self.control_pointers,dtype=float))
+        # # print(np.array(self.problem.farm.myaw,dtype=float))
+        # self.SaveControls(m)
+        # self.ListControls(m)
 
-        if "layout" in self.control_types or "yaw" in self.control_types:
-            self.problem.farm.PlotFarm(filename="wind_farm_step_"+repr(self.iteration),power=-self.Jcurrent)
+        # if "layout" in self.control_types or "yaw" in self.control_types:
+        #     self.problem.farm.PlotFarm(filename="wind_farm_step_"+repr(self.iteration),power=-self.Jcurrent)
 
-        if "chord" in self.control_types:
-            c_lower = np.array(self.bounds[0])[self.indexes[6]] 
-            c_upper = np.array(self.bounds[1])[self.indexes[6]] 
-            self.problem.farm.PlotChord(filename="chord_step_"+repr(self.iteration),power=-self.Jcurrent,bounds=[c_lower,c_upper])
+        # if "chord" in self.control_types:
+        #     c_lower = np.array(self.bounds[0])[self.indexes[6]] 
+        #     c_upper = np.array(self.bounds[1])[self.indexes[6]] 
+        #     self.problem.farm.PlotChord(filename="chord_step_"+repr(self.iteration),power=-self.Jcurrent,bounds=[c_lower,c_upper])
         
         self.iteration += 1
 
@@ -391,7 +391,7 @@ class Optimizer(object):
         for i,c in enumerate(self.controls):
             # h.append(Constant(0.1))
             # h.append(Constant(0.01*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
-            h.append(Constant(10.0*abs(float(self.bounds[1][i])+float(self.bounds[0][i]))/2.0))
+            h.append(Constant(10.0*abs(float(self.bounds[1][i])-float(self.bounds[0][i]))/2.0))
             # h.append(Constant(0.01*abs(np.mean(self.bounds[1])+np.mean(self.bounds[0]))/2.0))
 
         print(np.array(h,dtype=float))

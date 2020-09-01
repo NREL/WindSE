@@ -60,7 +60,9 @@ wind_farm:
     rpm:            10.0
     read_turb_data: Null
     blade_segments: computed
-    max_chord:      4.75           
+    max_chord:      4.75
+    chord_factor:   1.0           
+    gauss_factor:   3.0           
 
 refine:
     warp_type:      Null

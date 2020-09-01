@@ -66,7 +66,7 @@ def CalculateActuatorLinePowerFunctional(solver,inflow_angle = 0.0):
 
     # J = assemble(inner(solver.problem.u_k,solver.problem.u_k)*dx)
     # J = assemble(inner(solver.problem.tf,solver.problem.tf)*dx)
-    # J = assemble(2.0*np.pi*solver.problem.rpm/60.0*dot(solver.problem.tf,solver.problem.u_k)*dx)
+    # J = assemble(2.0*np.pi*solver.problem.rpm/60.0*dot(-solver.problem.tf,solver.problem.u_k)*dx)
 
     # cyld_expr = Expression(('sin(yaw)*(x[2]-zs)', '-cos(yaw)*(x[2]-zs)', '(x[1]-ys)*cos(yaw)-(x[0]-xs)*sin(yaw)'),
     #     degree=6,

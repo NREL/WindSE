@@ -350,7 +350,7 @@ class MarkerBlock(Block):
 # ================================================================
 # ================================================================
 
-def UpdateActuatorLineForce(problem, u_local, simTime, turb_index, **kwargs):
+def UpdateActuatorLineForce(problem, u_local, simTime_id, turb_index, dt, **kwargs):
     '''This is the adjoint version of RelativeHeight. It's goal is to 
     calculate the height of the turbine's base. At the same time, it creates
     a block that helps propagate the adjoint information.'''
@@ -361,11 +361,11 @@ def UpdateActuatorLineForce(problem, u_local, simTime, turb_index, **kwargs):
 
     ### Get the actual output ###
     with stop_annotating():
-        func_output = backend_UpdateActuatorLineForce(problem, u_local, simTime, turb_index, **kwargs)
+        func_output = backend_UpdateActuatorLineForce(problem, u_local, simTime_id, turb_index, dt, **kwargs)
 
     ### Create the block object ###
     if annotate:
-        block = ActuatorLineForceBlock(problem, u_local, simTime, turb_index, **kwargs)
+        block = ActuatorLineForceBlock(problem, u_local, simTime_id, turb_index, dt, **kwargs)
 
     ### Prepare outputs for recording on tape ###
     r = []
@@ -390,7 +390,7 @@ def UpdateActuatorLineForce(problem, u_local, simTime, turb_index, **kwargs):
 class ActuatorLineForceBlock(Block):
     '''This is the Block class that will be used to calculate adjoint 
     information for optimizations. '''
-    def __init__(self, problem, u_local, simTime, turb_index, **kwargs):
+    def __init__(self, problem, u_local, simTime_id, dt, turb_index, **kwargs):
         super(ActuatorLineForceBlock, self).__init__()
         # self.problem = copy.copy(problem)
         # self.simTime = copy.copy(simTime)
@@ -400,7 +400,8 @@ class ActuatorLineForceBlock(Block):
 
 
         self.problem = problem
-        self.simTime = copy.copy(simTime)
+        self.simTime_id = copy.copy(simTime_id)
+        self.dt = dt
         self.turb_index = turb_index
         self.u_local = u_local.copy()
 
@@ -452,6 +453,7 @@ class ActuatorLineForceBlock(Block):
         u_k1 = inputs[-1]
 
 
+
         # print()
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
         # print("current controls from dolfin_adjoint_helper")
@@ -471,8 +473,8 @@ class ActuatorLineForceBlock(Block):
 
 
         # Since dfd=None here, prepared is a dolfin function (tf) [1 x numPts*ndim]
-        prepared = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime, self.turb_index, verbose=True)
-        # print("tf   = "+repr(np.mean(prepared.vector()[:])))
+        prepared = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index, verbose=True)
+        print("tf   = "+repr(np.mean(prepared.vector()[:])))
         # print()
 
         return prepared
@@ -510,10 +512,10 @@ class ActuatorLineForceBlock(Block):
                 h_mag = 0.01#*old_chord_value
                 chord[i] = old_chord_value+h_mag
                 self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
-                temp_uph = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime, self.turb_index, verbose=True)
+                temp_uph = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime_id, self.dt, self.turb_index, verbose=True)
                 chord[i] = old_chord_value-h_mag
                 self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
-                temp_umh = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime, self.turb_index)
+                temp_umh = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime_id, self.dt, self.turb_index)
                 chord[i] = old_chord_value
                 self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
                 dtf_dc = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
@@ -523,13 +525,13 @@ class ActuatorLineForceBlock(Block):
         if "yaw" in self.control_types:
             prepared["yaw"] = []
             old_yaw_value = copy.copy(yaw)
-            h_mag = 0.01#*old_chord_value
+            h_mag = 0.0001#*old_chord_value
             yaw = old_yaw_value+h_mag
             self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
-            temp_uph = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime, self.turb_index, verbose=True)
+            temp_uph = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime_id, self.dt, self.turb_index, verbose=True)
             yaw = old_yaw_value-h_mag
             self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
-            temp_umh = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime, self.turb_index)
+            temp_umh = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime_id, self.dt, self.turb_index)
             yaw = old_yaw_value
             self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
             dyaw_dc = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
@@ -554,8 +556,8 @@ class ActuatorLineForceBlock(Block):
             u_ph = dolfin.Function(u_k1.function_space())
             u_ph.vector()[:] = u_local_vec+h
 
-            temp_umh = backend_UpdateActuatorLineForce(self.problem, u_mh, self.simTime, self.turb_index)
-            temp_uph = backend_UpdateActuatorLineForce(self.problem, u_ph, self.simTime, self.turb_index)
+            temp_umh = backend_UpdateActuatorLineForce(self.problem, u_mh, self.simTime_id, self.dt, self.turb_index)
+            temp_uph = backend_UpdateActuatorLineForce(self.problem, u_ph, self.simTime_id, self.dt, self.turb_index)
             dtf_du = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
 
             prepared["u_local"].append(dtf_du)
