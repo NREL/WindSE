@@ -333,19 +333,19 @@ class GenericProblem(object):
         if c_lift is not None:
             cl = np.array(c_lift, dtype = float)
             for k in range(self.num_blade_segments):
-                self.mcl[turb_index][k].assign(cl[k])
+                self.mcl[turb_index][k] = Constant(cl[k])
         if c_drag is not None:
             cd = np.array(c_drag, dtype = float)
             for k in range(self.num_blade_segments):
-                self.mcd[turb_index][k].assign(cd[k])
+                self.mcd[turb_index][k] = Constant(cd[k])
         if chord is not None:
             chord = np.array(chord, dtype = float)
             for k in range(self.num_blade_segments):
-                self.mchord[turb_index][k].assign(chord[k])
+                self.mchord[turb_index][k] = Constant(chord[k])
         if yaw is not None:
             yaw = float(yaw)
             self.farm.yaw[turb_index] = yaw
-            self.farm.myaw[turb_index].assign(yaw)
+            self.farm.myaw[turb_index] = Constant(yaw)
         
 
         self.CopyALMtoWindFarm()

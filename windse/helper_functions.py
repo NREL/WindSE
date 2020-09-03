@@ -665,7 +665,7 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
     # print('Turbine should be spinning at %.3f RPM' % (rpm_new))
     # print('To match centripetal forces from baseline case.')
 
-    # print("Current Yaw: "+repr(float(problem.farm.myaw[turb_i])))
+    print("Current Yaw: "+repr(float(problem.farm.myaw[turb_i])))
 
     # Treat each blade separately
     for blade_ct, theta_0 in enumerate(theta_vec):
@@ -728,10 +728,6 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
                          blade_pos_alt[2, k])
 
                 u_fluid[:, k] -= np.dot(u_fluid[:, k], blade_unit_vec[:, 1])*blade_unit_vec[:, 1]
-
-                # u_fluid[0, k] *= 0.5
-                u_fluid[1, k] = 0.0
-                u_fluid[2, k] = 0.0
 
         else:
             # Generate the fluid velocity using the inlet velocity (x-pos = x_range[0])        

@@ -123,9 +123,9 @@ class GenericWindFarm(object):
         if power is None:
             plt.title("Location of the Turbines")
         elif isinstance(power,(list,np.ndarray)):
-            plt.title("Objective Value: {: 5.2f}".format(sum(power)))
+            plt.title("Objective Value: {: 5.6f}".format(sum(power)))
         else:
-            plt.title("Objective Value: {: 5.2f}".format(power))
+            plt.title("Objective Value: {: 5.6f}".format(power))
 
         plt.savefig(file_string, transparent=True)
 
@@ -286,16 +286,16 @@ class GenericWindFarm(object):
             self.axial = np.array(a,dtype=float)
 
         for i in range(self.numturbs):
-            self.mx[i].assign(self.x[i])
-            self.my[i].assign(self.y[i])
+            self.mx[i] = Constant(self.x[i])
+            self.my[i] = Constant(self.y[i])
             # if self.analytic:
             #     self.mz[i] = self.dom.Ground(self.mx[i],self.my[i])+float(self.HH[i])
             # else:
             self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
             self.z[i] = float(self.mz[i])
             self.ground[i] = self.z[i] - self.HH[i]
-            self.ma[i].assign((self.axial[i]))
-            self.myaw[i].assign(self.yaw[i])
+            self.ma[i] = Constant(self.axial[i])
+            self.myaw[i] = Constant(self.yaw[i])
 
     def CreateLists(self):
         """

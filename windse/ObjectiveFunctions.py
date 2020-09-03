@@ -66,7 +66,7 @@ def CalculateActuatorLinePowerFunctional(solver,inflow_angle = 0.0):
 
     # J = assemble(inner(solver.problem.u_k,solver.problem.u_k)*dx)
     # J = assemble(inner(solver.problem.tf,solver.problem.tf)*dx)
-    # J = assemble(2.0*np.pi*solver.problem.rpm/60.0*dot(-solver.problem.tf,solver.problem.u_k)*dx)
+    # J = assemble(1e-6*2.0*np.pi*solver.problem.rpm/60.0*dot(solver.problem.tf,solver.problem.u_k)*dx)
 
     # cyld_expr = Expression(('sin(yaw)*(x[2]-zs)', '-cos(yaw)*(x[2]-zs)', '(x[1]-ys)*cos(yaw)-(x[0]-xs)*sin(yaw)'),
     #     degree=6,
@@ -84,7 +84,7 @@ def CalculateActuatorLinePowerFunctional(solver,inflow_angle = 0.0):
     J_list[0]=solver.simTime
     J = 0.0
     for i in range(solver.problem.farm.numturbs):
-        J_temp = -assemble((2.0*np.pi*solver.problem.rpm/60.0)*inner(-solver.problem.tf_list[i], solver.problem.cyld_expr_list[i])*dx, annotate=True)
+        J_temp = -assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*inner(-solver.problem.tf_list[i], solver.problem.cyld_expr_list[i])*dx, annotate=True)
         J_list[i+1] = J_temp
         J += J_temp
     J_list[-1] = float(J)

@@ -115,6 +115,8 @@ class Optimizer(object):
         self.Jcurrent = j 
 
     def CreateControls(self):
+
+        ### Control pointers is a way of reference which parts of the original farm lists correspond to the controls. it is rather inefficient but it works so...
         self.controls = []
         self.control_pointers = []
         self.names = []
@@ -122,69 +124,70 @@ class Optimizer(object):
         self.init_vals = []
         j = 0
         if "layout" in self.control_types:
-            for i in range(self.farm.numturbs):
+            for i in self.solver.opt_turb_id:
                 self.indexes[0].append(j)
                 j+=1
                 self.names.append("x_"+repr(i))
                 self.controls.append(Control(self.farm.mx[i]))
-                self.control_pointers.append(self.farm.mx[i])
+                self.control_pointers.append((self.farm.x,i))
                 self.init_vals.append(self.farm.mx[i])
 
                 self.indexes[1].append(j)
                 j+=1
                 self.names.append("y_"+repr(i))
                 self.controls.append(Control(self.farm.my[i]))
-                self.control_pointers.append(self.farm.my[i])
+                self.control_pointers.append((self.farm.y,i))
                 self.init_vals.append(self.farm.my[i])
 
         if "yaw" in self.control_types:
-            for i in range(self.farm.numturbs):
+            for i in self.solver.opt_turb_id:
                 self.indexes[2].append(j)
                 j+=1
                 self.names.append("yaw_"+repr(i))
                 self.controls.append(Control(self.farm.myaw[i]))
-                self.control_pointers.append(self.farm.myaw[i])
+                self.control_pointers.append((self.farm.yaw,i))
                 self.init_vals.append(self.farm.myaw[i])
 
         if "axial" in self.control_types:
-            for i in range(self.farm.numturbs):
+            for i in self.solver.opt_turb_id:
                 self.indexes[3].append(j)
                 j+=1
                 self.names.append("axial_"+repr(i))
                 self.controls.append(Control(self.farm.ma[i]))
-                self.control_pointers.append(self.farm.ma[i])
+                self.control_pointers.append((self.farm.a,i))
                 self.init_vals.append(self.farm.ma[i])
 
         if "lift" in self.control_types:
             for i in self.solver.opt_turb_id:
+                self.control_pointers.append((self.problem.cl,i))
                 for k in range(self.problem.num_blade_segments):
                     self.indexes[4].append(j)
                     j+=1
                     self.names.append("lift_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.problem.mcl[i][k]))
-                    self.control_pointers.append(self.problem.mcl[i][k])
                     self.init_vals.append(self.problem.mcl[i][k])
 
         if "drag" in self.control_types:
             for i in self.solver.opt_turb_id:
+                self.control_pointers.append((self.problem.cd,i))
                 for k in range(self.problem.num_blade_segments):
                     self.indexes[5].append(j)
                     j+=1
                     self.names.append("drag_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.problem.mcd[i][k]))
-                    self.control_pointers.append(self.problem.mcd[i][k])
                     self.init_vals.append(self.problem.mcd[i][k])
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
+                self.control_pointers.append((self.problem.chord,i))
                 for k in range(self.problem.num_blade_segments):
                     self.indexes[6].append(j)
                     j+=1
                     self.names.append("chord_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.problem.mchord[i][k]))
-                    self.control_pointers.append(self.problem.mchord[i][k])
                     self.init_vals.append(self.problem.mchord[i][k])
-
+        self.num_controls = len(self.controls)
+        
     def CreateBounds(self):
         lower_bounds = []
         upper_bounds = []
@@ -278,8 +281,9 @@ class Optimizer(object):
         #     for i in range(self.farm.numturbs):
         #         self.fprint("Yaw Turbine {0:} of {1:}: {2: 4.6f}".format(i+1,self.farm.numturbs,self.farm.yaw[i]))
         self.fprint("Previous Control Values",special="header")
-        for i in range(len(m)):
-            self.fprint(self.names[i] +": " +repr(float(self.control_pointers[i])))
+        for i in range(self.num_controls):
+            # self.fprint(self.names[i] +": " +repr(self.control_pointers[i].name()))
+            self.fprint(self.names[i] +": " +repr(float(self.control_pointers[i][0][self.control_pointers[i][1]])))
         self.fprint("",special="footer")
 
         self.fprint("Next Control Values",special="header")
@@ -293,34 +297,39 @@ class Optimizer(object):
         folder_string = self.params.folder+"/data/"
         if not os.path.exists(folder_string): os.makedirs(folder_string)
 
-        new_values = {}
-        m_f = np.array(self.control_pointers,dtype=float)
-        if "layout" in self.control_types:
-            new_values["x"]   = m_f[self.indexes[0]]
-            new_values["y"]   = m_f[self.indexes[1]]
-        if "yaw" in self.control_types:
-            new_values["yaw"] = m_f[self.indexes[2]]
-        if "axial" in self.control_types:
-            new_values["a"]   = m_f[self.indexes[3]]
+        # new_values = {}
+        # m_f = np.array(self.control_pointers,dtype=float)
+        # if "layout" in self.control_types:
+        #     new_values["x"]   = m_f[self.indexes[0]]
+        #     new_values["y"]   = m_f[self.indexes[1]]
+        # if "yaw" in self.control_types:
+        #     new_values["yaw"] = m_f[self.indexes[2]]
+        # if "axial" in self.control_types:
+        #     new_values["a"]   = m_f[self.indexes[3]]
 
-        self.problem.farm.UpdateControls(**new_values)
+        # self.problem.farm.UpdateControls(**new_values)
         self.problem.farm.SaveWindFarm(val=self.iteration)
-
+        print(m)
+        print(type(m))
+        m_new = np.array(m,dtype=float)
+        m_old = []
+        for l, i in self.control_pointers:
+            m_old.append(float(l[i]))
+        print(m_new)
+        print(type(m_new))            
         if self.iteration == 0:
 
             #### ADD HEADER ####
-            self.last_m = np.zeros(len(m))
-            for i in range(len(m)):
-                self.last_m[i]=float(m[i])
+            self.last_m = np.zeros(self.num_controls)
+            for i in range(self.num_controls):
+                self.last_m[i]=float(m_new[i])
             err = 0.0
             f = open(folder_string+"opt_data.txt",'w')
         else:
-            err = np.linalg.norm(m-self.last_m)
-            self.last_m = copy.copy(m)
+            err = np.linalg.norm(m_new-self.last_m)
+            self.last_m = copy.copy(m_new)
             f = open(folder_string+"opt_data.txt",'a')
 
-        m_new = np.array(m,dtype=float)
-        m_old = np.array(self.control_pointers,dtype=float)
         output_data = np.concatenate(((self.Jcurrent, err, len(m_old)),m_old))
         output_data = np.concatenate((output_data,(len(m_new),)))
         output_data = np.concatenate((output_data,m_new))
@@ -329,21 +338,21 @@ class Optimizer(object):
         f.close()
 
     def OptPrintFunction(self,m,test=None):
-        # if test is not None:
-        #     print("Hey, this method actually gives us more info")
-        # # print(np.array(m,dtype=float))
-        # # print(np.array(self.control_pointers,dtype=float))
-        # # print(np.array(self.problem.farm.myaw,dtype=float))
-        # self.SaveControls(m)
-        # self.ListControls(m)
+        if test is not None:
+            print("Hey, this method actually gives us more info")
+        # print(np.array(m,dtype=float))
+        # print(np.array(self.control_pointers,dtype=float))
+        # print(np.array(self.problem.farm.myaw,dtype=float))
+        self.SaveControls(m)
+        self.ListControls(m)
 
-        # if "layout" in self.control_types or "yaw" in self.control_types:
-        #     self.problem.farm.PlotFarm(filename="wind_farm_step_"+repr(self.iteration),power=-self.Jcurrent)
+        if "layout" in self.control_types or "yaw" in self.control_types:
+            self.problem.farm.PlotFarm(filename="wind_farm_step_"+repr(self.iteration),power=-self.Jcurrent)
 
-        # if "chord" in self.control_types:
-        #     c_lower = np.array(self.bounds[0])[self.indexes[6]] 
-        #     c_upper = np.array(self.bounds[1])[self.indexes[6]] 
-        #     self.problem.farm.PlotChord(filename="chord_step_"+repr(self.iteration),power=-self.Jcurrent,bounds=[c_lower,c_upper])
+        if "chord" in self.control_types:
+            c_lower = np.array(self.bounds[0])[self.indexes[6]] 
+            c_upper = np.array(self.bounds[1])[self.indexes[6]] 
+            self.problem.farm.PlotChord(filename="chord_step_"+repr(self.iteration),power=-self.Jcurrent,bounds=[c_lower,c_upper])
         
         self.iteration += 1
 
@@ -361,9 +370,11 @@ class Optimizer(object):
         if "layout" in self.control_types:
             m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
         else:
-            m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
+            m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds,  callback = self.OptPrintFunction)
         # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
+
+        self.OptPrintFunction(m_opt)
         # self.fprint("Assigning New Values")
         # new_values = {}
         # m_f = np.array(m_opt,dtype=float)
@@ -389,9 +400,9 @@ class Optimizer(object):
 
         h = []
         for i,c in enumerate(self.controls):
-            # h.append(Constant(0.1))
+            h.append(Constant(0.1))
             # h.append(Constant(0.01*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
-            h.append(Constant(10.0*abs(float(self.bounds[1][i])-float(self.bounds[0][i]))/2.0))
+            # h.append(Constant(10.0*abs(float(self.bounds[1][i])-float(self.bounds[0][i]))/2.0))
             # h.append(Constant(0.01*abs(np.mean(self.bounds[1])+np.mean(self.bounds[0]))/2.0))
 
         print(np.array(h,dtype=float))

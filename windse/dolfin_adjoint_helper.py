@@ -401,6 +401,7 @@ class ActuatorLineForceBlock(Block):
 
         self.problem = problem
         self.simTime_id = copy.copy(simTime_id)
+        self.simTime = self.problem.simTime_list[simTime_id]
         self.dt = dt
         self.turb_index = turb_index
         self.u_local = u_local.copy()
@@ -489,16 +490,16 @@ class ActuatorLineForceBlock(Block):
         chord =  inputs[2:-2:3]
         yaw  = inputs[-2]
         u_k1 = inputs[-1]
+        prepared = {}
 
         self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord, yaw=yaw, turb_index=self.turb_index)
 
-        prepared = {}
         # for name in self.control_types:
         #     # pr = cProfile.Profile()
         #     # pr.enable()
         #     # print("calculating "+name+" derivatives")
         #     # Since dfd is not None here, prepared is a Numpy array of derivatives [numPts*ndim x numControls] 
-        #     prepared[name] = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime, self.turb_index, dfd=name, verbose=True)
+        #     prepared[name] = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index, dfd=name, verbose=True)
         #     # pr.disable()
         #     # pr.print_stats()
 
@@ -509,13 +510,13 @@ class ActuatorLineForceBlock(Block):
             prepared["chord"] = []
             for i in range(self.problem.num_blade_segments):
                 old_chord_value = copy.copy(chord[i])
-                h_mag = 0.01#*old_chord_value
+                h_mag = 0.0001#*old_chord_value
                 chord[i] = old_chord_value+h_mag
                 self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
-                temp_uph = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime_id, self.dt, self.turb_index, verbose=True)
+                temp_uph = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index, verbose=True)
                 chord[i] = old_chord_value-h_mag
                 self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
-                temp_umh = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime_id, self.dt, self.turb_index)
+                temp_umh = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
                 chord[i] = old_chord_value
                 self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
                 dtf_dc = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
@@ -528,10 +529,10 @@ class ActuatorLineForceBlock(Block):
             h_mag = 0.0001#*old_chord_value
             yaw = old_yaw_value+h_mag
             self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
-            temp_uph = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime_id, self.dt, self.turb_index, verbose=True)
+            temp_uph = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index, verbose=True)
             yaw = old_yaw_value-h_mag
             self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
-            temp_umh = backend_UpdateActuatorLineForce(self.problem, self.u_local, self.simTime_id, self.dt, self.turb_index)
+            temp_umh = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
             yaw = old_yaw_value
             self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
             dyaw_dc = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
@@ -539,7 +540,105 @@ class ActuatorLineForceBlock(Block):
             # print(min(temp_umh.vector().get_local()),max(temp_umh.vector().get_local()))
             prepared["yaw"] = dyaw_dc
 
-        h_mag = 0.01#*np.linalg.norm(u_local_vec)
+
+
+
+
+
+
+
+
+
+
+
+        # tf = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
+        # gut = dolfin.grad(u_k1)
+        # gtt = dolfin.grad(tf)
+        # gu = gut#.T
+        # gt = gtt#.T
+        # prepared["u_local"] = [[],[],[]]
+
+
+
+        # if not hasattr(self.problem,"dtfdu_files"):
+        #     self.problem.dtfdu_files = [dolfin.File(self.problem.params.folder+"debug/dtf0.pvd"),
+        #                                 dolfin.File(self.problem.params.folder+"debug/dtf1.pvd"),
+        #                                 dolfin.File(self.problem.params.folder+"debug/dtf2.pvd")]
+
+
+        # for i in range(3):
+
+        #     test = dolfin.Function(self.problem.fs.V)
+        #     test.rename("dtf"+repr(i),"dtf"+repr(i))
+        #     test_vec = test.vector().get_local()
+
+        #     # for j in range(3):
+        #     #     this only work for 0 degree inflow (west to east or east to west)
+        #     #     if self.simTime == 0:
+        #     #         # val1 = gu[j,0]
+        #     #         # val1 = dolfin.project(val1, self.problem.fs.Q,solver_type='cg', preconditioner_type='hypre_amg')
+
+        #     #         # val2 = gu[j,1]
+        #     #         # val2 = dolfin.project(val2, self.problem.fs.Q,solver_type='cg', preconditioner_type='hypre_amg')
+
+        #     #         # val3 = gu[j,2]
+        #     #         # val3 = dolfin.project(val3, self.problem.fs.Q,solver_type='cg', preconditioner_type='hypre_amg')
+
+        #     #         # print(min(val1.vector().get_local()),min(val2.vector().get_local()),min(val3.vector().get_local()))
+        #     #         # print(max(val1.vector().get_local()),max(val2.vector().get_local()),max(val3.vector().get_local()))
+        #     #         # if j == 0:
+        #     #         #     val = gt[i,0]*(1/gu[j,0])+gt[i,1]*(1/gu[j,1])+gt[i,2]*(1/gu[j,1])
+        #     #         # else:
+        #     #         val = dolfin.Constant(0.0)
+        #     #     else:
+        #     #         val = gt[i,0]*(1/gu[j,0])+gt[i,1]*(1/gu[j,1])+gt[i,2]*(1/gu[j,1])
+
+        #     if self.simTime == 0:
+        #         temp = dolfin.Function(self.problem.fs.Q)
+        #         temp.vector()[:] = 0.0
+        #         temp = temp.vector().get_local()
+        #         for j in range(3):
+        #             # val1 = gu[i,j]
+        #             # val1 = dolfin.project(val1, self.problem.fs.Q,solver_type='cg', preconditioner_type='hypre_amg')
+        #             # print("du_"+repr(i)+"/d_"+repr(j)+repr((min(val1.vector().get_local()),max(val1.vector().get_local()))))
+        #             test_vec[j::3] = 0.0
+
+        #             prepared["u_local"][i].append(temp)
+
+        #     else:
+        #         ### Create dTi/Dux ###
+        #         val_numer =  gt[i,2]*gu[1,1]*gu[2,0] - gt[i,1]*gu[1,2]*gu[2,0] - gt[i,2]*gu[1,0]*gu[2,1] + gt[i,0]*gu[1,2]*gu[2,1] + gt[i,1]*gu[1,0]*gu[2,2] - gt[i,0]*gu[1,1]*gu[2,2]
+        #         val_denom =  gu[0,2]*gu[1,1]*gu[2,0] - gu[0,1]*gu[1,2]*gu[2,0] - gu[0,2]*gu[1,0]*gu[2,1] + gu[0,0]*gu[1,2]*gu[2,1] + gu[0,1]*gu[1,0]*gu[2,2] - gu[0,0]*gu[1,1]*gu[2,2]
+        #         val = val_numer/val_denom
+        #         val = dolfin.project(val, self.problem.fs.Q,solver_type='mumps')
+        #         test_vec[0::3] = val.vector().get_local()
+        #         prepared["u_local"][i].append(val.vector().get_local())#/np.linalg.norm(val.vector().get_local()))
+
+        #         ### Create dTi/Duy ###
+        #         val_numer =  gt[i,2]*gu[0,1]*gu[2,0] - gt[i,1]*gu[0,2]*gu[2,0] - gt[i,2]*gu[0,0]*gu[2,1] + gt[i,0]*gu[0,2]*gu[2,1] + gt[i,1]*gu[0,0]*gu[2,2] - gt[i,0]*gu[0,1]*gu[2,2]
+        #         val_denom = -gu[0,2]*gu[1,1]*gu[2,0] + gu[0,1]*gu[1,2]*gu[2,0] + gu[0,2]*gu[1,0]*gu[2,1] - gu[0,0]*gu[1,2]*gu[2,1] - gu[0,1]*gu[1,0]*gu[2,2] + gu[0,0]*gu[1,1]*gu[2,2]
+        #         val = val_numer/val_denom
+        #         val = dolfin.project(val, self.problem.fs.Q,solver_type='mumps')
+        #         test_vec[1::3] = val.vector().get_local()
+        #         prepared["u_local"][i].append(val.vector().get_local())#/np.linalg.norm(val.vector().get_local()))
+
+        #         ### Create dTi/Duz ###
+        #         val_numer =  gt[i,2]*gu[0,1]*gu[1,0] - gt[i,1]*gu[0,2]*gu[1,0] - gt[i,2]*gu[0,0]*gu[1,1] + gt[i,0]*gu[0,2]*gu[1,1] + gt[i,1]*gu[0,0]*gu[1,2] - gt[i,0]*gu[0,1]*gu[1,2]
+        #         val_denom =  gu[0,2]*gu[1,1]*gu[2,0] - gu[0,1]*gu[1,2]*gu[2,0] - gu[0,2]*gu[1,0]*gu[2,1] + gu[0,0]*gu[1,2]*gu[2,1] + gu[0,1]*gu[1,0]*gu[2,2] - gu[0,0]*gu[1,1]*gu[2,2]
+        #         val = val_numer/val_denom
+        #         val = dolfin.project(val, self.problem.fs.Q,solver_type='mumps')
+        #         test_vec[2::3] = val.vector().get_local()
+        #         prepared["u_local"][i].append(val.vector().get_local())#/np.linalg.norm(val.vector().get_local()))
+
+        #     test.vector()[:]=test_vec
+        #     self.problem.dtfdu_files[i].write(test,self.simTime)
+
+
+
+
+
+
+        h_mag = 0.0001#*np.linalg.norm(u_local_vec)
         u_local_vec = u_k1.vector().get_local()
         # print(np.linalg.norm(u_local_vec))
 
@@ -571,8 +670,34 @@ class ActuatorLineForceBlock(Block):
         # print("calculating: " + name + "_" + repr(segment_index))
 
 
+        # if not hasattr(self.problem,"ul_adjoint_files"):
+        #     self.problem.ul_adjoint_files = dolfin.File(self.problem.params.folder+"debug/ul_adjoint.pvd")
+
 
         if name == "u_local":
+
+
+
+
+            # adj_vec = adj_inputs[0].get_local()
+            # comp_vec = np.zeros(adj_vec.shape)
+
+            # for i in range(3):
+            #     for j in range(3):
+            #         comp_vec[i::3] += prepared[name][j][i]*adj_vec[j::3]
+
+            # adj_output = dolfin.Function(self.u_local.function_space())
+            # adj_output.vector()[:] = adj_vec #comp_vec
+            # # adj_output.rename("u_adjoint","u_adjoint")
+            # # self.problem.ul_adjoint_files.write(adj_output,self.simTime)
+            
+
+
+
+
+
+            # print(min(comp_vec),max(comp_vec))
+
             # print("I depend on u_local")
             #
             # prepared["u_local"] =  tf_x/u_x tf_y/u_x tf_z/u_x
@@ -597,12 +722,13 @@ class ActuatorLineForceBlock(Block):
 
             for i in range(3):
                 for j in range(3):
-                    comp_vec[i::3] += prepared[name][j][j::3]*adj_vec[j::3]
+                    comp_vec[i::3] += prepared[name][j][i::3]*adj_vec[j::3]
+                    # comp_vec[j::3] += prepared[name][j][i::3]*adj_vec[j::3]
                     # comp_vec[i::3] += np.inner(prepared[name][j][i::3],adj_vec[j::3])
 
             # for i in range(3):
-            #     comp_vec += prepared[name][i]*adj_vec
-            #         # comp_vec[i::3] += np.inner(prepared[name][j][i::3],adj_vec[j::3])
+            #     # comp_vec += prepared[name][i]*adj_vec
+            #         comp_vec[i::3] += np.inner(prepared[name][j][i::3],adj_vec[j::3])
 
             adj_output = dolfin.Function(self.u_local.function_space())
             adj_output.vector()[:] = comp_vec

@@ -746,7 +746,7 @@ class UnsteadySolver(GenericSolver):
             SOR = 0.5
             dt_new = SOR*dt_new + (1.0-SOR)*self.problem.dt
 
-        dt_new = dt_new/2.0
+        # dt_new = dt_new/2.0
 
         # Calculate the time remaining until the next file output
         time_remaining = saveInterval - (simTime % saveInterval)
