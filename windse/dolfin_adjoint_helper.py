@@ -453,7 +453,11 @@ class ActuatorLineForceBlock(Block):
         yaw  = inputs[-2]
         u_k1 = inputs[-1]
 
-
+        # c_lift = inputs[0:-1:3]
+        # c_drag = inputs[1:-1:3]
+        # chord =  inputs[2:-1:3]
+        # yaw  = inputs[-1]
+        # u_k1 = self.u_local
 
         # print()
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -461,6 +465,13 @@ class ActuatorLineForceBlock(Block):
         # print(np.array(chord,dtype=float))
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
         # print()
+
+        self.problem.fprint("Current Forward Time: "+repr(self.simTime),tab=1)
+        self.problem.fprint("Turbine "+repr(self.turb_index),tab=2)
+        self.problem.fprint("Current Yaw:   "+repr(float(self.problem.farm.myaw[self.turb_index])),tab=2)
+        self.problem.fprint("Current Chord: "+str(np.array(self.problem.mchord[self.turb_index],dtype=float)),tab=2)
+        # self.problem.fprint("",special="footer")
+
 
         self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord, yaw=yaw, turb_index=self.turb_index)
 
@@ -474,8 +485,8 @@ class ActuatorLineForceBlock(Block):
 
 
         # Since dfd=None here, prepared is a dolfin function (tf) [1 x numPts*ndim]
-        prepared = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index, verbose=True)
-        print("tf   = "+repr(np.mean(prepared.vector()[:])))
+        prepared = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
+        # print("tf   = "+repr(np.mean(prepared.vector()[:])))
         # print()
 
         return prepared
@@ -490,6 +501,20 @@ class ActuatorLineForceBlock(Block):
         chord =  inputs[2:-2:3]
         yaw  = inputs[-2]
         u_k1 = inputs[-1]
+
+        # c_lift = inputs[0:-1:3]
+        # c_drag = inputs[1:-1:3]
+        # chord =  inputs[2:-1:3]
+        # yaw  = inputs[-1]
+        # u_k1 = self.u_local
+
+        self.problem.fprint("Current Adjoint Time: "+repr(self.simTime),tab=1)
+        self.problem.fprint("Turbine "+repr(self.turb_index),tab=2)
+        self.problem.fprint("Current Yaw:   "+repr(float(self.problem.farm.myaw[self.turb_index])),tab=2)
+        self.problem.fprint("Current Chord: "+str(np.array(self.problem.mchord[self.turb_index],dtype=float)),tab=2)
+        # self.problem.fprint("",special="footer")
+
+
         prepared = {}
 
         self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord, yaw=yaw, turb_index=self.turb_index)
@@ -513,7 +538,7 @@ class ActuatorLineForceBlock(Block):
                 h_mag = 0.0001#*old_chord_value
                 chord[i] = old_chord_value+h_mag
                 self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
-                temp_uph = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index, verbose=True)
+                temp_uph = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
                 chord[i] = old_chord_value-h_mag
                 self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
                 temp_umh = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
@@ -529,7 +554,7 @@ class ActuatorLineForceBlock(Block):
             h_mag = 0.0001#*old_chord_value
             yaw = old_yaw_value+h_mag
             self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
-            temp_uph = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index, verbose=True)
+            temp_uph = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
             yaw = old_yaw_value-h_mag
             self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
             temp_umh = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
@@ -637,29 +662,29 @@ class ActuatorLineForceBlock(Block):
 
 
 
+        if self.problem.farm.use_local_velocity:
+            h_mag = 0.0001#*np.linalg.norm(u_local_vec)
+            u_local_vec = u_k1.vector().get_local()
+            # print(np.linalg.norm(u_local_vec))
 
-        h_mag = 0.0001#*np.linalg.norm(u_local_vec)
-        u_local_vec = u_k1.vector().get_local()
-        # print(np.linalg.norm(u_local_vec))
+            prepared["u_local"] = []
 
-        prepared["u_local"] = []
-
-        for i in range(self.problem.dom.dim):
-            h = np.zeros(u_local_vec.shape)
-            h[i::3] = h_mag
-        
-            u_mh = dolfin.Function(u_k1.function_space())
-            u_mh.vector()[:] = u_local_vec-h
+            for i in range(self.problem.dom.dim):
+                h = np.zeros(u_local_vec.shape)
+                h[i::3] = h_mag
+            
+                u_mh = dolfin.Function(u_k1.function_space())
+                u_mh.vector()[:] = u_local_vec-h
 
 
-            u_ph = dolfin.Function(u_k1.function_space())
-            u_ph.vector()[:] = u_local_vec+h
+                u_ph = dolfin.Function(u_k1.function_space())
+                u_ph.vector()[:] = u_local_vec+h
 
-            temp_umh = backend_UpdateActuatorLineForce(self.problem, u_mh, self.simTime_id, self.dt, self.turb_index)
-            temp_uph = backend_UpdateActuatorLineForce(self.problem, u_ph, self.simTime_id, self.dt, self.turb_index)
-            dtf_du = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
+                temp_umh = backend_UpdateActuatorLineForce(self.problem, u_mh, self.simTime_id, self.dt, self.turb_index)
+                temp_uph = backend_UpdateActuatorLineForce(self.problem, u_ph, self.simTime_id, self.dt, self.turb_index)
+                dtf_du = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
 
-            prepared["u_local"].append(dtf_du)
+                prepared["u_local"].append(dtf_du)
 
         return prepared
 
@@ -716,22 +741,25 @@ class ActuatorLineForceBlock(Block):
             #
             #
             #
-
-            adj_vec = adj_inputs[0].get_local()
-            comp_vec = np.zeros(adj_vec.shape)
-
-            for i in range(3):
-                for j in range(3):
-                    comp_vec[i::3] += prepared[name][j][i::3]*adj_vec[j::3]
-                    # comp_vec[j::3] += prepared[name][j][i::3]*adj_vec[j::3]
-                    # comp_vec[i::3] += np.inner(prepared[name][j][i::3],adj_vec[j::3])
-
-            # for i in range(3):
-            #     # comp_vec += prepared[name][i]*adj_vec
-            #         comp_vec[i::3] += np.inner(prepared[name][j][i::3],adj_vec[j::3])
-
             adj_output = dolfin.Function(self.u_local.function_space())
-            adj_output.vector()[:] = comp_vec
+            if self.problem.farm.use_local_velocity:
+                adj_vec = adj_inputs[0].get_local()
+                comp_vec = np.zeros(adj_vec.shape)
+
+                for i in range(3):
+                    for j in range(3):
+                        comp_vec[i::3] += prepared[name][j][i::3]*adj_vec[j::3]
+                        # comp_vec[j::3] += prepared[name][j][i::3]*adj_vec[j::3]
+                        # comp_vec[i::3] += np.inner(prepared[name][j][i::3],adj_vec[j::3])
+
+                # for i in range(3):
+                #     # comp_vec += prepared[name][i]*adj_vec
+                #         comp_vec[i::3] += np.inner(prepared[name][j][i::3],adj_vec[j::3])
+
+                adj_output.vector()[:] = comp_vec
+                # adj_output.vector()[:] = 0.0
+            else:
+                adj_output.vector()[:] = 0.0
 
 
             # adj_output_vec = 0

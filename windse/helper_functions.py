@@ -665,7 +665,8 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
     # print('Turbine should be spinning at %.3f RPM' % (rpm_new))
     # print('To match centripetal forces from baseline case.')
 
-    print("Current Yaw: "+repr(float(problem.farm.myaw[turb_i])))
+    # print("Current Yaw:   "+repr(float(problem.farm.myaw[turb_i])))
+    # print("Current Chord: "+str(np.array(problem.mchord[turb_i],dtype=float)))
 
     # Treat each blade separately
     for blade_ct, theta_0 in enumerate(theta_vec):
@@ -717,9 +718,9 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
         u_fluid = np.zeros((3, problem.num_blade_segments))
 
         # Set if using local velocity around inidividual nodes
-        using_local_velocity = True
+        # using_local_velocity = True
 
-        if using_local_velocity:
+        if problem.farm.use_local_velocity:
             # Generate the fluid velocity from the actual node locations in the flow
             for k in range(problem.num_blade_segments):
 

@@ -159,8 +159,8 @@ class Optimizer(object):
 
         if "lift" in self.control_types:
             for i in self.solver.opt_turb_id:
-                self.control_pointers.append((self.problem.cl,i))
                 for k in range(self.problem.num_blade_segments):
+                    self.control_pointers.append((self.problem.cl,[i,k]))
                     self.indexes[4].append(j)
                     j+=1
                     self.names.append("lift_"+repr(i)+"_"+repr(k))
@@ -169,8 +169,8 @@ class Optimizer(object):
 
         if "drag" in self.control_types:
             for i in self.solver.opt_turb_id:
-                self.control_pointers.append((self.problem.cd,i))
                 for k in range(self.problem.num_blade_segments):
+                    self.control_pointers.append((self.problem.cd,[i,k]))
                     self.indexes[5].append(j)
                     j+=1
                     self.names.append("drag_"+repr(i)+"_"+repr(k))
@@ -179,15 +179,15 @@ class Optimizer(object):
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
-                self.control_pointers.append((self.problem.chord,i))
                 for k in range(self.problem.num_blade_segments):
+                    self.control_pointers.append((self.problem.chord,[i,k]))
                     self.indexes[6].append(j)
                     j+=1
                     self.names.append("chord_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.problem.mchord[i][k]))
                     self.init_vals.append(self.problem.mchord[i][k])
         self.num_controls = len(self.controls)
-        
+
     def CreateBounds(self):
         lower_bounds = []
         upper_bounds = []
@@ -201,8 +201,8 @@ class Optimizer(object):
 
         if "yaw" in self.control_types:
             for i in range(self.farm.numturbs):
-                lower_bounds.append(Constant(-60*pi/180.0))
-                upper_bounds.append(Constant(60*pi/180.0))
+                lower_bounds.append(Constant(-45*pi/180.0))
+                upper_bounds.append(Constant(45*pi/180.0))
 
         if "axial" in self.control_types:
             for i in range(self.farm.numturbs):
@@ -281,15 +281,18 @@ class Optimizer(object):
         #     for i in range(self.farm.numturbs):
         #         self.fprint("Yaw Turbine {0:} of {1:}: {2: 4.6f}".format(i+1,self.farm.numturbs,self.farm.yaw[i]))
         self.fprint("Previous Control Values",special="header")
-        for i in range(self.num_controls):
-            # self.fprint(self.names[i] +": " +repr(self.control_pointers[i].name()))
-            self.fprint(self.names[i] +": " +repr(float(self.control_pointers[i][0][self.control_pointers[i][1]])))
+        for i, [l, ix] in enumerate(self.control_pointers):
+            if not isinstance(ix,int):
+                self.fprint(self.names[i] +": " +repr(float(l[ix[0]][ix[1]])))
+            else:
+                self.fprint(self.names[i] +": " +repr(float(l[ix])))
         self.fprint("",special="footer")
 
         self.fprint("Next Control Values",special="header")
         for i, val in enumerate(m):
             self.fprint(self.names[i] +": " +repr(float(val)))
         self.fprint("",special="footer")
+
         self.fprint("Iteration "+repr(self.iteration)+" Complete",special="footer")
 
     def SaveControls(self,m):
@@ -309,14 +312,17 @@ class Optimizer(object):
 
         # self.problem.farm.UpdateControls(**new_values)
         self.problem.farm.SaveWindFarm(val=self.iteration)
-        print(m)
-        print(type(m))
+        # print(m)
+        # print(type(m))
         m_new = np.array(m,dtype=float)
         m_old = []
         for l, i in self.control_pointers:
-            m_old.append(float(l[i]))
-        print(m_new)
-        print(type(m_new))            
+            if not isinstance(i,int):
+                m_old.append(float(l[i[0]][i[1]]))
+            else:
+                m_old.append(float(l[i]))
+        # print(m_new)
+        # print(type(m_new))            
         if self.iteration == 0:
 
             #### ADD HEADER ####
@@ -325,13 +331,15 @@ class Optimizer(object):
                 self.last_m[i]=float(m_new[i])
             err = 0.0
             f = open(folder_string+"opt_data.txt",'w')
+            header = str("Objective    Change    Prev_Controls:    p_"+"    p_".join(self.names)+"    New_Controls:    n_"+"    n_".join(self.names)+"\n")
+            f.write(header)
         else:
             err = np.linalg.norm(m_new-self.last_m)
             self.last_m = copy.copy(m_new)
             f = open(folder_string+"opt_data.txt",'a')
 
-        output_data = np.concatenate(((self.Jcurrent, err, len(m_old)),m_old))
-        output_data = np.concatenate((output_data,(len(m_new),)))
+        output_data = np.concatenate(((self.Jcurrent, err, self.num_controls),m_old))
+        output_data = np.concatenate((output_data,(self.num_controls,)))
         output_data = np.concatenate((output_data,m_new))
 
         np.savetxt(f,[output_data])
@@ -374,6 +382,8 @@ class Optimizer(object):
         # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
 
+        if self.num_controls == 1:
+            m_opt = (m_opt,)
         self.OptPrintFunction(m_opt)
         # self.fprint("Assigning New Values")
         # new_values = {}
@@ -390,7 +400,7 @@ class Optimizer(object):
         # self.fprint("Solving With New Values")
         # self.solver.Solve()
 
-        self.fprint("Optimization Finished",special="header")
+        self.fprint("Optimization Finished",special="footer")
 
         return m_opt
 

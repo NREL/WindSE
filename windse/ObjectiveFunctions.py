@@ -79,15 +79,20 @@ def CalculateActuatorLinePowerFunctional(solver,inflow_angle = 0.0):
     # J = assemble(inner(solver.problem.u_k,as_vector((1.0,0.0,0.0)))*dx)
     # J = assemble(inner(solver.problem.u_k,as_vector((1.0,0.0,0.0)))*dx)
 
-
     J_list=np.zeros(solver.problem.farm.numturbs+2)
     J_list[0]=solver.simTime
     J = 0.0
     for i in range(solver.problem.farm.numturbs):
-        J_temp = -assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*inner(-solver.problem.tf_list[i], solver.problem.cyld_expr_list[i])*dx, annotate=True)
+        if solver.alm_power_type == "real":
+            J_temp = -assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*inner(-solver.problem.tf_list[i], solver.problem.cyld_expr_list[i])*dx, annotate=True)
+        elif solver.alm_power_type == "fake":
+            J_temp = -assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*dot(-solver.problem.tf_list[i],solver.problem.u_k)*dx)
+        else:
+            raise ValueError("Unknown ALM Power type: "+repr(solver.alm_power_type))
         J_list[i+1] = J_temp
         J += J_temp
     J_list[-1] = float(J)
+
 
     if solver.save_power or solver.save_objective:
 

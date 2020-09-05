@@ -166,7 +166,7 @@ class GenericWindFarm(object):
             plt.plot(x,bounds[1][-self.blade_segments:],"--r")
 
         for i in range(self.numturbs):
-            y = np.array(self.mchord[i],dtype=float)
+            y = np.array(self.chord[i],dtype=float)
             plt.plot(x,y,'.-',label=i)
 
         plt.xlim(0,1)
@@ -288,14 +288,14 @@ class GenericWindFarm(object):
         for i in range(self.numturbs):
             self.mx[i] = Constant(self.x[i])
             self.my[i] = Constant(self.y[i])
+            self.ma[i] = Constant(self.axial[i])
+            self.myaw[i] = Constant(self.yaw[i])
             # if self.analytic:
             #     self.mz[i] = self.dom.Ground(self.mx[i],self.my[i])+float(self.HH[i])
             # else:
             self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
             self.z[i] = float(self.mz[i])
             self.ground[i] = self.z[i] - self.HH[i]
-            self.ma[i] = Constant(self.axial[i])
-            self.myaw[i] = Constant(self.yaw[i])
 
     def CreateLists(self):
         """

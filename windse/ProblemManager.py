@@ -271,6 +271,9 @@ class GenericProblem(object):
                 self.mtwist.append(turb_i_twist)
                 self.mcl.append(turb_i_lift)
                 self.mcd.append(turb_i_drag)
+                self.chord = np.array(self.mchord,dtype=float)
+                self.cl = np.array(self.mcl,dtype=float)
+                self.cd = np.array(self.mcd,dtype=float)
 
             self.cyld_expr_list = [None]*self.farm.numturbs
             self.tf_list = self.farm.CalculateActuatorLineTurbineForces(self, simTime)
@@ -299,6 +302,9 @@ class GenericProblem(object):
         self.farm.mcl = self.mcl
         self.farm.mcd = self.mcd
         self.farm.mchord = self.mchord
+        self.farm.cl = self.cl
+        self.farm.cd = self.cd
+        self.farm.chord = self.chord
 
 
     def ChangeWindAngle(self,inflow_angle):
@@ -332,13 +338,16 @@ class GenericProblem(object):
 
         if c_lift is not None:
             cl = np.array(c_lift, dtype = float)
+            self.cl[turb_index] = cl
             for k in range(self.num_blade_segments):
                 self.mcl[turb_index][k] = Constant(cl[k])
         if c_drag is not None:
             cd = np.array(c_drag, dtype = float)
+            self.cd[turb_index] = cd
             for k in range(self.num_blade_segments):
                 self.mcd[turb_index][k] = Constant(cd[k])
         if chord is not None:
+            self.chord[turb_index] = chord
             chord = np.array(chord, dtype = float)
             for k in range(self.num_blade_segments):
                 self.mchord[turb_index][k] = Constant(chord[k])
