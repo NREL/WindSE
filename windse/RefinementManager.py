@@ -63,6 +63,10 @@ def CreateRefinementList(dom, farm, refine_params):
                 radius = max(farm.RD)
                 refine_list.append(["simple",[radius,expand_factor]])
 
+            elif turbine_type == 'sphere':
+                radius = max(farm.RD)
+                refine_list.append(["sphere",[radius,expand_factor]])
+
             elif turbine_type == 'wake':
                 radius = max(farm.RD)
                 length = 5*radius
@@ -95,6 +99,7 @@ def RefineMesh(dom,farm):
                    "cylinder": dom.CylinderRefine,
                    "stream": dom.StreamRefine,
                    "simple": farm.SimpleRefine,
+                   "sphere": farm.SphereRefine,
                    "tear": farm.TearRefine,
                    "wake": farm.WakeRefine
                    }

@@ -510,7 +510,8 @@ class UnsteadySolver(GenericSolver):
             b1 = assemble(self.problem.L1, tensor=b1)
             [bc.apply(b1) for bc in self.problem.bd.bcu]
             if self.optimizing:
-                solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default',adj_cb=save_adj)
+                solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default')
+                # solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default',adj_cb=save_adj)
             else:
                 solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default')
             # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.u_k.vector()[:])))
@@ -682,16 +683,16 @@ class UnsteadySolver(GenericSolver):
             self.velocity_file = self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime)
             self.pressure_file   = self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime)
             self.turb_force_file   = self.params.Save(self.problem.tf_save,"turbine_force",subfolder="timeSeries/",val=simTime)
-            if self.optimizing:
-                self.adj_tape_file = XDMFFile(self.params.folder+"timeSeries/global_adjoint.xdmf")
-                self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
+            # if self.optimizing:
+                # self.adj_tape_file = XDMFFile(self.params.folder+"timeSeries/global_adjoint.xdmf")
+                # self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
             self.first_save = False
         else:
             self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime,file=self.velocity_file)
             self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime,file=self.pressure_file)
             self.params.Save(self.problem.tf_save,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
-            if self.optimizing:
-                self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
+            # if self.optimizing:
+                # self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
 
         # # Save velocity files (pointer in fp[0])
         # self.problem.u_k.rename('Velocity', 'Velocity')
@@ -725,7 +726,7 @@ class UnsteadySolver(GenericSolver):
     def AdjustTimestepSize(self, save_next_timestep, saveInterval, simTime, u_max, u_max_k1):
 
         # Set the CFL target (0.2 is a good value for stability and speed, YMMV)
-        cfl_target = 0.5
+        # cfl_target = 0.5
         cfl_target = 1.0
 
         # Enforce a minimum timestep size

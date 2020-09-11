@@ -348,8 +348,8 @@ class GenericWindFarm(object):
         for cell in cells(self.dom.mesh):
             ### Get Points of all cell vertices ##
             pt = cell.get_vertex_coordinates()
-            x = pt[0:-2:d]
-            y = pt[1:-1:d]
+            x = pt[0::d]
+            y = pt[1::d]
             if d == 3:
                 z = pt[2::d]
 
@@ -411,8 +411,8 @@ class GenericWindFarm(object):
         for cell in cells(self.dom.mesh):
             ### Get Points of all cell vertices ##
             pt = cell.get_vertex_coordinates()
-            x = pt[0:-2:d]
-            y = pt[1:-1:d]
+            x = pt[0::d]
+            y = pt[1::d]
             if d == 3:
                 z = pt[2::d]
 
@@ -492,8 +492,8 @@ class GenericWindFarm(object):
         for cell in cells(self.dom.mesh):
             ### Get Points of all cell vertices ##
             pt = cell.get_vertex_coordinates()
-            x = pt[0:-2:d]
-            y = pt[1:-1:d]
+            x = pt[0::d]
+            y = pt[1::d]
             if d == 3:
                 z = pt[2::d]
 
@@ -561,7 +561,62 @@ class GenericWindFarm(object):
         refine_stop = time.time()
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
+    def SphereRefine(self,radius,expand_factor=1):
+        self.fprint("Sphere Refinement Near Turbines",special="header")
+        refine_start = time.time()
 
+        ### Calculate expanded values ###
+        radius = expand_factor*radius
+
+        ### Create the cell markers ###
+        cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
+        
+        ### Get Dimension ###
+        n = self.numturbs
+        d = self.dom.dim
+
+        ### Get Turbine Coordinates ###
+        turb_x = np.array(self.x)
+        turb_y = np.array(self.y)
+        if self.dom.dim == 3:
+            turb_z = np.array(self.z)
+            
+
+        self.fprint("Marking Near Turbine")
+        mark_start = time.time()
+        for cell in cells(self.dom.mesh):
+            ### Get Points of all cell vertices ##
+            pt = cell.get_vertex_coordinates()
+            x = pt[0::d]
+            y = pt[1::d]
+            if d == 3:
+                z = pt[2::d]
+
+            ### Find the minimum distance for each turbine with the vertices ###
+            min_r  = np.power(np.subtract.outer(x,turb_x),2.0)
+            min_r += np.power(np.subtract.outer(y,turb_y),2.0)
+            if d == 3:
+                min_r += np.power(np.subtract.outer(z,turb_z),2.0)
+            min_r = np.min(min_r,axis=0)
+
+            ### Determine if cell is in radius for each turbine ###
+            in_sphere = min_r <= radius**2.0
+
+            ### mark if cell is near any cylinder ###
+            if any(in_sphere):
+                cell_f[cell] = True
+
+        mark_stop = time.time()
+        self.fprint("Marking Finished: {:1.2f} s".format(mark_stop-mark_start))
+
+        ### Refine Mesh ###
+        self.dom.Refine(cell_f)
+
+        ### Recompute Heights with new mesh ###
+        self.CalculateHeights()
+
+        refine_stop = time.time()
+        self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
 
 
