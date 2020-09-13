@@ -83,7 +83,6 @@ solver:
     # save_power: False
 
 optimization:
-    min_total: 0.0
     # control_types: [lift, drag, chord]
     control_types: [chord]
     objective_type: wake_center

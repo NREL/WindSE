@@ -19,11 +19,12 @@ if main_file != "sphinx-build":
     from sys import platform
     import math
     import time
-    import shutil
+    import shutil, copy
     from scipy.special import gamma
+    import scipy.interpolate as interp
 
     ### Import the cumulative parameters ###
-    from windse import windse_parameters, BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce
+    from windse import windse_parameters, BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
@@ -321,6 +322,9 @@ class GenericWindFarm(object):
             self.mz.append(BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i]))
             self.z[i] = float(self.mz[i])
             self.ground[i] = self.z[i] - self.HH[i]
+
+
+
 
     def SimpleRefine(self,radius,expand_factor=1):
         self.fprint("Cylinder Refinement Near Turbines",special="header")
@@ -814,6 +818,40 @@ class GenericWindFarm(object):
         self.fprint("Calculating Turbine Force",special="header")
         self.fprint("Using a Dolfin Representation")
 
+        if not hasattr(self, "chord"):
+            if self.read_turb_data:
+
+                # if self.blade_segments == "computed":
+                #     self.num_blade_segments = int(2.0*self.radius[0]/self.gaussian_width)
+                #     self.blade_segments = self.num_blade_segments
+                # else:
+                #     self.num_blade_segments = self.blade_segments
+                # print('Num blade segments: ', self.num_blade_segments)
+
+                turb_data = self.params["wind_farm"]["read_turb_data"]
+                self.fprint('Setting chord from file \'%s\'' % (turb_data))
+                actual_turbine_data = np.genfromtxt(turb_data, delimiter = ',', skip_header = 1)
+                actual_x = actual_turbine_data[:, 0]
+                actual_chord = self.chord_factor*actual_turbine_data[:, 1]
+                chord_interp = interp.interp1d(actual_x, actual_chord)
+                interp_points = np.linspace(0.0, 1.0, self.blade_segments)
+                # Generate the interpolated values
+                self.chord = chord_interp(interp_points)
+            else:
+                self.chord = np.ones(10)
+        self.num_blade_segments = self.blade_segments
+        self.baseline_chord = copy.copy(self.chord)
+        self.mchord = []
+        for i in range(self.numturbs):
+            self.mchord.append([])
+            for c in self.chord:
+                self.mchord[i].append(Constant(c))
+        self.chord = np.array(self.mchord,dtype=float)
+
+
+
+
+
         x=SpatialCoordinate(mesh)
         tf=0
         rd=0
@@ -827,6 +865,7 @@ class GenericWindFarm(object):
             W = self.thickness[i]*1.0
             R = self.RD[i]/2.0
             ma = self.ma[i]
+            chord = self.mchord[i]
             C_tprime = 4*ma/(1-ma)
 
             ### Set up some dim dependent values ###
@@ -853,9 +892,12 @@ class GenericWindFarm(object):
 
             ### Create the function that represents the force ###
             if self.force == "constant":
-                F = 0.5*A*C_tprime
+                force = 1.0
             elif self.force == "sine":
-                F = 0.5*A*C_tprime*(r*sin(pi*r)+0.5)/S_norm
+                force = (r*sin(pi*r)+0.5)/S_norm
+            elif self.force == "chord":
+                force = RadialChordForce(r,chord)
+            F = 0.5*A*C_tprime*force
 
             ### Calculate normalization constant ###
             volNormalization = T_norm*D_norm*W*R**(self.dom.dim-1)

@@ -65,6 +65,9 @@ class GenericProblem(object):
         ### Create the turbine force function ###
         if self.farm.turbine_method == "dolfin":
             self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+            self.num_blade_segments = self.farm.blade_segments
+
+
 
         elif self.farm.turbine_method == "numpy":
             self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
@@ -271,9 +274,9 @@ class GenericProblem(object):
                 self.mtwist.append(turb_i_twist)
                 self.mcl.append(turb_i_lift)
                 self.mcd.append(turb_i_drag)
-                self.chord = np.array(self.mchord,dtype=float)
-                self.cl = np.array(self.mcl,dtype=float)
-                self.cd = np.array(self.mcd,dtype=float)
+            self.chord = np.array(self.mchord,dtype=float)
+            self.cl = np.array(self.mcl,dtype=float)
+            self.cd = np.array(self.mcd,dtype=float)
 
             self.cyld_expr_list = [None]*self.farm.numturbs
             self.tf_list = self.farm.CalculateActuatorLineTurbineForces(self, simTime)
@@ -305,6 +308,7 @@ class GenericProblem(object):
         self.farm.cl = self.cl
         self.farm.cd = self.cd
         self.farm.chord = self.chord
+        self.farm.num_blade_segments = self.num_blade_segments
 
 
     def ChangeWindAngle(self,inflow_angle):

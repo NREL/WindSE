@@ -8,6 +8,7 @@ import copy
 import ufl
 
 from windse.helper_functions import BaseHeight as backend_BaseHeight
+from windse.helper_functions import RadialChordForce as backend_RadialChordForce
 from windse.helper_functions import CalculateDiskTurbineForces as backend_CalculateDiskTurbineForces
 from windse.helper_functions import UpdateActuatorLineForce as backend_UpdateActuatorLineForce
 from windse import windse_parameters
@@ -94,7 +95,9 @@ class BaseHeightBlock(Block):
         return adj_input * adj
 
 
+def RadialChordForce(r,chord):
 
+    return backend_RadialChordForce(r,chord)
 
 
 

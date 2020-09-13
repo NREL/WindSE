@@ -197,9 +197,11 @@ class SteadySolver(GenericSolver):
             self.problem.bd.SaveInitialGuess(val=iter_val)
         if "height" in self.params.output and self.problem.dom.dim == 3:
             self.problem.bd.SaveHeight(val=iter_val)
-        # if "turbine_force" in self.params.output:
-            # self.problem.farm.SaveActuatorDisks(val=iter_val)
+        if "turbine_force" in self.params.output:
+            self.problem.farm.SaveActuatorDisks(val=iter_val)
         self.fprint("Finished",special="footer")
+
+        # exit()
 
         ####################################################################
         ### This is the better way to define a nonlinear problem but it 

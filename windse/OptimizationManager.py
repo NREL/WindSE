@@ -159,33 +159,33 @@ class Optimizer(object):
 
         if "lift" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.problem.num_blade_segments):
-                    self.control_pointers.append((self.problem.cl,[i,k]))
+                for k in range(self.farm.num_blade_segments):
+                    self.control_pointers.append((self.farm.cl,[i,k]))
                     self.indexes[4].append(j)
                     j+=1
                     self.names.append("lift_"+repr(i)+"_"+repr(k))
-                    self.controls.append(Control(self.problem.mcl[i][k]))
-                    self.init_vals.append(self.problem.mcl[i][k])
+                    self.controls.append(Control(self.farm.mcl[i][k]))
+                    self.init_vals.append(self.farm.mcl[i][k])
 
         if "drag" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.problem.num_blade_segments):
-                    self.control_pointers.append((self.problem.cd,[i,k]))
+                for k in range(self.farm.num_blade_segments):
+                    self.control_pointers.append((self.farm.cd,[i,k]))
                     self.indexes[5].append(j)
                     j+=1
                     self.names.append("drag_"+repr(i)+"_"+repr(k))
-                    self.controls.append(Control(self.problem.mcd[i][k]))
-                    self.init_vals.append(self.problem.mcd[i][k])
+                    self.controls.append(Control(self.farm.mcd[i][k]))
+                    self.init_vals.append(self.farm.mcd[i][k])
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.problem.num_blade_segments):
-                    self.control_pointers.append((self.problem.chord,[i,k]))
+                for k in range(self.farm.num_blade_segments):
+                    self.control_pointers.append((self.farm.chord,[i,k]))
                     self.indexes[6].append(j)
                     j+=1
                     self.names.append("chord_"+repr(i)+"_"+repr(k))
-                    self.controls.append(Control(self.problem.mchord[i][k]))
-                    self.init_vals.append(self.problem.mchord[i][k])
+                    self.controls.append(Control(self.farm.mchord[i][k]))
+                    self.init_vals.append(self.farm.mchord[i][k])
         self.num_controls = len(self.controls)
 
     def CreateBounds(self):
@@ -211,23 +211,23 @@ class Optimizer(object):
 
         if "lift" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for i in range(self.problem.num_blade_segments):
+                for i in range(self.farm.num_blade_segments):
                     lower_bounds.append(Constant(0))
                     upper_bounds.append(Constant(2.))
 
         if "drag" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.problem.num_blade_segments):
+                for k in range(self.farm.num_blade_segments):
                     lower_bounds.append(Constant(0))
                     upper_bounds.append(Constant(2.))
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
                 c_avg = 0
-                for k in range(self.problem.num_blade_segments):
+                for k in range(self.farm.num_blade_segments):
                     modifier = 2.0
-                    max_chord = self.problem.farm.max_chord
-                    seg_chord = self.problem.farm.baseline_chord[k]
+                    max_chord = self.farm.max_chord
+                    seg_chord = self.farm.baseline_chord[k]
                     lower_bounds.append(Constant(seg_chord/modifier))
                     upper_bounds.append(Constant(np.maximum(np.minimum(seg_chord*modifier,max_chord),c_avg)))
                     c_avg = (c_avg*k+seg_chord)/(k+1)

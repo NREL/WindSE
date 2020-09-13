@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: "3_yaw_chord_opt_real_local"
+    name: "3_yaw_opt_steady"
     preappend_datetime: false
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: True
@@ -20,13 +20,10 @@ wind_farm:
     # yaw: 0.0              # Yaw                      | rads
     # yaw: -0.0520149791167009              # Yaw                      | rads
     yaw: -0.349              # Yaw                      | rads
-    turbine_method: "alm"
-    use_local_velocity: True
-    rpm: 11.6 # new baseline (7.5 m/s at 11.6 rpm)
-    # rpm: 10.6 # rated rotor speed for iea_rwt
+    turbine_method: "dolfin"
+    force: chord
     read_turb_data: 'baseline.csv'
-    chord_factor: 1.0
-    gauss_factor: 2.0           
+    blade_segments: 10         
 
 # Domain Constants for a Box Domain
 domain: 
@@ -72,23 +69,17 @@ boundary_conditions:
     k: 0.4
 
 problem:
-    type: unsteady
+    type: steady
     viscosity: 0.000018
-    script_iterator: 0
  
 solver:
-    type: unsteady
-    save_interval: 10.0
-    final_time: 350.0
-    # save_power: False
+    type: steady
 
 optimization:
-    # control_types: [lift, drag, chord]
-    control_types: [yaw,chord]
-    objective_type: alm_power
-    alm_power_type: real #fake
+    control_types: [chord]
+    objective_type: power
     opt_turb_id : all
-    record_time: 300.0
     # gradient: True
     # taylor_test: True
     optimize: True
+

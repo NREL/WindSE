@@ -21,8 +21,69 @@ if main_file != "sphinx-build":
     import time
     from scipy.special import gamma
 
+    import matplotlib
+    matplotlib.use('TKAgg')
+    import matplotlib.pyplot as plt
+
+
 def BaseHeight(x,y,ground,dx=0,dy=0):
     return Constant(ground(float(x),float(y),dx=dx,dy=dy))
+
+
+def RadialChordForce(r,chord):
+
+    cx = np.linspace(-0.1,1.25,len(chord))
+    # cx = np.insert(cx,0,-0.1)
+    # cx = np.insert(cx,len(cx),1.1)
+    # chord = [0.0] + chord + [0.0]
+
+    # chord = np.array(chord,dtype=float)
+    # print(chord)
+    # r = np.linspace(-0.1,1.25,1000)
+
+    force = 0
+    int_force = 0
+    for i in range(len(chord)):
+        Li = 1.0 
+        for j in range(len(chord)):
+            if i!=j:
+                Li *= (r - cx[j])/(cx[i]-cx[j])
+
+        force += chord[i]*Li
+        if i !=0:
+            int_force += (cx[i]-cx[i-1])*(chord[i]+chord[i-1])/2.0
+
+    # plt.plot(r,force)
+    # plt.scatter(cx,chord)
+    # plt.show()
+    # exit()
+
+    return force/int_force
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def Transform(x,x0,HH,yaw,ground,dfd=None):
 

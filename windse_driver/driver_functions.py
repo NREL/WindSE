@@ -136,6 +136,7 @@ def BuildProblem(params,dom,farm):
 
     ### Generate the problem ###
     prob_dict = {"stabilized":windse.StabilizedProblem,
+                 "steady":windse.StabilizedProblem,
                  "taylor_hood":windse.TaylorHoodProblem,
                  "unsteady":windse.UnsteadyProblem}
     problem = prob_dict[params["problem"]["type"]](dom,farm,fs,bc)#,opt=opt)
@@ -193,7 +194,8 @@ def SetupSimulation(params_loc=None):
     solver = BuildSolver(params,problem)
 
     farm.PlotFarm(params["wind_farm"]["display"])
-    farm.PlotChord(params["wind_farm"]["display"])
+    if hasattr(farm,"chord"):
+        farm.PlotChord(params["wind_farm"]["display"])
 
 
     return params, problem, solver
