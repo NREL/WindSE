@@ -79,9 +79,9 @@ solver:
     # save_power: False
 
 optimization:
-    control_types: [chord]
+    control_types: [yaw,chord]
     objective_type: power
     opt_turb_id : all
     # gradient: True
-    # taylor_test: True
-    optimize: True
+    taylor_test: True
+    # optimize: True

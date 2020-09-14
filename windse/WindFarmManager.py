@@ -275,7 +275,7 @@ class GenericWindFarm(object):
             self.myaw[i].rename("yaw"+repr(i),"yaw"+repr(i))
             self.ma[i].rename("a"+repr(i),"a"+repr(i))
 
-    def UpdateControls(self,x=None,y=None,yaw=None,a=None):
+    def UpdateControls(self,x=None,y=None,yaw=None,a=None,chord=None):
 
         if x is not None:
             self.x = np.array(x,dtype=float)
@@ -285,6 +285,14 @@ class GenericWindFarm(object):
             self.yaw = np.array(yaw,dtype=float)
         if a is not None:
             self.axial = np.array(a,dtype=float)
+
+
+        if chord is not None:
+            chord = np.array(chord, dtype = float)
+            self.chord[turb_index] = chord
+            for k in range(self.num_blade_segments):
+                self.mchord[turb_index][k] = Constant(chord[k])
+
 
         for i in range(self.numturbs):
             self.mx[i] = Constant(self.x[i])
@@ -297,6 +305,28 @@ class GenericWindFarm(object):
             self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
             self.z[i] = float(self.mz[i])
             self.ground[i] = self.z[i] - self.HH[i]
+
+    def SimpleControlUpdate(self):
+        for i in range(self.numturbs):
+
+            # Update per turbine controls
+            self.mx[i] = Constant(self.x[i])
+            self.my[i] = Constant(self.y[i])
+            self.ma[i] = Constant(self.axial[i])
+            self.myaw[i] = Constant(self.yaw[i])
+
+            # Update ground stuff
+            self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
+            self.z[i] = float(self.mz[i])
+            self.ground[i] = self.z[i] - self.HH[i]       
+
+            # Update blade level controls
+            for k in range(self.num_blade_segments):
+                self.mcl[i][k] = Constant(self.cl[i][k])
+                self.mcd[i][k] = Constant(self.cd[i][k])
+                self.mchord[i][k] = Constant(self.chord[i][k])
+
+
 
     def CreateLists(self):
         """
@@ -838,14 +868,27 @@ class GenericWindFarm(object):
                 # Generate the interpolated values
                 self.chord = chord_interp(interp_points)
             else:
-                self.chord = np.ones(10)
+                self.chord = np.ones(self.blade_segments)
         self.num_blade_segments = self.blade_segments
         self.baseline_chord = copy.copy(self.chord)
+
+        self.cl = np.ones(self.blade_segments)
+        self.cd = np.ones(self.blade_segments)
+
+
+        self.mcl = []
+        self.mcd = []
         self.mchord = []
         for i in range(self.numturbs):
+            self.mcl.append([])
+            self.mcd.append([])
             self.mchord.append([])
-            for c in self.chord:
-                self.mchord[i].append(Constant(c))
+            for j in range(self.blade_segments):
+                self.mcl[i].append(Constant(self.cl[j]))
+                self.mcd[i].append(Constant(self.cd[j]))
+                self.mchord[i].append(Constant(self.chord[j]))
+        self.cl = np.array(self.mcl,dtype=float)
+        self.cd = np.array(self.mcd,dtype=float)
         self.chord = np.array(self.mchord,dtype=float)
 
 

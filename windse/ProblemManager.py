@@ -351,8 +351,8 @@ class GenericProblem(object):
             for k in range(self.num_blade_segments):
                 self.mcd[turb_index][k] = Constant(cd[k])
         if chord is not None:
-            self.chord[turb_index] = chord
             chord = np.array(chord, dtype = float)
+            self.chord[turb_index] = chord
             for k in range(self.num_blade_segments):
                 self.mchord[turb_index][k] = Constant(chord[k])
         if yaw is not None:

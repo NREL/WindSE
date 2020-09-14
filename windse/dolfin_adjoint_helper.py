@@ -288,12 +288,6 @@ def Marker(u, simTime, out_file, **kwargs):
 
     return u
 
-
-
-
-
-
-
 class MarkerBlock(Block):
     '''This is the Block class that will be used to calculate adjoint 
     information for optimizations. '''
@@ -335,6 +329,95 @@ class MarkerBlock(Block):
         return adj_inputs[0]
 
 
+def ControlUpdater(J ,problem, **kwargs):
+    '''This is the adjoint version of RelativeHeight. It's goal is to 
+    calculate the height of the turbine's base. At the same time, it creates
+    a block that helps propagate the adjoint information.'''
+    annotate = annotate_tape(kwargs)
+    J = create_overloaded_object(J)
+
+    if annotate:        
+        block = ControlUpdaterBlock(J, problem)
+        block.add_output(J.create_block_variable())
+
+        tape = get_working_tape()
+        tape.add_block(block)
+
+    return J
+
+class ControlUpdaterBlock(Block):
+    '''This is the Block class that will be used to calculate adjoint 
+    information for optimizations. '''
+    def __init__(self, J, problem):
+        super(ControlUpdaterBlock, self).__init__()
+        self.problem = problem
+        self.farm = problem.farm
+
+        self.control_dict = {
+                                "c_lift": self.farm.cl,
+                                "c_drag": self.farm.cd,
+                                "chord": self.farm.chord,
+                                "x": self.farm.x,
+                                "y": self.farm.y,
+                                "yaw": self.farm.yaw,
+                                "a": self.farm.axial,
+        }
+
+        # Add dependencies on the controls
+        self.num_dependancies = 0
+        for i in range(self.problem.farm.numturbs):
+            for j in range(self.problem.num_blade_segments):
+                self.farm.mcl[i][j].block_variable.tag = ("c_lift", i, j)
+                self.add_dependency(self.farm.mcl[i][j])
+                self.num_dependancies += 1
+
+                self.farm.mcd[i][j].block_variable.tag = ("c_drag", i, j)
+                self.add_dependency(self.farm.mcd[i][j])
+                self.num_dependancies += 1
+
+                self.farm.mchord[i][j].block_variable.tag = ("chord", i, j)
+                self.add_dependency(self.farm.mchord[i][j])
+                self.num_dependancies += 1
+
+            self.farm.mx[i].block_variable.tag = ("x",i,-1)
+            self.add_dependency(self.farm.mx[i])
+            self.num_dependancies += 1
+
+            self.farm.my[i].block_variable.tag = ("y",i,-1)
+            self.add_dependency(self.farm.my[i])
+            self.num_dependancies += 1
+
+            self.farm.myaw[i].block_variable.tag = ("yaw",i,-1)
+            self.add_dependency(self.farm.myaw[i])
+            self.num_dependancies += 1
+
+            self.farm.ma[i].block_variable.tag = ("a",i,-1)
+            self.add_dependency(self.farm.ma[i])
+            self.num_dependancies += 1
+
+        J.block_variable.tag = ("J",-1,-1)
+        self.add_dependency(J)
+        self.num_dependancies += 1
+
+    def __str__(self):
+        return "ControlUpdaterBlock"
+
+    def recompute_component(self, inputs, block_variable, idx, prepared):
+        return inputs[-1]
+
+    def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
+
+        name, turb_id, seg_id = block_variable.tag
+
+        if name == "J":
+            self.farm.SimpleControlUpdate()
+            return adj_inputs[0]
+        elif name in ["c_lift","c_drag","chord"]:
+            self.control_dict[name][turb_id][seg_id] = float(inputs[idx])
+            return 0.0
+        else:
+            self.control_dict[name][turb_id] = float(inputs[idx])
+            return 0.0
 
 
 

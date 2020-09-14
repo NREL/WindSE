@@ -76,7 +76,7 @@ solver:
     type: steady
 
 optimization:
-    control_types: [chord]
+    control_types: [yaw]
     objective_type: power
     opt_turb_id : all
     # gradient: True

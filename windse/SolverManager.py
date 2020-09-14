@@ -29,7 +29,7 @@ if main_file != "sphinx-build":
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
-        from windse.dolfin_adjoint_helper import Marker
+        from windse.dolfin_adjoint_helper import Marker, ControlUpdater
 
     ### Import objective functions ###
     import windse.ObjectiveFunctions as obj_funcs
@@ -310,6 +310,10 @@ class SteadySolver(GenericSolver):
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
         # self.u_k,self.p_k = self.problem.up_k.split(True)
         self.problem.u_k,self.problem.p_k = self.problem.up_k.split(True)
+
+        ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
+
+
         # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
         self.nu_T = None
 
@@ -331,6 +335,7 @@ class SteadySolver(GenericSolver):
 
         if self.optimizing:
             self.J += self.objective_func(self,(iter_val-self.problem.dom.inflow_angle)) 
+            self.J = ControlUpdater(self.J, self.problem)
 
         if self.save_power and "power" not in self.objective_type:
             self.power_func(self,(iter_val-self.problem.dom.inflow_angle))
