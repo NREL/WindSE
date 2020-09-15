@@ -91,5 +91,5 @@ optimization:
     wake_RD: 5
     record_time: 200.0
     # gradient: True
-    # taylor_test: True
-    optimize: True
+    taylor_test: True
+    # optimize: True

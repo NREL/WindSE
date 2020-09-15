@@ -17,8 +17,8 @@ wind_farm:
     RD: 130.0             # Turbine Diameter         | m
     thickness: 13.0       # Effective Thickness      | m
     axial: 0.33           # Axial Induction          | -
-    yaw: 0.0              # Yaw                      | rads
-    # yaw: -0.349              # Yaw                      | rads
+    # yaw: 0.0              # Yaw                      | rads
+    yaw: -0.349              # Yaw                      | rads
     turbine_method: "dolfin"
     force: chord
     read_turb_data: 'baseline.csv'
@@ -48,7 +48,7 @@ refine:
         # [box, [  [[-80,750],[-80,80],[ 30,190]]  ]],
         [stream, [  [-80,0,110], 80, 860, 0, 0, 1.5  ]],
         # [sphere, [  [-80,0,110], 80, 860, 0, 0, 1.0  ]],
-        # [sphere, [  80  ]],
+        [sphere, [  80  ]],
         # [simple, [  80  ]]
     ]
 
@@ -79,9 +79,9 @@ solver:
     # save_power: False
 
 optimization:
-    control_types: [yaw,chord]
+    control_types: [yaw]
     objective_type: power
     opt_turb_id : all
     # gradient: True
-    taylor_test: True
-    # optimize: True
+    # taylor_test: True
+    optimize: True

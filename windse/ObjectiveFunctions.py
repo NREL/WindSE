@@ -24,7 +24,7 @@ if main_file != "sphinx-build":
 
 
 def CalculatePowerFunctional(solver,inflow_angle = 0.0):
-    J = assemble(dot(solver.problem.tf,solver.problem.u_k)*dx)
+    J = -assemble(dot(solver.problem.tf,solver.problem.u_k)*dx)
 
     if solver.save_power or solver.save_objective:
         J_list=np.zeros(solver.problem.farm.numturbs+2)

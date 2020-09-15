@@ -21,7 +21,7 @@ wind_farm:
     # yaw: -0.0520149791167009              # Yaw                      | rads
     yaw: -0.349              # Yaw                      | rads
     turbine_method: "dolfin"
-    force: chord
+    force: sine
     read_turb_data: 'baseline.csv'
     blade_segments: 10         
 

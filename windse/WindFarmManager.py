@@ -849,15 +849,14 @@ class GenericWindFarm(object):
         self.fprint("Using a Dolfin Representation")
 
         if not hasattr(self, "chord"):
+            if self.blade_segments == "computed":
+                self.num_blade_segments = 10 ##### FIX THIS ####
+                self.blade_segments = self.num_blade_segments
+            else:
+                self.num_blade_segments = self.blade_segments
+
             if self.read_turb_data:
-
-                # if self.blade_segments == "computed":
-                #     self.num_blade_segments = int(2.0*self.radius[0]/self.gaussian_width)
-                #     self.blade_segments = self.num_blade_segments
-                # else:
-                #     self.num_blade_segments = self.blade_segments
-                # print('Num blade segments: ', self.num_blade_segments)
-
+                print('Num blade segments: ', self.num_blade_segments)
                 turb_data = self.params["wind_farm"]["read_turb_data"]
                 self.fprint('Setting chord from file \'%s\'' % (turb_data))
                 actual_turbine_data = np.genfromtxt(turb_data, delimiter = ',', skip_header = 1)

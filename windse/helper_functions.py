@@ -134,7 +134,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
     yaw = np.array(wind_farm.myaw,dtype=float)+wind_farm.inflow_angle
     a = np.array(wind_farm.ma,dtype=float)
     HH = wind_farm.HH
-    W = wind_farm.W
+    W = wind_farm.thickness
     R = wind_farm.RD/2.0
     dim, N = x.shape
 
