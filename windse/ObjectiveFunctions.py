@@ -177,6 +177,38 @@ def Calculate2DPowerFunctional(solver,inflow_angle = 0.0):
 
         return J
 
+def CalculateKEEntrainment(solver,inflow_angle = 0.0):
+    print("Using Kinetic Energy Entrainment Functional")
+
+    # mark cells in area of interest
+    solver.objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim())
+    solver.objective_markers.set_all(0)
+    AOI  = CompiledSubDomain("x[0]>-65 && x[0]<2080 && x[1]>-200 && x[1]<200  && x[2]>110 && x[2]<175")
+    AOI.mark(solver.objective_markers,1)
+
+    dx_KE = Measure('dx', subdomain_data=solver.objective_markers)
+
+
+    J = assemble(-solver.problem.vertKE*dx_KE(1))
+
+    if solver.save_objective:
+         ### Open to save file (append mode) ###
+        folder_string = solver.params.folder+"data/"
+        
+        if not os.path.exists(folder_string): os.makedirs(folder_string)
+
+        f = open(folder_string+"objective_data.txt",'a')
+
+        out_data = [solver.simTime]
+        out_data.extend([J])
+
+        np.savetxt(f,[out_data])
+        f.close()
+
+    return J
+
+
+
 def CalculateWakeCenter(solver,inflow_angle = 0.0):
 
     turb_id = solver.opt_turb_id[0]
@@ -367,5 +399,6 @@ objectives_dict = {"power":    CalculatePowerFunctional,
                    "alm_power": CalculateActuatorLinePowerFunctional,
                    "2d_power":    Calculate2DPowerFunctional,
                    "wake_center": CalculateWakeCenter,
-                   "wake_deficit": CalculateWakeDeficit
+                   "wake_deficit": CalculateWakeDeficit,
+                   "KE_entrainment":    CalculateKEEntrainment
                   }

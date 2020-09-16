@@ -113,12 +113,16 @@ class GenericSolver(object):
         if self.first_save:
             self.u_file = self.params.Save(u,"velocity",subfolder="solutions/",val=val)
             self.p_file = self.params.Save(p,"pressure",subfolder="solutions/",val=val)
-            # self.nuT_file = self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val)
+            self.nuT_file = self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val)
+            self.ReyStress_file = self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val)
+            self.vertKE_file = self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val)
             self.first_save = False
         else:
             self.params.Save(u,"velocity",subfolder="solutions/",val=val,file=self.u_file)
             self.params.Save(p,"pressure",subfolder="solutions/",val=val,file=self.p_file)
-            # self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuT_file)
+            self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuT_file)
+            self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val,file=self.ReyStress_file)
+            self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val,file=self.vertKE_file)
         u.vector()[:]=u.vector()[:]*self.problem.dom.xscale
         self.problem.dom.mesh.coordinates()[:]=self.problem.dom.mesh.coordinates()[:]*self.problem.dom.xscale
 
@@ -312,10 +316,11 @@ class SteadySolver(GenericSolver):
         self.problem.u_k,self.problem.p_k = self.problem.up_k.split(True)
 
         ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
+        self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
+        self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='mumps',**self.extra_kwarg)
+        self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
 
-
-        # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
-        self.nu_T = None
+        # self.nu_T = None
 
         ### Save solutions ###
         if "solution" in self.params.output:

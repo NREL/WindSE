@@ -430,6 +430,8 @@ class StabilizedProblem(GenericProblem):
         
         ### Calculate nu_T
         self.nu_T=l_mix**2.*S
+        self.ReyStress=self.nu_T*grad(self.u_k)
+        self.vertKE= self.ReyStress[0,2]*self.u_k[0]
 
         ### Create the functional ###
         # if self.farm.yaw[0]**2 > 1e-4:
