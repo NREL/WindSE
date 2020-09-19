@@ -78,7 +78,7 @@ problem:
  
 solver:
     type: unsteady
-    save_interval: 0.5
+    save_interval: 10.0
     final_time: 250.0
     # save_power: False
 

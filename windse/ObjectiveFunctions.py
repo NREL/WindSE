@@ -188,11 +188,11 @@ def CalculateKEEntrainment(solver,inflow_angle = 0.0):
         x1 = solver.problem.dom.x_range[1]
         y0 = min(solver.problem.farm.y)-3.0*max(solver.problem.farm.RD)/2.0
         y1 = max(solver.problem.farm.y)+3.0*max(solver.problem.farm.RD)/2.0
-        z0 = min(solver.problem.farm.x)
-        z1 = max(solver.problem.farm.x)+max(solver.problem.farm.RD)/2.0
+        z0 = min(solver.problem.farm.z)
+        z1 = max(solver.problem.farm.z)+max(solver.problem.farm.RD)/2.0
         AOI  = CompiledSubDomain("x[0]>x0 && x[0]<x1 && x[1]>y0 && x[1]<y1  && x[2]>z0 && x[2]<z1",x0=x0,x1=x1,y0=y0,y1=y1,z0=z0,z1=z1)
         AOI.mark(solver.objective_markers,1)
-
+        
         if solver.save_objective:
             folder_string = solver.params.folder+"data/"
             if not os.path.exists(folder_string): os.makedirs(folder_string)
