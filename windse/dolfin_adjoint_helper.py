@@ -100,9 +100,11 @@ def RadialChordForce(r,chord):
     return backend_RadialChordForce(r,chord)
 
 
+# def ReynoldsSum(u,idx):
+    
+#     return backend_FunctionAdd(x1)
 
-
-
+# def
 
 
 

@@ -603,6 +603,11 @@ class UnsteadyProblem(GenericProblem):
         self.u_k1.assign(self.bd.bc_velocity)
         self.u_k2.assign(self.bd.bc_velocity)
 
+        # Calculate Reynolds stress 
+        self.uk_sum = Function(self.fs.V)
+        self.uk_sum.assign(self.u_k)
+        self.vertKE = Function(self.fs.Q)
+
         # Define functions for pressure solutions
         # >> _k = current (step k)
         # >> _k1 = previous (step k-1)

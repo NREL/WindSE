@@ -552,6 +552,11 @@ class UnsteadySolver(GenericSolver):
 
             # Update the simulation time
             self.simTime += self.problem.dt
+
+            # Compute Reynolds Stress
+            self.problem.uk_sum.assign(self.problem.uk_sum+self.problem.u_k)
+            self.problem.vertKE = (self.problem.u_k[0]-self.problem.uk_sum[0]/self.simTime)*(self.problem.u_k[2]-self.problem.uk_sum[2]/self.simTime)
+
             
             if save_next_timestep:
                 # Read in new inlet values

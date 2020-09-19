@@ -181,27 +181,35 @@ def CalculateKEEntrainment(solver,inflow_angle = 0.0):
     print("Using Kinetic Energy Entrainment Functional")
 
     # mark cells in area of interest
-    solver.objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim())
-    solver.objective_markers.set_all(0)
-    AOI  = CompiledSubDomain("x[0]>-65 && x[0]<2080 && x[1]>-200 && x[1]<200  && x[2]>110 && x[2]<175")
-    AOI.mark(solver.objective_markers,1)
+    if not hasattr(solver,"outflow_markers"):
+        solver.objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim())
+        solver.objective_markers.set_all(0)
+        x0 = min(solver.problem.farm.x)
+        x1 = solver.problem.dom.x_range[1]
+        y0 = min(solver.problem.farm.y)-3.0*max(solver.problem.farm.RD)/2.0
+        y1 = max(solver.problem.farm.y)+3.0*max(solver.problem.farm.RD)/2.0
+        z0 = min(solver.problem.farm.x)
+        z1 = max(solver.problem.farm.x)+max(solver.problem.farm.RD)/2.0
+        AOI  = CompiledSubDomain("x[0]>x0 && x[0]<x1 && x[1]>y0 && x[1]<y1  && x[2]>z0 && x[2]<z1",x0=x0,x1=x1,y0=y0,y1=y1,z0=z0,z1=z1)
+        AOI.mark(solver.objective_markers,1)
+
+        if solver.save_objective:
+            folder_string = solver.params.folder+"data/"
+            if not os.path.exists(folder_string): os.makedirs(folder_string)
+            f = open(folder_string+"objective_data.txt",'w')
+            header = str("Time    "+"Entrainment\n")
+            f.write(header)
+            f.close()
 
     dx_KE = Measure('dx', subdomain_data=solver.objective_markers)
 
-
-    J = assemble(-solver.problem.vertKE*dx_KE(1))
+    J = assemble(-1e-6*solver.problem.vertKE*dx_KE(1))
 
     if solver.save_objective:
-         ### Open to save file (append mode) ###
         folder_string = solver.params.folder+"data/"
-        
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
-
         f = open(folder_string+"objective_data.txt",'a')
-
         out_data = [solver.simTime]
-        out_data.extend([J])
-
+        out_data.extend([float(J)])
         np.savetxt(f,[out_data])
         f.close()
 
