@@ -15,7 +15,7 @@ else:
 ### This checks if we are just doing documentation ###
 if main_file != "sphinx-build":
     from dolfin import *
-    from mshr import *
+    #from mshr import *
     import copy
     import time
     import warnings

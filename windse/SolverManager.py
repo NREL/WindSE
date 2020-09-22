@@ -745,6 +745,7 @@ class UnsteadySolver(GenericSolver):
         # Set the CFL target (0.2 is a good value for stability and speed, YMMV)
         # cfl_target = 0.5
         cfl_target = 1.0
+        cfl_target = float(self.problem.params["solver"]["cfl_target"])
 
         # Enforce a minimum timestep size
         dt_min = 0.01

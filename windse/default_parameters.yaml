@@ -125,6 +125,7 @@ solver:
     save_power:        True
     nonlinear_solver:  snes
     newton_relaxation: 1.0
+    cfl_target: 1.0
 
 optimization:
     control_types:  Null
