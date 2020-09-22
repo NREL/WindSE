@@ -138,6 +138,7 @@ optimization:
     min_total:      0
     wake_length:    5
     wake_radius:    0.5
+    ke_location:    Null
     record_time:    computed
     taylor_test:    False
     optimize:       False

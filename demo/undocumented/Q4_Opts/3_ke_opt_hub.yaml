@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: "1_ke_opt"
+    name: "3_ke_opt_hub"
     preappend_datetime: false
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: True
@@ -9,9 +9,9 @@ general:
 wind_farm: 
     type: grid        #                          |
     grid_rows: 1          # Number of rows           | -
-    grid_cols: 1          # Number of columns        | -
-    ex_x: [0, 0]     # x-extent of the farm     | m
-    # ex_x: [-65, 715]     # x-extent of the farm     | m
+    grid_cols: 3          # Number of columns        | -
+    # ex_x: [0, 0]     # x-extent of the farm     | m
+    ex_x: [-65, 1365]     # x-extent of the farm     | m
     ex_y: [0, 0]     # y-extent of the farm     | m
     HH: 110                # Hub Height               | m
     RD: 130.0             # Turbine Diameter         | m
@@ -31,10 +31,10 @@ wind_farm:
 # Domain Constants for a Box Domain
 domain: 
     type: box
-    x_range: [-260, 780]   # [-2D, 5D between turbs + 6D outlet]  # x-range of the domain | m
+    x_range: [-260, 2080]   # [-2D, 5D between turbs + 6D outlet]  # x-range of the domain | m
     y_range: [-260, 260]    # [-2D, 2D]  # y-range of the domain | m
     z_range: [0.04, 520]    # [  0, 4D]  # z-range of the domain | m
-    nx: 40
+    nx: 90
     ny: 20
     nz: 12
 
@@ -50,7 +50,7 @@ refine:
         # [full,[]],
         # [box, [  [[-80,750],[-80,80],[ 30,190]], 1.5  ]],
         # [box, [  [[-80,750],[-80,80],[ 30,190]]  ]],
-        [stream, [  [-80,0,110], 80, 860, 0, 0, 1.5  ]],
+        [stream, [  [-80,0,110], 80, 1480, 0, 0, 1.5  ]],
         # [sphere, [  [-80,0,110], 80, 860, 0, 0, 1.0  ]],
         [sphere, [  80  ]],
         # [simple, [  80  ]]
@@ -79,15 +79,18 @@ problem:
 solver:
     type: unsteady
     save_interval: 10.0
-    final_time: 2.0
+    final_time: 350.0
+    cfl_target: 3.0
     # save_power: False
 
 optimization:
-    control_types: [chord]
-    objective_type: KE_entrainment
+    # control_types: [lift, drag, chord]
+    control_types: [yaw]
+    objective_type: alm_power
+    alm_power_type: real #fake
     opt_turb_id : all
-    record_time: 1.0
     ke_location: hub
+    record_time: 300.0
     # gradient: True
     # taylor_test: True
-    # optimize: True
+    optimize: True
