@@ -20,9 +20,11 @@ if main_file != "sphinx-build":
     import scipy.interpolate as interp
     import time
     from scipy.special import gamma
+    from sys import platform
 
-    import matplotlib
-    matplotlib.use('TKAgg')
+    if platform == 'darwin':
+        import matplotlib
+        matplotlib.use('TKAgg')
     import matplotlib.pyplot as plt
 
 
