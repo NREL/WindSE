@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: "1_ke_opt"
+    name: "1_ke_opt_test"
     preappend_datetime: false
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: True
@@ -79,15 +79,17 @@ problem:
 solver:
     type: unsteady
     save_interval: 10.0
-    final_time: 2.0
+    final_time: 3.0
     # save_power: False
 
 optimization:
     control_types: [chord]
     objective_type: KE_entrainment
     opt_turb_id : all
-    record_time: 1.0
+    u_avg_time: 1.0
+    record_time: 2.0
     ke_location: hub
+    opt_routine: SLSQP # L-BFGS-B
     # gradient: True
     # taylor_test: True
     # optimize: True

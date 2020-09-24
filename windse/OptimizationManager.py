@@ -379,7 +379,8 @@ class Optimizer(object):
             m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
         else:
             # m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds,  callback = self.OptPrintFunction)
-            m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
+            # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
+            m_opt=minimize(self.Jhat, method=self.opt_routine, options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
 
         if self.num_controls == 1:
