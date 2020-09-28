@@ -88,13 +88,13 @@ class GenericSolver(object):
             self.objective_func = obj_funcs.objectives_dict[self.objective_type]
             self.J_saved = False
 
-            if isinstance(self.opt_turb_id, str):
-                self.opt_turb_id = int(self.opt_turb_id)
 
             if isinstance(self.opt_turb_id,int):
                 self.opt_turb_id = [self.opt_turb_id]
             elif self.opt_turb_id == "all":
                 self.opt_turb_id = range(self.problem.farm.numturbs) 
+            elif isinstance(self.opt_turb_id, str):
+                self.opt_turb_id = [int(self.opt_turb_id)]
         else:
             self.optimizing = False
 
