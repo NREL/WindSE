@@ -63,13 +63,13 @@ problem:
 solver:
     type: unsteady
     save_interval: 50.0
-    final_time: 250.0
+    final_time: 300.0
     cfl_target: 3.0
 
 optimization:
     control_types: [chord]
     objective_type: KE_entrainment
     ke_location: hub
-    u_avg_time: 200.0
-    record_time: 225.0
+    u_avg_time: 250.0
+    record_time: 275.0
     optimize: True
