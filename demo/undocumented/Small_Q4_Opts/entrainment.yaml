@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: "power_opt"
+    name: "entrainment_opt"
     preappend_datetime: false
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: True

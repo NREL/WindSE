@@ -58,16 +58,15 @@ boundary_conditions:
 problem:
     type: unsteady
     viscosity: 0.000018
-    script_iterator: 0
  
 solver:
     type: unsteady
     save_interval: 5.0
-    final_time: 150.0
+    final_time: 60.0
     cfl_target: 3.0
 
 optimization:
     control_types: [chord]
     objective_type: alm_power
-    record_time: 125.0
+    record_time: 40.0
     optimize: True
