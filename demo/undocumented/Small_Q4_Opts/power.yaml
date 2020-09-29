@@ -61,12 +61,12 @@ problem:
  
 solver:
     type: unsteady
-    save_interval: 5.0
-    final_time: 60.0
+    save_interval: 50.0
+    final_time: 100.0
     cfl_target: 3.0
 
 optimization:
     control_types: [chord]
     objective_type: alm_power
-    record_time: 40.0
+    record_time: 80.0
     optimize: True
