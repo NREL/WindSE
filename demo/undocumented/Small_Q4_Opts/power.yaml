@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: "power_opt"
+    name: "power_opt_final_snap_1s"
     preappend_datetime: false
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: True
@@ -16,7 +16,7 @@ wind_farm:
     RD: 130.0             # Turbine Diameter         | m
     thickness: 13.0       # Effective Thickness      | m
     axial: 0.33           # Axial Induction          | -
-    yaw: -0.349              # Yaw                      | rads
+    yaw: 0.0              # Yaw                      | rads
     turbine_method: "alm"
     rpm: 11.6 # new baseline (7.5 m/s at 11.6 rpm)
     read_turb_data: 'baseline.csv'
@@ -61,7 +61,7 @@ problem:
  
 solver:
     type: unsteady
-    save_interval: 50.0
+    save_interval: 1.0
     final_time: 100.0
     cfl_target: 3.0
 
@@ -69,4 +69,5 @@ optimization:
     control_types: [chord]
     objective_type: alm_power
     record_time: 80.0
-    optimize: True
+    # optimize: True
+    # opt_routine: L-BFGS-B

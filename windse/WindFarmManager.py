@@ -970,6 +970,8 @@ class GenericWindFarm(object):
 
         tic = time.time()
         problem.simTime_list.append(simTime)
+        problem.dt_list.append(problem.dt)
+        problem.rotor_torque_dolfin_time.append(0.0)
 
         alm_output_list = []
         for turb_index in range(problem.farm.numturbs):

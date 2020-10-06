@@ -52,6 +52,10 @@ class GenericProblem(object):
         for key, value in self.params["problem"].items():
             setattr(self,key,value)
 
+        self.record_time = self.params["optimization"].get("record_time",0.0)
+        if isinstance(self.record_time,str):
+            self.record_time = 0.0
+
     def ComputeTurbineForce(self,u,inflow_angle,simTime=0.0):
 
         ### Compute the relative yaw angle ###
@@ -105,6 +109,8 @@ class GenericProblem(object):
             self.first_call_to_alm = True
             self.blade_pos_previous = [[], [], []]
             self.simTime_list = []
+            self.dt_list = []
+            self.rotor_torque_dolfin_time = []
             self.simTime_id = 0
 
             self.aoa_file = './output/%s/angle_of_attack.csv' % (self.params.name)
@@ -238,7 +244,6 @@ class GenericProblem(object):
                 twist = twist_interp(interp_points)
                 cl = cl_interp(interp_points)
                 cd = cd_interp(interp_points)
-                self.farm.baseline_chord = np.array(chord)/self.chord_factor
 
                 if self.params['problem']['script_iterator'] > 0:
                     chord_override = chord_interp_override(interp_points)
@@ -260,7 +265,10 @@ class GenericProblem(object):
                 if turb_i == 0 and self.params['problem']['script_iterator'] > 0:
                     chord_to_use = chord_override
                 else:
-                    chord_to_use = chord
+                    # chord_to_use = [2.5993912952866394, 3.5492808721592186, 4.67042880238879, 4.94984740731984, 4.791894547336281, 4.520032008634496, 4.450663333333334, 3.86769104037548, 3.395500130915245, 0.2]
+                    # chord_to_use = [2.59978608485722,    3.53358366863681,    4.44802950633928,    4.50303965573438,    4.23785738559839,    4.06900117097451,    4.35521148540168,    3.86769104037540,    3.39550013091521,    0.20000000000000]
+                    chord_to_use = [2.599786083594759, 3.533583676452576, 4.44802969320108, 4.50303999525842, 4.23785803303602, 4.0690023547926, 4.355211847489540, 3.8676910403754, 3.39550013091524, 0.2]
+                    # chord_to_use = chord
 
                 for k in range(self.num_blade_segments):
                     turb_i_chord.append(Constant(chord_to_use[k]))
@@ -277,6 +285,7 @@ class GenericProblem(object):
             self.chord = np.array(self.mchord,dtype=float)
             self.cl = np.array(self.mcl,dtype=float)
             self.cd = np.array(self.mcd,dtype=float)
+            self.farm.baseline_chord = np.array(self.chord[0])/self.chord_factor
 
             self.cyld_expr_list = [None]*self.farm.numturbs
             self.tf_list = self.farm.CalculateActuatorLineTurbineForces(self, simTime)

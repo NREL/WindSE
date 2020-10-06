@@ -577,6 +577,17 @@ class ActuatorLineForceBlock(Block):
         # print("tf   = "+repr(np.mean(prepared.vector()[:])))
         # print()
 
+        ### Calculate the exact current value of the objective function
+        ### ONLY WORKS WITH ALM POWER OBJECTIVE AND ONE TURBINE 
+        if self.simTime>=self.problem.record_time and self.problem.farm.numturbs==1:
+            t_ids = np.logical_and(np.array(self.problem.simTime_list)>=self.problem.record_time,np.array(self.problem.simTime_list)<=self.simTime)
+            dts = np.array(self.problem.dt_list)[t_ids]
+            tos = np.array(self.problem.rotor_torque_dolfin_time)[t_ids]
+            val = dts*tos 
+            self.obj_value = (2.0*np.pi*self.problem.rpm/60.0)*np.sum(val)/np.sum(dts)/1.0e6
+            self.problem.fprint("Current Power: "+repr(self.obj_value),tab=2)
+
+
         return prepared
 
     def recompute_component(self, inputs, block_variable, idx, prepared):
@@ -600,6 +611,8 @@ class ActuatorLineForceBlock(Block):
         self.problem.fprint("Turbine "+repr(self.turb_index),tab=2)
         self.problem.fprint("Current Yaw:   "+repr(float(self.problem.farm.myaw[self.turb_index])),tab=2)
         self.problem.fprint("Current Chord: "+str(np.array(self.problem.mchord[self.turb_index],dtype=float)),tab=2)
+        if self.simTime>=self.problem.record_time and self.problem.farm.numturbs==1:
+            self.problem.fprint("Current Power: "+repr(self.obj_value),tab=2)
         # self.problem.fprint("",special="footer")
 
 
