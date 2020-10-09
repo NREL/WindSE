@@ -35,9 +35,9 @@ if main_file != "sphinx-build":
 
 ### THis is a special class that allows prints to go to file and terminal
 class Logger(object):
-    def __init__(self,filename):
-        self.__dict__ = sys.stdout.__dict__.copy() 
-        self.terminal = sys.stdout
+    def __init__(self,filename,std):
+        self.__dict__ = std.__dict__.copy() 
+        self.terminal = std
         self.log = open(filename, "a")
         self.log.seek(0)
         self.log.truncate()
@@ -174,7 +174,8 @@ class Parameters(dict):
         
         ### Setup the logger ###
         self.log = self.folder+"log.txt"
-        sys.stdout = Logger(self.log)
+        sys.stdout = Logger(self.log,sys.stdout)
+        sys.stderr = Logger(self.log,sys.stderr)
 
         ### Copy params file to output folder ###
         if isinstance(loc,str):

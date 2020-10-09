@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: "power_opt_final_snap_1s"
+    name: "power_opt_cfl=05"
     preappend_datetime: false
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: True
@@ -61,13 +61,13 @@ problem:
  
 solver:
     type: unsteady
-    save_interval: 1.0
+    save_interval: 50.0
     final_time: 100.0
-    cfl_target: 3.0
+    cfl_target: 0.5
 
 optimization:
     control_types: [chord]
     objective_type: alm_power
     record_time: 80.0
-    # optimize: True
+    optimize: True
     # opt_routine: L-BFGS-B
