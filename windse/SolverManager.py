@@ -79,6 +79,8 @@ class GenericSolver(object):
         self.extra_kwarg = {}
         if self.params.dolfin_adjoint:
             self.extra_kwarg["annotate"] = False
+            
+        if self.params.dolfin_adjoint or self.save_objective:
             self.optimizing = True
             self.J = 0.0
             self.wake_RD = int(self.wake_RD)
@@ -628,7 +630,7 @@ class UnsteadySolver(GenericSolver):
             # save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
 
             # Calculate the objective function
-            if self.optimizing and self.simTime >= self.record_time:
+            if (self.optimizing or self.save_objective) and self.simTime >= self.record_time:
 
                 # Append the current time step for post production
                 self.adj_time_list.append(self.simTime)
@@ -668,7 +670,7 @@ class UnsteadySolver(GenericSolver):
             self.fprint("%8.2f | %7.2f | %5.2f" % (self.simTime, self.problem.dt, u_max))
             i+=1
 
-        if self.optimizing:
+        if (self.optimizing or self.save_objective):
             # if dt_sum > 0.0:
             self.J = self.J/float(dt_sum)
 

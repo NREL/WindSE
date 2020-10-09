@@ -84,7 +84,7 @@ def CalculateActuatorLinePowerFunctional(solver,inflow_angle = 0.0):
     J = 0.0
     for i in range(solver.problem.farm.numturbs):
         if solver.alm_power_type == "real":
-            J_temp = -assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*inner(-solver.problem.tf_list[i], solver.problem.cyld_expr_list[i])*dx, annotate=True)
+            J_temp = -assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*inner(-solver.problem.tf_list[i], solver.problem.cyld_expr_list[i])*dx)
         elif solver.alm_power_type == "fake":
             J_temp = -assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*dot(-solver.problem.tf_list[i],solver.problem.u_k)*dx)
         else:
@@ -297,28 +297,32 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
     for i in range(nRD):
 
         ### Check if this is the RD we want sensitivities ###
-        annotate = False
-        if i+1 == record_RD:
-            annotate = True
+        anno_switch={}
+        anno_false={}
+        if solver.params.dolfin_adjoint:
+            anno_false["annotate"] = False
+            anno_switch["annotate"] = False
+            if i+1 == record_RD:
+                anno_switch["annotate"] = True
 
         ### Switch measure depending on location of RD ###
         if abs(x0[i] - solver.problem.dom.x_range[1]) <= 1e-2:
             # print("External for " +repr(x0[i]))
-            M = assemble(u_dif_mag*ds_external(i+1), annotate = annotate)
-            Mx = assemble(x[0]*u_dif_mag*ds_external(i+1), annotate = False)
-            My = assemble(x[1]*u_dif_mag*ds_external(i+1), annotate = annotate)
-            Mz = assemble(x[2]*u_dif_mag*ds_external(i+1), annotate = False)
+            M = assemble(u_dif_mag*ds_external(i+1), **anno_switch)
+            Mx = assemble(x[0]*u_dif_mag*ds_external(i+1), **anno_false)
+            My = assemble(x[1]*u_dif_mag*ds_external(i+1), **anno_switch)
+            Mz = assemble(x[2]*u_dif_mag*ds_external(i+1), **anno_false)
         else:
-            M = assemble(avg(u_dif_mag)*ds_internal(i+1), annotate = annotate)
-            Mx = assemble(avg(x[0]*u_dif_mag)*ds_internal(i+1), annotate = False)
-            My = assemble(avg(x[1]*u_dif_mag)*ds_internal(i+1), annotate = annotate)
-            Mz = assemble(avg(x[2]*u_dif_mag)*ds_internal(i+1), annotate = False)
+            M = assemble(avg(u_dif_mag)*ds_internal(i+1), **anno_switch)
+            Mx = assemble(avg(x[0]*u_dif_mag)*ds_internal(i+1), **anno_false)
+            My = assemble(avg(x[1]*u_dif_mag)*ds_internal(i+1), **anno_switch)
+            Mz = assemble(avg(x[2]*u_dif_mag)*ds_internal(i+1), **anno_false)
 
         ### Collect Data ###
         out_data.extend([Mx/M,My/M,Mz/M])
 
         ### Return Objective Function ###
-        if annotate:
+        if i+1 == record_RD:
             print("RD"+repr(i+1)+" Centroid: "+repr((Mx/M,My/M,Mz/M)))
             # J = -pow(My/M*My/M,1.0/2.0) ## if need to be strictly positive
             J = -My/M
