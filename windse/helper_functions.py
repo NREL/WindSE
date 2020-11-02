@@ -14,13 +14,14 @@ if main_file != "sphinx-build":
         from dolfin import dx, File, dot
         from dolfin_adjoint import Constant, Function, Expression, assemble
     else:
-        from dolfin import Constant, Function, Expression, dot, dx, assemble, File
+        from dolfin import Constant, Function, Expression, dot, dx, assemble, File, MPI
 
     import numpy as np
     import scipy.interpolate as interp
     import time
     from scipy.special import gamma
     from sys import platform
+    # from mpi4py import MPI as pyMPI
 
     if platform == 'darwin':
         import matplotlib
@@ -141,7 +142,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
     dim, N = x.shape
 
     ### Set up some dim dependent values ###
-    S_norm = (2.0+pi)/(2.0*pi)
+    S_norm = (2.0+np.pi)/(2.0*np.pi)
     T_norm = 2.0*gamma(7.0/6.0)
     if dim == 3:
         A = np.pi*R**2.0 
@@ -424,6 +425,75 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
             # Save the function            
             fp << (dolfin_function, k)
 
+    def merge_interpolated(global_interp, data_in, ni):
+
+        for k in range(ni):
+            if not np.isnan(data_in[0, k]):
+                global_interp[:, k] = data_in[:, k]
+
+        return global_interp
+
+
+    def build_parallel_u_fluid(blade_pos, problem, using_local_velocity, comm, rank, num_procs):
+
+        ni = np.shape(blade_pos)[1]
+
+        # An empty array to store the fluid velocities at each actuator node
+        interp_values = np.empty((3, ni))
+
+        for k in range(ni):
+
+            if using_local_velocity:
+                xi = blade_pos[0, k]
+            else:
+                xi = problem.dom.x_range[0]
+
+            yi = blade_pos[1, k]
+            zi = blade_pos[2, k]
+
+            # Try to access the fluid velocity at this actuator point
+            # If this rank doesn't own that point, an error will occur,
+            # in which case NaN should be reported
+            try:
+                fn_val = problem.u_k1(xi, yi, zi)
+            except:
+                fn_val = [np.nan, np.nan, np.nan]
+
+            # Store the interpolated value (even if NaN)
+            interp_values[:, k] = fn_val
+
+        # print('rank %d found:\n' % (rank), interp_values)
+
+        if num_procs > 1:
+            # Initialize empty array to hold everything
+            global_interp = np.zeros((3, ni))
+
+            if rank == 0:
+                for k in range(num_procs):
+                    if k == 0:
+                        # Add fluid velocities owned by rank zero
+                        global_interp = merge_interpolated(global_interp, interp_values, ni)
+
+                    else:
+                        # Receive values from rank k
+                        data_in = np.zeros((3, ni), dtype = float)
+                        comm.Recv(data_in, source = k)
+
+                        # Add fluid velocities owned by rank k
+                        global_interp = merge_interpolated(global_interp, data_in, ni)
+
+            else:
+                # Send interpolated values (even if NaN) to root
+                data_out = np.copy(interp_values)
+                comm.Send(data_out, dest = 0)
+
+            # Distribute the finished global array to all ranks from zero
+            comm.Bcast(global_interp, root=0)
+        else:
+            global_interp = np.copy(interp_values)
+
+
+        return global_interp
 
     def build_lift_and_drag(problem, u_rel, blade_unit_vec, rdim, twist, c):
 
@@ -783,29 +853,38 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
         # Set if using local velocity around inidividual nodes
         # using_local_velocity = True
 
-        if problem.farm.use_local_velocity:
-            # Generate the fluid velocity from the actual node locations in the flow
-            for k in range(problem.num_blade_segments):
+        MPI_TESTING_SWITCH = True
 
-                u_fluid[:, k] = u_local(blade_pos_alt[0, k],
-                         blade_pos_alt[1, k],
-                         blade_pos_alt[2, k])
-
-                u_fluid[:, k] -= np.dot(u_fluid[:, k], blade_unit_vec[:, 1])*blade_unit_vec[:, 1]
+        if MPI_TESTING_SWITCH:
+            comm = MPI.comm_world
+            rank = comm.Get_rank()
+            num_procs = comm.Get_size()
+            u_fluid = build_parallel_u_fluid(blade_pos, problem, problem.farm.use_local_velocity, comm, rank, num_procs)
 
         else:
-            # Generate the fluid velocity using the inlet velocity (x-pos = x_range[0])        
-            for k in range(problem.num_blade_segments):
-                # u_fluid[:, k] = [problem.bd.HH_vel,0,0]
+            if problem.farm.use_local_velocity:
+                # Generate the fluid velocity from the actual node locations in the flow
+                for k in range(problem.num_blade_segments):
 
-                u_fluid[:, k] = problem.bd.bc_velocity(problem.dom.x_range[0],
-                                             blade_pos_alt[1, k],
-                                             blade_pos_alt[2, k])
+                    u_fluid[:, k] = u_local(blade_pos_alt[0, k],
+                             blade_pos_alt[1, k],
+                             blade_pos_alt[2, k])
 
-                u_fluid[1, k] = 0.0
-                u_fluid[2, k] = 0.0
-                # Force inlet velocity (1, 0, 0) for safe_mode
-                # u_fluid[:, k] = np.array([1, 0, 0])
+                    u_fluid[:, k] -= np.dot(u_fluid[:, k], blade_unit_vec[:, 1])*blade_unit_vec[:, 1]
+
+            else:
+                # Generate the fluid velocity using the inlet velocity (x-pos = x_range[0])        
+                for k in range(problem.num_blade_segments):
+                    # u_fluid[:, k] = [problem.bd.HH_vel,0,0]
+
+                    u_fluid[:, k] = problem.bd.bc_velocity(problem.dom.x_range[0],
+                                                 blade_pos_alt[1, k],
+                                                 blade_pos_alt[2, k])
+
+                    u_fluid[1, k] = 0.0
+                    u_fluid[2, k] = 0.0
+                    # Force inlet velocity (1, 0, 0) for safe_mode
+                    # u_fluid[:, k] = np.array([1, 0, 0])
 
         # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         # print(u_fluid)
@@ -941,7 +1020,10 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
 
     if save_safety_switch_files:
         folder_string = problem.params.folder+"timeSeries/"
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+        if not os.path.exists(folder_string) and rank == 0: os.makedirs(folder_string)
+        
         fp = open(folder_string +('actuatorForces%05d.vtk' % (problem.num_times_called)), 'w')
         fp.write('# vtk DataFile Version 2.0\n')
         fp.write('Lift, Drag, and Torque Forces\n')
@@ -1047,6 +1129,8 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
 
     problem.num_times_called += 1
     problem.first_call_to_alm = False
+
+    tf.vector().update_ghost_values()
 
     # fp = File('%s/timeSeries/gauss.pvd' % (problem.params.folder))
     # gaussian_fn.rename('gauss', 'gauss')

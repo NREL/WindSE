@@ -62,64 +62,117 @@ class GenericBoundary(object):
 
         self.fprint("Applying Boundary Conditions",offset=1)
 
-        unique_ids = np.unique(self.dom.boundary_markers.array())
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+        num_procs = comm.Get_size()
 
-        ### Assemble boundary conditions ###
-        bcu_eqns = []
-        bcp_eqns = []
-        for bc_type, bs in self.boundary_types.items():
-            if bc_type == "inflow":
-                for b in bs:
-                    if self.boundary_names[b] in unique_ids:
-                        bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
+        # If running in parallel, avoid using boundary markers
+        if num_procs > 1:
 
-            elif bc_type == "no_slip":
-                for b in bs:
-                    bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.zeros, self.boundary_names[b]])
+            self.bcu = []
+            self.bcp = []
+            self.bcs = []
 
-            elif bc_type == "free_slip":
-                temp_list = list(self.boundary_names.keys()) # get ordered list
-                for b in bs:
+            for bc_type, bc_loc_list in self.boundary_types.items():
+                for bc_loc in bc_loc_list:
 
-                    ### get a facet on the relevant boundary ###
-                    boundary_id = self.boundary_names[b]
+                    # Translate the boundary name, a string, into an integer index:
+                    # East = 0, North = 1, West = 2, South = 3, Bottom = 4, Top = 5
+                    bc_loc_id = self.boundary_names[bc_loc] - 1
 
-                    ### check to make sure the free slip boundary still exists ###
-                    if boundary_id in unique_ids:
+                    # Get the correct compiled subdomain based off the location id
+                    bc_domain = self.dom.boundary_subdomains[bc_loc_id]
 
-                        facet_ids = self.dom.boundary_markers.where_equal(boundary_id)
-                        test_facet = Facet(self.dom.mesh,facet_ids[int(len(facet_ids)/2.0)])
+                    # Append the right type of Dirichlet BC to the list
+                    if bc_type == 'inflow':
+                        self.bcu.append(DirichletBC(self.fs.V, self.bc_velocity, bc_domain))
+                        self.bcs.append(DirichletBC(self.fs.W.sub(0), self.bc_velocity, bc_domain))
 
-                        ### get the function space sub form the normal ###
-                        facet_normal = test_facet.normal().array()
-                        field_id = int(np.argmin(abs(abs(facet_normal)-1.0)))
+                    elif bc_type == 'no_slip':
+                        if self.dom.mesh.topology().dim() == 3:
+                            zeros = Constant((0.0, 0.0, 0.0))
+                        elif self.dom.mesh.topology().dim() == 2:
+                            zeros = Constant((0.0, 0.0))
 
-                        bcu_eqns.append([self.fs.V.sub(field_id), self.fs.W.sub(0).sub(field_id), self.zero, boundary_id])
+                        self.bcu.append(DirichletBC(self.fs.V, zeros, bc_domain))
+                        self.bcs.append(DirichletBC(self.fs.W.sub(0), zeros, bc_domain))
 
-            elif bc_type == "no_stress":
-                for b in bs:
-                    bcu_eqns.append([None, None, None, self.boundary_names[b]])
-                    bcp_eqns.append([self.fs.Q, self.fs.W.sub(1), self.zero, self.boundary_names[b]])
+                    elif bc_type == 'free_slip':
+                        # Identify the component/direction normal to this wall
+                        if bc_loc == 'east' or bc_loc == 'west':
+                            norm_comp = 0
+                        elif bc_loc == 'south' or bc_loc == 'north':
+                            norm_comp = 1
+                        elif bc_loc == 'bottom' or bc_loc == 'top':
+                            norm_comp = 2
 
-            else:
-                raise ValueError(bc_type+" is not a recognized boundary type")
-        bcs_eqns = bcu_eqns#+bcp_eqns
+                        self.bcu.append(DirichletBC(self.fs.V.sub(norm_comp), Constant(0.0), bc_domain))
+                        self.bcs.append(DirichletBC(self.fs.W.sub(0).sub(norm_comp), Constant(0.0), bc_domain))
 
-        ### Set the boundary conditions ###
-        self.bcu = []
-        for i in range(len(bcu_eqns)):
-            if bcu_eqns[i][0] is not None:
-                self.bcu.append(DirichletBC(bcu_eqns[i][0], bcu_eqns[i][2], self.dom.boundary_markers, bcu_eqns[i][3]))
+                    elif bc_type == 'no_stress':
+                        self.bcp.append(DirichletBC(self.fs.Q, Constant(0.0), bc_domain))
 
-        self.bcp = []
-        for i in range(len(bcp_eqns)):
-            if bcp_eqns[i][0] is not None:
-                self.bcp.append(DirichletBC(bcp_eqns[i][0], bcp_eqns[i][2], self.dom.boundary_markers, bcp_eqns[i][3]))
+        else:
 
-        self.bcs = []
-        for i in range(len(bcs_eqns)):
-            if bcs_eqns[i][0] is not None:
-                self.bcs.append(DirichletBC(bcs_eqns[i][1], bcs_eqns[i][2], self.dom.boundary_markers, bcs_eqns[i][3]))
+            unique_ids = np.unique(self.dom.boundary_markers.array())
+
+            ### Assemble boundary conditions ###
+            bcu_eqns = []
+            bcp_eqns = []
+            for bc_type, bs in self.boundary_types.items():
+                if bc_type == "inflow":
+                    for b in bs:
+                        if self.boundary_names[b] in unique_ids:
+                            bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
+
+                elif bc_type == "no_slip":
+                    for b in bs:
+                        bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.zeros, self.boundary_names[b]])
+
+                elif bc_type == "free_slip":
+                    temp_list = list(self.boundary_names.keys()) # get ordered list
+                    for b in bs:
+
+                        ### get a facet on the relevant boundary ###
+                        boundary_id = self.boundary_names[b]
+
+                        ### check to make sure the free slip boundary still exists ###
+                        if boundary_id in unique_ids:
+
+                            facet_ids = self.dom.boundary_markers.where_equal(boundary_id)
+                            test_facet = Facet(self.dom.mesh,facet_ids[int(len(facet_ids)/2.0)])
+
+                            ### get the function space sub form the normal ###
+                            facet_normal = test_facet.normal().array()
+                            field_id = int(np.argmin(abs(abs(facet_normal)-1.0)))
+
+                            bcu_eqns.append([self.fs.V.sub(field_id), self.fs.W.sub(0).sub(field_id), self.zero, boundary_id])
+
+                elif bc_type == "no_stress":
+                    for b in bs:
+                        bcu_eqns.append([None, None, None, self.boundary_names[b]])
+                        bcp_eqns.append([self.fs.Q, self.fs.W.sub(1), self.zero, self.boundary_names[b]])
+
+                else:
+                    raise ValueError(bc_type+" is not a recognized boundary type")
+            bcs_eqns = bcu_eqns#+bcp_eqns
+
+            ### Set the boundary conditions ###
+            self.bcu = []
+            for i in range(len(bcu_eqns)):
+                if bcu_eqns[i][0] is not None:
+                    self.bcu.append(DirichletBC(bcu_eqns[i][0], bcu_eqns[i][2], self.dom.boundary_markers, bcu_eqns[i][3]))
+
+            self.bcp = []
+            for i in range(len(bcp_eqns)):
+                if bcp_eqns[i][0] is not None:
+                    self.bcp.append(DirichletBC(bcp_eqns[i][0], bcp_eqns[i][2], self.dom.boundary_markers, bcp_eqns[i][3]))
+
+            self.bcs = []
+            for i in range(len(bcs_eqns)):
+                if bcs_eqns[i][0] is not None:
+                    self.bcs.append(DirichletBC(bcs_eqns[i][1], bcs_eqns[i][2], self.dom.boundary_markers, bcs_eqns[i][3]))
+
 
         self.fprint("Boundary Conditions Applied",offset=1)
         self.fprint("")

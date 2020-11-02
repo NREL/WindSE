@@ -38,17 +38,27 @@ class Logger(object):
     def __init__(self,filename):
         self.__dict__ = sys.stdout.__dict__.copy() 
         self.terminal = sys.stdout
-        self.log = open(filename, "a")
-        self.log.seek(0)
-        self.log.truncate()
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+        if rank == 0:
+            self.log = open(filename, "a")
+            self.log.seek(0)
+            self.log.truncate()
 
     def write(self, message):
         self.terminal.write(message)
-        self.log.write(message)  
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+        if rank == 0:
+            self.log.write(message)  
 
     def flush(self):
         self.terminal.flush()
-        self.log.flush()
+
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+        if rank == 0:
+            self.log.flush()
         pass   
 
     def isatty(self):
@@ -169,8 +179,10 @@ class Parameters(dict):
         self["general"]["folder"] = self.folder
 
         ### Make sure folder exists ###
-        if not os.path.exists(self.folder): os.makedirs(self.folder)
-        if not os.path.exists(self.folder+"input_files/"): os.makedirs(self.folder+"input_files/")
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+        if not os.path.exists(self.folder) and rank == 0: os.makedirs(self.folder)
+        if not os.path.exists(self.folder+"input_files/") and rank == 0: os.makedirs(self.folder+"input_files/")
         
         ### Setup the logger ###
         self.log = self.folder+"log.txt"
@@ -239,7 +251,9 @@ class Parameters(dict):
 
         if file is None:
             ### Make sure the folder exists
-            if not os.path.exists(self.folder+subfolder): os.makedirs(self.folder+subfolder)
+            comm = MPI.comm_world
+            rank = comm.Get_rank()
+            if not os.path.exists(self.folder+subfolder) and rank == 0: os.makedirs(self.folder+subfolder)
 
             if filetype == "pvd":
                 file_string = self.folder+subfolder+filename+".pvd"
@@ -276,6 +290,9 @@ class Parameters(dict):
         """
         ### Check Processor ###
         rank = 0
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+
         if rank == 0:
             ### Check if tab length has been overridden
             if tab is None:

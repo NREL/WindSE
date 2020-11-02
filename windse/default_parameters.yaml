@@ -63,7 +63,7 @@ wind_farm:
     use_local_velocity: True
     max_chord:      1000
     chord_factor:   1.0           
-    gauss_factor:   3.0           
+    gauss_factor:   2.0           
 
 refine:
     warp_type:      Null

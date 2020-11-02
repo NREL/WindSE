@@ -47,6 +47,7 @@ if main_file != "sphinx-build":
     except ImportError as e:
         default_representation = 'uflacs'
 
+    # set_log_level(13)
 
     ### Improve Solver parameters ###
     parameters["std_out_all_processes"] = False;
@@ -289,7 +290,7 @@ class SteadySolver(GenericSolver):
                                  "snes_solver": {
                                  "absolute_tolerance": 1e-6,
                                  "relative_tolerance": 1e-5,
-                                 "linear_solver": "mumps", 
+                                 "linear_solver": "superlu_dist",
                                  "maximum_iterations": 40,
                                  "error_on_nonconvergence": True,
                                  "line_search": "basic",
@@ -320,9 +321,12 @@ class SteadySolver(GenericSolver):
         self.problem.u_k,self.problem.p_k = self.problem.up_k.split(True)
 
         ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
-        self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
-        self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='mumps',**self.extra_kwarg)
-        self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
+        # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
+        # self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='mumps',**self.extra_kwarg)
+        # self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
+        self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='gmres',**self.extra_kwarg)
+        self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='gmres',**self.extra_kwarg)
+        self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='gmres',**self.extra_kwarg)
 
         # self.nu_T = None
 
@@ -464,7 +468,6 @@ class UnsteadySolver(GenericSolver):
         A2 = assemble(self.problem.a2)
         A3 = assemble(self.problem.a3)
 
-
         # Apply boundary conditions to matrices
         [bc.apply(A1) for bc in self.problem.bd.bcu]
         [bc.apply(A2) for bc in self.problem.bd.bcp]
@@ -564,7 +567,7 @@ class UnsteadySolver(GenericSolver):
                 print("averaging u")
             elif self.simTime >= self.record_time:
                 print("calc vertKE")
-                self.problem.vertKE = (self.problem.u_k[0]-self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))*(self.problem.u_k[2]-self.problem.uk_sum[2]/(self.record_time-self.u_avg_time))*(self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))
+                self.problem.vertKE = 1.0#(self.problem.u_k[0]-self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))*(self.problem.u_k[2]-self.problem.uk_sum[2]/(self.record_time-self.u_avg_time))*(self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))
 
             
             if save_next_timestep:
@@ -681,7 +684,7 @@ class UnsteadySolver(GenericSolver):
 
             average_power = average_power/(self.simTime-average_start_time)
             # self.fprint('AVERAGE Rotor Power: %.6f MW' % (average_power/1e6))
-            output_str = 'AVERAGE Rotor Power: %s MW' % (np.array2string(average_power/1.0e6, precision=3, separator=', '))
+            output_str = 'AVERAGE Rotor Power: %s MW' % (np.array2string(average_power/1.0e6, precision=9, separator=', '))
             self.fprint(output_str)
 
 
@@ -787,6 +790,18 @@ class UnsteadySolver(GenericSolver):
             save_next_timestep = False
 
         # dt_new = 0.04
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+        num_procs = comm.Get_size()
+
+        if num_procs > 0:
+            dt_new_vec = np.zeros(num_procs)
+            dt_new_vec = comm.gather(dt_new, root=0)
+            dt_new_vec = comm.bcast(dt_new_vec, root=0)
+            dt_new_vec = np.array(dt_new_vec)
+            dt_new = np.amax(dt_new_vec)
+
+        # print('Rank %d dt = %.15e' % (rank, dt_new))
 
         # Update both the Python variable and FEniCS constant
         self.problem.dt = dt_new

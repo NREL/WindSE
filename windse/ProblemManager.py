@@ -201,32 +201,105 @@ class GenericProblem(object):
                 cd_interp = interp.interp1d(actual_x, actual_cd)
 
                 if self.params['problem']['script_iterator'] == 1:
-                    actual_x_override = np.linspace(0.0, 1.0, 10)
-                    actual_chord_override = np.array([4.749999999999964473e+00,
-                        4.749999999999989342e+00,
-                        4.750000000000000000e+00,
-                        4.749999999999996447e+00,
-                        4.749999999999998224e+00,
-                        4.749999999999999112e+00,
-                        4.450663333333332083e+00,
-                        3.867691040375480060e+00,
-                        8.488750327288195896e-01,
-                        1.000000000000000056e-01])
+                    # actual_chord_override = np.array([4.749999999999964473e+00,
+                    #     4.749999999999989342e+00,
+                    #     4.750000000000000000e+00,
+                    #     4.749999999999996447e+00,
+                    #     4.749999999999998224e+00,
+                    #     4.749999999999999112e+00,
+                    #     4.450663333333332083e+00,
+                    #     3.867691040375480060e+00,
+                    #     8.488750327288195896e-01,
+                    #     1.000000000000000056e-01])
+
+                    # Rollercoaster chord
+                    # actual_chord_override = np.array([2.625003373758692859e+00,
+                    #     4.155334586096127047e+00,
+                    #     5.350334971114000915e+00,
+                    #     5.349201385073955706e+00,
+                    #     4.113615408074356772e+00,
+                    #     2.310353854848651967e+00,
+                    #     1.275891949427846672e+00,
+                    #     1.360607260649611794e+00,
+                    #     2.500724540479074776e+00,
+                    #     2.000000000000000111e-01])
+
+                    # two-turbine power optimization result
+                    # actual_chord_override = np.array([2.599932521058577972e+00,
+                    #     3.655152166735353259e+00,
+                    #     4.303587816194747617e+00,
+                    #     3.987666943125669050e+00,
+                    #     3.191648166607643500e+00,
+                    #     2.553086977597530449e+00,
+                    #     2.242893315052848724e+00,
+                    #     2.172796739396936960e+00,
+                    #     2.000000000000000111e-01])
+
+                    # two-turbine power optimization result (newer result, obtained using cfl = 2.0 instead of 2.5)
+                    actual_chord_override = np.array([2.599908825,
+                        3.654252701,
+                        4.300236963,
+                        3.978497397,
+                        3.178777094,
+                        2.545014297,
+                        2.247624970,
+                        2.188315504,
+                        0.200000000])
+
+                    actual_x_override = np.linspace(0.0, 1.0, np.size(actual_chord_override))
 
                     chord_interp_override = interp.interp1d(actual_x_override, actual_chord_override)
 
                 if self.params['problem']['script_iterator'] == 2:
-                    actual_x_override = np.linspace(0.0, 1.0, 10)
-                    actual_chord_override = np.array([5.200000000000000178e+00,
-                        7.027575555710222410e+00,
-                        8.476945227498621449e+00,
-                        8.280660000000001020e+00,
-                        6.990223354798463795e+00,
-                        5.499632522453062222e+00,
-                        4.450663333333333860e+00,
-                        3.867691040375480060e+00,
-                        8.488750327288112629e-01,
-                        1.000000000000000056e-01])
+                    # actual_chord_override = np.array([5.200000000000000178e+00,
+                    #     7.027575555710222410e+00,
+                    #     8.476945227498621449e+00,
+                    #     8.280660000000001020e+00,
+                    #     6.990223354798463795e+00,
+                    #     5.499632522453062222e+00,
+                    #     4.450663333333333860e+00,
+                    #     3.867691040375480060e+00,
+                    #     8.488750327288112629e-01,
+                    #     1.000000000000000056e-01])
+
+                    # two-turbine power optimization result
+                    # actual_chord_override = np.array([2.599932521058577972e+00,
+                    #     3.655152166735353259e+00,
+                    #     4.303587816194747617e+00,
+                    #     3.987666943125669050e+00,
+                    #     3.191648166607643500e+00,
+                    #     2.553086977597530449e+00,
+                    #     2.242893315052848724e+00,
+                    #     2.172796739396936960e+00,
+                    #     2.000000000000000111e-01])
+
+                    # actual_chord_override[1:-1] = 1.05*actual_chord_override[1:-1]
+
+
+                    # two-turbine power optimization result (with 50% more change along optimized direction)
+                    # actual_chord_override = np.array([2.59989878,
+                    #     3.656438255,
+                    #     4.312742105,
+                    #     4.00897182,
+                    #     3.235834005,
+                    #     2.632667705,
+                    #     2.37238998,
+                    #     2.381786645,
+                    #     0.2])
+
+                    # two-turbine power optimization result (with 50% more change along optimized direction)
+                    # newer result, obtained using cfl = 2.0 instead of 2.5
+                    actual_chord_override = np.array([2.599863238,
+                        3.655089051,
+                        4.307715820,
+                        3.995217504,
+                        3.216527391,
+                        2.620558679,
+                        2.379487455,
+                        2.405064793,
+                        0.200000000])
+
+                    actual_x_override = np.linspace(0.0, 1.0, np.size(actual_chord_override))
 
                     chord_interp_override = interp.interp1d(actual_x_override, actual_chord_override)
 
@@ -677,18 +750,26 @@ class UnsteadyProblem(GenericProblem):
         #    + dot(nabla_grad(self.p_k1), v)*dx \
         #    - dot(-self.tf, v)*dx
 
+        # F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
+        #    + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
+        #    + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
+        #    + dot(nabla_grad(self.p_k1), v)*dx \
+        #    - dot(self.tf, v)*dx
+
         F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
            + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
-           + dot(nabla_grad(self.p_k1), v)*dx \
+           + inner(grad(self.p_k1), v)*dx \
            - dot(self.tf, v)*dx
 
         self.a1 = lhs(F1)
         self.L1 = rhs(F1)
 
         # Define variational problem for step 2: pressure correction
-        self.a2 = dot(nabla_grad(p), nabla_grad(q))*dx
-        self.L2 = dot(nabla_grad(self.p_k1), nabla_grad(q))*dx - (1.0/self.dt_c)*div(self.u_k)*q*dx
+        # self.a2 = dot(nabla_grad(p), nabla_grad(q))*dx
+        # self.L2 = dot(nabla_grad(self.p_k1), nabla_grad(q))*dx - (1.0/self.dt_c)*div(self.u_k)*q*dx
+        self.a2 = inner(grad(p), grad(q))*dx
+        self.L2 = inner(grad(self.p_k1), grad(q))*dx - (1.0/self.dt_c)*div(self.u_k)*q*dx
 
         # phi = p - self.p_k
         # F2 = inner(grad(q), grad(phi))*dx - (1.0/self.dt_c)*div(u_k)*q*dx
@@ -696,8 +777,10 @@ class UnsteadyProblem(GenericProblem):
         # self.L2 = rhs(F2)
 
         # Define variational problem for step 3: velocity update
-        self.a3 = dot(u, v)*dx
-        self.L3 = dot(self.u_k, v)*dx - self.dt_c*dot(nabla_grad(self.p_k - self.p_k1), v)*dx
+        # self.a3 = dot(u, v)*dx
+        # self.L3 = dot(self.u_k, v)*dx - self.dt_c*dot(nabla_grad(self.p_k - self.p_k1), v)*dx
+        self.a3 = inner(u, v)*dx
+        self.L3 = inner(self.u_k, v)*dx - self.dt_c*inner(grad(self.p_k - self.p_k1), v)*dx
 
         # F3 = inner(u, v)*dx - inner(self.u_k, v)*dx + self.dt_c*inner(phi, v)*dx
         # self.a3 = lhs(F3)

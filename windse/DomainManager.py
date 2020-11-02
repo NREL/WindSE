@@ -133,7 +133,11 @@ class GenericDomain(object):
         file_string = self.params.folder+"/plots/mesh.pdf"
 
         ### Check if folder exists ###
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
+        # if not os.path.exists(folder_string): os.makedirs(folder_string)
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+        if not os.path.exists(folder_string) and rank == 0: os.makedirs(folder_string)
+
 
         p=plot(self.mesh)
         plt.savefig(file_string)
@@ -331,7 +335,15 @@ class GenericDomain(object):
         self.fprint("Refining Mesh")
         self.mesh = refine(self.mesh,cellmarkers)
         self.bmesh = BoundaryMesh(self.mesh,"exterior")
-        self.boundary_markers = adapt(self.boundary_markers,self.mesh)
+
+        comm = MPI.comm_world
+        num_procs = comm.Get_size()
+        if num_procs == 1:
+            self.boundary_markers = adapt(self.boundary_markers,self.mesh)
+        elif num_procs > 1:
+            # This isn't needed for actual boundary marking, but it helps it pass a test later on
+            self.BuildBoundaryMarkers()
+
 
         self.fprint("Original Mesh Vertices: {:d}".format(old_verts))
         self.fprint("Original Mesh Cells:    {:d}".format(old_cells))
@@ -785,11 +797,14 @@ class BoxDomain(GenericDomain):
                                "no_stress": ["east"]}
 
         ### Generate the boundary markers for boundary conditions ###
-        self.BuildBoundaryMarkers()
+        comm = MPI.comm_world
+        num_procs = comm.Get_size()
+        if num_procs == 1:
+            self.BuildBoundaryMarkers()
 
-        ### Rotate Boundary
-        if not near(self.inflow_angle,0.0):
-            self.RecomputeBoundaryMarkers(self.inflow_angle)
+            ### Rotate Boundary
+            if not near(self.inflow_angle,0.0):
+                self.RecomputeBoundaryMarkers(self.inflow_angle)
 
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))

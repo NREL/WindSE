@@ -79,7 +79,10 @@ class GenericWindFarm(object):
         file_string = self.params.folder+"/plots/"+filename+".pdf"
 
         ### Check if folder exists ###
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+
+        if not os.path.exists(folder_string) and rank == 0: os.makedirs(folder_string)
 
         ### Create a list that outlines the extent of the farm ###
         if self.optimize and "layout" in self.control_types and self.layout_bounds == "wind_farm":
@@ -142,7 +145,10 @@ class GenericWindFarm(object):
         file_string = self.params.folder+"/plots/"+filename+".pdf"
 
         ### Check if folder exists ###
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+
+        if not os.path.exists(folder_string) and rank == 0: os.makedirs(folder_string)
 
         ### Calculate x values ###
         x = np.linspace(0,1,self.blade_segments)
@@ -198,7 +204,10 @@ class GenericWindFarm(object):
             file_string = self.params.folder+"/data/"+filename+".txt"
 
         ### Check if folder exists ###
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+
+        if not os.path.exists(folder_string) and rank == 0: os.makedirs(folder_string)
 
         ### Define the header string ###
         head_str="#    x    y    HH    Yaw    Diameter    Thickness    Axial_Induction"

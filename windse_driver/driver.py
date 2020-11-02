@@ -52,7 +52,10 @@ def run_action(params_loc=None):
 
     ### Import fresh version of windse ###
     import windse
-    from .driver_functions import SetupSimulation
+    try:
+        from .driver_functions import SetupSimulation
+    except:
+        from driver_functions import SetupSimulation
 
     ### Setup everything ###
     params, problem, solver = SetupSimulation(params_loc)
