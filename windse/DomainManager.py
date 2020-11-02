@@ -1,6 +1,7 @@
 """
 The DomainManager submodule contains the various classes used for 
 creating different types of domains
+
 """
 
 import __main__
