@@ -859,7 +859,10 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
             comm = MPI.comm_world
             rank = comm.Get_rank()
             num_procs = comm.Get_size()
-            u_fluid = build_parallel_u_fluid(blade_pos, problem, problem.farm.use_local_velocity, comm, rank, num_procs)
+            u_fluid = build_parallel_u_fluid(blade_pos_alt, problem, problem.farm.use_local_velocity, comm, rank, num_procs)
+
+            for k in range(problem.num_blade_segments):
+                u_fluid[:, k] -= np.dot(u_fluid[:, k], blade_unit_vec[:, 1])*blade_unit_vec[:, 1]
 
         else:
             if problem.farm.use_local_velocity:
