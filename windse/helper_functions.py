@@ -801,8 +801,17 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
     # print("Current Yaw:   "+repr(float(problem.farm.myaw[turb_i])))
     # print("Current Chord: "+str(np.array(problem.mchord[turb_i],dtype=float)))
 
+    bbox = problem.dom.mesh.bounding_box_tree()
+    turbine_loc_point = Point(problem.farm.x[turb_i], problem.farm.y[turb_i], problem.farm.z[turb_i])
+    min_dist_node_id, min_dist = bbox.compute_closest_entity(turbine_loc_point)
+
     # Treat each blade separately
     for blade_ct, theta_0 in enumerate(theta_vec):
+        # If the minimum distance between this mesh and the turbine is >5*RD,
+        # don't need to account for this turbine
+        if min_dist > 5.0*(2.0*L):
+            break
+
         theta = theta_0 + theta_offset
 
         # Generate a rotation matrix for this turbine blade
