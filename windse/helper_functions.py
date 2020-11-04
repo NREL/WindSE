@@ -900,41 +900,42 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
         # print(u_fluid)
         # print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
+
+        problem.blade_pos_previous[blade_ct] = blade_pos
+
+                        
+        # Form the total relative velocity vector (including velocity from rotating blade)
+        u_rel = u_fluid + blade_vel
+
+        # Force fluid-only relative velocity for safe_mode
+        # u_rel = u_fluid
+
+        # Create unit vectors in the direction of u_rel
+
+
+        # u_rel_mag = np.sqrt(u_rel[0]**2.0+u_rel[1]**2.0+u_rel[2]**2.0)
+        # u_rel_mag = u_rel[0]**2.0+u_rel[1]**2.0+u_rel[2]**2.0
+
+        u_rel_mag = np.linalg.norm(u_rel, axis=0)
+        u_rel_mag[u_rel_mag < 1e-6] = 1e-6
+        u_unit_vec = u_rel/u_rel_mag
+        
+        # Calculate the lift and drag forces using the relative velocity magnitude
+        # if dfd == "u":
+        #     d_u_rel_mag = 2*u_rel[0]+2*u_rel[1]+2*u_rel[2]
+        #     lift = (0.5*cl*rho*c*w*2*u_rel_mag*d_u_rel_mag)
+        # else:
+        using_lift_and_drag_tables = True
+
+        if using_lift_and_drag_tables:
+            cl, cd, tip_loss = build_lift_and_drag(problem, u_rel, blade_unit_vec, rdim, twist, c)
+
+        
+        # Calculate the lift and drag forces using the relative velocity magnitude
+        lift = tip_loss*(0.5*cl*rho*c*w*u_rel_mag**2)
+        drag = tip_loss*(0.5*cd*rho*c*w*u_rel_mag**2)
+
         if min_dist < 1.0*(2.0*L):
-            
-            problem.blade_pos_previous[blade_ct] = blade_pos
-
-                            
-            # Form the total relative velocity vector (including velocity from rotating blade)
-            u_rel = u_fluid + blade_vel
-
-            # Force fluid-only relative velocity for safe_mode
-            # u_rel = u_fluid
-
-            # Create unit vectors in the direction of u_rel
-
-
-            # u_rel_mag = np.sqrt(u_rel[0]**2.0+u_rel[1]**2.0+u_rel[2]**2.0)
-            # u_rel_mag = u_rel[0]**2.0+u_rel[1]**2.0+u_rel[2]**2.0
-
-            u_rel_mag = np.linalg.norm(u_rel, axis=0)
-            u_rel_mag[u_rel_mag < 1e-6] = 1e-6
-            u_unit_vec = u_rel/u_rel_mag
-            
-            # Calculate the lift and drag forces using the relative velocity magnitude
-            # if dfd == "u":
-            #     d_u_rel_mag = 2*u_rel[0]+2*u_rel[1]+2*u_rel[2]
-            #     lift = (0.5*cl*rho*c*w*2*u_rel_mag*d_u_rel_mag)
-            # else:
-            using_lift_and_drag_tables = True
-
-            if using_lift_and_drag_tables:
-                cl, cd, tip_loss = build_lift_and_drag(problem, u_rel, blade_unit_vec, rdim, twist, c)
-
-            
-            # Calculate the lift and drag forces using the relative velocity magnitude
-            lift = tip_loss*(0.5*cl*rho*c*w*u_rel_mag**2)
-            drag = tip_loss*(0.5*cd*rho*c*w*u_rel_mag**2)
 
             # Write the lift and drag magnitude at each actuator node to a CSV file
             write_lift_and_drag('lift', simTime, theta, lift)
