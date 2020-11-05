@@ -101,7 +101,6 @@ class GenericProblem(object):
             self.mcd = []
 
             self.num_times_called = 0
-            self.first_call_to_function = True
             self.first_call_to_alm = True
             self.blade_pos_previous = [[], [], []]
             self.simTime_list = []

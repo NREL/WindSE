@@ -361,7 +361,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
 
 #================================================================
 
-def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, verbose=False):
+def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, mpi_u_fluid, dfd=None, verbose=False):
 
     simTime = problem.simTime_list[simTime_id]
 
@@ -425,75 +425,75 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
             # Save the function            
             fp << (dolfin_function, k)
 
-    def merge_interpolated(global_interp, data_in, ni):
+    # def merge_interpolated(global_interp, data_in, ni):
 
-        for k in range(ni):
-            if not np.isnan(data_in[0, k]):
-                global_interp[:, k] = data_in[:, k]
+    #     for k in range(ni):
+    #         if not np.isnan(data_in[0, k]):
+    #             global_interp[:, k] = data_in[:, k]
 
-        return global_interp
-
-
-    def build_parallel_u_fluid(blade_pos, problem, using_local_velocity, comm, rank, num_procs):
-
-        ni = np.shape(blade_pos)[1]
-
-        # An empty array to store the fluid velocities at each actuator node
-        interp_values = np.empty((3, ni))
-
-        for k in range(ni):
-
-            if using_local_velocity:
-                xi = blade_pos[0, k]
-            else:
-                xi = problem.dom.x_range[0]
-
-            yi = blade_pos[1, k]
-            zi = blade_pos[2, k]
-
-            # Try to access the fluid velocity at this actuator point
-            # If this rank doesn't own that point, an error will occur,
-            # in which case NaN should be reported
-            try:
-                fn_val = problem.u_k1(xi, yi, zi)
-            except:
-                fn_val = [np.nan, np.nan, np.nan]
-
-            # Store the interpolated value (even if NaN)
-            interp_values[:, k] = fn_val
-
-        # print('rank %d found:\n' % (rank), interp_values)
-
-        if num_procs > 1:
-            # Initialize empty array to hold everything
-            global_interp = np.zeros((3, ni))
-
-            if rank == 0:
-                for k in range(num_procs):
-                    if k == 0:
-                        # Add fluid velocities owned by rank zero
-                        global_interp = merge_interpolated(global_interp, interp_values, ni)
-
-                    else:
-                        # Receive values from rank k
-                        data_in = np.zeros((3, ni), dtype = float)
-                        comm.Recv(data_in, source = k)
-
-                        # Add fluid velocities owned by rank k
-                        global_interp = merge_interpolated(global_interp, data_in, ni)
-
-            else:
-                # Send interpolated values (even if NaN) to root
-                data_out = np.copy(interp_values)
-                comm.Send(data_out, dest = 0)
-
-            # Distribute the finished global array to all ranks from zero
-            comm.Bcast(global_interp, root=0)
-        else:
-            global_interp = np.copy(interp_values)
+    #     return global_interp
 
 
-        return global_interp
+    # def build_parallel_u_fluid(blade_pos, problem, using_local_velocity, comm, rank, num_procs):
+
+    #     ni = np.shape(blade_pos)[1]
+
+    #     # An empty array to store the fluid velocities at each actuator node
+    #     interp_values = np.empty((3, ni))
+
+    #     for k in range(ni):
+
+    #         if using_local_velocity:
+    #             xi = blade_pos[0, k]
+    #         else:
+    #             xi = problem.dom.x_range[0]
+
+    #         yi = blade_pos[1, k]
+    #         zi = blade_pos[2, k]
+
+    #         # Try to access the fluid velocity at this actuator point
+    #         # If this rank doesn't own that point, an error will occur,
+    #         # in which case NaN should be reported
+    #         try:
+    #             fn_val = problem.u_k1(xi, yi, zi)
+    #         except:
+    #             fn_val = [np.nan, np.nan, np.nan]
+
+    #         # Store the interpolated value (even if NaN)
+    #         interp_values[:, k] = fn_val
+
+    #     # print('rank %d found:\n' % (rank), interp_values)
+
+    #     if num_procs > 1:
+    #         # Initialize empty array to hold everything
+    #         global_interp = np.zeros((3, ni))
+
+    #         if rank == 0:
+    #             for k in range(num_procs):
+    #                 if k == 0:
+    #                     # Add fluid velocities owned by rank zero
+    #                     global_interp = merge_interpolated(global_interp, interp_values, ni)
+
+    #                 else:
+    #                     # Receive values from rank k
+    #                     data_in = np.zeros((3, ni), dtype = float)
+    #                     comm.Recv(data_in, source = k)
+
+    #                     # Add fluid velocities owned by rank k
+    #                     global_interp = merge_interpolated(global_interp, data_in, ni)
+
+    #         else:
+    #             # Send interpolated values (even if NaN) to root
+    #             data_out = np.copy(interp_values)
+    #             comm.Send(data_out, dest = 0)
+
+    #         # Distribute the finished global array to all ranks from zero
+    #         comm.Bcast(global_interp, root=0)
+    #     else:
+    #         global_interp = np.copy(interp_values)
+
+
+    #     return global_interp
 
     def build_lift_and_drag(problem, u_rel, blade_unit_vec, rdim, twist, c):
 
@@ -807,8 +807,10 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
 
     # Treat each blade separately
     for blade_ct, theta_0 in enumerate(theta_vec):
-        # If the minimum distance between this mesh and the turbine is >5*RD,
+        # If the minimum distance between this mesh and the turbine is >2*RD,
         # don't need to account for this turbine
+        if min_dist > 2.0*(2.0*L):
+            break
 
         theta = theta_0 + theta_offset
 
@@ -836,7 +838,6 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
         # else:
         #     theta_behind = theta_0 + problem.simTime_list[-time_offset]/period*2.0*np.pi
 
-        problem.first_call_to_function = False
         time_offset = 1
         if simTime_id < time_offset:
             theta_behind = theta_0 + 0.5*(problem.simTime_list[simTime_id]+simTime)/period*2.0*np.pi
@@ -863,10 +864,14 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
         MPI_TESTING_SWITCH = True
 
         if MPI_TESTING_SWITCH:
-            comm = MPI.comm_world
-            rank = comm.Get_rank()
-            num_procs = comm.Get_size()
-            u_fluid = build_parallel_u_fluid(blade_pos_alt, problem, problem.farm.use_local_velocity, comm, rank, num_procs)
+
+            # u_fluid = build_parallel_u_fluid(blade_pos_alt, problem, problem.farm.use_local_velocity, comm, rank, num_procs)
+
+            start_pt = blade_ct*3*problem.num_blade_segments
+            end_pt = start_pt + 3*problem.num_blade_segments
+
+            u_fluid = mpi_u_fluid[turb_i, start_pt:end_pt]
+            u_fluid = np.reshape(u_fluid, (3, -1), 'F')
 
             for k in range(problem.num_blade_segments):
                 u_fluid[:, k] -= np.dot(u_fluid[:, k], blade_unit_vec[:, 1])*blade_unit_vec[:, 1]
