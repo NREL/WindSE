@@ -322,9 +322,9 @@ class SteadySolver(GenericSolver):
         self.problem.u_k,self.problem.p_k = self.problem.up_k.split(True)
 
         ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
-        self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
-        self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='mumps',**self.extra_kwarg)
-        self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
+        # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
+        # self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='mumps',**self.extra_kwarg)
+        # self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
 
         # self.nu_T = None
 
