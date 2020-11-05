@@ -131,7 +131,7 @@ optimization:
     control_types:  Null
     layout_bounds:  wind_farm
     objective_type: power
-    save_objective: True
+    save_objective: False
     alm_power_type: real
     opt_turb_id :   all          # int or list or "all" 
     wake_RD:        5

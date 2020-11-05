@@ -179,6 +179,22 @@ class GenericDomain(object):
             # self.params.Save(self.mesh_radius,"mesh_radius",subfolder="mesh/",val=val,file=self.mr_file,filetype="pvd")
         self.mesh.coordinates()[:]=self.mesh.coordinates()[:]*self.xscale
 
+    def ExportMesh(self):
+        folder_string = self.params.folder+"mesh/exported_mesh/"
+        if not os.path.exists(folder_string): os.makedirs(folder_string)
+        if self.filetype == "xml.gz":
+            File(folder_string+"mesh.xml.gz") << self.mesh
+            File(folder_string+"boundaries.xml.gz") << self.boundary_markers
+        elif self.filetype == "h5":
+            hdfile = HDF5File(self.mesh.mpi_comm(), folder_string+"mesh_data.h5", "w")
+            hdfile.write(self.mesh,"mesh")
+            hdfile.write(self.boundary_markers,"boundaries")
+            hdfile.close()
+        if hasattr(self,"terrain"):
+            np.savetxt(folder_string+"terrain.txt",self.terrain)
+
+        ### TODO: Export boundary names and ID ###
+
     def BuildBoundaryMarkers(self):
         self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
         self.boundary_markers.set_all(0)
@@ -1331,11 +1347,13 @@ class ImportedDomain(GenericDomain):
 
         ### Import data from Options ###
         if self.path is not None:
-            self.mesh_path  = self.path + "mesh." + self.filetype
             if self.filetype == "xml.gz":
-                self.boundary_path = self.path + "boundaries." + self.filetype
-            if self.interpolated:
-                self.terrain_path  = self.path + "terrain.txt"
+                self.mesh_path  = self.path + "mesh.xml.gz"
+                self.boundary_path = self.path + "boundaries.xml.gz"
+            elif self.filetype == "h5":
+                self.mesh_path = self.path + "mesh_data.h5"
+            if self.interpolated and self.terrain_path is not None:
+                self.terrain_path = self.path + "terrain.txt"
 
         ### Copy Files to input folder ###
         shutil.copy(self.mesh_path,self.params.folder+"input_files/")
@@ -1354,7 +1372,7 @@ class ImportedDomain(GenericDomain):
             self.mesh = Mesh(self.mesh_path)
         else:
             raise ValueError("Supported mesh types: h5, xml.gz.")
-        mesh.coordinates()[:] *= self.xscale
+        self.mesh.coordinates()[:] *= self.xscale
 
 
         self.bmesh = BoundaryMesh(self.mesh,"exterior")
