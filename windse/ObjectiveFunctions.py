@@ -179,10 +179,15 @@ def Calculate2DPowerFunctional(solver,inflow_angle = 0.0):
 
 def CalculateKEEntrainment(solver,inflow_angle = 0.0):
     print("Using Kinetic Energy Entrainment Functional")
+    turb_id = solver.opt_turb_id[0]
+    HH = solver.problem.farm.HH[turb_id]
+    R = solver.problem.farm.RD[turb_id]/2.0
 
     # mark cells in area of interest
     if not hasattr(solver,"outflow_markers"):
         solver.objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim())
+        # solver.objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim()-1)
+
         solver.objective_markers.set_all(0)
         x0 = min(solver.problem.farm.x)
         x1 = solver.problem.dom.x_range[1]
@@ -194,9 +199,18 @@ def CalculateKEEntrainment(solver,inflow_angle = 0.0):
         elif solver.ke_location == "hub":
             z0 = min(solver.problem.farm.z)-solver.problem.dom.mesh.hmin()*1.0
             z1 = max(solver.problem.farm.z)+solver.problem.dom.mesh.hmin()*1.0
-
-        AOI  = CompiledSubDomain("x[0]>x0 && x[0]<x1 && x[1]>y0 && x[1]<y1  && x[2]>z0 && x[2]<z1",x0=x0,x1=x1,y0=y0,y1=y1,z0=z0,z1=z1)
-        AOI.mark(solver.objective_markers,1)
+        elif solver.ke_location == "rotor":
+            z0_in = HH + R - solver.problem.dom.mesh.hmin()*1.0
+            z1_in = HH + R + solver.problem.dom.mesh.hmin()*1.0
+            z0_out = HH - R - solver.problem.dom.mesh.hmin()*1.0
+            z1_out = HH - R + solver.problem.dom.mesh.hmin()*1.0
+ 
+        fluxIn =  CompiledSubDomain("x[0]>x0 && x[0]<x1 && x[1]>y0 && x[1]<y1  && x[2]>z0 && x[2]<z1",x0=x0,x1=x1,y0=y0,y1=y1,z0=z0_in,z1=z1_in)
+        fluxOut = CompiledSubDomain("x[0]>x0 && x[0]<x1 && x[1]>y0 && x[1]<y1  && x[2]>z0 && x[2]<z1",x0=x0,x1=x1,y0=y0,y1=y1,z0=z0_out,z1=z1_out)
+        # AOI  = CompiledSubDomain("x[0]>x0 && x[0]<x1 && x[1]>y0 && x[1]<y1  && x[2]>z0 && x[2]<z1",x0=x0,x1=x1,y0=y0,y1=y1,z0=z0,z1=z1)
+        # AOI.mark(solver.objective_markers,1)
+        fluxIn.mark(solver.objective_markers,1)
+        fluxOut.mark(solver.objective_markers,2)
         File(solver.params.folder+"test2.pvd")<<solver.objective_markers
 
         if solver.save_objective:
@@ -208,8 +222,10 @@ def CalculateKEEntrainment(solver,inflow_angle = 0.0):
             f.close()
 
     dx_KE = Measure('dx', subdomain_data=solver.objective_markers)
+    # ds_KE = Measure('ds', subdomain_data=solver.objective_markers)
 
-    J = assemble(-1e-6*solver.problem.vertKE*dx_KE(1))
+
+    J = assemble(-(solver.problem.vertKE*dx_KE(1) - solver.problem.vertKE*dx_KE(2)))
 
     if solver.save_objective:
         folder_string = solver.params.folder+"data/"
