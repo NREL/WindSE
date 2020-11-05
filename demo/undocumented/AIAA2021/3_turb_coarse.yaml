@@ -2,7 +2,7 @@
 general: 
     name: "3_turb_coarse"
     preappend_datetime: false
-    output_type: pvd
+    output_type: xdmf
     output: ["mesh","turbine_force","solution"]
     dolfin_adjoint: False
 
@@ -26,6 +26,11 @@ domain:
     nx: 24
     ny: 10
     nz: 4
+        
+    # type: imported
+    # path: mesh/exported_mesh/
+    filetype: h5  # Filetype for importing or exporting mesh
+
 
 refine:
     warp_type: split
