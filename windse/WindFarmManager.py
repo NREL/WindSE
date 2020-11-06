@@ -1112,6 +1112,8 @@ class GenericWindFarm(object):
             comm.Gather(problem.rotor_torque_count, data_in_torque_count, root=0)
 
             if rank == 0:
+                print(data_in_torque)
+                print(data_in_torque_count)
                 problem.rotor_torque = np.sum(data_in_torque, axis=0)
                 problem.rotor_torque_count = np.sum(data_in_torque_count, axis=0)
 
