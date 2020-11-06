@@ -178,11 +178,35 @@ class Parameters(dict):
         self.folder = self.output_folder+self.name+"/"
         self["general"]["folder"] = self.folder
 
-        ### Make sure folder exists ###
+        # Create all needed directories ahead of time
         comm = MPI.comm_world
         rank = comm.Get_rank()
-        if not os.path.exists(self.folder) and rank == 0: os.makedirs(self.folder)
-        if not os.path.exists(self.folder+"input_files/") and rank == 0: os.makedirs(self.folder+"input_files/")
+        num_procs = comm.Get_size()
+
+        if rank == 0:
+            # Try to create the parent folder
+            os.makedirs(self.folder, exist_ok=True)
+
+            # Try to create all sub folders within this parent
+            subfolder_list = ['data',
+                              'functions',
+                              'input_files',
+                              'mesh',
+                              'plots',
+                              'timeSeries',
+                              'profiling']
+
+            for sub in subfolder_list:
+                os.makedirs('%s/%s' % (self.folder, sub), exist_ok=True)
+
+        # Wait until rank 0 has created the directory structure
+        comm.barrier()
+
+        # ### Make sure folder exists ###
+        # comm = MPI.comm_world
+        # rank = comm.Get_rank()
+        # if not os.path.exists(self.folder) and rank == 0: os.makedirs(self.folder)
+        # if not os.path.exists(self.folder+"input_files/") and rank == 0: os.makedirs(self.folder+"input_files/")
         
         ### Setup the logger ###
         self.log = self.folder+"log.txt"

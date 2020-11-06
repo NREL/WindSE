@@ -84,15 +84,8 @@ def run_action(params_loc=None):
     rank = comm.Get_rank()
     num_procs = comm.Get_size()
 
-    if rank == 0:
-        saveDir = params['general']['name']
-        pr.dump_stats('output/%s/profiling.prof' % (saveDir))
-
-        # # - for text dump
-        # with open( 'output/%s/profiling.txt' % (saveDir), 'w') as output_file:
-        #     sys.stdout = output_file
-        #     pr.print_stats(sort = 'time')
-        #     sys.stdout = sys.__stdout__
+    # Dump the profiling logs for each rank to a file
+    pr.dump_stats('%sprofiling/profiling_%d.prof' % (params.folder, rank))
 
     return runtime
 
