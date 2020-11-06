@@ -1,6 +1,6 @@
 general: 
     name:               Test         # The folder name for the current run 
-    preappend_datetime: False
+    preappend_datetime: False        # if true, the time and date will be preappened to the output folder
     output:             [solution]
     output_folder:      output/ 
     output_type:        pvd
