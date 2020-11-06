@@ -83,8 +83,8 @@ class GenericProblem(object):
 
             self.chord_factor = float(self.params["wind_farm"]["chord_factor"])
 
-            print('Minimum Space Between Mesh: ', hmin)
-            print('Gaussian Width: ', self.gaussian_width)
+            self.fprint('Minimum Space Between Mesh: %f' % (hmin))
+            self.fprint('Gaussian Width: %f' % (self.gaussian_width))
 
             # self.num_blade_segments = 10
             # self.num_blade_segments = int(10.0*self.farm.radius[0]/hmin)
@@ -93,7 +93,7 @@ class GenericProblem(object):
                 self.farm.blade_segments = self.num_blade_segments
             else:
                 self.num_blade_segments = self.farm.blade_segments
-            print('Num blade segments: ', self.num_blade_segments)
+            self.fprint('Num blade segments: %d' % (self.num_blade_segments))
 
             self.mchord = []
             self.mtwist = []
@@ -140,7 +140,7 @@ class GenericProblem(object):
                     num_files = len(glob.glob('%s/*.txt' % (airfoil_data_path)))
 
                     for file_id in range(num_files):
-                        print('Reading Airfoil Data #%d' % (file_id))
+                        # print('Reading Airfoil Data #%d' % (file_id))
                         data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, file_id), skip_header=1, delimiter=' ')
 
                         if file_id == 0:
@@ -340,7 +340,7 @@ class GenericProblem(object):
                     turb_i_lift.append(Constant(cl[k]))
                     turb_i_drag.append(Constant(cd[k]))
 
-                print('Turbine #%d: Chord = ' % (turb_i), chord_to_use)
+                self.fprint('Turbine #%d: Chord = %s' % (turb_i, np.array2string(chord_to_use, precision=6, separator=', ')))
 
                 self.mchord.append(turb_i_chord)
                 self.mtwist.append(turb_i_twist)

@@ -566,7 +566,7 @@ class UnsteadySolver(GenericSolver):
                 self.problem.uk_sum.assign(self.problem.uk_sum+self.problem.u_k)
                 print("averaging u")
             elif self.simTime >= self.record_time:
-                print("calc vertKE")
+                # print("calc vertKE")
                 self.problem.vertKE = 1.0#(self.problem.u_k[0]-self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))*(self.problem.u_k[2]-self.problem.uk_sum[2]/(self.record_time-self.u_avg_time))*(self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))
 
             

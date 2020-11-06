@@ -636,6 +636,7 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, mpi_u_flui
     # problem.rotor_torque = 0.0
     if not hasattr(problem,"rotor_torque"):
         problem.rotor_torque = np.zeros(problem.farm.numturbs)
+        problem.rotor_torque_count = np.zeros(problem.farm.numturbs)
         problem.rotor_torque_dolfin = np.zeros(problem.farm.numturbs)
 
 
@@ -1034,6 +1035,8 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, mpi_u_flui
 
     # Output the numpy version of rotor_torque
     problem.rotor_torque[turb_i] = rotor_torque_numpy_temp
+    if rotor_torque_numpy_temp > 0:
+        problem.rotor_torque_count[turb_i] = 1
 
 
     if save_safety_switch_files:

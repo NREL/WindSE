@@ -999,6 +999,8 @@ class GenericWindFarm(object):
             
             return Rz
 
+        # ================================================================
+
         def build_mpi_u_fluid(problem, blade_pos_base):
 
             comm = MPI.comm_world
@@ -1097,6 +1099,30 @@ class GenericWindFarm(object):
 
         # ================================================================
 
+        def finalize_mpi_alm(problem):
+
+            comm = MPI.comm_world
+            rank = comm.Get_rank()
+            num_procs = comm.Get_size()
+
+            data_in_torque = np.zeros((num_procs, problem.farm.numturbs))
+            comm.Gather(problem.rotor_torque, data_in_torque, root=0)
+
+            data_in_torque_count = np.zeros((num_procs, problem.farm.numturbs))
+            comm.Gather(problem.rotor_torque_count, data_in_torque_count, root=0)
+
+            if rank == 0:
+                problem.rotor_torque = np.sum(data_in_torque, axis=0)
+                problem.rotor_torque_count = np.sum(data_in_torque_count, axis=0)
+
+                # This removes the possibility of a power being doubled or tripled
+                # if multiple ranks include this turbine and therefore calculate a torque
+                problem.rotor_torque = problem.rotor_torque/problem.rotor_torque_count
+
+            comm.Bcast(problem.rotor_torque, root=0)
+
+        # ================================================================
+
         # Create unit-length blade 1, oriented along the positive y-axis
         blade_1_pos = np.vstack((np.zeros(problem.num_blade_segments),
                                  np.linspace(0.0, 1.0, problem.num_blade_segments),
@@ -1128,6 +1154,9 @@ class GenericWindFarm(object):
         for turb_index in range(problem.farm.numturbs):
             alm_output_list.append(UpdateActuatorLineForce(problem, problem.u_k1, problem.simTime_id, problem.dt, turb_index, mpi_u_fluid, dfd=dfd))
             # print("tf   = "+repr(np.mean(alm_output_list[-1].vector()[:])))
+
+        # Do some sharing of information when everything is finished
+        finalize_mpi_alm(problem)
 
         problem.simTime_id += 1
         toc = time.time()
