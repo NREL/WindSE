@@ -42,6 +42,8 @@ def get_action():
 ### Run the driver ###
 def run_action(params_loc=None):
     tick = time.time()
+    pr = cProfile.Profile()
+    pr.enable()
 
     ### Clean up other module references ###
     mods_to_remove = []
@@ -86,6 +88,7 @@ def run_action(params_loc=None):
 
     # Dump the profiling logs for each rank to a file
     pr.dump_stats('%sprofiling/profiling_%d.prof' % (params.folder, rank))
+    pr.disable()
 
     return runtime
 
@@ -108,7 +111,5 @@ def main():
     actions[get_action()]()
 
 if __name__ == "__main__":
-    pr = cProfile.Profile()
-    pr.enable()
     main()
-    pr.disable()
+    
