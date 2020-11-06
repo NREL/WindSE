@@ -3,6 +3,8 @@ import time
 import os.path as osp
 import argparse
 import sys
+import cProfile
+from dolfin import MPI
 
 # import os
 # os.environ['OMP_NUM_THREADS'] = '1'
@@ -77,6 +79,21 @@ def run_action(params_loc=None):
     runtime = tock-tick
     print("Run Complete: {:1.2f} s".format(runtime))
 
+
+    comm = MPI.comm_world
+    rank = comm.Get_rank()
+    num_procs = comm.Get_size()
+
+    if rank == 0:
+        saveDir = params['general']['name']
+        pr.dump_stats('output/%s/profiling.prof' % (saveDir))
+
+        # # - for text dump
+        # with open( 'output/%s/profiling.txt' % (saveDir), 'w') as output_file:
+        #     sys.stdout = output_file
+        #     pr.print_stats(sort = 'time')
+        #     sys.stdout = sys.__stdout__
+
     return runtime
 
 def mesh_action():
@@ -98,4 +115,7 @@ def main():
     actions[get_action()]()
 
 if __name__ == "__main__":
+    pr = cProfile.Profile()
+    pr.enable()
     main()
+    pr.disable()
