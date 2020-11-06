@@ -794,12 +794,11 @@ class UnsteadySolver(GenericSolver):
         rank = comm.Get_rank()
         num_procs = comm.Get_size()
 
-        if num_procs > 0:
+        if num_procs > 1:
             dt_new_vec = np.zeros(num_procs)
-            dt_new_vec = comm.gather(dt_new, root=0)
-            dt_new_vec = comm.bcast(dt_new_vec, root=0)
-            dt_new_vec = np.array(dt_new_vec)
-            dt_new = np.amax(dt_new_vec)
+            comm.Gather(dt_new, dt_new_vec, root=0)
+            comm.Bcast(dt_new_vec, root=0)
+            dt_new = np.amin(dt_new_vec)
 
         # print('Rank %d dt = %.15e' % (rank, dt_new))
 
