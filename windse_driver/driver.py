@@ -77,14 +77,14 @@ def run_action(params_loc=None):
         if params["optimization"]["optimize"]:
             opt.Optimize()
 
-    tock = time.time()
-    runtime = tock-tick
-    print("Run Complete: {:1.2f} s".format(runtime))
-
-
     comm = MPI.comm_world
     rank = comm.Get_rank()
     num_procs = comm.Get_size()
+
+    tock = time.time()
+    runtime = tock-tick
+    if rank == 0:
+        print("Run Complete: {:1.2f} s".format(runtime))
 
     # Dump the profiling logs for each rank to a file
     pr.dump_stats('%sprofiling/profiling_%d.prof' % (params.folder, rank))
