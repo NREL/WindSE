@@ -1143,6 +1143,10 @@ class GenericWindFarm(object):
         # This should be shared with updateActuatorLineForce
         blade_pos_base = np.hstack((blade_1_pos, blade_2_pos, blade_3_pos))
 
+        problem.rotor_torque = np.zeros(problem.farm.numturbs)
+        problem.rotor_torque_count = np.zeros(problem.farm.numturbs)
+        problem.rotor_torque_dolfin = np.zeros(problem.farm.numturbs)
+
         # ================================================================
 
         tic = time.time()

@@ -634,10 +634,10 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, mpi_u_flui
 
     # Initialize the sum of the torque on the rotor shaft to zero
     # problem.rotor_torque = 0.0
-    if not hasattr(problem,"rotor_torque"):
-        problem.rotor_torque = np.zeros(problem.farm.numturbs)
-        problem.rotor_torque_count = np.zeros(problem.farm.numturbs)
-        problem.rotor_torque_dolfin = np.zeros(problem.farm.numturbs)
+    # if not hasattr(problem,"rotor_torque"):
+    #     problem.rotor_torque = np.zeros(problem.farm.numturbs)
+    #     problem.rotor_torque_count = np.zeros(problem.farm.numturbs)
+    #     problem.rotor_torque_dolfin = np.zeros(problem.farm.numturbs)
 
 
     # initialize numpy torque
