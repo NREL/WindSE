@@ -1120,10 +1120,10 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, mpi_u_flui
             ys=problem.farm.my[turb_i],
             zs=problem.farm.z[turb_i])
 
-        cyld.interpolate(cyld_expr)
+        # cyld.interpolate(cyld_expr)
 
         # Integrate dot(Force, In-Plane-Vector) to get total torque
-        problem.rotor_torque_dolfin[turb_i] = assemble(dot(-tf_individual, cyld_expr)*dx)
+        # problem.rotor_torque_dolfin[turb_i] = assemble(dot(-tf_individual, cyld_expr)*dx)
 
         # Add to the cumulative turbine force
         tf.vector()[:] += tf_vec
