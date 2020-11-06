@@ -523,7 +523,9 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, mpi_u_flui
 
 
         # If this is the first time calling the function...
-        if problem.first_call_to_alm:
+        # if problem.first_call_to_alm: # This breaks in parallel, use the version below
+
+        if not hasattr(problem, 'interp_lift'):
             # build the lift-drag table interpolators
             rdim_all = np.linspace(0, rdim[-1], np.shape(problem.lift_table)[1])
             problem.interp_lift = interp.RectBivariateSpline(problem.interp_angles, rdim_all, problem.lift_table)
