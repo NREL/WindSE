@@ -42,8 +42,6 @@ def get_action():
 ### Run the driver ###
 def run_action(params_loc=None):
     tick = time.time()
-    pr = cProfile.Profile()
-    pr.enable()
 
     ### Clean up other module references ###
     mods_to_remove = []
@@ -86,10 +84,6 @@ def run_action(params_loc=None):
     if rank == 0:
         print("Run Complete: {:1.2f} s".format(runtime))
 
-    # Dump the profiling logs for each rank to a file
-    pr.dump_stats('%sprofiling/profiling_%d.prof' % (params.folder, rank))
-    pr.disable()
-
     return runtime
 
 def mesh_action():
@@ -109,6 +103,15 @@ def main():
     actions = {"run":  run_action,
                "mesh": mesh_action}
     actions[get_action()]()
+
+    # first_arg = get_action()
+
+    # if first_arg == 'run': 
+    #     cprof_action = 'run_action()'
+    # elif first_arg == 'mesh': 
+    #     cprof_action = 'mesh_action()'
+
+    # cProfile.run(cprof_action, 'test')
 
 if __name__ == "__main__":
     main()
