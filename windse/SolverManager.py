@@ -486,6 +486,8 @@ class UnsteadySolver(GenericSolver):
         s1 = 0.0
         s2 = 0.0
         s3 = 0.0
+        s4 = 0.0
+        s5 = 0.0
 
         # sol = ['cg', 'bicgstab', 'gmres']
         # pre = ['amg', 'hypre_amg', 'hypre_euclid', 'hypre_parasails', 'jacobi', 'petsc_amg', 'sor']
@@ -630,6 +632,8 @@ class UnsteadySolver(GenericSolver):
             # Adjust the timestep size, dt, for a balance of simulation speed and stability
             save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
 
+            t5 = time.time()
+
             # Update the turbine force
             if self.problem.farm.turbine_method == "alm":
                 # t1 = time.time()
@@ -658,6 +662,7 @@ class UnsteadySolver(GenericSolver):
                 self.fprint(output_str)
 
                 # exit()
+            t6 = time.time()
 
             if self.simTime > average_start_time:
                 if init_average:
@@ -710,9 +715,17 @@ class UnsteadySolver(GenericSolver):
 
             # After changing timestep size, A1 must be reassembled
             # FIXME: This may be unnecessary (or could be sped up by changing only the minimum amount necessary)
+
+            t7 = time.time()
+
             A1 = assemble(self.problem.a1, tensor=A1)
             [bc.apply(A1) for bc in self.problem.bd.bcu]
             solver_1.set_operator(A1)
+
+            t8 = time.time()
+
+            s4 += t6 - t5
+            s5 += t8 - t7
 
             # Print some solver statistics
             self.fprint("%8.2f | %7.2f | %5.2f" % (self.simTime, self.problem.dt, u_max))
@@ -740,9 +753,12 @@ class UnsteadySolver(GenericSolver):
         self.fprint('================================================================')
         # self.fprint('Solver:              %s' % (sol_choice))
         # self.fprint('Preconditioner:      %s' % (pre_choice))
-        self.fprint('Tentative Velocity:  %.2f sec (%.1f%%)' % (s1, 100.0*s1/(s1+s2+s3)))
-        self.fprint('Pressure Correction: %.2f sec (%.1f%%)' % (s2, 100.0*s2/(s1+s2+s3)))
-        self.fprint('Velocity Update:     %.2f sec (%.1f%%)' % (s3, 100.0*s3/(s1+s2+s3)))
+        total_time = s1 + s2 + s3 + s4 + s5
+        self.fprint('Assembling A1:       %.2f sec (%.1f%%)' % (s5, 100.0*s5/total_time))
+        self.fprint('Tentative Velocity:  %.2f sec (%.1f%%)' % (s1, 100.0*s1/total_time))
+        self.fprint('Pressure Correction: %.2f sec (%.1f%%)' % (s2, 100.0*s2/total_time))
+        self.fprint('Velocity Update:     %.2f sec (%.1f%%)' % (s3, 100.0*s3/total_time))
+        self.fprint('ALM Calculation:     %.2f sec (%.1f%%)' % (s3, 100.0*s4/total_time))
         self.fprint('================================================================')
         self.fprint("Finished",special="footer")
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
