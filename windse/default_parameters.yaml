@@ -126,6 +126,7 @@ solver:
     nonlinear_solver:  snes
     newton_relaxation: 1.0
     cfl_target: 1.0
+    cl_iterator: 0
 
 optimization:
     control_types:  Null

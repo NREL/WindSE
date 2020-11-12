@@ -4,7 +4,7 @@ import os.path as osp
 import argparse
 import sys
 import cProfile
-from dolfin import MPI
+from dolfin import *
 
 # import os
 # os.environ['OMP_NUM_THREADS'] = '1'
@@ -103,6 +103,8 @@ def main():
     actions = {"run":  run_action,
                "mesh": mesh_action}
     actions[get_action()]()
+
+    # list_timings(TimingClear.clear, [TimingType.wall])
 
     # first_arg = get_action()
 
