@@ -758,7 +758,7 @@ class UnsteadySolver(GenericSolver):
         self.fprint('Tentative Velocity:  %.2f sec (%.1f%%)' % (s1, 100.0*s1/total_time))
         self.fprint('Pressure Correction: %.2f sec (%.1f%%)' % (s2, 100.0*s2/total_time))
         self.fprint('Velocity Update:     %.2f sec (%.1f%%)' % (s3, 100.0*s3/total_time))
-        self.fprint('ALM Calculation:     %.2f sec (%.1f%%)' % (s3, 100.0*s4/total_time))
+        self.fprint('ALM Calculation:     %.2f sec (%.1f%%)' % (s4, 100.0*s4/total_time))
         self.fprint('================================================================')
         self.fprint("Finished",special="footer")
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
