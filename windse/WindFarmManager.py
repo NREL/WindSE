@@ -24,7 +24,7 @@ if main_file != "sphinx-build":
     import scipy.interpolate as interp
 
     ### Import the cumulative parameters ###
-    from windse import windse_parameters, BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce
+    from windse import windse_parameters, BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, UpdateActuatorLineForce_deprecated, RadialChordForce
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
@@ -1001,7 +1001,53 @@ class GenericWindFarm(object):
 
         # ================================================================
 
-        def build_mpi_u_fluid(problem, blade_pos_base):
+        def init_constant_alm_terms(problem):
+
+            # Create unit-length blade 1, oriented along the positive y-axis
+            blade_1_pos = np.vstack((np.zeros(problem.num_blade_segments),
+                                     np.linspace(0.0, 1.0, problem.num_blade_segments),
+                                     np.zeros(problem.num_blade_segments)))
+
+
+            # Create unit-length blade 2, rotated 120* around the x-axis
+            theta_2 = 120.0/180.0*np.pi
+            blade_2_pos = np.dot(rot_x(theta_2), blade_1_pos)
+
+            # Create unit-length blade 3, rotated 240* around the x-axis
+            theta_3 = 240.0/180.0*np.pi
+            blade_3_pos = np.dot(rot_x(theta_3), blade_1_pos)
+
+            # Combine all the blades into a single array, dim = [3, num_blade_segments*3]
+            # This should be shared with updateActuatorLineForce
+            problem.blade_pos_base = np.hstack((blade_1_pos, blade_2_pos, blade_3_pos))
+
+            # Get the coordinates of the vector function space
+            coords = problem.fs.V.tabulate_dof_coordinates()
+            coords = np.copy(coords[0::problem.dom.dim, :])
+
+            problem.coords = coords
+
+            # Resape a linear copy of the coordinates for every mesh point
+            problem.coordsLinear = np.copy(coords.reshape(-1, 1))
+
+            bbox = problem.dom.mesh.bounding_box_tree()
+
+            problem.min_dist = []
+
+            for k in range(problem.farm.numturbs):
+                turbine_loc_point = Point(problem.farm.x[k], problem.farm.y[k], problem.farm.z[k])
+                min_dist_node_id, dist = bbox.compute_closest_entity(turbine_loc_point)
+                problem.min_dist.append(dist)
+
+
+        def init_unsteady_alm_terms(problem):
+
+            problem.rotor_torque = np.zeros(problem.farm.numturbs)
+            problem.rotor_torque_count = np.zeros(problem.farm.numturbs)
+            problem.rotor_torque_dolfin = np.zeros(problem.farm.numturbs)
+
+
+        def init_mpi_alm(problem):
 
             comm = MPI.comm_world
             rank = comm.Get_rank()
@@ -1037,7 +1083,7 @@ class GenericWindFarm(object):
 
                 # Get the radius of this turbine and scale the unit blade position
                 R = problem.farm.radius[k]
-                blade_pos = R*blade_pos_base
+                blade_pos = R*problem.blade_pos_base
 
                 # Rotate the blades into the correct angular position around the x-axis
                 # since the turbine blades are currently all modeled in sync, this 
@@ -1127,40 +1173,27 @@ class GenericWindFarm(object):
 
         # ================================================================
 
-        # Create unit-length blade 1, oriented along the positive y-axis
-        blade_1_pos = np.vstack((np.zeros(problem.num_blade_segments),
-                                 np.linspace(0.0, 1.0, problem.num_blade_segments),
-                                 np.zeros(problem.num_blade_segments)))
-
-
-        # Create unit-length blade 2, rotated 120* around the x-axis
-        theta_2 = 120.0/180.0*np.pi
-        blade_2_pos = np.dot(rot_x(theta_2), blade_1_pos)
-
-        # Create unit-length blade 3, rotated 240* around the x-axis
-        theta_3 = 240.0/180.0*np.pi
-        blade_3_pos = np.dot(rot_x(theta_3), blade_1_pos)
-
-        # Combine all the blades into a single array, dim = [3, num_blade_segments*3]
-        # This should be shared with updateActuatorLineForce
-        blade_pos_base = np.hstack((blade_1_pos, blade_2_pos, blade_3_pos))
-
-        problem.rotor_torque = np.zeros(problem.farm.numturbs)
-        problem.rotor_torque_count = np.zeros(problem.farm.numturbs)
-        problem.rotor_torque_dolfin = np.zeros(problem.farm.numturbs)
 
         # ================================================================
 
         tic = time.time()
         problem.simTime_list.append(simTime)
 
+        # If this is the first call to the function, set some things up before proceeding
+        if problem.simTime_id == 0:
+            init_constant_alm_terms(problem)
+
+        # Initialize summation, counting, etc., variables for alm solve
+        init_unsteady_alm_terms(problem)
+
         # Call the function to build the complete mpi_u_fluid array
-        mpi_u_fluid = build_mpi_u_fluid(problem, blade_pos_base)
+        mpi_u_fluid = init_mpi_alm(problem)
 
         # Call the ALM function for each turbine individually
         alm_output_list = []
         for turb_index in range(problem.farm.numturbs):
             alm_output_list.append(UpdateActuatorLineForce(problem, problem.u_k1, problem.simTime_id, problem.dt, turb_index, mpi_u_fluid, dfd=dfd))
+            # alm_output_list.append(UpdateActuatorLineForce_deprecated(problem, problem.u_k1, problem.simTime_id, problem.dt, turb_index, mpi_u_fluid, dfd=dfd))
             # print("tf   = "+repr(np.mean(alm_output_list[-1].vector()[:])))
 
         # Do some sharing of information when everything is finished

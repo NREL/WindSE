@@ -22,6 +22,8 @@ if main_file != "sphinx-build":
     # from memory_profiler import memory_usage
     from scipy.special import gamma
     from mpmath import hyper
+    import cProfile
+    import pstats
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -511,6 +513,8 @@ class UnsteadySolver(GenericSolver):
         # solver_3 = PETScKrylovSolver('gmres', 'default')
         solver_3.set_operator(A3)
 
+        pr = cProfile.Profile()
+
         # ================================================================
 
         self.fprint('Turbine Parameters', special='header')
@@ -629,8 +633,9 @@ class UnsteadySolver(GenericSolver):
             # Update the turbine force
             if self.problem.farm.turbine_method == "alm":
                 # t1 = time.time()
-
+                pr.enable()
                 new_tf_list = self.problem.farm.CalculateActuatorLineTurbineForces(self.problem, self.simTime)
+                pr.disable()
 
                 for i in range(len(self.problem.tf_list)):
                     self.problem.tf_list[i].assign(new_tf_list[i])
@@ -741,6 +746,17 @@ class UnsteadySolver(GenericSolver):
         self.fprint('================================================================')
         self.fprint("Finished",special="footer")
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
+
+        comm = MPI.comm_world
+        rank = comm.Get_rank()
+        num_procs = comm.Get_size()
+
+        if rank == 0:
+            # pr.print_stats(25, sort = 'time')
+            ps = pstats.Stats(pr).strip_dirs().sort_stats('cumulative')
+            ps.print_stats(50)
+            pr.dump_stats('%s/profiling_alm.prof' % (self.params.folder))
+
 
     # ================================================================
 
