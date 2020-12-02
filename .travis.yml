@@ -31,4 +31,7 @@ install:
     - source activate test-environment
 
 script:
-    - pytest -vx --durations=0 tests/test_regression.py
+    - pytest -vx --durations=0 tests/test_regression.py --cov-config=.coverageac --cov=wisdem
+
+after_success:
+  - coveralls
