@@ -4,6 +4,7 @@ branches:
     - master
     - dev
     - dev-staged
+    - add_tests
 
 os:
     - linux
