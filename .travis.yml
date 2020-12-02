@@ -31,4 +31,4 @@ install:
     - source activate test-environment
 
 script:
-    - pytest -vx --durations=0
+    - pytest -vx --durations=0 tests/test_regression.py

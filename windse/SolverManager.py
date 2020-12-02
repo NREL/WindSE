@@ -120,15 +120,17 @@ class GenericSolver(object):
             self.u_file = self.params.Save(u,"velocity",subfolder="solutions/",val=val)
             self.p_file = self.params.Save(p,"pressure",subfolder="solutions/",val=val)
             self.nuT_file = self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val)
-            self.ReyStress_file = self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val)
-            self.vertKE_file = self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val)
+            if self.problem.dom.dim == 3:
+                self.ReyStress_file = self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val)
+                self.vertKE_file = self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val)
             self.first_save = False
         else:
             self.params.Save(u,"velocity",subfolder="solutions/",val=val,file=self.u_file)
             self.params.Save(p,"pressure",subfolder="solutions/",val=val,file=self.p_file)
             self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuT_file)
-            self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val,file=self.ReyStress_file)
-            self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val,file=self.vertKE_file)
+            if self.problem.dom.dim == 3:
+                self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val,file=self.ReyStress_file)
+                self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val,file=self.vertKE_file)
         u.vector()[:]=u.vector()[:]*self.problem.dom.xscale
         self.problem.dom.mesh.coordinates()[:]=self.problem.dom.mesh.coordinates()[:]*self.problem.dom.xscale
 
@@ -322,11 +324,12 @@ class SteadySolver(GenericSolver):
         self.problem.u_k,self.problem.p_k = self.problem.up_k.split(True)
 
         ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
-        self.fprint("")
-        self.fprint("Projecting Reynolds Stress")
         self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
-        self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
-        self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
+        if self.problem.dom.dim == 3:
+            self.fprint("")
+            self.fprint("Projecting Reynolds Stress")
+            self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
+            self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
 
         # self.nu_T = None
 
@@ -1419,17 +1422,15 @@ class MultiAngleSolver(SteadySolver):
         if self.params["domain"]["type"] in ["imported"]:
             raise ValueError("Cannot use a Multi-Angle Solver with an "+self.params["domain"]["type"]+" domain.")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
-        if self.problem.dom.inflow_angle is None:
+        if self.problem.bd.inflow_angle is None:
             self.wind_range = [0, 2.0*np.pi,self.num_wind_angles]
-        elif isinstance(self.problem.dom.inflow_angle,list):
-            if len(self.problem.dom.inflow_angle)==3:
-                self.wind_range = self.problem.dom.inflow_angle
+        elif isinstance(self.problem.bd.inflow_angle,list):
+            if len(self.problem.bd.inflow_angle)==3:
+                self.wind_range = self.problem.bd.inflow_angle
             else:
-                self.wind_range = [self.problem.dom.inflow_angle[0],self.problem.dom.inflow_angle[1],self.num_wind_angles]
+                self.wind_range = [self.problem.bd.inflow_angle[0],self.problem.bd.inflow_angle[1],self.num_wind_angles]
         else:
-            self.wind_range = [self.problem.dom.inflow_angle,self.problem.dom.inflow_angle+2.0*np.pi,self.num_wind_angles]
-
-
+            self.wind_range = [self.problem.bd.inflow_angle,self.problem.bd.inflow_angle+2.0*np.pi,self.num_wind_angles]
 
         self.angles = np.linspace(*self.wind_range,endpoint=self.endpoint)
         # self.angles += self.angle_offset
