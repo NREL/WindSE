@@ -99,6 +99,7 @@ class GenericDomain(object):
         self.first_save = True
         self.finalized = False
         self.fprint = self.params.fprint
+        self.tag_output = self.params.tag_output
 
         ### Update attributes based on params file ###
         for key, value in self.params["domain"].items():
