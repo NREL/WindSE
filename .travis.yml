@@ -4,6 +4,7 @@ branches:
     - master
     - dev
     - dev-staged
+    - add_tests
 
 os:
     - linux
@@ -31,4 +32,7 @@ install:
     - source activate test-environment
 
 script:
-    - pytest -vx --durations=0 tests/test_regression.py
+    - pytest -vx --durations=0 tests/test_regression.py --cov=windse
+
+after_success:
+  - coveralls
