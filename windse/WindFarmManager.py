@@ -848,47 +848,47 @@ class GenericWindFarm(object):
         self.fprint("Calculating Turbine Force",special="header")
         self.fprint("Using a Dolfin Representation")
 
-        if not hasattr(self, "chord"):
-            if self.blade_segments == "computed":
-                self.num_blade_segments = 10 ##### FIX THIS ####
-                self.blade_segments = self.num_blade_segments
-            else:
-                self.num_blade_segments = self.blade_segments
+        ### this section of code is a hack to get "chord"-type disk representation ###
+        if not hasattr(self, "mchord"):
+            if not hasattr(self, "chord"):
+                if self.blade_segments == "computed":
+                    self.num_blade_segments = 10 ##### FIX THIS ####
+                    self.blade_segments = self.num_blade_segments
+                else:
+                    self.num_blade_segments = self.blade_segments
 
-            if self.read_turb_data:
-                print('Num blade segments: ', self.num_blade_segments)
-                turb_data = self.params["wind_farm"]["read_turb_data"]
-                self.fprint('Setting chord from file \'%s\'' % (turb_data))
-                actual_turbine_data = np.genfromtxt(turb_data, delimiter = ',', skip_header = 1)
-                actual_x = actual_turbine_data[:, 0]
-                actual_chord = self.chord_factor*actual_turbine_data[:, 1]
-                chord_interp = interp.interp1d(actual_x, actual_chord)
-                interp_points = np.linspace(0.0, 1.0, self.blade_segments)
-                # Generate the interpolated values
-                self.chord = chord_interp(interp_points)
-            else:
-                self.chord = np.ones(self.blade_segments)
-        self.num_blade_segments = self.blade_segments
-        self.baseline_chord = copy.copy(self.chord)
+                if self.read_turb_data:
+                    print('Num blade segments: ', self.num_blade_segments)
+                    turb_data = self.params["wind_farm"]["read_turb_data"]
+                    self.fprint('Setting chord from file \'%s\'' % (turb_data))
+                    actual_turbine_data = np.genfromtxt(turb_data, delimiter = ',', skip_header = 1)
+                    actual_x = actual_turbine_data[:, 0]
+                    actual_chord = self.chord_factor*actual_turbine_data[:, 1]
+                    chord_interp = interp.interp1d(actual_x, actual_chord)
+                    interp_points = np.linspace(0.0, 1.0, self.blade_segments)
+                    # Generate the interpolated values
+                    self.chord = chord_interp(interp_points)
+                else:
+                    self.chord = np.ones(self.blade_segments)
+            self.num_blade_segments = self.blade_segments
+            self.baseline_chord = copy.copy(self.chord)
 
-        self.cl = np.ones(self.blade_segments)
-        self.cd = np.ones(self.blade_segments)
-
-
-        self.mcl = []
-        self.mcd = []
-        self.mchord = []
-        for i in range(self.numturbs):
-            self.mcl.append([])
-            self.mcd.append([])
-            self.mchord.append([])
-            for j in range(self.blade_segments):
-                self.mcl[i].append(Constant(self.cl[j]))
-                self.mcd[i].append(Constant(self.cd[j]))
-                self.mchord[i].append(Constant(self.chord[j]))
-        self.cl = np.array(self.mcl,dtype=float)
-        self.cd = np.array(self.mcd,dtype=float)
-        self.chord = np.array(self.mchord,dtype=float)
+            self.cl = np.ones(self.blade_segments)
+            self.cd = np.ones(self.blade_segments)
+            self.mcl = []
+            self.mcd = []
+            self.mchord = []
+            for i in range(self.numturbs):
+                self.mcl.append([])
+                self.mcd.append([])
+                self.mchord.append([])
+                for j in range(self.blade_segments):
+                    self.mcl[i].append(Constant(self.cl[j]))
+                    self.mcd[i].append(Constant(self.cd[j]))
+                    self.mchord[i].append(Constant(self.chord[j]))
+            self.cl = np.array(self.mcl,dtype=float)
+            self.cd = np.array(self.mcd,dtype=float)
+            self.chord = np.array(self.mchord,dtype=float)
 
 
 
