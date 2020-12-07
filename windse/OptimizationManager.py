@@ -59,6 +59,7 @@ class Optimizer(object):
         self.problem = solver.problem
         self.farm = solver.problem.farm
         self.fprint = self.params.fprint
+        self.tag_output = self.params.tag_output
         self.xscale = self.problem.dom.xscale
 
         ### Update attributes based on params file ###

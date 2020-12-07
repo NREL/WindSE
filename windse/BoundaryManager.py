@@ -37,7 +37,8 @@ class GenericBoundary(object):
         self.ig_first_save = True
         self.height_first_save = True
         self.fprint = self.params.fprint
-
+        self.tag_output = self.params.tag_output
+        
         ### Update attributes based on params file ###
         for key, value in self.params["boundary_conditions"].items():
             setattr(self,key,value)

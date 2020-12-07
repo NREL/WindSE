@@ -25,6 +25,7 @@ if main_file != "sphinx-build":
     import ast
     import difflib
     import copy
+    import inspect 
 
     # set_log_level(LogLevel.CRITICAL)
 
@@ -62,6 +63,7 @@ class Parameters(dict):
     def __init__(self):
         super(Parameters, self).__init__()
         self.current_tab = 0
+        self.tagged_output = {}
         self.windse_path = os.path.dirname(os.path.realpath(__file__))
         self.defaults = yaml.load(open(self.windse_path+"/default_parameters.yaml"),Loader=yaml.SafeLoader)
         self.update(self.defaults)
@@ -310,5 +312,30 @@ class Parameters(dict):
 
             if special=="header":
                 self.fprint("",tab=tab+1)
+
+    def tag_output(self, key, value):
+
+        ### Grab the name of the module that called this function ###
+        stack = inspect.stack()[1][0]
+        mod = inspect.getmodule(stack)
+        the_module = mod.__name__.split(".")[-1]
+        the_class = stack.f_locals["self"].__class__.__name__
+        the_method = stack.f_code.co_name
+
+        ### This will tell exactly where this function was called from ###
+        # print("I was called by {}:{}.{}()".format(the_module, the_class, the_method))
+
+        ### Check if that module has called before and add the dictionary entries ###
+        if the_module in self.tagged_output.keys():
+            self.tagged_output[the_module].update({key: value})
+        else:
+            self.tagged_output.update({the_module: {key: value}})
+
+        ### Update the yaml file ###
+        with open(self.folder+"tagged_output.yaml","w") as file:
+            yaml.dump(self.tagged_output, file)
+
+        ### Print the new dict ###
+        # print(self.tagged_output)
 
 windse_parameters = Parameters()

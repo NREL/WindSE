@@ -49,6 +49,7 @@ class GenericWindFarm(object):
         self.dom = dom
         self.rd_first_save = True
         self.fprint = self.params.fprint
+        self.tag_output = self.params.tag_output
 
         ### Update attributes based on params file ###
         for key, value in self.params["wind_farm"].items():

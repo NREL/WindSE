@@ -47,6 +47,7 @@ class GenericProblem(object):
         self.bd  = boundary_data
         self.tf_first_save = True
         self.fprint = self.params.fprint
+        self.tag_output = self.params.tag_output
 
         ### Update attributes based on params file ###
         for key, value in self.params["problem"].items():
