@@ -1,0 +1,8 @@
+FunctionSpaceManager:
+  velocity_dofs: 1e2
+  pressure_dofs: 1e2
+  total_dofs: 2e2
+SolverManager:
+  average_x_velocity: 1e-6
+  average_y_velocity: 1e-6
+  average_z_velocity: 1e-6

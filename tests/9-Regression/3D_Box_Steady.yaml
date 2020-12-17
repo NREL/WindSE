@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: 3D_Wind_Farm      # Name of the output folder
+    # name: 3D_Wind_Farm      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution"]
 
 # Wind Farm Parameters:

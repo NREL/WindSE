@@ -85,10 +85,8 @@ class LinearFunctionSpace(GenericFunctionSpace):
         self.fprint("Pressure DOFS:   {:d}".format(self.Q.dim()))
         self.tag_output("pressure_dofs",self.Q.dim())
         self.fprint("Total DOFS:      {:d}".format(self.W.dim()))
-        self.tag_output("total_dofs",self.Q.dim())
+        self.tag_output("total_dofs",self.W.dim())
         
-
-
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")
 
@@ -115,7 +113,7 @@ class TaylorHoodFunctionSpace(GenericFunctionSpace):
         self.fprint("Pressure DOFS: {:d}".format(self.Q.dim()))
         self.tag_output("pressure_dofs",self.Q.dim())
         self.fprint("Total DOFS:    {:d}".format(self.W.dim()))
-        self.tag_output("total_dofs",self.Q.dim())
+        self.tag_output("total_dofs",self.W.dim())
 
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")

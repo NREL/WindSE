@@ -331,7 +331,8 @@ class SteadySolver(GenericSolver):
         volume = assemble(temp_ones*dx) # probably should make this a member of domain
         self.tag_output("average_x_velocity",assemble(self.problem.u_k[0]*dx)/volume) # probably not the fastest way to get the average velocity
         self.tag_output("average_y_velocity",assemble(self.problem.u_k[1]*dx)/volume) # probably not the fastest way to get the average velocity
-        self.tag_output("average_z_velocity",assemble(self.problem.u_k[2]*dx)/volume) # probably not the fastest way to get the average velocity
+        if self.problem.dom.dim == 3:
+            self.tag_output("average_z_velocity",assemble(self.problem.u_k[2]*dx)/volume) # probably not the fastest way to get the average velocity
 
 
 

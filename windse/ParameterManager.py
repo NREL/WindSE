@@ -161,6 +161,11 @@ class Parameters(dict):
         #     if "adjoint" in module:
         #         print(module)
 
+        ### set default name ###
+        if self.name is None:
+            _, yaml_name = os.path.split(loc)
+            self.name = yaml_name.split(".")[0]
+
         ### Set up the folder Structure ###
         timestamp=datetime.datetime.today().strftime('%Y%m%d_%H%M%S')
         fancytimestamp=datetime.datetime.today().strftime('%Y/%m/%d_%H:%M:%S')
@@ -333,7 +338,7 @@ class Parameters(dict):
 
         ### Update the yaml file ###
         with open(self.folder+"tagged_output.yaml","w") as file:
-            yaml.dump(self.tagged_output, file)
+            yaml.dump(self.tagged_output, file, sort_keys=False)
 
         ### Print the new dict ###
         # print(self.tagged_output)

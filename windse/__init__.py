@@ -3,6 +3,7 @@ This is the init file for WindSE. It handle importing all the
 submodules and initializing the parameters.
 """
 
+
 from windse.ParameterManager import windse_parameters
 def initialize(loc,updated_parameters=[]):
     """
