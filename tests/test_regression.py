@@ -58,19 +58,19 @@ def test_yaml_execution(yaml_file):
 
         ### Send warning if a module was not checked ###
         if check_dict is None:
-            errors += "Missing Group - "+module_name+"\n"
+            errors += f"Missing Group - {module_name}\n"
 
         ### Check each value in the module
         for key, truth_value in truth_dict.items():
             check_value = check_dict.get(key,None)
             tol = float(tol_dict.get(key,0.0))
+            difference = abs(check_value-truth_value)
 
             if check_value is None:
-                errors += "Missing Key   - "+module_name+": "+key+"\n"
-
-            elif abs(check_value-truth_value) > tol:
-                error = abs(check_value-truth_value)
-                errors += "Value Error   - "+module_name+": "+key+" ("+repr(error)+")\n"
+                errors += f"Missing Key - {module_name}: {key} \n"
+            
+            elif difference > tol:
+                errors += f"Value Error - {module_name}: {key} (rel error: {difference}, truth: {truth_value}, check:{check_value})\n"
 
     if len(errors)>0:
         errors = yaml_name + "\n" + errors
