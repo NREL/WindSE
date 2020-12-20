@@ -42,7 +42,7 @@ def test_yaml_execution(yaml_file):
     yaml_name = yaml_name.split(".")[0]
 
     ### Import the Truth ###
-    truth_loc = folder + "/Truth_data/" + yaml_name + "_truth.yaml"
+    truth_loc = folder + "/Truth_Data/" + yaml_name + "_truth.yaml"
     sim_truth = yaml.load(open(truth_loc),Loader=yaml.SafeLoader)
 
     ### Import the Results ###
