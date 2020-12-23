@@ -1,0 +1,8 @@
+FunctionSpaceManager:
+  velocity_dofs: 14100
+  pressure_dofs: 4700
+  total_dofs: 18800
+SolverManager:
+  average_x_velocity: 8.321793301020083
+  average_y_velocity: 0.0067126656147929245
+  average_z_velocity: 0.06473495606639446

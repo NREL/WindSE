@@ -66,6 +66,7 @@ class GenericSolver(object):
         self.nu_T = self.problem.nu_T
         self.first_save = True
         self.fprint = self.params.fprint
+        self.tag_output = self.params.tag_output
         self.simTime = 0.0
 
         ### Update attributes based on params file ###
@@ -322,6 +323,18 @@ class SteadySolver(GenericSolver):
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
         # self.u_k,self.p_k = self.problem.up_k.split(True)
         self.problem.u_k,self.problem.p_k = self.problem.up_k.split(True)
+
+
+        ### Save some tagged outputs TODO: wrap this in an debug==True if statement since it takes a non negotiable amount of time
+        temp_ones = Function(self.problem.fs.Q)
+        temp_ones.vector()[:] = 1.0
+        volume = assemble(temp_ones*dx) # probably should make this a member of domain
+        self.tag_output("average_x_velocity",assemble(self.problem.u_k[0]*dx)/volume) # probably not the fastest way to get the average velocity
+        self.tag_output("average_y_velocity",assemble(self.problem.u_k[1]*dx)/volume) # probably not the fastest way to get the average velocity
+        if self.problem.dom.dim == 3:
+            self.tag_output("average_z_velocity",assemble(self.problem.u_k[2]*dx)/volume) # probably not the fastest way to get the average velocity
+
+
 
         ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
         self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)

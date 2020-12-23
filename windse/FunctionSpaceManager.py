@@ -28,6 +28,7 @@ class GenericFunctionSpace(object):
     def __init__(self,dom):
         self.params = windse_parameters
         self.fprint = self.params.fprint
+        self.tag_output = self.params.tag_output
         self.dim = dom.dim
         self.mesh = dom.mesh
 
@@ -80,8 +81,11 @@ class LinearFunctionSpace(GenericFunctionSpace):
         self.SetupSubspaces()
 
         self.fprint("Velocity DOFS:   {:d}".format(self.V.dim()))
+        self.tag_output("velocity_dofs",self.V.dim())
         self.fprint("Pressure DOFS:   {:d}".format(self.Q.dim()))
+        self.tag_output("pressure_dofs",self.Q.dim())
         self.fprint("Total DOFS:      {:d}".format(self.W.dim()))
+        self.tag_output("total_dofs",self.W.dim())
         
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")
@@ -105,8 +109,11 @@ class TaylorHoodFunctionSpace(GenericFunctionSpace):
         self.SetupSubspaces()
 
         self.fprint("Velocity DOFS: {:d}".format(self.V.dim()))
+        self.tag_output("velocity_dofs",self.V.dim())
         self.fprint("Pressure DOFS: {:d}".format(self.Q.dim()))
+        self.tag_output("pressure_dofs",self.Q.dim())
         self.fprint("Total DOFS:    {:d}".format(self.W.dim()))
+        self.tag_output("total_dofs",self.W.dim())
 
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")

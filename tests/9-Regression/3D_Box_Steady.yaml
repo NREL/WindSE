@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: 3D_Wind_Farm      # Name of the output folder
+    # name: 3D_Wind_Farm      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution"]
 
 # Wind Farm Parameters:
@@ -63,7 +63,7 @@ boundary_conditions:
     vel_profile: log
     HH_vel: 8.0
     k: 0.4
-    inflow_angle: 1.13
+    # inflow_angle: 1.13
     ######### Uncomment to test out custom BCs for BoxDomain ##########
     # boundary_types:
     #     inflow: ["west"]
