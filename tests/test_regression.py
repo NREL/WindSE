@@ -63,14 +63,24 @@ def test_yaml_execution(yaml_file):
         ### Check each value in the module
         for key, truth_value in truth_dict.items():
             check_value = check_dict.get(key,None)
-            tol = float(tol_dict.get(key,0.0))
-            difference = abs(check_value-truth_value)
+
+            ### Get test parameters
+            tol_value = tol_dict.get(key,[0.0,"absolute"])
+            tol = float(tol_value[0])
+            check_type = tol_value[1]
+
+            ### Calculate errors ###
+            rel_error = abs(check_value-truth_value)/truth_value
+            abs_error = abs(check_value-truth_value)
 
             if check_value is None:
                 errors += f"Missing Key - {module_name}: {key} \n"
             
-            elif difference > tol:
-                errors += f"Value Error - {module_name}: {key} (rel error: {difference}, truth: {truth_value}, check:{check_value})\n"
+            elif check_type == "absolute" and abs_error > tol:
+                errors += f"Value Error - {module_name}: {key} (abs error: {abs_error}, tol: {tol} truth: {truth_value}, check: {check_value})\n"
+
+            elif check_type == "relative" and rel_error > tol:
+                errors += f"Value Error - {module_name}: {key} (rel error: {rel_error}, tol: {tol}, truth: {truth_value}, check: {check_value})\n"
 
     if len(errors)>0:
         errors = yaml_name + "\n" + errors
