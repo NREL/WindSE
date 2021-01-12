@@ -32,7 +32,8 @@ install:
     - source activate test-environment
 
 script:
-    - pytest -v tests/test_regression.py --cov=windse
+    - pytest --co tests
+    - pytest -v tests --cov=windse
 
 after_success:
   - coveralls
