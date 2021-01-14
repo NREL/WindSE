@@ -5,6 +5,7 @@ general:
     output_folder:      output/ 
     output_type:        pvd
     dolfin_adjoint:     False
+    debug_mode:         False
 
 domain: 
     type:             Null
@@ -42,7 +43,7 @@ domain:
 wind_farm: 
     type:           Null           
     path:           Null
-    display:        False
+    display:        False  ### this does this
     ex_x:           Null    
     ex_y:           Null    
     grid_rows:      Null      
