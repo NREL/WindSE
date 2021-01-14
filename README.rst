@@ -60,4 +60,3 @@ The package is available on conda-forge. To install conda check out this link: `
     conda install -c conda-forge windse
 
 
-
