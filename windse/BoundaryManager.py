@@ -38,6 +38,7 @@ class GenericBoundary(object):
         self.height_first_save = True
         self.fprint = self.params.fprint
         self.tag_output = self.params.tag_output
+        self.debug_mode = self.params.debug_mode
         
         ### Update attributes based on params file ###
         for key, value in self.params["boundary_conditions"].items():
@@ -121,6 +122,11 @@ class GenericBoundary(object):
         for i in range(len(bcs_eqns)):
             if bcs_eqns[i][0] is not None:
                 self.bcs.append(DirichletBC(bcs_eqns[i][1], bcs_eqns[i][2], self.dom.boundary_markers, bcs_eqns[i][3]))
+
+        if self.debug_mode:
+            num_bc = len(self.bcu) + len(self.bcp) + len(self.bcs)
+            self.tag_output("num_bc",num_bc)
+
 
         self.fprint("Boundary Conditions Applied",offset=1)
         self.fprint("")
