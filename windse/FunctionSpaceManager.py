@@ -29,6 +29,7 @@ class GenericFunctionSpace(object):
         self.params = windse_parameters
         self.fprint = self.params.fprint
         self.tag_output = self.params.tag_output
+        self.debug_mode = self.params.debug_mode
         self.dim = dom.dim
         self.mesh = dom.mesh
 

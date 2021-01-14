@@ -67,6 +67,7 @@ class GenericSolver(object):
         self.first_save = True
         self.fprint = self.params.fprint
         self.tag_output = self.params.tag_output
+        self.debug_mode = self.params.debug_mode
         self.simTime = 0.0
 
         ### Update attributes based on params file ###
