@@ -51,7 +51,7 @@ class GenericWindFarm(object):
         self.fprint = self.params.fprint
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
-
+        
         ### Init empty design variables ###
         self.cl = None;    self.mcl = None
         self.cd = None;    self.mcd = None
