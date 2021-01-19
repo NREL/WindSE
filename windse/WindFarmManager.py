@@ -61,6 +61,15 @@ class GenericWindFarm(object):
         self.yaw = None;   self.myaw = None
         self.axial = None; self.maxial = None
 
+        ### Init empty design variables ###
+        self.cl = None;    self.mcl = None
+        self.cd = None;    self.mcd = None
+        self.chord = None; self.mchord = None
+        self.x = None;     self.mx = None
+        self.y = None;     self.my = None
+        self.yaw = None;   self.myaw = None
+        self.axial = None; self.maxial = None
+
         ### Update attributes based on params file ###
         for key, value in self.params["wind_farm"].items():
             if isinstance(value,list):
