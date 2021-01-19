@@ -196,7 +196,7 @@ def SetupSimulation(params_loc=None):
     solver = BuildSolver(params,problem)
 
     farm.PlotFarm(params["wind_farm"]["display"])
-    if hasattr(farm,"chord"):
+    if farm.chord is not None:
         farm.PlotChord(params["wind_farm"]["display"])
 
 
