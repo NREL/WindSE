@@ -52,6 +52,15 @@ class GenericWindFarm(object):
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
 
+        ### Init empty design variables ###
+        self.cl = None;    self.mcl = None
+        self.cd = None;    self.mcd = None
+        self.chord = None; self.mchord = None
+        self.x = None;     self.mx = None
+        self.y = None;     self.my = None
+        self.yaw = None;   self.myaw = None
+        self.axial = None; self.maxial = None
+
         ### Update attributes based on params file ###
         for key, value in self.params["wind_farm"].items():
             if isinstance(value,list):
@@ -66,7 +75,6 @@ class GenericWindFarm(object):
             self.control_types = self.params["optimization"]["control_types"]
             self.extra_kwarg["annotate"] = False
             self.optimize = True
-
 
     def PlotFarm(self,show=False,filename="wind_farm",power=None):
         """
@@ -323,10 +331,11 @@ class GenericWindFarm(object):
             self.ground[i] = self.z[i] - self.HH[i]       
 
             # Update blade level controls
-            for k in range(self.num_blade_segments):
-                self.mcl[i][k] = Constant(self.cl[i][k])
-                self.mcd[i][k] = Constant(self.cd[i][k])
-                self.mchord[i][k] = Constant(self.chord[i][k])
+            if self.turbine_method == "alm" or self.force == "chord": 
+                for k in range(self.num_blade_segments):
+                    self.mcl[i][k] = Constant(self.cl[i][k])
+                    self.mcd[i][k] = Constant(self.cd[i][k])
+                    self.mchord[i][k] = Constant(self.chord[i][k])
 
 
 
@@ -851,8 +860,8 @@ class GenericWindFarm(object):
         self.fprint("Using a Dolfin Representation")
 
         ### this section of code is a hack to get "chord"-type disk representation ###
-        if not hasattr(self, "mchord"):
-            if not hasattr(self, "chord"):
+        if self.mchord is not None:
+            if self.chord is not None:
                 if self.blade_segments == "computed":
                     self.num_blade_segments = 10 ##### FIX THIS ####
                     self.blade_segments = self.num_blade_segments
