@@ -31,9 +31,9 @@ domain:
     x_range: [-1200, 1200] # x-range of the domain | m
     y_range: [-1200, 1200] # y-range of the domain | m
     z_range: [0.04, 640]   # z-range of the domain | m
-    nx: 10                 # Number of x-nodes     | -
-    ny: 10                  # Number of y-nodes     | -
-    nz: 5                  # Number of z-nodes      | -
+    nx: 6                 # Number of x-nodes     | -
+    ny: 6                  # Number of y-nodes     | -
+    nz: 3                  # Number of z-nodes      | -
     interpolated: true 
     terrain_path: Input_Data/skew_terrain.txt
     ###################################################################
