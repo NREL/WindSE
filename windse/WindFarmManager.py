@@ -794,8 +794,8 @@ class GenericWindFarm(object):
         x = fs.tf_V0.tabulate_dof_coordinates().T
         [tf1, tf2, tf3], sparse_ids, actuator_array = CalculateDiskTurbineForces(x, self, fs, save_actuators=True)
 
-        self.fprint("Turbine Force Space:  {}".format(fs.tf_space))
-        self.fprint("Turbine Force Degree: {:d}".format(fs.tf_degree))
+        self.fprint("Turbine Force Space:  {}".format(fs.turbine_space))
+        self.fprint("Turbine Force Degree: {:d}".format(fs.turbine_degree))
         self.fprint("Quadrature DOFS:      {:d}".format(fs.tf_V.dim()))
         self.fprint("Turbine DOFs:         {:d}".format(len(sparse_ids)))
         self.fprint("Compression:          {:1.4f} %".format(len(sparse_ids)/fs.tf_V.dim()*100))
@@ -810,7 +810,7 @@ class GenericWindFarm(object):
         self.actuator_disks = Function(fs.tf_V)
         self.actuator_disks.vector()[:] = np.sum(actuator_array,axis=1)
         self.fprint("Projecting Turbine Force")
-        self.actuator_disks = project(self.actuator_disks,fs.V,solver_type='mumps',form_compiler_parameters={'quadrature_degree': fs.tf_degree},**self.extra_kwarg)
+        self.actuator_disks = project(self.actuator_disks,fs.V,solver_type='mumps',form_compiler_parameters={'quadrature_degree': fs.turbine_degree},**self.extra_kwarg)
         
         self.actuator_disks_list = []
         for i in range(self.numturbs):

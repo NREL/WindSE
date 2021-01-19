@@ -26,7 +26,7 @@ tolerances = yaml.load(open("tests/9-Regression/Truth_Data/tolerances.yaml"),Loa
 ### Run Demo Yaml Files
 @pytest.mark.parametrize('yaml_file', yaml_files, ids=lambda yaml_file: yaml_file.parts[-2]+"/"+yaml_file.parts[-1])
 def test_yaml_execution(yaml_file):
-
+    
     ### Filter out some benign numpy warnings ###
     warnings.filterwarnings("ignore", message="numpy.dtype size changed")
     warnings.filterwarnings("ignore", message="numpy.ufunc size changed")

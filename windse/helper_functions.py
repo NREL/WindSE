@@ -141,7 +141,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
     dim, N = x.shape
 
     ### Set up some dim dependent values ###
-    S_norm = (2.0+pi)/(2.0*pi)
+    S_norm = (2.0+np.pi)/(2.0*np.pi)
     T_norm = 2.0*gamma(7.0/6.0)
     if dim == 3:
         A = np.pi*R**2.0 
