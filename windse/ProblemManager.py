@@ -114,17 +114,36 @@ class GenericProblem(object):
             self.rotor_torque_dolfin_time = []
             self.simTime_id = 0
 
-            self.aoa_file = './output/%s/angle_of_attack.csv' % (self.params.name)
+            ### create output files for alm data ###
+            force_folder = self.params.folder+"data/alm/rotor_force/"
+            aoa_folder = self.params.folder+"data/alm/angle_of_attack/"
+            if not os.path.exists(aoa_folder): os.makedirs(aoa_folder)
+            if not os.path.exists(force_folder): os.makedirs(force_folder)
+            self.aoa_files = []
+            self.force_files = []
+            for i in range(self.farm.numturbs):
+                self.aoa_files.append(aoa_folder+"aoa_turb_"+repr(i)+".csv")
+                temp = ["x","y","z"]
+                self.force_files.append([])
+                for j in range(3):
+                    self.force_files[i].append(force_folder+temp[j]+"_force_turb_"+repr(i)+".csv")
 
+                ### Create header for angle of attack 
+                fp = open(self.aoa_files[i], 'w')
+                for j in range(3):
+                    for k in range(self.num_blade_segments):
+                        fp.write('r%d_n%03d, ' % (j, k))
+                fp.write('\n')
+                fp.close()
 
-            fp = open(self.aoa_file, 'w')
-
-            for j in range(3):
-                for k in range(self.num_blade_segments):
-                    fp.write('r%d_n%03d, ' % (j, k))
-            fp.write('\n')
-            fp.close()
-
+                ### Create header for force files ###
+                for dir_file in self.force_files[i]:
+                    fp = open(dir_file, 'w')
+                    for j in range(3):
+                        for k in range(self.num_blade_segments):
+                            fp.write('r%d_n%03d, ' % (j, k))
+                    fp.write('\n')
+                    fp.close()
 
             # Initialize the lift and drag files
             for fn in ['lift', 'drag']:
