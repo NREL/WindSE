@@ -364,6 +364,15 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
 
     simTime = problem.simTime_list[simTime_id]
 
+    fa = open(problem.aoa_files[turb_i], 'a')
+    fx = open(problem.force_files[turb_i][0], 'a')
+    fy = open(problem.force_files[turb_i][1], 'a')
+    fz = open(problem.force_files[turb_i][2], 'a')
+
+    fa.write('%.5f, ' % (simTime))
+    fx.write('%.5f, ' % (simTime))
+    fy.write('%.5f, ' % (simTime))
+    fz.write('%.5f, ' % (simTime))
 
     if verbose:
         print("Current Optimization Time: "+repr(simTime)+", Turbine #"+repr(turb_i))
@@ -464,7 +473,7 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
         real_cl = np.zeros(problem.num_blade_segments)
         real_cd = np.zeros(problem.num_blade_segments)
 
-        fp = open(problem.aoa_files[turb_i], 'a')
+
 
         tip_loss = np.zeros(problem.num_blade_segments)
 
@@ -513,9 +522,7 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
 
 
             # Write the aoa to a file for future reference
-            fp.write('%.5f, ' % (aoa/np.pi*180.0))
-
-        fp.close()
+            fa.write('%.5f, ' % (aoa/np.pi*180.0))
 
         return real_cl, real_cd, tip_loss
 
@@ -869,9 +876,7 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
         nodal_lift = lift*np.exp(-dist2/eps**2)/(eps**3 * np.pi**1.5)
         nodal_drag = drag*np.exp(-dist2/eps**2)/(eps**3 * np.pi**1.5)
 
-        fx = open(problem.force_files[turb_i][0], 'a')
-        fy = open(problem.force_files[turb_i][1], 'a')
-        fz = open(problem.force_files[turb_i][2], 'a')
+
         
         for k in range(problem.num_blade_segments):
             # The drag unit simply points opposite the relative velocity unit vector
@@ -943,9 +948,10 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
                 u_blade_paraview[idx, :] = blade_vel[:, k]
                 u_fluid_paraview[idx, :] = u_fluid[:, k]
 
-        fx.close()
-        fy.close()
-        fz.close()
+    fx.close()
+    fy.close()
+    fz.close()
+    fa.close()
 
     # Output the numpy version of rotor_torque
     problem.rotor_torque[turb_i] = rotor_torque_numpy_temp
@@ -1002,8 +1008,9 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, dfd=None, 
         write_paraview_vector('u_rel', u_rel_paraview)
         write_paraview_vector('u_fluid', u_fluid_paraview)
         write_paraview_vector('u_blade', u_blade_paraview)
-
+        
         fp.close()
+
 
     if dfd == None:
         # The total turbine force is the sum of lift and drag effects

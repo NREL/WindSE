@@ -130,6 +130,7 @@ class GenericProblem(object):
 
                 ### Create header for angle of attack 
                 fp = open(self.aoa_files[i], 'w')
+                fp.write('time, ')
                 for j in range(3):
                     for k in range(self.num_blade_segments):
                         fp.write('r%d_n%03d, ' % (j, k))
@@ -139,6 +140,7 @@ class GenericProblem(object):
                 ### Create header for force files ###
                 for dir_file in self.force_files[i]:
                     fp = open(dir_file, 'w')
+                    fp.write('time, ')
                     for j in range(3):
                         for k in range(self.num_blade_segments):
                             fp.write('r%d_n%03d, ' % (j, k))
