@@ -33,7 +33,7 @@ install:
 
 script:
     - pytest --co 
-    - travis_wait 60 pytest -v --cov=windse
+    - pytest -v --cov=windse
 
 after_success:
   - coveralls
