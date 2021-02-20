@@ -320,6 +320,10 @@ class Parameters(dict):
 
     def tag_output(self, key, value):
 
+        ### Process value ###
+        if not isinstance(value,int):
+            value = float(value)
+
         ### Grab the name of the module that called this function ###
         stack = inspect.stack()[1][0]
         mod = inspect.getmodule(stack)

@@ -42,14 +42,18 @@ def get_action():
 def run_action(params_loc=None):
     tick = time.time()
 
-    ### Clean up other module references ###
+    # ### Clean up other module references ###
     mods_to_remove = []
     for k in sys.modules.keys():
-        if ("windse" in k):
-        # if ("windse" in k or "fenics" in k or "pyadjoint" in k or "dolfin" in k):
+        # if ("windse" in k):
+        if ("windse" in k or "dolfin_adjoint" in k or "fenics_adjoint" in k):
             mods_to_remove.append(k)
     for i in range(len(mods_to_remove)):
         del sys.modules[mods_to_remove[i]]
+
+    # ### Clean tape if available ###
+    # tape = get_working_tape()
+    # tape.clear_tape()
 
     ### Import fresh version of windse ###
     import windse
@@ -64,7 +68,7 @@ def run_action(params_loc=None):
     ### Perform Optimization ###
     if params.dolfin_adjoint:
         opt=windse.Optimizer(solver)
-        if params["optimization"]["gradient"]:
+        if params["optimization"]["gradient"] or params["general"]["debug_mode"]:
             opt.Gradient()
         if params["optimization"]["taylor_test"]:
             opt.TaylorTest()

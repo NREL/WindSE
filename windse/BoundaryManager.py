@@ -57,6 +57,36 @@ class GenericBoundary(object):
         if self.params.default_bc_types:
             self.boundary_types = self.dom.boundary_types
 
+    def DebugOutput(self):
+        if self.debug_mode:
+            # Average of the x and y-velocities
+            self.tag_output("min_x", np.min(self.ux.vector()[:]))
+            self.tag_output("max_x", np.max(self.ux.vector()[:]))
+            self.tag_output("avg_x", np.mean(self.ux.vector()[:]))
+            self.tag_output("min_y", np.min(self.uy.vector()[:]))
+            self.tag_output("max_y", np.max(self.uy.vector()[:]))
+            self.tag_output("avg_y", np.mean(self.uy.vector()[:]))
+
+            # If applicable, average of z-velocities
+            if self.dom.dim == 3:
+                self.tag_output("min_z", np.min(self.uz.vector()[:]))
+                self.tag_output("max_z", np.max(self.uz.vector()[:]))
+                self.tag_output("avg_z", np.mean(self.uz.vector()[:]))
+
+            # Average of the pressures
+            self.tag_output("min_p", np.min(self.bc_pressure.vector()[:]))
+            self.tag_output("max_p", np.max(self.bc_pressure.vector()[:]))
+            self.tag_output("avg_p", np.mean(self.bc_pressure.vector()[:]))
+
+            # Average of all initialized fields (confirms function assignment) ### Depends on DOFS
+            self.tag_output("min_initial_values", np.min(self.u0.vector()[:]))
+            self.tag_output("max_initial_values", np.max(self.u0.vector()[:]))
+            self.tag_output("avg_initial_values", np.mean(self.u0.vector()[:]))
+
+            # Get number of boundary conditions 
+            num_bc = len(self.bcu) + len(self.bcp) + len(self.bcs)
+            self.tag_output("num_bc",num_bc)
+
     def SetupBoundaries(self):
         ### Create the equations need for defining the boundary conditions ###
         ### this is sloppy and will be cleaned up.
@@ -122,11 +152,6 @@ class GenericBoundary(object):
         for i in range(len(bcs_eqns)):
             if bcs_eqns[i][0] is not None:
                 self.bcs.append(DirichletBC(bcs_eqns[i][1], bcs_eqns[i][2], self.dom.boundary_markers, bcs_eqns[i][3]))
-
-        if self.debug_mode:
-            num_bc = len(self.bcu) + len(self.bcp) + len(self.bcs)
-            self.tag_output("num_bc",num_bc)
-
 
         self.fprint("Boundary Conditions Applied",offset=1)
         self.fprint("")
@@ -286,6 +311,7 @@ class UniformInflow(GenericBoundary):
 
         ### Setup the boundary Conditions ###
         self.SetupBoundaries()
+        self.DebugOutput()
         self.fprint("Boundary Condition Finished",special="footer")
 
 class PowerInflow(GenericBoundary):
@@ -373,6 +399,7 @@ class PowerInflow(GenericBoundary):
 
         ### Setup the boundary Conditions ###
         self.SetupBoundaries()
+        self.DebugOutput()
         self.fprint("Boundary Condition Setup",special="footer")
 
 class LogLayerInflow(GenericBoundary):
@@ -436,6 +463,7 @@ class LogLayerInflow(GenericBoundary):
 
         ### Setup the boundary Conditions ###
         self.SetupBoundaries()
+        self.DebugOutput()
         self.fprint("Boundary Condition Setup",special="footer")
 
 class TurbSimInflow(LogLayerInflow):
@@ -478,6 +506,7 @@ class TurbSimInflow(LogLayerInflow):
                 self.boundaryIDs.append(k)
 
         self.UpdateVelocity(0.0)
+        self.DebugOutput()
 
     def UpdateVelocity(self, simTime):
 
@@ -505,6 +534,7 @@ class TurbSimInflow(LogLayerInflow):
             self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy])
 
         self.SetupBoundaries()
+
 
 
 

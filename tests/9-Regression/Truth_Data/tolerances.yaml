@@ -2,7 +2,3 @@ FunctionSpaceManager:
   velocity_dofs: [0.05, "relative"]
   pressure_dofs: [0.05, "relative"]
   total_dofs:    [0.05, "relative"]
-SolverManager:
-  average_x_velocity: [1e-4, "absolute"]
-  average_y_velocity: [1e-4, "absolute"]
-  average_z_velocity: [1e-4, "absolute"]

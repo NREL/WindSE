@@ -58,6 +58,40 @@ class GenericProblem(object):
         if isinstance(self.record_time,str):
             self.record_time = 0.0
 
+    def DebugOutput(self):
+        if self.debug_mode:
+
+            # integral of nu_t
+            int_nut = assemble(self.nu_T*dx)/self.dom.volume
+            self.tag_output("int_nu_T", int_nut)
+
+            # integral of tf
+            if self.dom.dim == 3:
+                e1 = Constant((1,0,0)); e2 = Constant((0,1,0)); e3 = Constant((0,0,1));
+            else:
+                e1 = Constant((1,0)); e2 = Constant((0,1));
+
+            int_tf_x = assemble(inner(self.tf,e1)*dx)/self.dom.volume
+            self.tag_output("int_tf_x", int_tf_x)
+            int_tf_y = assemble(inner(self.tf,e2)*dx)/self.dom.volume
+            self.tag_output("int_tf_y", int_tf_y)
+            if self.dom.dim == 3:
+                int_tf_z = assemble(inner(self.tf,e3)*dx)/self.dom.volume
+                self.tag_output("int_tf_z", int_tf_z)
+
+
+            if self.farm.turbine_method == 'alm':
+                self.tag_output("min_chord", np.min(self.chord))
+                self.tag_output("max_chord", np.max(self.chord))
+                self.tag_output("avg_chord", np.mean(self.chord))
+                self.tag_output("min_cl", np.min(self.cl))
+                self.tag_output("max_cl", np.max(self.cl))
+                self.tag_output("avg_cl", np.mean(self.cl))
+                self.tag_output("min_cd", np.min(self.cd))
+                self.tag_output("max_cd", np.max(self.cd))
+                self.tag_output("avg_cd", np.mean(self.cd))
+                self.tag_output("num_blade_segments", self.num_blade_segments)
+
     def ComputeTurbineForce(self,u,inflow_angle,simTime=0.0):
 
         ### Compute the relative yaw angle ###
@@ -412,6 +446,7 @@ class StabilizedProblem(GenericProblem):
         
         ### Create Functional ###
         self.ComputeFunctional()
+        self.DebugOutput()
 
 
     def ComputeFunctional(self,inflow_angle=None):
@@ -515,6 +550,7 @@ class TaylorHoodProblem(GenericProblem):
 
         ### Create Functional ###
         self.ComputeFunctional()
+        self.DebugOutput()
 
     def ComputeFunctional(self,inflow_angle=None):
         self.fprint("Setting Up Taylor-Hood Problem",special="header")
@@ -594,6 +630,7 @@ class UnsteadyProblem(GenericProblem):
 
         ### Create Functional ###
         self.ComputeFunctional()
+        self.DebugOutput()
 
     def ComputeFunctional(self,inflow_angle=None):
         # ================================================================

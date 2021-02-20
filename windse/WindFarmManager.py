@@ -85,6 +85,22 @@ class GenericWindFarm(object):
             self.extra_kwarg["annotate"] = False
             self.optimize = True
 
+    def DebugOutput(self):
+        if self.debug_mode:
+            self.tag_output("min_x", np.min(self.x))
+            self.tag_output("max_x", np.max(self.x))
+            self.tag_output("avg_x", np.mean(self.x))
+            self.tag_output("min_y", np.min(self.y))
+            self.tag_output("max_y", np.max(self.y))
+            self.tag_output("avg_y", np.mean(self.y))
+            self.tag_output("min_z", np.min(self.z))
+            self.tag_output("max_z", np.max(self.z))
+            self.tag_output("avg_z", np.mean(self.z))
+            self.tag_output("min_yaw", np.min(self.yaw))
+            self.tag_output("max_yaw", np.max(self.yaw))
+            self.tag_output("avg_yaw", np.mean(self.yaw))
+            # x, y, z, yaw, chord, 
+
     def PlotFarm(self,show=False,filename="wind_farm",power=None):
         """
         This function plots the locations of each wind turbine and
@@ -927,7 +943,6 @@ class GenericWindFarm(object):
             W = self.thickness[i]*1.0
             R = self.RD[i]/2.0
             ma = self.ma[i]
-            chord = self.mchord[i]
             C_tprime = 4*ma/(1-ma)
 
             ### Set up some dim dependent values ###
@@ -958,6 +973,7 @@ class GenericWindFarm(object):
             elif self.force == "sine":
                 force = (r*sin(pi*r)+0.5)/S_norm
             elif self.force == "chord":
+                chord = self.mchord[i]
                 force = RadialChordForce(r,chord)
             F = 0.5*A*C_tprime*force
 
@@ -1106,6 +1122,7 @@ class GridWindFarm(GenericWindFarm):
         self.ex_z = [min(self.ground),max(self.z+self.RD)]
         self.params["wind_farm"]["ex_z"] = self.ex_z
 
+        self.DebugOutput()
         self.fprint("Wind Farm Generated",special="footer")
 
 
@@ -1179,7 +1196,7 @@ class RandomWindFarm(GenericWindFarm):
         self.ex_z = [min(self.ground),max(self.z+self.RD)]
         self.params["wind_farm"]["ex_z"] = self.ex_z
 
-
+        self.DebugOutput()
         self.fprint("Wind Farm Generated",special="footer")
 
 
@@ -1254,5 +1271,5 @@ class ImportedWindFarm(GenericWindFarm):
         ### Calculate the extent of the farm ###
         self.CalculateFarmBoundingBox()
     
-
+        self.DebugOutput()
         self.fprint("Wind Farm Imported",special="footer")

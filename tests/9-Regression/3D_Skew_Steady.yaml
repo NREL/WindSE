@@ -57,25 +57,23 @@ boundary_conditions:
     HH_vel: 8.0
     k: 0.4
     inflow_angle: 1.13
-    ######### Uncomment to test out custom BCs for BoxDomain ##########
+    ######## Uncomment to test out custom BCs for BoxDomain ##########
     boundary_types:
         inflow: ["west"]
         no_stress: ["east"]
         free_slip: ["top","north","south"]
         no_slip: ["bottom"]
-    ###################################################################
+    ##################################################################
 
 problem:
     type: stabilized
     viscosity: 5
     lmax: 50
 
-
 solver:
     type: steady
     save_power: true
 
-    
 optimization:
     control_types: [layout,yaw]
     layout_bounds: [[-720, 720],[-450, 450]] 

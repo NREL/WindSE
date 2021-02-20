@@ -62,6 +62,13 @@ class GenericFunctionSpace(object):
             self.tf_V0 = self.tf_V.sub(0).collapse() 
             self.fprint("Quadrature DOFS: {:d}".format(self.tf_V.dim()))
 
+    def DebugOutput(self):
+        if self.debug_mode:
+            self.tag_output("velocity_dofs",self.V.dim())
+            self.tag_output("pressure_dofs",self.Q.dim())
+            self.tag_output("total_dofs",self.W.dim())
+
+
 class LinearFunctionSpace(GenericFunctionSpace):
     """
     The LinearFunctionSpace is made up of a vector function space for velocity
@@ -82,14 +89,15 @@ class LinearFunctionSpace(GenericFunctionSpace):
         self.SetupSubspaces()
 
         self.fprint("Velocity DOFS:   {:d}".format(self.V.dim()))
-        self.tag_output("velocity_dofs",self.V.dim())
         self.fprint("Pressure DOFS:   {:d}".format(self.Q.dim()))
-        self.tag_output("pressure_dofs",self.Q.dim())
         self.fprint("Total DOFS:      {:d}".format(self.W.dim()))
-        self.tag_output("total_dofs",self.W.dim())
         
+        self.DebugOutput()
+
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")
+
+
 
 class TaylorHoodFunctionSpace(GenericFunctionSpace):
     """
@@ -110,11 +118,10 @@ class TaylorHoodFunctionSpace(GenericFunctionSpace):
         self.SetupSubspaces()
 
         self.fprint("Velocity DOFS: {:d}".format(self.V.dim()))
-        self.tag_output("velocity_dofs",self.V.dim())
         self.fprint("Pressure DOFS: {:d}".format(self.Q.dim()))
-        self.tag_output("pressure_dofs",self.Q.dim())
         self.fprint("Total DOFS:    {:d}".format(self.W.dim()))
-        self.tag_output("total_dofs",self.W.dim())
+
+        self.DebugOutput()
 
         fs_stop = time.time()
         self.fprint("Function Spaces Created: {:1.2f} s".format(fs_stop-fs_start),special="footer")

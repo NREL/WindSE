@@ -4,8 +4,7 @@ This code will attempt to run all of the regression tests in ./9-Regression/ fol
 
 import pathlib
 import pytest
-import windse_driver
-import os
+import os, sys
 import yaml
 import warnings
 
@@ -19,6 +18,10 @@ yaml_files = sorted(pathlib.Path(__file__, reg_path).resolve().glob('*.yaml'))
 ### Import the tolerances ###
 tolerances = yaml.load(open("tests/9-Regression/Truth_Data/tolerances.yaml"),Loader=yaml.SafeLoader)
 
+### Get current status of modules
+default_modules = sys.modules.keys()
+
+
 ###############################################################
 ######################### Define Tests ########################
 ###############################################################
@@ -26,7 +29,7 @@ tolerances = yaml.load(open("tests/9-Regression/Truth_Data/tolerances.yaml"),Loa
 ### Run Demo Yaml Files
 @pytest.mark.parametrize('yaml_file', yaml_files, ids=lambda yaml_file: yaml_file.parts[-2]+"/"+yaml_file.parts[-1])
 def test_yaml_execution(yaml_file):
-    
+
     ### Filter out some benign numpy warnings ###
     warnings.filterwarnings("ignore", message="numpy.dtype size changed")
     warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
@@ -34,7 +37,8 @@ def test_yaml_execution(yaml_file):
     ### Run The Windse Simulation
     folder = os.path.split(yaml_file.as_posix())[0]
     os.chdir(folder)
-    windse_driver.driver.run_action(params_loc=yaml_file.as_posix())
+    from windse_driver import driver
+    driver.run_action(params_loc=yaml_file.as_posix())
     os.chdir(home_path)
 
     ### Grab the name of the run ###
@@ -65,18 +69,22 @@ def test_yaml_execution(yaml_file):
             check_value = check_dict.get(key,None)
 
             ### Get test parameters
-            tol_value = tol_dict.get(key,[0.0,"absolute"])
+            if isinstance(check_value,float):
+                tol_value = tol_dict.get(key,[1e-4,"absolute"])
+            if isinstance(check_value,int):
+                tol_value = tol_dict.get(key,[0,"absolute"])
             tol = float(tol_value[0])
             check_type = tol_value[1]
 
-            ### Calculate errors ###
-            rel_error = abs(check_value-truth_value)/truth_value
-            abs_error = abs(check_value-truth_value)
-
             if check_value is None:
                 errors += f"Missing Key - {module_name}: {key} \n"
-            
-            elif check_type == "absolute" and abs_error > tol:
+            else:
+                ### Calculate errors ###
+                abs_error = abs(check_value-truth_value)
+                if truth_value != 0:
+                    rel_error = abs(check_value-truth_value)/truth_value
+
+            if check_type == "absolute" and abs_error > tol:
                 errors += f"Value Error - {module_name}: {key} (abs error: {abs_error}, tol: {tol} truth: {truth_value}, check: {check_value})\n"
 
             elif check_type == "relative" and rel_error > tol:
