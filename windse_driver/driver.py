@@ -3,6 +3,7 @@ import time
 import os.path as osp
 import argparse
 import sys
+from pyadjoint import get_working_tape
 
 # import os
 # os.environ['OMP_NUM_THREADS'] = '1'
@@ -42,7 +43,7 @@ def get_action():
 def run_action(params_loc=None):
     tick = time.time()
 
-    # ### Clean up other module references ###
+    ### Clean up other module references ###
     mods_to_remove = []
     for k in sys.modules.keys():
         # if ("windse" in k):
@@ -51,9 +52,10 @@ def run_action(params_loc=None):
     for i in range(len(mods_to_remove)):
         del sys.modules[mods_to_remove[i]]
 
-    # ### Clean tape if available ###
-    # tape = get_working_tape()
-    # tape.clear_tape()
+    ### Clean tape if available ###
+    tape = get_working_tape()
+    if tape is not None:
+        tape.clear_tape()
 
     ### Import fresh version of windse ###
     import windse
