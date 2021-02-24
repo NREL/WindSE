@@ -64,17 +64,45 @@ def test_yaml_execution(yaml_file):
         if check_dict is None:
             errors += f"Missing Group - {module_name}\n"
 
+        ### Get Wildcard Tolerances for module ###
+        wild_tol_keys = []
+        for key in tol_dict.keys():
+            if "*" in key:
+                wild_tol_keys.append(key)
+
         ### Check each value in the module
         for key, truth_value in truth_dict.items():
             check_value = check_dict.get(key,None)
+            tol_value = None
 
-            ### Get test parameters
-            if isinstance(check_value,float):
-                tol_value = tol_dict.get(key,[1e-4,"absolute"])
-            if isinstance(check_value,int):
-                tol_value = tol_dict.get(key,[0,"absolute"])
+            ### Check if there is a valid wildcard ###
+            use_wildcard = False
+            for wild_key in wild_tol_keys:
+                filtered_wild_key = wild_key.replace('*', '')
+                if filtered_wild_key in key:
+                    wild_tol_value = tol_dict[wild_key]
+                    use_wildcard = True
+
+            ### Check if the exact key is available ###
+            if key in tol_dict.keys():
+                tol_value = tol_dict[key]
+
+            ### Check if wildcard tolerance key is available ###
+            elif use_wildcard:
+                tol_value = wild_tol_value
+
+            ### Set the default tolerances for a float ###
+            elif isinstance(check_value,float):
+                tol_value = [1e-4,"absolute"]
+
+            ### Set the default tolerances for a float ###
+            elif isinstance(check_value,int):
+                tol_value = [0,"absolute"]
+
+            ### Get tolerance parameters ###
             tol = float(tol_value[0])
             check_type = tol_value[1]
+
 
             if check_value is None:
                 errors += f"Missing Key - {module_name}: {key} \n"
