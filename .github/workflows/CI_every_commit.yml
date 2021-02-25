@@ -36,12 +36,14 @@ jobs:
       - name: List tests
         shell: pwsh
         run: |
+          conda activate test-environment
           pytest --co
         
       # Run all tests within WindSE, but not computationally expensive examples
       - name: Run tests within WindSE
         shell: pwsh
         run: |
+          conda activate test-environment
           pytest -v --cov=windse tests/test_regression.py
       
       # Run coveralls
@@ -53,4 +55,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          conda activate test-environment
           coveralls --service=github
