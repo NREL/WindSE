@@ -100,6 +100,7 @@ class GenericDomain(object):
         self.finalized = False
         self.fprint = self.params.fprint
         self.tag_output = self.params.tag_output
+        self.debug_mode = self.params.debug_mode
 
         ### Update attributes based on params file ###
         for key, value in self.params["domain"].items():
@@ -122,6 +123,36 @@ class GenericDomain(object):
         elif isinstance(self.inflow_angle,list):
             self.inflow_angle = self.inflow_angle[0]
         self.initial_inflow_angle = self.inflow_angle
+
+
+    def DebugOutput(self):
+        if self.debug_mode:
+            self.tag_output("dim", self.dim)
+            self.tag_output("x_min", self.x_range[0])
+            self.tag_output("x_max", self.x_range[1])
+            self.tag_output("y_min", self.y_range[0])
+            self.tag_output("y_max", self.y_range[1])
+            if self.dim == 3:
+                self.tag_output("z_min", self.z_range[0])
+                self.tag_output("z_max", self.z_range[1])
+
+            # Create a unit vector for integrating
+            V = FiniteElement('Lagrange', self.mesh.ufl_cell(), 1)
+            V = FunctionSpace(self.mesh,V)
+            u = Function(V)
+            u.vector()[:] = 1.0
+
+            # Volume Check
+            self.volume = assemble(u*dx)
+            self.tag_output("volume", self.volume)
+
+            # Check surface area
+            ds = Measure("ds", subdomain_data=self.boundary_markers)
+            for key, value in self.boundary_names.items():
+                if value is not None:
+                    self.tag_output("ID_"+key, value)
+                    sa = assemble(u*ds(value))
+                    self.tag_output("SA_"+key, sa)
 
     def Plot(self):
         """
@@ -599,6 +630,7 @@ class GenericDomain(object):
     def Finalize(self):
         # self.ComputeCellRadius()
         self.finalized = True
+        self.DebugOutput()
 
     # def ComputeCellRadius(self):
     #     self.mesh_radius = MeshFunction("double", self.mesh, self.mesh.topology().dim())
@@ -1453,6 +1485,7 @@ class InterpolatedCylinderDomain(CylinderDomain):
     def Finalize(self):
         self.Move(self.ground_function)
         self.finalized = True
+        self.DebugOutput()
         self.fprint("")
         self.fprint("Domain Finalized")
 
@@ -1486,5 +1519,6 @@ class InterpolatedBoxDomain(BoxDomain):
     def Finalize(self):
         self.Move(self.ground_function)
         self.finalized = True
+        self.DebugOutput()
         self.fprint("")
         self.fprint("Domain Finalized")

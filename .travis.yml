@@ -32,7 +32,8 @@ install:
     - source activate test-environment
 
 script:
-    - pytest -v tests/test_regression.py --cov=windse
+    - pytest --co 
+    - travis_wait 60 pytest -v --cov=windse tests/test_regression.py
 
 after_success:
   - coveralls

@@ -60,6 +60,7 @@ class Optimizer(object):
         self.farm = solver.problem.farm
         self.fprint = self.params.fprint
         self.tag_output = self.params.tag_output
+        self.debug_mode = self.params.debug_mode
         self.xscale = self.problem.dom.xscale
 
         ### Update attributes based on params file ###
@@ -102,8 +103,31 @@ class Optimizer(object):
         self.OptPrintFunction(self.init_vals,None)
         self.fprint("",special="footer")
 
-
         self.fprint("Optimizer Setup",special="footer")
+
+    def DebugOutput(self):
+        if self.debug_mode:
+
+            self.tag_output("n_controls", len(self.controls))
+            self.tag_output("obj_value", float(self.J))
+
+            ### Output initial control values ###
+            for i, val in enumerate(self.controls):
+                self.tag_output("val0_"+self.names[i],val.values())
+
+            ### Output gradient ###
+            if hasattr(self,"gradient"):
+                for i, d in enumerate(self.gradients):
+                    self.tag_output("grad_"+self.names[i],float(d))
+            
+            ### TODO: Output taylor convergence data
+            if hasattr(self,"conv_rate"):
+                pass
+
+            ### TODO: Output optimized controls
+            if hasattr(self,"m_opt"):
+                pass
+
 
     def RecomputeReducedFunctional(self):
         self.CreateControls()
@@ -239,7 +263,6 @@ class Optimizer(object):
         """
         Returns a gradient of the objective function
         """
-
         mem0=memory_usage()[0]
         tick = time.time()
 
@@ -268,7 +291,10 @@ class Optimizer(object):
         if capture_memory:
             self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
 
-        return np.array(der, dtype=float)
+        self.gradients = np.array(der, dtype=float)
+        self.DebugOutput()
+
+        return self.gradients
 
     def ListControls(self,m):
         self.fprint("Iteration "+repr(self.iteration)+" Complete",special="header")
@@ -377,15 +403,15 @@ class Optimizer(object):
         self.fprint("Beginning Optimization",special="header")
 
         if "layout" in self.control_types:
-            m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+            self.m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
         else:
             # m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds,  callback = self.OptPrintFunction)
             # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
-            m_opt=minimize(self.Jhat, method=self.opt_routine, options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
+            self.m_opt=minimize(self.Jhat, method=self.opt_routine, options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
 
         if self.num_controls == 1:
-            m_opt = (m_opt,)
+            self.m_opt = (self.m_opt,)
         self.OptPrintFunction(m_opt)
         # self.fprint("Assigning New Values")
         # new_values = {}
@@ -401,10 +427,10 @@ class Optimizer(object):
         
         # self.fprint("Solving With New Values")
         # self.solver.Solve()
-
+        self.DebugOutput()
         self.fprint("Optimization Finished",special="footer")
 
-        return m_opt
+        return self.m_opt
 
     def TaylorTest(self):
         
@@ -419,18 +445,19 @@ class Optimizer(object):
 
         print(np.array(h,dtype=float))
 
-        conv_rate = taylor_test(self.Jhat, self.init_vals, h)
+        self.conv_rate = taylor_test(self.Jhat, self.init_vals, h)
+        self.DebugOutput()
 
         self.fprint("Convergence Rates:")
         self.fprint("")
-        self.fprint(conv_rate)
+        self.fprint(self.conv_rate)
         self.fprint("")
 
         self.fprint("Taylor Test Finished",special="footer")
 
 
 
-        return conv_rate
+        return self.conv_rate
 
 class MinimumDistanceConstraint(InequalityConstraint):
     def __init__(self, m_pos, min_distance=200):

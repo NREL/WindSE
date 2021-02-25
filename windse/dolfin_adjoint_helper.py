@@ -161,16 +161,16 @@ class ActuatorDiskForceBlock(Block):
 
         ### Add dependencies on the controls ###
         for i in range(self.farm.numturbs):
-            self.farm.mx[i].block_variable.tag = ("x",i)
+            self.farm.mx[i].block_variable.tag = ("x",i,-1)
             self.add_dependency(self.farm.mx[i])
 
-            self.farm.my[i].block_variable.tag = ("y",i)
+            self.farm.my[i].block_variable.tag = ("y",i,-1)
             self.add_dependency(self.farm.my[i])
 
-            self.farm.myaw[i].block_variable.tag = ("yaw",i)
+            self.farm.myaw[i].block_variable.tag = ("yaw",i,-1)
             self.add_dependency(self.farm.myaw[i])
 
-            self.farm.ma[i].block_variable.tag = ("a",i)
+            self.farm.ma[i].block_variable.tag = ("a",i,-1)
             self.add_dependency(self.farm.ma[i])
 
         ### Tabulate which controls matter ###
@@ -261,7 +261,7 @@ class ActuatorDiskForceBlock(Block):
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
 
         ### Get the control type and turbine index ###
-        name, turb_idx = block_variable.tag
+        name, turb_idx, _ = block_variable.tag
         print("Calculating Derivative: " +name+"_"+repr(turb_idx))
         ### Apply derivative to previous in tape ###
         adj_output = 0
@@ -368,18 +368,19 @@ class ControlUpdaterBlock(Block):
         # Add dependencies on the controls
         self.num_dependancies = 0
         for i in range(self.problem.farm.numturbs):
-            for j in range(self.problem.num_blade_segments):
-                self.farm.mcl[i][j].block_variable.tag = ("c_lift", i, j)
-                self.add_dependency(self.farm.mcl[i][j])
-                self.num_dependancies += 1
+            if self.farm.turbine_method == "alm" or self.farm.force == "chord": 
+                for j in range(self.problem.num_blade_segments):
+                    self.farm.mcl[i][j].block_variable.tag = ("c_lift", i, j)
+                    self.add_dependency(self.farm.mcl[i][j])
+                    self.num_dependancies += 1
 
-                self.farm.mcd[i][j].block_variable.tag = ("c_drag", i, j)
-                self.add_dependency(self.farm.mcd[i][j])
-                self.num_dependancies += 1
+                    self.farm.mcd[i][j].block_variable.tag = ("c_drag", i, j)
+                    self.add_dependency(self.farm.mcd[i][j])
+                    self.num_dependancies += 1
 
-                self.farm.mchord[i][j].block_variable.tag = ("chord", i, j)
-                self.add_dependency(self.farm.mchord[i][j])
-                self.num_dependancies += 1
+                    self.farm.mchord[i][j].block_variable.tag = ("chord", i, j)
+                    self.add_dependency(self.farm.mchord[i][j])
+                    self.num_dependancies += 1
 
             self.farm.mx[i].block_variable.tag = ("x",i,-1)
             self.add_dependency(self.farm.mx[i])
@@ -612,6 +613,11 @@ class ActuatorLineForceBlock(Block):
         self.problem.fprint("Current Yaw:   "+repr(float(self.problem.farm.myaw[self.turb_index])),tab=2)
         self.problem.fprint("Current Chord: "+str(np.array(self.problem.mchord[self.turb_index],dtype=float)),tab=2)
         if self.simTime>=self.problem.record_time and self.problem.farm.numturbs==1:
+            t_ids = np.logical_and(np.array(self.problem.simTime_list)>=self.problem.record_time,np.array(self.problem.simTime_list)<=self.simTime)
+            dts = np.array(self.problem.dt_list)[t_ids]
+            tos = np.array(self.problem.rotor_torque_dolfin_time)[t_ids]
+            val = dts*tos 
+            self.obj_value = (2.0*np.pi*self.problem.rpm/60.0)*np.sum(val)/np.sum(dts)/1.0e6
             self.problem.fprint("Current Power: "+repr(self.obj_value),tab=2)
         # self.problem.fprint("",special="footer")
 

@@ -2,17 +2,24 @@
 general: 
     # name: 3D_Wind_Farm      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: True
+    debug_mode: True
 
 # Wind Farm Parameters:
 wind_farm: 
 
-    ####################### Imported Wind Farm #######################
-    type: imported                   #                          |
-    path: Input_Data/wind_farm.txt   # location of wind farm    | -
-    force: sine                      # radial force distribution| -
+    ########################## Grid Wind Farm #########################
+    type: grid            #                          |
+    grid_rows: 2          # Number of rows           | -
+    grid_cols: 4          # Number of columns        | -
+    ex_x: [-600, 600]     # x-extent of the farm     | m
+    ex_y: [-300, 300]     # y-extent of the farm     | m
+    HH: 90                # Hub Height               | m
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 20.0       # Effective Thickness      | m
+    yaw: 0.349            # Yaw                      | rads
+    axial: 0.33           # Axial Induction          | -
     ###################################################################
-
-
 
 # Domain Parameters: Uncomment a set to change domain shape
 domain: 
@@ -22,35 +29,18 @@ domain:
     x_range: [-1200, 1200] # x-range of the domain | m
     y_range: [-600, 600] # y-range of the domain | m
     z_range: [0.04, 640]   # z-range of the domain | m
-    nx: 10                 # Number of x-nodes     | -
-    ny: 5                  # Number of y-nodes     | -
-    nz: 5                  # Number of z-nodes      | -
+    nx: 20                 # Number of x-nodes     | -
+    ny: 10                 # Number of y-nodes     | -
+    nz: 10                  # Number of z-nodes      | -
     ###################################################################
-
-    ########################## Cylinder Domain ########################
-    # type: cylinder          #                       |
-    # mesh_type: mshr   # elliptic, stretch mshr|
-    # radius: 1200            # x-range of the domain | m
-    # center: [0.0, 0.0]      # y-range of the domain | m
-    # z_range: [0.0, 640]    # z-range of the domain | m
-    # nt: 62                  # segments around circle| -
-    # # nz: 10                  # Number of z-nodes     | -
-    # res: 25                 # resolution for mshr   | -
-    ###################################################################
-
-    ######## Additionally, uncomment this for complex terrain #########
-    # interpolated: true 
-    # terrain_path: Input_Data/skew_terrain.txt
-    ###################################################################
-
-
 
 refine:
     warp_type: split
     warp_percent: 0.7     # percent of cells moved       | -
     warp_height: 250       # move cell below this value   | m
     refine_custom: [
-        [box, [  [[-1000,1200],[-200,200],[ 0,200]]  ]]
+        [box, [  [[-1000,1200],[-400,400],[ 0,200]]  ]],
+        # [box, [  [[-1000,1200],[-400,400],[ 0,200]]  ]]
     ]
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.25   # turbine radius multiplier    | -
@@ -77,7 +67,11 @@ problem:
     viscosity: 5
     lmax: 50
 
-
 solver:
     type: steady
     save_power: true
+
+optimization:
+    control_types: [layout,yaw]
+    layout_bounds: [[-720, 720],[-450, 450]] 
+    gradient: True

@@ -67,6 +67,7 @@ class GenericSolver(object):
         self.first_save = True
         self.fprint = self.params.fprint
         self.tag_output = self.params.tag_output
+        self.debug_mode = self.params.debug_mode
         self.simTime = 0.0
 
         ### Update attributes based on params file ###
@@ -106,6 +107,34 @@ class GenericSolver(object):
             self.power_func = obj_funcs.objectives_dict[self.power_type]
             self.J = 0.0
             self.pwr_saved = False
+
+    def DebugOutput(self,t=None,i=None):
+        if self.debug_mode:
+
+            if self.problem.dom.dim == 3:
+                ux, uy, uz = self.problem.u_k.split(True)
+            else:
+                ux, uy = self.problem.u_k.split(True)
+
+            if t is None:
+                suffix = ""
+            else:
+                suffix = "_"+repr(i)
+                self.tag_output("time"+suffix,t)
+
+            self.tag_output("min_x_vel"+suffix,np.min(ux.vector()[:])) # probably not the fastest way to get the average velocity
+            self.tag_output("max_x_vel"+suffix,np.max(ux.vector()[:])) # probably not the fastest way to get the average velocity
+            self.tag_output("avg_x_vel"+suffix,assemble(ux*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
+            self.tag_output("min_y_vel"+suffix,np.min(uy.vector()[:])) # probably not the fastest way to get the average velocity
+            self.tag_output("max_y_vel"+suffix,np.max(uy.vector()[:])) # probably not the fastest way to get the average velocity
+            self.tag_output("avg_y_vel"+suffix,assemble(uy*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
+            if self.problem.dom.dim == 3:
+                self.tag_output("min_z_vel"+suffix,np.min(uz.vector()[:])) # probably not the fastest way to get the average velocity
+                self.tag_output("max_z_vel"+suffix,np.max(uz.vector()[:])) # probably not the fastest way to get the average velocity
+                self.tag_output("avg_z_vel"+suffix,assemble(uy*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
+
+
+
 
     def Save(self,val=0):
         """
@@ -324,18 +353,6 @@ class SteadySolver(GenericSolver):
         # self.u_k,self.p_k = self.problem.up_k.split(True)
         self.problem.u_k,self.problem.p_k = self.problem.up_k.split(True)
 
-
-        ### Save some tagged outputs TODO: wrap this in an debug==True if statement since it takes a non negotiable amount of time
-        temp_ones = Function(self.problem.fs.Q)
-        temp_ones.vector()[:] = 1.0
-        volume = assemble(temp_ones*dx) # probably should make this a member of domain
-        self.tag_output("average_x_velocity",assemble(self.problem.u_k[0]*dx)/volume) # probably not the fastest way to get the average velocity
-        self.tag_output("average_y_velocity",assemble(self.problem.u_k[1]*dx)/volume) # probably not the fastest way to get the average velocity
-        if self.problem.dom.dim == 3:
-            self.tag_output("average_z_velocity",assemble(self.problem.u_k[2]*dx)/volume) # probably not the fastest way to get the average velocity
-
-
-
         ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
         self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
         if self.problem.dom.dim == 3:
@@ -385,6 +402,8 @@ class SteadySolver(GenericSolver):
         #     ps.append(perc)
         #     self.fprint("Speed Percent at ("+repr(int(x_val))+", 0, "+repr(HH)+"): "+repr(perc))
         # print(ps)
+
+        self.DebugOutput()
 
 # 
 # ================================================================
@@ -452,7 +471,7 @@ class UnsteadySolver(GenericSolver):
         #     fp.append(File("%s/timeSeries/turbineForce.pvd" % (self.problem.dom.params.folder)))
 
         # Save first timestep (create file pointers for first call)
-        self.SaveTimeSeries(self.simTime)
+        self.SaveTimeSeries(self.simTime, 0.0)
 
         self.fprint("Saving Input Data",special="header")
         if "mesh" in self.params.output:
@@ -527,7 +546,7 @@ class UnsteadySolver(GenericSolver):
         J_old = 0
         J_diff_old = 100000
         min_count = 0
-        i = 0
+        simIter = 0
         stable = False
         tip_speed = self.problem.rpm*2.0*np.pi*self.problem.farm.radius[0]/60.0
 
@@ -597,7 +616,7 @@ class UnsteadySolver(GenericSolver):
 
                 # Save output files
                 # self.SaveTimeSeries(fp, self.simTime)
-                self.SaveTimeSeries(self.simTime)
+                self.SaveTimeSeries(self.simTime,simIter)
 
             # Adjust the timestep size, dt, for a balance of simulation speed and stability
             save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
@@ -686,7 +705,7 @@ class UnsteadySolver(GenericSolver):
 
             # Print some solver statistics
             self.fprint("%8.2f | %7.2f | %5.2f" % (self.simTime, self.problem.dt, u_max))
-            i+=1
+            simIter+=1
 
         if (self.optimizing or self.save_objective):
             # if dt_sum > 0.0:
@@ -712,8 +731,9 @@ class UnsteadySolver(GenericSolver):
 
     # ================================================================
 
-    def SaveTimeSeries(self, simTime):
+    def SaveTimeSeries(self, simTime, simIter=None):
 
+        self.DebugOutput(simTime,simIter)
 
         if hasattr(self.problem,"tf_save"):
             self.problem.tf_save.vector()[:] = 0
