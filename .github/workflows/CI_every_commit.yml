@@ -15,21 +15,21 @@ jobs:
         python-version: ["3.8"]
         
     steps:
-      # - uses: actions/checkout@v2
-      # - uses: conda-incubator/setup-miniconda@v2
-      #   # https://github.com/marketplace/actions/setup-miniconda
-      #   with:
-      #     miniconda-version: "latest"
-      #     channels: conda-forge
-      #     auto-update-conda: true
-      #     python-version: 3.8
+      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        # https://github.com/marketplace/actions/setup-miniconda
+        with:
+          miniconda-version: "latest"
+          channels: conda-forge
+          auto-update-conda: true
+          python-version: 3.8
       #     environment-file: environment.yml
       
       - name: Install test environment
         shell: pwsh # putting in a shell command makes for compile linking problems later
         # (if you use the shell here, cannot use 'compiler' package, but mpi only seems to work with it)
         run: |
-          bash install.sh test-environment
+          bash ./install.sh test-environment
           source activate test-environment
 
       # List the collected tests for debugging purposes
