@@ -89,6 +89,7 @@ function_space:
 boundary_conditions:
     vel_profile:    Null
     HH_vel:         8.0
+    vel_height:     "HH"
     power:          0.25
     k:              0.4
     turbsim_path:   Null

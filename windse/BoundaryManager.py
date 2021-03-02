@@ -44,6 +44,12 @@ class GenericBoundary(object):
         for key, value in self.params["boundary_conditions"].items():
             setattr(self,key,value)
 
+        ### get the height to apply the HH_vel ###
+        if self.vel_height == "HH":
+            self.vel_height = np.mean(farm.HH)
+        if np.isnan(self.vel_height):
+            raise ValueError("Hub Height not defined, likely and EmptyFarm. Please set boundary_conditions:vel_height in config yaml")
+
         ### Get solver parameters ###
         self.final_time = self.params["solver"]["final_time"]
 
@@ -366,8 +372,8 @@ class PowerInflow(GenericBoundary):
         #################
         #################
         #################
-        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-dom.ground_reference)))
-        # scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(farm.HH)-0.0)))
+        scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(self.vel_height)-dom.ground_reference)))
+        # scaled_depth = np.abs(np.divide(depth_v0.vector()[:],(np.mean(self.vel_height)-0.0)))
         #################
         #################
         #################
@@ -433,12 +439,12 @@ class LogLayerInflow(GenericBoundary):
         self.uz = Function(fs.V2)
         if dom.ground_reference == 0:
             scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+0.0001,0.0001))
-            ustar = self.k/np.log(np.mean(farm.HH)/0.0001)
+            ustar = self.k/np.log(np.mean(self.vel_height)/0.0001)
         elif dom.ground_reference <= 0:
             raise ValueError("Log profile cannot be used with negative z values")
         else:
             scaled_depth = np.abs(np.divide(depth_v0.vector()[:]+dom.ground_reference,(dom.ground_reference)))
-            ustar = self.k/np.log(np.mean(farm.HH)/dom.ground_reference)
+            ustar = self.k/np.log(np.mean(self.vel_height)/dom.ground_reference)
         self.unit_reference_velocity = np.multiply(ustar/self.k,np.log(scaled_depth))
         ux_com, uy_com, uz_com = self.PrepareVelocity(self.dom.inflow_angle)
 
