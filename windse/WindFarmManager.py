@@ -79,6 +79,7 @@ class GenericWindFarm(object):
 
         self.extra_kwarg = {}
         self.optimize = False
+
         if self.params.dolfin_adjoint:
             self.layout_bounds = self.params["optimization"]["layout_bounds"]
             self.control_types = self.params["optimization"]["control_types"]
@@ -109,6 +110,9 @@ class GenericWindFarm(object):
         :Keyword Arguments:
             * **show** (*bool*): Default: True, Set False to suppress output but still save.
         """
+        if self.numturbs == 0:
+            return
+
         ### Create the path names ###
         folder_string = self.params.folder+"/plots/"
         file_string = self.params.folder+"/plots/"+filename+".pdf"
@@ -393,6 +397,9 @@ class GenericWindFarm(object):
 
 
     def SimpleRefine(self,radius,expand_factor=1):
+        if self.numturbs == 0:
+            return
+
         self.fprint("Cylinder Refinement Near Turbines",special="header")
         refine_start = time.time()
 
@@ -456,6 +463,9 @@ class GenericWindFarm(object):
 
 
     def WakeRefine(self,radius,length,theta=0.0,expand_factor=1,centered=False):
+        if self.numturbs == 0:
+            return
+
         self.fprint("Wake Refinement Near Turbines",special="header")
         refine_start = time.time()
 
@@ -537,6 +547,9 @@ class GenericWindFarm(object):
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
     def TearRefine(self,radius,theta=0.0,expand_factor=1):
+        if self.numturbs == 0:
+            return
+
         self.fprint("Tear Drop Refinement Near Turbines",special="header")
         refine_start = time.time()
 
@@ -632,6 +645,9 @@ class GenericWindFarm(object):
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
     def SphereRefine(self,radius,expand_factor=1):
+        if self.numturbs == 0:
+            return
+
         self.fprint("Sphere Refinement Near Turbines",special="header")
         refine_start = time.time()
 
@@ -1273,3 +1289,22 @@ class ImportedWindFarm(GenericWindFarm):
     
         self.DebugOutput()
         self.fprint("Wind Farm Imported",special="footer")
+
+
+class EmptyWindFarm(GenericWindFarm):
+
+    def __init__(self,dom):
+        super(EmptyWindFarm, self).__init__(dom)
+        self.numturbs  = 0
+        self.x         = []
+        self.y         = []
+        self.z         = []
+        self.HH        = []
+        self.yaw       = []
+        self.RD        = []
+        self.radius    = []
+        self.thickness = []
+        self.axial     = []
+        self.ex_x      = [0,0]
+        self.ex_y      = [0,0]
+        self.ex_z      = [0,0]

@@ -145,16 +145,19 @@ class Parameters(dict):
         if yaml_bc.get("boundary_types",{}):
             self.default_bc_types = False
 
-        if yaml_file.get("optimization",{}):
-            if not yaml_file["general"].get("dolfin_adjoint"):
-                print("Warning: Optimization options given, but general:dolfin_ajdoint is set to False")
-
         ### Set the parameters ###
         self.update(self.NestedUpdate(yaml_file))
 
         ### Create Instances of the general options ###
         for key, value in self["general"].items():
             setattr(self,key,value)
+
+        ### Check if dolfin_adjoint is unnecessary or required ###
+        optimizing = yaml_file.get("optimization",{}).get("control_types",None) is not None
+        if optimizing and not self.dolfin_adjoint:
+            raise ValueError("Optimization setting provided but general:dolfin_adjoint is set to False")
+        elif not optimizing and self.dolfin_adjoint: 
+            raise ValueError("general:dolfin_adjoint is set to True but no optimization parameters provided")
 
         # print(self.dolfin_adjoint)
         # for module in sys.modules:

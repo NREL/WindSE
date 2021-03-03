@@ -98,19 +98,23 @@ class GenericProblem(object):
         if inflow_angle is not None:
             inflow_angle = inflow_angle-self.dom.inflow_angle
         else:
-            inflow_angle = 0.0
+            inflow_angle = self.dom.inflow_angle
 
         self.fprint('Computing turbine forces using %s' % (self.farm.turbine_method.upper()))
 
         ### Create the turbine force function ###
-        if self.farm.turbine_method == "dolfin":
+        if self.farm.turbine_method == "disabled" or self.farm.numturbs == 0:
+            tf = Function(self.fs.V)
+            self.farm.actuator_disks = []
+
+        elif self.farm.turbine_method == "dolfin":
             self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
             self.num_blade_segments = self.farm.blade_segments
-
-
+            tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
 
         elif self.farm.turbine_method == "numpy":
             self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+            tf = -(self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]) #negative or otherwise we get jets
 
         elif self.farm.turbine_method == 'alm':
             self.rpm = self.params["wind_farm"]["rpm"]
@@ -348,14 +352,11 @@ class GenericProblem(object):
             self.tf_list = self.farm.CalculateActuatorLineTurbineForces(self, simTime)
 
             self.CopyALMtoWindFarm()
+            tf = sum(self.tf_list)
+
         else:
             raise ValueError("Unknown turbine method: "+self.farm.turbine_method)
         
-        ### Convolve TF with u ###
-        if self.farm.turbine_method != 'alm':
-            tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
-        else:
-            tf = sum(self.tf_list)
         return tf
 
 

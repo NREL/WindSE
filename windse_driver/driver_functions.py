@@ -97,7 +97,8 @@ def BuildDomain(params):
     #### Build Farm
     farm_dict = {"grid":windse.GridWindFarm,
                  "random":windse.RandomWindFarm,
-                 "imported":windse.ImportedWindFarm}
+                 "imported":windse.ImportedWindFarm,
+                 "empty":windse.EmptyWindFarm}
     farm = farm_dict[params["wind_farm"]["type"]](dom)
 
     if dom.type != "imported":

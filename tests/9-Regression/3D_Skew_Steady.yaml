@@ -31,9 +31,9 @@ domain:
     x_range: [-1200, 1200] # x-range of the domain | m
     y_range: [-1200, 1200] # y-range of the domain | m
     z_range: [0.04, 640]   # z-range of the domain | m
-    nx: 6                 # Number of x-nodes     | -
-    ny: 6                  # Number of y-nodes     | -
-    nz: 3                  # Number of z-nodes      | -
+    nx: 10                 # Number of x-nodes     | -
+    ny: 10                  # Number of y-nodes     | -
+    nz: 5                  # Number of z-nodes      | -
     interpolated: true 
     terrain_path: Input_Data/skew_terrain.txt
     ###################################################################
@@ -57,13 +57,6 @@ boundary_conditions:
     HH_vel: 8.0
     k: 0.4
     inflow_angle: 1.13
-    ######## Uncomment to test out custom BCs for BoxDomain ##########
-    boundary_types:
-        inflow: ["west"]
-        no_stress: ["east"]
-        free_slip: ["top","north","south"]
-        no_slip: ["bottom"]
-    ##################################################################
 
 problem:
     type: stabilized
@@ -73,6 +66,7 @@ problem:
 solver:
     type: steady
     save_power: true
+    nonlinear_solver: newton
 
 optimization:
     control_types: [layout,yaw]
