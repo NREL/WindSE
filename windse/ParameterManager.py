@@ -153,7 +153,7 @@ class Parameters(dict):
             setattr(self,key,value)
 
         ### Check if dolfin_adjoint is unnecessary or required ###
-        optimizing = "optimization" in yaml_file.keys()
+        optimizing = yaml_file.get("optimization",{}).get("control_types",None) is not None
         if optimizing and not self.dolfin_adjoint:
             raise ValueError("Optimization setting provided but general:dolfin_adjoint is set to False")
         elif not optimizing and self.dolfin_adjoint: 
