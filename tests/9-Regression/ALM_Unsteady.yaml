@@ -22,9 +22,9 @@ domain:
     z_range: [0.04, 520]         # z-range of the domain, [ ~0, 4D] | m
     
     # Coarse values recommended for testing, comments show more refined suggestions
-    nx: 40 # 60                  # Number of x-nodes | -
-    ny: 20 # 30                  # Number of y-nodes | -
-    nz: 20 # 30                  # Number of z-nodes | -
+    nx: 30 # 60                  # Number of x-nodes | -
+    ny: 15 # 30                  # Number of y-nodes | -
+    nz: 15 # 30                  # Number of z-nodes | -
 
 refine:
     warp_type: split             # create two regions of different node density

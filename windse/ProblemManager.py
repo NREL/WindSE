@@ -114,7 +114,7 @@ class GenericProblem(object):
 
         elif self.farm.turbine_method == "numpy":
             self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
-            tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
+            tf = -(self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]) #negative or otherwise we get jets
 
         elif self.farm.turbine_method == 'alm':
             self.rpm = self.params["wind_farm"]["rpm"]
