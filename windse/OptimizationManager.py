@@ -44,7 +44,69 @@ if main_file != "sphinx-build":
     import matplotlib.pyplot as plt
 else:
     InequalityConstraint = object
+    
+    
+import openmdao.api as om
 
+
+class dummy_comp(om.ExplicitComponent):
+    def initialize(self):
+        self.options.declare('m_global', types=object)
+        self.options.declare('J', types=object)
+        self.options.declare('dJ', types=object)
+        
+    def setup(self):
+        self.add_input('vars', val=self.options['m_global'])
+        self.add_output('obj', val=0.)
+
+        self.declare_partials('*', '*')
+        
+    def compute(self, inputs, outputs):
+        m = list(inputs['vars'])
+        print('compute!', m)
+        computed_output = self.options['J'](m)
+        outputs['obj'] = computed_output
+        print('done computing')
+        
+    def compute_partials(self, inputs, partials):
+        print('about to compute partials')
+        m = list(inputs['vars'])
+        jac = self.options['dJ'](m)
+        print(jac)
+        partials['obj', 'vars'] = jac
+        
+
+    
+def om_wrapper(J, m_global, dJ, H, bounds, **kwargs):
+    
+    if 'constraints' in kwargs:
+        print('constraints')
+        print(kwargs['constraints'])
+        
+    # build the model
+    prob = om.Problem()
+
+    prob.model.add_subsystem('dummy_comp', dummy_comp(m_global=m_global, J=J, dJ=dJ), promotes=['*'])
+    
+    lower_bounds = bounds[:, 0]
+    upper_bounds = bounds[:, 1]
+
+    # setup the optimization
+    prob.driver = om.pyOptSparseDriver()
+    prob.driver.options['optimizer'] = 'SNOPT'
+    
+    prob.model.add_design_var('vars', lower=lower_bounds, upper=upper_bounds)
+    prob.model.add_objective('obj')
+
+    prob.setup()
+
+    # run the optimization
+    prob.run_driver()
+    
+    return(prob['vars'])
+    
+
+    
 class Optimizer(object):
     """
     A GenericProblem contains on the basic functions required by all problem objects.
@@ -401,14 +463,18 @@ class Optimizer(object):
     def Optimize(self):
 
         self.fprint("Beginning Optimization",special="header")
-
-        if "layout" in self.control_types:
-            self.m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+        
+        # TODO : simplify this logic
+        if "SNOPT" in self.opt_routine:
+            if "layout" in self.control_types:
+                m_opt=minimize(self.Jhat, method="Custom", options = {"disp": True, "maxiter": 0}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper)
+            else:
+                m_opt=minimize(self.Jhat, method="Custom", options = {"disp": True, "maxiter": 0}, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper)
         else:
-            # m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds,  callback = self.OptPrintFunction)
-            # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
-            self.m_opt=minimize(self.Jhat, method=self.opt_routine, options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
-
+            if "layout" in self.control_types:
+                self.m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+            else:
+                self.m_opt=minimize(self.Jhat, method=self.opt_routine, options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
 
         if self.num_controls == 1:
             self.m_opt = (self.m_opt,)
