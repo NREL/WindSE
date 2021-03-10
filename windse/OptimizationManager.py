@@ -51,19 +51,18 @@ import openmdao.api as om
 
 class ObjComp(om.ExplicitComponent):
     def initialize(self):
-        self.options.declare('m_global', types=np.ndarray)
+        self.options.declare('initial_DVs', types=np.ndarray)
         self.options.declare('J', types=object)
         self.options.declare('dJ', types=object)
         
     def setup(self):
-        self.add_input('DVs', val=self.options['m_global'])
+        self.add_input('DVs', val=self.options['initial_DVs'])
         self.add_output('obj', val=0.)
 
         self.declare_partials('*', '*')
         
     def compute(self, inputs, outputs):
         m = list(inputs['DVs'])
-        print('compute! obj', m)
         computed_output = self.options['J'](m)
         outputs['obj'] = computed_output
         
@@ -75,16 +74,16 @@ class ObjComp(om.ExplicitComponent):
         
 class ConsComp(om.ExplicitComponent):
     def initialize(self):
-        self.options.declare('m_global', types=np.ndarray)
+        self.options.declare('initial_DVs', types=np.ndarray)
         self.options.declare('J', types=object)
         self.options.declare('dJ', types=object)
         self.options.declare('con_name', types=str)
         
     def setup(self):
         self.con_name = self.options["con_name"]
-        self.add_input('DVs', val=self.options['m_global'])
+        self.add_input('DVs', val=self.options['initial_DVs'])
         
-        output = self.options['J'](self.options['m_global'])
+        output = self.options['J'](self.options['initial_DVs'])
         self.add_output(self.con_name, val=output)
 
         self.declare_partials('*', '*')
@@ -108,12 +107,12 @@ def gather(m):
     else:
         return m  # Assume it is gathered already
     
-def om_wrapper(J, m_global, dJ, H, bounds, **kwargs):
+def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
     
     # build the model
     prob = om.Problem(model=om.Group())
 
-    prob.model.add_subsystem('obj_comp', ObjComp(m_global=m_global, J=J, dJ=dJ), promotes=['*'])
+    prob.model.add_subsystem('obj_comp', ObjComp(initial_DVs=initial_DVs, J=J, dJ=dJ), promotes=['*'])
     
     constraint_types = []
     if 'constraints' in kwargs:
@@ -137,7 +136,7 @@ def om_wrapper(J, m_global, dJ, H, bounds, **kwargs):
             constraint_types.append(typestr)
             
             con_name = f'con_{idx}'
-            prob.model.add_subsystem(f'cons_comp_{idx}', ConsComp(m_global=m_global, J=c.function, dJ=jac, con_name=con_name), promotes=['*'])
+            prob.model.add_subsystem(f'cons_comp_{idx}', ConsComp(initial_DVs=initial_DVs, J=c.function, dJ=jac, con_name=con_name), promotes=['*'])
     
     lower_bounds = bounds[:, 0]
     upper_bounds = bounds[:, 1]
@@ -161,7 +160,7 @@ def om_wrapper(J, m_global, dJ, H, bounds, **kwargs):
 
     prob.setup()
     
-    prob.set_val('DVs', m_global)
+    prob.set_val('DVs', initial_DVs)
 
     # Run the optimization
     prob.run_driver()
@@ -198,7 +197,7 @@ class Optimizer(object):
 
         ### Process parameters ###
         if "layout" in self.control_types:
-            if isinstance(self.layout_bounds,list):
+            if isinstance(self.layout_bounds,(list, np.ndarray)):
                 self.layout_bounds = np.array(self.layout_bounds)
             elif self.layout_bounds == "wind_farm":
                 self.layout_bounds = np.array([self.farm.ex_x,self.farm.ex_y])
