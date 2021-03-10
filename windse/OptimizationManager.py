@@ -143,7 +143,7 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
 
     # set up the optimization
     prob.driver = om.pyOptSparseDriver()
-    prob.driver.options['optimizer'] = 'SLSQP'
+    prob.driver.options['optimizer'] = 'SNOPT'
     # prob.driver = om.ScipyOptimizeDriver()
     # prob.driver.options['optimizer'] = 'SLSQP'
     
