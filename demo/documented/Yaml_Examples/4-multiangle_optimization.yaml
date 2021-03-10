@@ -70,3 +70,4 @@ optimization:
     control_types: [layout]
     layout_bounds: [[-720, 720],[-720, 720]] 
     optimize: true
+    opt_routine: SNOPT
