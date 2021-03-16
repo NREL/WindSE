@@ -32,11 +32,11 @@ jobs:
           bash ./install.sh test-environment
           conda activate test-environment
         
-      - name: Run demo tests within WindSE
+      - name: Run all tests within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -v --cov=windse tests/test_demos.py
+          pytest -v --cov=windse tests
       
       # Run coveralls
       - name: Run coveralls
