@@ -75,13 +75,10 @@ def run_action(params_loc=None):
         if params["optimization"]["optimize"]:
             opt.Optimize()
 
-    comm = MPI.comm_world
-    rank = comm.Get_rank()
-    num_procs = comm.Get_size()
 
     tock = time.time()
     runtime = tock-tick
-    if rank == 0:
+    if params.rank == 0:
         print("Run Complete: {:1.2f} s".format(runtime))
 
     return runtime

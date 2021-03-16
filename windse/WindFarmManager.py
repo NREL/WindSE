@@ -79,10 +79,7 @@ class GenericWindFarm(object):
         file_string = self.params.folder+"/plots/"+filename+".pdf"
 
         ### Check if folder exists ###
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-
-        if not os.path.exists(folder_string) and rank == 0: os.makedirs(folder_string)
+        if not os.path.exists(folder_string) and self.params.rank == 0: os.makedirs(folder_string)
 
         ### Create a list that outlines the extent of the farm ###
         if self.optimize and "layout" in self.control_types and self.layout_bounds == "wind_farm":
@@ -145,10 +142,7 @@ class GenericWindFarm(object):
         file_string = self.params.folder+"/plots/"+filename+".pdf"
 
         ### Check if folder exists ###
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-
-        if not os.path.exists(folder_string) and rank == 0: os.makedirs(folder_string)
+        if not os.path.exists(folder_string) and self.params.rank == 0: os.makedirs(folder_string)
 
         ### Calculate x values ###
         x = np.linspace(0,1,self.blade_segments)
@@ -204,10 +198,7 @@ class GenericWindFarm(object):
             file_string = self.params.folder+"/data/"+filename+".txt"
 
         ### Check if folder exists ###
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-
-        if not os.path.exists(folder_string) and rank == 0: os.makedirs(folder_string)
+        if not os.path.exists(folder_string) and self.params.rank == 0: os.makedirs(folder_string)
 
         ### Define the header string ###
         head_str="#    x    y    HH    Yaw    Diameter    Thickness    Axial_Induction"
@@ -964,7 +955,8 @@ class GenericWindFarm(object):
 
         ### Save the actuator disks for post processing ###
         self.fprint("Projecting Turbine Force")
-        self.actuator_disks = project(rd,fs.V,solver_type='mumps',**self.extra_kwarg)
+        self.actuator_disks = project(rd,fs.V,solver_type='cg',**self.extra_kwarg)
+        # self.actuator_disks = project(rd,fs.V,solver_type='mumps',**self.extra_kwarg)
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
@@ -1049,10 +1041,6 @@ class GenericWindFarm(object):
 
         def init_mpi_alm(problem):
 
-            comm = MPI.comm_world
-            rank = comm.Get_rank()
-            num_procs = comm.Get_size()
-
             # Create an empty array to hold all the components of velocity
             mpi_u_fluid = np.zeros((problem.farm.numturbs, 3*3*problem.num_blade_segments))
             mpi_u_fluid_count = np.zeros((problem.farm.numturbs, 3*3*problem.num_blade_segments))
@@ -1125,13 +1113,13 @@ class GenericWindFarm(object):
                     except:
                         pass
 
-            data_in_fluid = np.zeros((num_procs, np.shape(mpi_u_fluid)[0], np.shape(mpi_u_fluid)[1]))
-            comm.Gather(mpi_u_fluid, data_in_fluid, root=0)
+            data_in_fluid = np.zeros((self.params.num_procs, np.shape(mpi_u_fluid)[0], np.shape(mpi_u_fluid)[1]))
+            self.params.comm.Gather(mpi_u_fluid, data_in_fluid, root=0)
 
-            data_in_count = np.zeros((num_procs, np.shape(mpi_u_fluid_count)[0], np.shape(mpi_u_fluid_count)[1]))
-            comm.Gather(mpi_u_fluid_count, data_in_count, root=0)
+            data_in_count = np.zeros((self.params.num_procs, np.shape(mpi_u_fluid_count)[0], np.shape(mpi_u_fluid_count)[1]))
+            self.params.comm.Gather(mpi_u_fluid_count, data_in_count, root=0)
 
-            if rank == 0:
+            if self.params.rank == 0:
                 mpi_u_fluid = np.sum(data_in_fluid, axis=0)
                 mpi_u_fluid_count = np.sum(data_in_count, axis=0)
 
@@ -1139,7 +1127,7 @@ class GenericWindFarm(object):
                 # multiple times and being effectively doubled (or worse) when summing mpi_u_fluid across processes
                 mpi_u_fluid = mpi_u_fluid/mpi_u_fluid_count
 
-            comm.Bcast(mpi_u_fluid, root=0)
+            self.params.comm.Bcast(mpi_u_fluid, root=0)
 
             return mpi_u_fluid
 
@@ -1147,17 +1135,13 @@ class GenericWindFarm(object):
 
         def finalize_mpi_alm(problem):
 
-            comm = MPI.comm_world
-            rank = comm.Get_rank()
-            num_procs = comm.Get_size()
+            data_in_torque = np.zeros((self.params.num_procs, problem.farm.numturbs))
+            self.params.comm.Gather(problem.rotor_torque, data_in_torque, root=0)
 
-            data_in_torque = np.zeros((num_procs, problem.farm.numturbs))
-            comm.Gather(problem.rotor_torque, data_in_torque, root=0)
+            data_in_torque_count = np.zeros((self.params.num_procs, problem.farm.numturbs))
+            self.params.comm.Gather(problem.rotor_torque_count, data_in_torque_count, root=0)
 
-            data_in_torque_count = np.zeros((num_procs, problem.farm.numturbs))
-            comm.Gather(problem.rotor_torque_count, data_in_torque_count, root=0)
-
-            if rank == 0:
+            if self.params.rank == 0:
                 # print(data_in_torque)
                 # print(data_in_torque_count)
                 problem.rotor_torque = np.sum(data_in_torque, axis=0)
@@ -1169,7 +1153,7 @@ class GenericWindFarm(object):
                 # if multiple ranks include this turbine and therefore calculate a torque
                 problem.rotor_torque = problem.rotor_torque/problem.rotor_torque_count
 
-            comm.Bcast(problem.rotor_torque, root=0)
+            self.params.comm.Bcast(problem.rotor_torque, root=0)
 
         # ================================================================
 

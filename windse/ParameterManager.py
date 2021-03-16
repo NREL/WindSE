@@ -35,29 +35,25 @@ if main_file != "sphinx-build":
 
 ### THis is a special class that allows prints to go to file and terminal
 class Logger(object):
-    def __init__(self,filename):
+    def __init__(self, filename, rank):
         self.__dict__ = sys.stdout.__dict__.copy() 
         self.terminal = sys.stdout
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-        if rank == 0:
+        self.rank = rank
+        if self.rank == 0:
             self.log = open(filename, "a")
             self.log.seek(0)
             self.log.truncate()
 
     def write(self, message):
         self.terminal.write(message)
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-        if rank == 0:
+
+        if self.rank == 0:
             self.log.write(message)  
 
     def flush(self):
         self.terminal.flush()
 
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-        if rank == 0:
+        if self.rank == 0:
             self.log.flush()
         pass   
 
@@ -75,6 +71,11 @@ class Parameters(dict):
         self.windse_path = os.path.dirname(os.path.realpath(__file__))
         self.defaults = yaml.load(open(self.windse_path+"/default_parameters.yaml"),Loader=yaml.SafeLoader)
         self.update(self.defaults)
+
+        # Create an MPI communicator and initialize rank and num_procs 
+        self.comm = MPI.comm_world
+        self.rank = self.comm.Get_rank()
+        self.num_procs = self.comm.Get_size()
 
     def TerminalUpdate(self,dic,keys,value):
         if len(keys) > 1:
@@ -179,11 +180,7 @@ class Parameters(dict):
         self["general"]["folder"] = self.folder
 
         # Create all needed directories ahead of time
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-        num_procs = comm.Get_size()
-
-        if rank == 0:
+        if self.rank == 0:
             # Try to create the parent folder
             os.makedirs(self.folder, exist_ok=True)
 
@@ -200,7 +197,7 @@ class Parameters(dict):
                 os.makedirs('%s/%s' % (self.folder, sub), exist_ok=True)
 
         # Wait until rank 0 has created the directory structure
-        comm.barrier()
+        self.comm.barrier()
 
         # ### Make sure folder exists ###
         # comm = MPI.comm_world
@@ -210,7 +207,7 @@ class Parameters(dict):
         
         ### Setup the logger ###
         self.log = self.folder+"log.txt"
-        sys.stdout = Logger(self.log)
+        sys.stdout = Logger(self.log, self.rank)
 
         ### Copy params file to output folder ###
         if isinstance(loc,str):
@@ -275,9 +272,7 @@ class Parameters(dict):
 
         if file is None:
             ### Make sure the folder exists
-            comm = MPI.comm_world
-            rank = comm.Get_rank()
-            if not os.path.exists(self.folder+subfolder) and rank == 0: os.makedirs(self.folder+subfolder)
+            if not os.path.exists(self.folder+subfolder) and self.rank == 0: os.makedirs(self.folder+subfolder)
 
             if filetype == "pvd":
                 file_string = self.folder+subfolder+filename+".pvd"
@@ -313,11 +308,7 @@ class Parameters(dict):
 
         """
         ### Check Processor ###
-        rank = 0
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-
-        if rank == 0:
+        if self.rank == 0:
             ### Check if tab length has been overridden
             if tab is None:
                 tab = self.current_tab

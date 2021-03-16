@@ -502,6 +502,7 @@ class StabilizedProblem(GenericProblem):
         
         ### Calculate nu_T
         self.nu_T=l_mix**2.*S
+        # self.nu_T=Constant(0.0)
         self.ReyStress=self.nu_T*grad(self.u_k)
         self.vertKE= self.ReyStress[0,2]*self.u_k[0]
 
@@ -519,7 +520,8 @@ class StabilizedProblem(GenericProblem):
         stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
         # stab_sans_tf = - eps*inner(grad(q), grad(self.p_k))*dx 
 
-        self.F += stab
+        # self.F += stab
+        # EKYOUNG REMOVE STABILITY
         # self.F_sans_tf += stab
 
         if self.use_25d_model and self.dom.dim == 2 :
@@ -614,6 +616,154 @@ class TaylorHoodProblem(GenericProblem):
             self.F -= term25
 
         self.fprint("Taylor-Hood Problem Setup",special="footer")
+
+# ================================================================
+
+class IterativeSteady(GenericProblem):
+    """
+    The IterativeSteady sets up everything required for solving Navier-Stokes using
+    the SIMPLE algorithm
+
+    Args: 
+        domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
+        windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
+        function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
+        boundary_conditions (:meth:`windse.BoundaryManager.GenericBoundary`): a windse boundary object.
+    """
+    def __init__(self, domain, windfarm, function_space, boundary_conditions):
+        super(IterativeSteady, self).__init__(domain, windfarm, function_space, boundary_conditions)
+        self.fprint("Setting Up *Iterative* Steady Problem", special="header")
+
+        ### Create Functional ###
+        self.ComputeFunctional()
+
+    def ComputeFunctional(self,inflow_angle=None):
+        # ================================================================
+
+        # Define fluid properties
+        # FIXME: These should probably be set in params.yaml input filt
+        # nu = 1/10000
+        nu = Constant(self.viscosity)
+
+        # Trial functions for velocity and pressure
+        u = TrialFunction(self.fs.V)
+        p = TrialFunction(self.fs.Q)
+
+        # Test functions for velocity and pressure
+        v = TestFunction(self.fs.V)
+        q = TestFunction(self.fs.Q)
+
+        ### Define Velocity Functions ###
+        self.u_k = Function(self.fs.V, name="u_k")
+        self.u_hat = Function(self.fs.V)
+        self.u_s = Function(self.fs.V)
+        self.du = Function(self.fs.V)
+        self.u_k_old = Function(self.fs.V)
+
+        ### Define Pressure Functions ###
+        self.p_k = Function(self.fs.Q, name="p_k")
+        self.p_s = Function(self.fs.Q)
+        self.dp = Function(self.fs.Q)
+        self.p_k_old = Function(self.fs.Q)
+
+        U_CN = 0.5*(u + self.u_k) 
+
+        # Adams-Bashforth velocity
+        # U_AB = 1.5*u_k - 0.5*u_k_old # Time level k+1/2
+        U_AB = 2.0*self.u_k - 1.0*self.u_k_old # Time level k+1
+
+        ### Define Eddy viscosity ###
+        use_eddy_viscosity = True
+
+        if use_eddy_viscosity:
+            # Define filter scale (all models use this)
+            filter_scale = CellVolume(self.dom.mesh)**(1.0/self.dom.dim)
+
+            # Strain rate tensor, 0.5*(du_i/dx_j + du_j/dx_i)
+            Sij = sym(grad(U_AB))
+
+            # sqrt(Sij*Sij)
+            strainMag = (2.0*inner(Sij, Sij))**0.5
+
+            # Smagorinsky constant, typically close to 0.17
+            Cs = 0.17
+
+            vonKarman=0.41
+            # lmax Default = 15.0
+            # l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/self.lmax)))
+
+            l_mix = Function(self.fs.Q)
+            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:],(1.+np.divide(vonKarman*self.bd.depth.vector()[:],self.lmax)))
+
+            # Eddy viscosity
+            # self.nu_T = Cs**2 * filter_scale**2 * strainMag
+            self.nu_T = l_mix**2 * strainMag
+
+        else:
+            self.nu_T = Constant(0.0)
+
+        # ================================================================
+
+        # FIXME: This up_k function is only present to avoid errors  
+        # during assignments in GenericSolver.__init__
+
+        # Create the combined function space
+        self.up_k = Function(self.fs.W)
+
+        # Create the turbine force
+        # FIXME: Should this be set by a numpy array operation or a fenics function?
+        # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
+        # self.tf = Function(self.fs.V)
+
+        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
+        # self.u_k.assign(self.bd.bc_velocity)
+
+        # self.u_k2.vector()[:] = 0.0
+        # self.u_k1.vector()[:] = 0.0
+
+        # ================================================================
+
+        # Solve for u_hat, a velocity estimate which doesn't include pressure gradient effects
+        F1 = inner(dot(self.u_k, nabla_grad(u)), v)*dx \
+           + (nu+self.nu_T)*inner(grad(u), grad(v))*dx \
+           + inner(self.tf, v)*dx 
+
+        self.F1_lhs = lhs(F1)
+        self.F1_rhs = rhs(F1)
+
+
+        # Use u_hat to solve for the pressure field
+        self.F2_lhs = inner(grad(p), grad(q))*dx
+        self.F2_rhs = - div(self.u_hat)*q*dx
+
+        self.dt_1 = Constant(1) # Becomes (1/dt, 0) for (unsteady, steady) state
+        self.dt_2 = Constant(1) # Becomes (1/dt, 1) for (unsteady, steady) state
+        self.dt_3 = Constant(1) # Becomes (  dt, 1) for (unsteady, steady) state
+
+        # Solve for u_star, a predicted velocity which includes the pressure gradient
+        F3 = inner(dot(self.u_k, nabla_grad(u)), v)*dx \
+           + (nu+self.nu_T)*inner(grad(u), grad(v))*dx \
+           + inner(self.tf, v)*dx \
+           + inner(grad(self.p_k), v)*dx \
+           + self.dt_1*inner(u - self.u_k, v)*dx
+
+
+        self.F3_lhs = lhs(F3)
+        self.F3_rhs = rhs(F3)
+
+
+        # Define variational problem for step 2: pressure correction
+        self.F4_lhs = inner(grad(p), grad(q))*dx
+        self.F4_rhs = - self.dt_2*div(self.u_s)*q*dx
+
+
+        # Define variational problem for step 3: velocity update
+        self.F5_lhs = inner(u, v)*dx
+        self.F5_rhs = - self.dt_3*inner(grad(self.dp), v)*dx
+
+        # ================================================================
+
+        self.fprint("*Iterative* Steady Problem Setup",special="footer")
 
 # ================================================================
 

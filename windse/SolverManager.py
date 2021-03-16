@@ -292,7 +292,7 @@ class SteadySolver(GenericSolver):
                                  "snes_solver": {
                                  "absolute_tolerance": 1e-6,
                                  "relative_tolerance": 1e-5,
-                                 "linear_solver": "superlu_dist",
+                                 "linear_solver": "mumps",
                                  "maximum_iterations": 40,
                                  "error_on_nonconvergence": True,
                                  "line_search": "basic",
@@ -373,6 +373,284 @@ class SteadySolver(GenericSolver):
         # print(ps)
 
 # 
+# ================================================================
+
+class IterativeSteadySolver(GenericSolver):
+    """
+    This solver is for solving the iterative steady state problem
+
+    Args: 
+        problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
+    """
+    def __init__(self,problem):
+        super(IterativeSteadySolver, self).__init__(problem)
+        self.u_k,self.p_k = split(self.problem.up_k)
+
+    def Solve(self,iter_val=0):
+        """
+        This solves the problem setup by the problem object.
+        """
+
+        def set_solver_mode(solver_type):
+            if solver_type == 'steady':
+                self.problem.dt_1.assign(0)
+                self.problem.dt_2.assign(1)
+                self.problem.dt_3.assign(1)
+
+                sor_vel = 0.1
+                sor_pr = 0.2
+
+            elif solver_type == 'unsteady':
+                delta_t = 100.0
+
+                self.problem.dt_1.assign(1.0/delta_t)
+                self.problem.dt_2.assign(1.0/delta_t)
+                self.problem.dt_3.assign(delta_t)
+
+                sor_vel = 1.0
+                sor_pr = 1.0
+
+            else:
+                raise ValueError('Solver type should be "steady" or "unsteady".')
+
+            return sor_vel, sor_pr
+
+        def get_relaxation_param(a_min, a_max, a_c, a_cw, x):
+            
+            # a_min = minimum sor value
+            # a_max = maximum sor value
+            # a_c = crossover location
+            # a_cw = crossover width
+
+            alpha_exp = (1/a_cw)*(a_c - x)
+            alpha = 1.0/(1.0+np.exp(alpha_exp))
+            alpha = alpha*(a_max-a_min) + a_min
+            alpha = float(alpha)
+            
+            return alpha
+
+        ### Save Files before solve ###
+        self.fprint("Saving Input Data",special="header")
+        if "mesh" in self.params.output:
+            self.problem.dom.Save(val=iter_val)
+        if "initial_guess" in self.params.output:
+            self.problem.bd.SaveInitialGuess(val=iter_val)
+        if "height" in self.params.output and self.problem.dom.dim == 3:
+            self.problem.bd.SaveHeight(val=iter_val)
+        if "turbine_force" in self.params.output:
+            self.problem.farm.SaveActuatorDisks(val=iter_val)
+        self.fprint("Finished",special="footer")
+
+        self.SaveTimeSeries(0)
+
+        # Assemble left-hand side matrices
+        A1 = assemble(self.problem.F1_lhs)
+        A2 = assemble(self.problem.F2_lhs)
+        A3 = assemble(self.problem.F3_lhs)
+        A4 = assemble(self.problem.F4_lhs)
+        A5 = assemble(self.problem.F5_lhs)
+
+        # Apply boundary conditions to matrices
+        [bc.apply(A1) for bc in self.problem.bd.bcu]
+        [bc.apply(A2) for bc in self.problem.bd.bcp]
+        [bc.apply(A3) for bc in self.problem.bd.bcu]
+        [bc.apply(A4) for bc in self.problem.bd.bcp]
+
+        # Assemble right-hand side vectors
+        b1 = assemble(self.problem.F1_rhs)
+        b2 = assemble(self.problem.F2_rhs)
+        b3 = assemble(self.problem.F3_rhs)
+        b4 = assemble(self.problem.F4_rhs)
+        b5 = assemble(self.problem.F5_rhs)
+
+        # Apply bounday conditions to vectors
+        [bc.apply(b1) for bc in self.problem.bd.bcu]
+        [bc.apply(b2) for bc in self.problem.bd.bcp]
+        [bc.apply(b3) for bc in self.problem.bd.bcu]
+        [bc.apply(b4) for bc in self.problem.bd.bcp]
+
+        # Create solvers using the set_operator method
+        # which ensures preconditioners are reused when possible
+        # solver_1 = PETScKrylovSolver('gmres', 'jacobi')
+
+        vel_sol_options = ['gmres', 'none']
+        pr_sol_options = ['bicgstab', 'none']
+
+        solver_1 = PETScKrylovSolver(vel_sol_options[0], vel_sol_options[1])
+        solver_1.set_operator(A1)
+
+        solver_2 = PETScKrylovSolver(pr_sol_options[0], pr_sol_options[1])
+        solver_2.set_operator(A2)
+
+        solver_3 = PETScKrylovSolver(vel_sol_options[0], vel_sol_options[1])
+        solver_3.set_operator(A3)
+
+        solver_4 = PETScKrylovSolver(pr_sol_options[0], pr_sol_options[1])
+        solver_4.set_operator(A4)
+
+        solver_5 = PETScKrylovSolver('cg', 'jacobi')
+        solver_5.set_operator(A5)
+
+
+
+        outer_tic = time.time()
+
+
+        solver_type = 'steady'
+        sor_vel, sor_pr = set_solver_mode(solver_type)
+
+        seed_velocity = False
+        seed_pressure = False
+
+
+        if seed_velocity:
+            self.problem.u_k.assign(self.problem.bd.bc_velocity)
+            self.problem.u_k_old.assign(self.problem.bd.bc_velocity)
+
+        if seed_pressure:
+            if self.params.rank == 0:
+                print('Calculating initial pressure from velocity guess.')
+
+            A1 = assemble(self.problem.F1_lhs, tensor=A1)
+            [bc.apply(A1) for bc in self.problem.bd.bcu]
+            solver_1.set_operator(A1)
+
+            # Step 1: Tentative velocity step
+            b1 = assemble(self.problem.F1_rhs, tensor=b1)
+            [bc.apply(b1) for bc in self.problem.bd.bcu]
+            solver_1.solve(self.problem.u_hat.vector(), b1)
+
+            # Step 2: Pressure correction step
+            b2 = assemble(self.problem.F2_rhs, tensor=b2)
+            [bc.apply(b2) for bc in self.problem.bd.bcp]
+
+            solver_2.solve(self.problem.p_k.vector(), b2)
+
+
+
+        max_iter = 10
+
+        for iter_num in range(max_iter):
+            tic = time.time()
+
+            # sor_vel = get_relaxation_param(1e-3, 0.5, 100, 10, iter_num)
+            sor_vel = get_relaxation_param(1e-1, 0.5, 20, 5, iter_num)
+            # sor_vel = 0.1
+            sor_pr = 1.6*sor_vel
+
+            use_simpler = False
+
+            # if iter_num > 0.9*max_iter and solver_type == 'unsteady':
+            #     solver_type = 'steady'
+                # dt_1, dt_2, dt_3, sor_vel, sor_pr = set_solver_mode(solver_type)
+
+            if use_simpler:
+                A1 = assemble(self.problem.F1_lhs, tensor=A1)
+                [bc.apply(A1) for bc in self.problem.bd.bcu]
+                solver_1.set_operator(A1)
+
+                # Step 1: Tentative velocity step
+                b1 = assemble(self.problem.F1_rhs, tensor=b1)
+                [bc.apply(b1) for bc in self.problem.bd.bcu]
+                solver_1.solve(self.problem.u_hat.vector(), b1)
+
+                # u_hat.assign((1.0-sor_vel)*u_k + sor_vel*u_hat)
+
+                # Step 2: Pressure correction step
+                b2 = assemble(self.problem.F2_rhs, tensor=b2)
+                [bc.apply(b2) for bc in self.problem.bd.bcp]
+
+                solver_2.solve(self.problem.p_k.vector(), b2)
+
+
+            # Re-solve for velocity
+            A3 = assemble(self.problem.F3_lhs, tensor=A3)
+            [bc.apply(A3) for bc in self.problem.bd.bcu]
+            solver_3.set_operator(A3)
+
+            # Step 1: Tentative velocity step
+            b3 = assemble(self.problem.F3_rhs, tensor=b3)
+            [bc.apply(b3) for bc in self.problem.bd.bcu]
+            solver_3.solve(self.problem.u_s.vector(), b3)
+
+            self.problem.u_s.assign((1.0-sor_vel)*self.problem.u_k + sor_vel*self.problem.u_s)
+
+            # Step 2: Pressure correction step
+            # Don't need A4 rebuild
+            b4 = assemble(self.problem.F4_rhs, tensor=b4)
+            [bc.apply(b4) for bc in self.problem.bd.bcp]
+            solver_4.solve(self.problem.dp.vector(), b4)
+
+
+            # Step 3: Velocity correction step
+            b5 = assemble(self.problem.F5_rhs, tensor=b5)
+            # [bc.apply(b3) for bc in bcu]
+            solver_5.solve(self.problem.du.vector(), b5)
+
+
+            norm_du = norm(self.problem.du)
+            norm_dp = norm(self.problem.dp)
+            # u_conv.append(norm_du)
+            # p_conv.append(norm_dp)
+
+            self.problem.u_k_old.assign(self.problem.u_k)
+            self.problem.p_k_old.assign(self.problem.p_k)
+
+            self.problem.u_k.assign(self.problem.u_s + self.problem.du)
+
+            # p_k.assign(p_k + dp)
+            # p_k.assign(p_k + sor_pr*dp)
+
+            if not use_simpler:
+                # p_k.assign(p_k + dp)
+                self.problem.p_k.assign(self.problem.p_k + sor_pr*self.problem.dp)
+
+            # u_k1.assign(u_k)
+            # p_k1.assign(p_k)
+
+            if (iter_num+1) % 1 == 0:
+                self.SaveTimeSeries(iter_num+1)
+
+            toc = time.time()
+
+            if self.params.rank == 0:
+                print('Step %3d of %3d, sor = (%.3f, %.3f): | du | = %.6e, | dp | = %.6e, CPU Time = %.2f s' % (iter_num+1, max_iter, sor_vel, sor_pr, norm_du, norm_dp, toc-tic))
+
+        outer_toc = time.time()
+        if self.params.rank == 0:
+            print('TOTAL CPU TIME = %f seconds' % (outer_toc - outer_tic))
+
+        if self.optimizing:
+            self.J += self.objective_func(self,(iter_val-self.problem.dom.inflow_angle)) 
+            self.J = ControlUpdater(self.J, self.problem)
+
+        if self.save_power and "power" not in self.objective_type:
+            self.power_func(self,(iter_val-self.problem.dom.inflow_angle))
+
+    def SaveTimeSeries(self, simTime):
+        # if hasattr(self.problem,"tf_save"):
+        #     self.problem.tf_save.vector()[:] = 0
+        #     for fun in self.problem.tf_list:
+        #         self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.vector()[:]
+        # else:
+        #     self.problem.tf_save = Function(self.problem.fs.V)
+        #     for fun in self.problem.tf_list:
+        #         self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.vector()[:]
+
+
+        if self.first_save:
+            self.velocity_file = self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime)
+            self.pressure_file   = self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime)
+            # self.turb_force_file   = self.params.Save(self.problem.tf_save,"turbine_force",subfolder="timeSeries/",val=simTime)
+            # if self.optimizing:
+                # self.adj_tape_file = XDMFFile(self.params.folder+"timeSeries/global_adjoint.xdmf")
+                # self.problem.u_k1.assign(Marker(self.problem.u_k,simTime,self.adj_tape_file))
+            self.first_save = False
+        else:
+            self.params.Save(self.problem.u_k,"velocity",subfolder="timeSeries/",val=simTime,file=self.velocity_file)
+            self.params.Save(self.problem.p_k,"pressure",subfolder="timeSeries/",val=simTime,file=self.pressure_file)
+            # self.params.Save(self.problem.tf_save,"turbine_force",subfolder="timeSeries/",val=simTime,file=self.turb_force_file)
+
 # ================================================================
 
 class UnsteadySolver(GenericSolver):
@@ -483,11 +761,7 @@ class UnsteadySolver(GenericSolver):
         [bc.apply(b1) for bc in self.problem.bd.bcu]
         [bc.apply(b2) for bc in self.problem.bd.bcp]
 
-        s1 = 0.0
-        s2 = 0.0
-        s3 = 0.0
-        s4 = 0.0
-        s5 = 0.0
+        timing = np.zeros(5)
 
         # sol = ['cg', 'bicgstab', 'gmres']
         # pre = ['amg', 'hypre_amg', 'hypre_euclid', 'hypre_parasails', 'jacobi', 'petsc_amg', 'sor']
@@ -561,8 +835,8 @@ class UnsteadySolver(GenericSolver):
             # Record the "old" max velocity (before this update)
             u_max_k1 = max(tip_speed, self.problem.u_k.vector().max())
 
-            t1 = time.time()
             # Step 1: Tentative velocity step
+            tic = time.time()
             b1 = assemble(self.problem.L1, tensor=b1)
             [bc.apply(b1) for bc in self.problem.bd.bcu]
             if self.optimizing:
@@ -573,28 +847,29 @@ class UnsteadySolver(GenericSolver):
                 solver_1.solve(self.problem.u_k.vector(), b1)
             # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.u_k.vector()[:])))
             # print("assemble(func*dx): " + repr(float(assemble(inner(self.problem.u_k,self.problem.u_k)*dx))))
-            t2 = time.time()
+            toc = time.time()
+            timing[0] += toc - tic
 
             # Step 2: Pressure correction step
+            tic = time.time()
             b2 = assemble(self.problem.L2, tensor=b2)
             [bc.apply(b2) for bc in self.problem.bd.bcp]
             # solve(A2, self.problem.p_k.vector(), b2, 'gmres', 'hypre_amg')
             solver_2.solve(self.problem.p_k.vector(), b2)
             # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.p_k.vector()[:])))
             # print("assemble(func*dx): " + repr(float(assemble(inner(self.problem.p_k,self.problem.p_k)*dx))))
-            t3 = time.time()
+            toc = time.time()
+            timing[1] += toc - tic
 
             # Step 3: Velocity correction step
+            tic = time.time()
             b3 = assemble(self.problem.L3, tensor=b3)
             # solve(A3, self.problem.u_k.vector(), b3, 'gmres', 'default')
             solver_3.solve(self.problem.u_k.vector(), b3)
             # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.u_k.vector()[:])))
             # print("assemble(func*dx): " + repr(float(assemble(inner(self.problem.u_k,self.problem.u_k)*dx))))
-            t4 = time.time()
-
-            s1 += t2-t1
-            s2 += t3-t2
-            s3 += t4-t3
+            toc = time.time()
+            timing[2] += toc - tic
 
             # Old <- New update step
             self.problem.u_k2.assign(self.problem.u_k1)
@@ -632,9 +907,8 @@ class UnsteadySolver(GenericSolver):
             # Adjust the timestep size, dt, for a balance of simulation speed and stability
             save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
 
-            t5 = time.time()
-
             # Update the turbine force
+            tic = time.time()
             if self.problem.farm.turbine_method == "alm":
                 # t1 = time.time()
                 pr.enable()
@@ -662,7 +936,8 @@ class UnsteadySolver(GenericSolver):
                 self.fprint(output_str)
 
                 # exit()
-            t6 = time.time()
+            toc = time.time()
+            timing[3] += toc - tic
 
             if self.simTime > average_start_time:
                 if init_average:
@@ -716,16 +991,12 @@ class UnsteadySolver(GenericSolver):
             # After changing timestep size, A1 must be reassembled
             # FIXME: This may be unnecessary (or could be sped up by changing only the minimum amount necessary)
 
-            t7 = time.time()
-
+            tic = time.time()
             A1 = assemble(self.problem.a1, tensor=A1)
             [bc.apply(A1) for bc in self.problem.bd.bcu]
             solver_1.set_operator(A1)
-
-            t8 = time.time()
-
-            s4 += t6 - t5
-            s5 += t8 - t7
+            toc = time.time()
+            timing[4] += toc - tic
 
             # Print some solver statistics
             self.fprint("%8.2f | %7.2f | %5.2f" % (self.simTime, self.problem.dt, u_max))
@@ -753,25 +1024,21 @@ class UnsteadySolver(GenericSolver):
         self.fprint('================================================================')
         # self.fprint('Solver:              %s' % (sol_choice))
         # self.fprint('Preconditioner:      %s' % (pre_choice))
-        total_time = s1 + s2 + s3 + s4 + s5
-        self.fprint('Assembling A1:       %.2f sec (%.1f%%)' % (s5, 100.0*s5/total_time))
-        self.fprint('Tentative Velocity:  %.2f sec (%.1f%%)' % (s1, 100.0*s1/total_time))
-        self.fprint('Pressure Correction: %.2f sec (%.1f%%)' % (s2, 100.0*s2/total_time))
-        self.fprint('Velocity Update:     %.2f sec (%.1f%%)' % (s3, 100.0*s3/total_time))
-        self.fprint('ALM Calculation:     %.2f sec (%.1f%%)' % (s4, 100.0*s4/total_time))
+        total_time = stop - start
+        self.fprint('Assembling A1:       %.2f sec (%.1f%%)' % (timing[4], 100.0*timing[4]/total_time))
+        self.fprint('Tentative Velocity:  %.2f sec (%.1f%%)' % (timing[0], 100.0*timing[0]/total_time))
+        self.fprint('Pressure Correction: %.2f sec (%.1f%%)' % (timing[1], 100.0*timing[1]/total_time))
+        self.fprint('Velocity Update:     %.2f sec (%.1f%%)' % (timing[2], 100.0*timing[2]/total_time))
+        self.fprint('ALM Calculation:     %.2f sec (%.1f%%)' % (timing[3], 100.0*timing[3]/total_time))
         self.fprint('================================================================')
         self.fprint("Finished",special="footer")
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
 
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-        num_procs = comm.Get_size()
-
-        if rank == 0:
-            # pr.print_stats(25, sort = 'time')
-            ps = pstats.Stats(pr).strip_dirs().sort_stats('cumulative')
-            ps.print_stats(50)
-            pr.dump_stats('%s/profiling_alm.prof' % (self.params.folder))
+        # if self.params.rank == 0:
+        #     # pr.print_stats(25, sort = 'time')
+        #     ps = pstats.Stats(pr).strip_dirs().sort_stats('cumulative')
+        #     ps.print_stats(50)
+        #     pr.dump_stats('%s/profiling_alm.prof' % (self.params.folder))
 
 
     # ================================================================
@@ -871,17 +1138,13 @@ class UnsteadySolver(GenericSolver):
             save_next_timestep = False
 
         # dt_new = 0.04
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-        num_procs = comm.Get_size()
-
-        if num_procs > 1:
-            dt_new_vec = np.zeros(num_procs)
-            comm.Gather(dt_new, dt_new_vec, root=0)
-            comm.Bcast(dt_new_vec, root=0)
+        if self.params.num_procs > 1:
+            dt_new_vec = np.zeros(self.params.num_procs)
+            self.params.comm.Gather(dt_new, dt_new_vec, root=0)
+            self.params.comm.Bcast(dt_new_vec, root=0)
             dt_new = np.amin(dt_new_vec)
 
-        # print('Rank %d dt = %.15e' % (rank, dt_new))
+        # print('Rank %d dt = %.15e' % (self.params.rank, dt_new))
 
         # Update both the Python variable and FEniCS constant
         self.problem.dt = dt_new

@@ -135,9 +135,7 @@ class GenericDomain(object):
 
         ### Check if folder exists ###
         # if not os.path.exists(folder_string): os.makedirs(folder_string)
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-        if not os.path.exists(folder_string) and rank == 0: os.makedirs(folder_string)
+        if not os.path.exists(folder_string) and self.params.rank == 0: os.makedirs(folder_string)
 
 
         p=plot(self.mesh)
@@ -337,11 +335,9 @@ class GenericDomain(object):
         self.mesh = refine(self.mesh,cellmarkers)
         self.bmesh = BoundaryMesh(self.mesh,"exterior")
 
-        comm = MPI.comm_world
-        num_procs = comm.Get_size()
-        if num_procs == 1:
+        if self.params.num_procs == 1:
             self.boundary_markers = adapt(self.boundary_markers,self.mesh)
-        elif num_procs > 1:
+        elif self.params.num_procs > 1:
             # This isn't needed for actual boundary marking, but it helps it pass a test later on
             self.BuildBoundaryMarkers()
 
@@ -798,9 +794,7 @@ class BoxDomain(GenericDomain):
                                "no_stress": ["east"]}
 
         ### Generate the boundary markers for boundary conditions ###
-        comm = MPI.comm_world
-        num_procs = comm.Get_size()
-        if num_procs == 1:
+        if self.params.num_procs == 1:
             self.BuildBoundaryMarkers()
 
             ### Rotate Boundary

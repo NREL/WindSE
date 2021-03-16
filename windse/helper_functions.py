@@ -1502,9 +1502,7 @@ def UpdateActuatorLineForce_deprecated(problem, u_local, simTime_id, dt, turb_i,
 
     if save_safety_switch_files:
         folder_string = problem.params.folder+"timeSeries/"
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-        if not os.path.exists(folder_string) and rank == 0: os.makedirs(folder_string)
+        if not os.path.exists(folder_string) and problem.params.rank == 0: os.makedirs(folder_string)
         
         fp = open(folder_string +('actuatorForces%05d.vtk' % (problem.num_times_called)), 'w')
         fp.write('# vtk DataFile Version 2.0\n')

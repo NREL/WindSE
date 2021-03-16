@@ -62,12 +62,8 @@ class GenericBoundary(object):
 
         self.fprint("Applying Boundary Conditions",offset=1)
 
-        comm = MPI.comm_world
-        rank = comm.Get_rank()
-        num_procs = comm.Get_size()
-
         # If running in parallel, avoid using boundary markers
-        if num_procs > 1:
+        if self.params.num_procs > 1:
 
             self.bcu = []
             self.bcp = []
