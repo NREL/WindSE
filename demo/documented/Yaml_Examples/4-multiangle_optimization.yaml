@@ -12,8 +12,8 @@ wind_farm:
     jitter: false         #                          |
     ex_x: [-520, 520]     # x-extent of the farm     | m
     ex_y: [-520, 520]     # y-extent of the farm     | m
-    grid_rows: 2          # Number of rows           | -
-    grid_cols: 2          # Number of columns        | -
+    grid_rows: 3          # Number of rows           | -
+    grid_cols: 3          # Number of columns        | -
     HH: 80                # Hub Height               | m
     RD: 80.0              # Turbine Diameter         | m
     thickness: 20         # Effective Thickness      | m
@@ -33,22 +33,21 @@ domain:
     z_range: [0.04, 640]   # z-range of the domain | m
     nx: 10                 # Number of x-nodes     | -
     ny: 10                 # Number of y-nodes     | -
-    nz: 5                 # Number of z-nodes      | -
+    nz: 6                  # Number of z-nodes      | -
     interpolated: true 
     terrain_path: Input_Data/skew_terrain.txt
     ###################################################################
 
 
 
-# refine:
-#     #                      # Description                  | Units
-#     warp_type: smooth      # percent of cells moved       | -
-#     warp_strength: 1.2     # percent of cells moved       | -
-#     refine_custom: [
-#         # [full,[]],
-#         [cylinder, [  [0.0,0.0,0.0], 1000, 250  ]]
-#     ]
-
+refine:
+    #                      # Description                  | Units
+    warp_type: smooth      # percent of cells moved       | -
+    warp_strength: 1.2     # percent of cells moved       | -
+    refine_custom: [
+        # [full,[]],
+        [cylinder, [  [0.0,0.0,0.0], 1000, 250  ]]
+    ]
 function_space:
     type: linear
 
@@ -70,5 +69,4 @@ solver:
 optimization:
     control_types: [layout]
     layout_bounds: [[-720, 720],[-720, 720]] 
-    optimize: true
-    opt_routine: SNOPT
+    gradient: true
