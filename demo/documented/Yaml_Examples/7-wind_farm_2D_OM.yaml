@@ -1,0 +1,109 @@
+# General options
+general: 
+    name: 2_5D_Wind_Farm_Layout      # Name of the output folder
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: true
+
+# Wind Farm Parameters: Uncomment a set to change the type of wind farm
+wind_farm: 
+
+    # ####################### Imported Wind Farm #######################
+    # type: imported                   #                          |
+    # path: Input_Data/wind_farm.txt   # location of wind farm    | -
+    # force: constant                      # radial force distribution| -
+    # ###################################################################
+
+
+    ######################### Grid Wind Farm #########################
+    type: grid            #                          |
+    grid_rows: 1          # Number of rows           | -
+    grid_cols: 2          # Number of columns        | -
+    ex_x: [-882, 882]     # x-extent of the farm     | m
+    ex_y: [-882, 882]     # y-extent of the farm     | m
+    HH: 90                # Hub Height               | m
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 12.0       # Effective Thickness      | m
+    yaw: 0.0              # Yaw                      | rads
+    axial: 0.25           # Axial Induction          | -
+    jitter: 0            # Randomly perturb turbines| m
+    seed: 8675309         # random seed for repeats  | -
+    force: constant       # radial force distribution| -
+    turbine_method: dolfin
+
+
+    ##################################################################
+
+
+    ########################## Grid Wind Farm #########################
+    # type: random          #                          |
+    # numturbs: 9           # number of turbines       | -
+    # ex_x: [-600, 600]     # x-extent of the farm     | m
+    # ex_y: [-600, 600]     # y-extent of the farm     | m
+    # seed: 5555555         # random seed for repeats  | -
+    # HH: 90                # Hub Height               | m
+    # RD: 126.0             # Turbine Diameter         | m
+    # thickness: 10.5       # Effective Thickness      | m
+    # yaw: 0.0              # Yaw                      | rads
+    # axial: 0.33           # Axial Induction          | -
+    # force: sine           # radial force distribution| -
+    ###################################################################
+
+
+
+# Domain Parameters: Uncomment a set to change domain shape
+domain: 
+    
+    # ####################### Rectangle Domain #########################
+    # type: rectangle                              |
+    # x_range: [-1200, 1200] # x-range of the domain | m
+    # y_range: [-400, 400] # y-range of the domain | m
+    # nx: 300                # Number of x-nodes     | -
+    # ny: 100                # Number of y-nodes     | -
+    # ##################################################################
+    
+
+    ########################### Circle Domain #########################
+    type: circle                                  
+    mesh_type: mshr         # squircular, elliptic, stretch
+    radius: 1500            # x-range of the domain | m
+    center: [0.0, 0.0]      # y-range of the domain | m
+    nt: 20                  # segments around circle| -
+    res: 10                 # resolution for mshr   | -
+    ###################################################################
+
+
+
+refine:
+    #                      # Description                  | Units
+    # farm_num: 1            # number of farm refinements   | -
+    # farm_type: square      # type of refinement at farm   | -
+    # farm_factor: 1.25       # farm radius multiplier       | -
+    turbine_num: 1         # number of turbine refinements| -
+    turbine_factor: 1.25   # turbine radius multiplier    | -
+
+function_space:
+    type: taylor_hood
+    turbine_degree: 6
+    turbine_space: Quadrature
+    
+boundary_conditions:
+    vel_profile: uniform
+    HH_vel: 8.0
+
+problem:
+    use_25d_model: True
+    type: taylor_hood
+    viscosity: 5
+    lmax: 50
+
+solver:
+    nonlinear_solver: newton
+    newton_relaxation: 0.9
+    type: steady
+    save_power: true
+
+optimization:
+    control_types: [layout]
+    layout_bounds: [[-720, 720],[-720, 720]] 
+    optimize: True
+    opt_routine: OM_SLSQP

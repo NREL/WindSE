@@ -147,12 +147,14 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
     
     lower_bounds = bounds[:, 0]
     upper_bounds = bounds[:, 1]
-
+    
     # set up the optimization
-    prob.driver = om.pyOptSparseDriver()
-    prob.driver.options['optimizer'] = 'SNOPT'
-    # prob.driver = om.ScipyOptimizeDriver()
-    # prob.driver.options['optimizer'] = 'SLSQP'
+    if 'SLSQP' in kwargs['opt_routine']:
+        prob.driver = om.ScipyOptimizeDriver()
+        prob.driver.options['optimizer'] = 'SLSQP'
+    elif 'SNOPT' in kwargs['opt_routine']:
+        prob.driver = om.pyOptSparseDriver()
+        prob.driver.options['optimizer'] = 'SNOPT'
     
     prob.model.add_design_var('DVs', lower=lower_bounds, upper=upper_bounds)
     prob.model.add_objective('obj')
@@ -535,14 +537,14 @@ class Optimizer(object):
         self.fprint("Beginning Optimization",special="header")
         
         # TODO : simplify this logic
-        if "SNOPT" in self.opt_routine:
+        if "SNOPT" in self.opt_routine or "OM_SLSQP" in self.opt_routine:
             if "layout" in self.control_types:
-                m_opt=minimize(self.Jhat, method="Custom", options = {"disp": True, "maxiter": 0}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper)
+                m_opt=minimize(self.Jhat, method="Custom", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
             else:
-                m_opt=minimize(self.Jhat, method="Custom", options = {"disp": True, "maxiter": 0}, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper)
+                m_opt=minimize(self.Jhat, method="Custom", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
         else:
             if "layout" in self.control_types:
-                m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+                m_opt=minimize(self.Jhat, method=self.opt_routine, options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
             else:
                 m_opt=minimize(self.Jhat, method=self.opt_routine, options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
                 
