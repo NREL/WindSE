@@ -54,6 +54,7 @@ class ObjComp(om.ExplicitComponent):
         self.options.declare('initial_DVs', types=np.ndarray)
         self.options.declare('J', types=object)
         self.options.declare('dJ', types=object)
+        self.options.declare('callback', types=object)
         
     def setup(self):
         self.add_input('DVs', val=self.options['initial_DVs'])
@@ -65,6 +66,7 @@ class ObjComp(om.ExplicitComponent):
         m = list(inputs['DVs'])
         computed_output = self.options['J'](m)
         outputs['obj'] = computed_output
+        self.options['callback'](m)
         
     def compute_partials(self, inputs, partials):
         m = list(inputs['DVs'])
@@ -111,8 +113,13 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
     
     # build the model
     prob = om.Problem(model=om.Group())
+    
+    if 'callback' in kwargs:
+        callback = kwargs['callback']
+    else:
+        callback = None
 
-    prob.model.add_subsystem('obj_comp', ObjComp(initial_DVs=initial_DVs, J=J, dJ=dJ), promotes=['*'])
+    prob.model.add_subsystem('obj_comp', ObjComp(initial_DVs=initial_DVs, J=J, dJ=dJ, callback=callback), promotes=['*'])
     
     constraint_types = []
     if 'constraints' in kwargs:
