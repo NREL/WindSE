@@ -32,8 +32,20 @@ jobs:
           bash ./install.sh test-environment
           conda activate test-environment
         
-      - name: Run demo tests within WindSE
+      - name: Run all tests within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -v --cov=windse tests/test_demos.py
+          pytest -v --cov=windse tests
+      
+      # Run coveralls
+      - name: Run coveralls
+        if: contains( matrix.os, 'ubuntu')
+        # This also works, https://github.com/AndreMiras/coveralls-python-action
+        #uses: AndreMiras/coveralls-python-action@develop
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          conda activate test-environment
+          coveralls --service=github
