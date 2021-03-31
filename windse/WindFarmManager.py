@@ -24,7 +24,7 @@ if main_file != "sphinx-build":
     import scipy.interpolate as interp
 
     ### Import the cumulative parameters ###
-    from windse import windse_parameters, BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, UpdateActuatorLineForce_deprecated, RadialChordForce
+    from windse import windse_parameters, BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
