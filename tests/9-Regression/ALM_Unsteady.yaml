@@ -1,0 +1,66 @@
+general:
+    # name: "iea_rwt"
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: True
+    debug_mode: True
+
+wind_farm:
+    type: imported               # Wind farm will be specified via input file
+    path: Input_Data/iea_rwt.txt # Path to the wind farm description
+    turbine_method: alm          # Actuator Line Method (ALM)
+    read_turb_data: Input_Data/baseline.csv
+    rpm: 4.0                     # Rotor revolutions per minute (RPM) | rev/min
+    chord_factor: 1.0
+    gauss_factor: 2.0    
+
+domain:
+    type: box                    # A box domain, specified by x, y, and z dimensions
+    
+    # Diameter for IEA RWT = 130 m, relevant for domain sizing
+    x_range: [-260, 780]         # x-range of the domain, [-2D, 6D] | m
+    y_range: [-260, 260]         # y-range of the domain, [-2D, 2D] | m
+    z_range: [0.04, 520]         # z-range of the domain, [ ~0, 4D] | m
+    
+    # Coarse values recommended for testing, comments show more refined suggestions
+    nx: 30 # 60                  # Number of x-nodes | -
+    ny: 15 # 30                  # Number of y-nodes | -
+    nz: 15 # 30                  # Number of z-nodes | -
+
+refine:
+    warp_type: split             # create two regions of different node density
+    warp_percent: 0.83333333     # percent of cells moved       | -
+    warp_height: 260             # move cell below this value   | m
+    refine_custom: [
+        [stream, [  [-80,0,110], 80, 860, 0, 0, 1.5  ]],
+    ]
+function_space:
+    type: linear                 # Use linear finite elements for both pressure and velocity
+
+boundary_conditions:
+    vel_profile: turbsim
+    turbsim_path: Input_Data/turbsim/
+    HH_vel: 9.0                  # The velocity at the turbine hub height | m
+    k: 0.4                       # The von Karman constant
+    boundary_types:
+        inflow: ["west"]
+        no_stress: ["east"]
+        free_slip: ["top","north","south"]
+        no_slip: ["bottom"]
+
+problem:
+    type: unsteady               # The unsteady solver is required for ALM simulations
+    viscosity: 0.000015          # The kinematic viscosity of the fluid | m^2/s
+
+solver:
+    type: unsteady               # The unsteady solver is required for ALM simulations
+    save_interval: 5.0           # Save the velocity and pressure files at intervals of "save_interval" | s
+    final_time: 10.0             # The total duration of the simulation | s
+    save_power: true
+    power_type: alm_power
+
+optimization:
+    control_types: [chord]
+    objective_type: alm_power
+    record_time: 0.0
+    # optimize: False
+    gradient: True

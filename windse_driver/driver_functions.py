@@ -82,7 +82,8 @@ def BuildDomain(params):
     ### Build Domain ###
     if params["domain"]["interpolated"]:
         dom_dict = {"box":windse.InterpolatedBoxDomain,
-                    "cylinder":windse.InterpolatedCylinderDomain
+                    "cylinder":windse.InterpolatedCylinderDomain,
+                    "imported":windse.ImportedDomain
         }
     else:
         dom_dict = {"box":windse.BoxDomain,
@@ -96,15 +97,17 @@ def BuildDomain(params):
     #### Build Farm
     farm_dict = {"grid":windse.GridWindFarm,
                  "random":windse.RandomWindFarm,
-                 "imported":windse.ImportedWindFarm}
+                 "imported":windse.ImportedWindFarm,
+                 "empty":windse.EmptyWindFarm}
     farm = farm_dict[params["wind_farm"]["type"]](dom)
 
-    ### warp and refine the mesh
-    windse.WarpMesh(dom)
-    windse.RefineMesh(dom,farm)
+    if dom.type != "imported":
+        ### warp and refine the mesh
+        windse.WarpMesh(dom)
+        windse.RefineMesh(dom,farm)
 
-    ### Finalize the Domain ###
-    dom.Finalize()
+        ### Finalize the Domain ###
+        dom.Finalize()
 
     return dom, farm
 
@@ -196,7 +199,7 @@ def SetupSimulation(params_loc=None):
     solver = BuildSolver(params,problem)
 
     farm.PlotFarm(params["wind_farm"]["display"])
-    if hasattr(farm,"chord"):
+    if farm.chord is not None:
         farm.PlotChord(params["wind_farm"]["display"])
 
 

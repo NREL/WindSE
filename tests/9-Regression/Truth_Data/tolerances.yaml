@@ -1,0 +1,7 @@
+FunctionSpaceManager:
+  velocity_dofs: [0.05, "relative"]
+  pressure_dofs: [0.05, "relative"]
+  total_dofs:    [0.05, "relative"]
+SolverManager:
+  "*max": [1e-3,"absolute"] 
+  "*min": [1e-3,"absolute"] 

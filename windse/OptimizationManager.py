@@ -44,7 +44,141 @@ if main_file != "sphinx-build":
     import matplotlib.pyplot as plt
 else:
     InequalityConstraint = object
+    
+    
+import openmdao.api as om
 
+
+class ObjComp(om.ExplicitComponent):
+    def initialize(self):
+        self.options.declare('initial_DVs', types=np.ndarray)
+        self.options.declare('J', types=object)
+        self.options.declare('dJ', types=object)
+        self.options.declare('callback', types=object)
+        
+    def setup(self):
+        self.add_input('DVs', val=self.options['initial_DVs'])
+        self.add_output('obj', val=0.)
+
+        self.declare_partials('*', '*')
+        
+    def compute(self, inputs, outputs):
+        m = list(inputs['DVs'])
+        computed_output = self.options['J'](m)
+        outputs['obj'] = computed_output
+        self.options['callback'](m)
+        
+    def compute_partials(self, inputs, partials):
+        m = list(inputs['DVs'])
+        jac = self.options['dJ'](m)
+        partials['obj', 'DVs'] = jac
+        
+        
+class ConsComp(om.ExplicitComponent):
+    def initialize(self):
+        self.options.declare('initial_DVs', types=np.ndarray)
+        self.options.declare('J', types=object)
+        self.options.declare('dJ', types=object)
+        self.options.declare('con_name', types=str)
+        
+    def setup(self):
+        self.con_name = self.options["con_name"]
+        self.add_input('DVs', val=self.options['initial_DVs'])
+        
+        output = self.options['J'](self.options['initial_DVs'])
+        self.add_output(self.con_name, val=output)
+
+        self.declare_partials('*', '*')
+        
+    def compute(self, inputs, outputs):
+        m = list(inputs['DVs'])
+        computed_output = self.options['J'](m)
+        outputs[self.con_name] = computed_output
+        
+    def compute_partials(self, inputs, partials):
+        m = list(inputs['DVs'])
+        jac = self.options['dJ'](m)
+        partials[self.con_name, 'DVs'] = jac
+        
+
+def gather(m):
+    if isinstance(m, list):
+        return list(map(gather, m))
+    elif hasattr(m, "_ad_to_list"):
+        return m._ad_to_list(m)
+    else:
+        return m  # Assume it is gathered already
+    
+def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
+    
+    # build the model
+    prob = om.Problem(model=om.Group())
+    
+    if 'callback' in kwargs:
+        callback = kwargs['callback']
+    else:
+        callback = None
+
+    prob.model.add_subsystem('obj_comp', ObjComp(initial_DVs=initial_DVs, J=J, dJ=dJ, callback=callback), promotes=['*'])
+    
+    constraint_types = []
+    if 'constraints' in kwargs:
+        constraints = kwargs['constraints']
+        
+        if not isinstance(constraints, list):
+            constraints = [constraints]
+        
+        for idx, c in enumerate(constraints):
+            if isinstance(c, InequalityConstraint):
+                typestr = "ineq"
+            elif isinstance(c, EqualityConstraint):
+                typestr = "eq"
+            else:
+                raise Exception("Unknown constraint class")
+
+            def jac(x):
+                out = c.jacobian(x)
+                return [gather(y) for y in out]
+
+            constraint_types.append(typestr)
+            
+            con_name = f'con_{idx}'
+            prob.model.add_subsystem(f'cons_comp_{idx}', ConsComp(initial_DVs=initial_DVs, J=c.function, dJ=jac, con_name=con_name), promotes=['*'])
+    
+    lower_bounds = bounds[:, 0]
+    upper_bounds = bounds[:, 1]
+    
+    # set up the optimization
+    if 'SLSQP' in kwargs['opt_routine']:
+        prob.driver = om.ScipyOptimizeDriver()
+        prob.driver.options['optimizer'] = 'SLSQP'
+    elif 'SNOPT' in kwargs['opt_routine']:
+        prob.driver = om.pyOptSparseDriver()
+        prob.driver.options['optimizer'] = 'SNOPT'
+    
+    prob.model.add_design_var('DVs', lower=lower_bounds, upper=upper_bounds)
+    prob.model.add_objective('obj')
+    
+    for idx, constraint_type in enumerate(constraint_types):
+        con_name = f'con_{idx}'
+        if constraint_type == "eq":
+            prob.model.add_constraint(con_name, equals=0.)
+        else:
+            # Inequality means it's positive from scipy and dolfin
+            prob.model.add_constraint(con_name, lower=0.)            
+
+    prob.setup()
+    
+    prob.set_val('DVs', initial_DVs)
+
+    # Run the optimization
+    prob.run_driver()
+    
+    # Return the optimal design variables
+    return(prob['DVs'])
+    
+
+    
 class Optimizer(object):
     """
     A GenericProblem contains on the basic functions required by all problem objects.
@@ -59,6 +193,8 @@ class Optimizer(object):
         self.problem = solver.problem
         self.farm = solver.problem.farm
         self.fprint = self.params.fprint
+        self.tag_output = self.params.tag_output
+        self.debug_mode = self.params.debug_mode
         self.xscale = self.problem.dom.xscale
 
         ### Update attributes based on params file ###
@@ -70,7 +206,7 @@ class Optimizer(object):
 
         ### Process parameters ###
         if "layout" in self.control_types:
-            if isinstance(self.layout_bounds,list):
+            if isinstance(self.layout_bounds,(list, np.ndarray)):
                 self.layout_bounds = np.array(self.layout_bounds)
             elif self.layout_bounds == "wind_farm":
                 self.layout_bounds = np.array([self.farm.ex_x,self.farm.ex_y])
@@ -101,8 +237,31 @@ class Optimizer(object):
         self.OptPrintFunction(self.init_vals,None)
         self.fprint("",special="footer")
 
-
         self.fprint("Optimizer Setup",special="footer")
+
+    def DebugOutput(self):
+        if self.debug_mode:
+
+            self.tag_output("n_controls", len(self.controls))
+            self.tag_output("obj_value", float(self.J))
+
+            ### Output initial control values ###
+            for i, val in enumerate(self.controls):
+                self.tag_output("val0_"+self.names[i],val.values())
+
+            ### Output gradient ###
+            if hasattr(self,"gradient"):
+                for i, d in enumerate(self.gradients):
+                    self.tag_output("grad_"+self.names[i],float(d))
+            
+            ### TODO: Output taylor convergence data
+            if hasattr(self,"conv_rate"):
+                pass
+
+            ### TODO: Output optimized controls
+            if hasattr(self,"m_opt"):
+                pass
+
 
     def RecomputeReducedFunctional(self):
         self.CreateControls()
@@ -238,7 +397,6 @@ class Optimizer(object):
         """
         Returns a gradient of the objective function
         """
-
         mem0=memory_usage()[0]
         tick = time.time()
 
@@ -267,7 +425,10 @@ class Optimizer(object):
         if capture_memory:
             self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
 
-        return np.array(der, dtype=float)
+        self.gradients = np.array(der, dtype=float)
+        self.DebugOutput()
+
+        return self.gradients
 
     def ListControls(self,m):
         self.fprint("Iteration "+repr(self.iteration)+" Complete",special="header")
@@ -374,17 +535,23 @@ class Optimizer(object):
     def Optimize(self):
 
         self.fprint("Beginning Optimization",special="header")
-
-        if "layout" in self.control_types:
-            m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+        
+        # TODO : simplify this logic
+        if "SNOPT" in self.opt_routine or "OM_SLSQP" in self.opt_routine:
+            if "layout" in self.control_types:
+                m_opt=minimize(self.Jhat, method="Custom", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
+            else:
+                m_opt=minimize(self.Jhat, method="Custom", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
         else:
-            # m_opt=minimize(self.Jhat, method="SLSQP", options = {"disp": True}, bounds = self.bounds,  callback = self.OptPrintFunction)
-            # m_opt=minimize(self.Jhat, method="L-BFGS-B", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
-            m_opt=minimize(self.Jhat, method=self.opt_routine, options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
-
+            if "layout" in self.control_types:
+                m_opt=minimize(self.Jhat, method=self.opt_routine, options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+            else:
+                m_opt=minimize(self.Jhat, method=self.opt_routine, options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
+                
+        self.m_opt = m_opt
 
         if self.num_controls == 1:
-            m_opt = (m_opt,)
+            self.m_opt = (self.m_opt,)
         self.OptPrintFunction(m_opt)
         # self.fprint("Assigning New Values")
         # new_values = {}
@@ -400,10 +567,10 @@ class Optimizer(object):
         
         # self.fprint("Solving With New Values")
         # self.solver.Solve()
-
+        self.DebugOutput()
         self.fprint("Optimization Finished",special="footer")
 
-        return m_opt
+        return self.m_opt
 
     def TaylorTest(self):
         
@@ -418,18 +585,19 @@ class Optimizer(object):
 
         print(np.array(h,dtype=float))
 
-        conv_rate = taylor_test(self.Jhat, self.init_vals, h)
+        self.conv_rate = taylor_test(self.Jhat, self.init_vals, h)
+        self.DebugOutput()
 
         self.fprint("Convergence Rates:")
         self.fprint("")
-        self.fprint(conv_rate)
+        self.fprint(self.conv_rate)
         self.fprint("")
 
         self.fprint("Taylor Test Finished",special="footer")
 
 
 
-        return conv_rate
+        return self.conv_rate
 
 class MinimumDistanceConstraint(InequalityConstraint):
     def __init__(self, m_pos, min_distance=200):

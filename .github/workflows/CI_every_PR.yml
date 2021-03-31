@@ -1,0 +1,51 @@
+name: CI_every_PR
+
+# We run CI on push commits on all branches
+on: [pull_request]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: ["ubuntu-latest"] #, "macOS-latest"]
+        python-version: ["3.8"]
+        
+    steps:
+      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        # https://github.com/marketplace/actions/setup-miniconda
+        with:
+          miniconda-version: "latest"
+          channels: conda-forge
+          auto-update-conda: true
+          python-version: 3.8
+      #     environment-file: environment.yml
+      
+      - name: Install test environment
+        shell: pwsh # putting in a shell command makes for compile linking problems later
+        # (if you use the shell here, cannot use 'compiler' package, but mpi only seems to work with it)
+        run: |
+          bash ./install.sh test-environment
+          conda activate test-environment
+        
+      - name: Run all tests within WindSE
+        shell: pwsh
+        run: |
+          conda activate test-environment
+          pytest -v --cov=windse tests
+      
+      # Run coveralls
+      - name: Run coveralls
+        if: contains( matrix.os, 'ubuntu')
+        # This also works, https://github.com/AndreMiras/coveralls-python-action
+        #uses: AndreMiras/coveralls-python-action@develop
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          conda activate test-environment
+          coveralls --service=github

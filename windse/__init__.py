@@ -3,6 +3,7 @@ This is the init file for WindSE. It handle importing all the
 submodules and initializing the parameters.
 """
 
+
 from windse.ParameterManager import windse_parameters
 def initialize(loc,updated_parameters=[]):
     """
@@ -25,8 +26,8 @@ def initialize(loc,updated_parameters=[]):
     global BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain
     from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain
 
-    global GridWindFarm, RandomWindFarm, ImportedWindFarm
-    from windse.WindFarmManager import GridWindFarm, RandomWindFarm, ImportedWindFarm
+    global GridWindFarm, RandomWindFarm, ImportedWindFarm, EmptyWindFarm
+    from windse.WindFarmManager import GridWindFarm, RandomWindFarm, ImportedWindFarm, EmptyWindFarm
 
     global RefineMesh, WarpMesh
     from windse.RefinementManager import RefineMesh, WarpMesh

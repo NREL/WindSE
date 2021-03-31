@@ -47,10 +47,50 @@ class GenericProblem(object):
         self.bd  = boundary_data
         self.tf_first_save = True
         self.fprint = self.params.fprint
+        self.tag_output = self.params.tag_output
+        self.debug_mode = self.params.debug_mode
 
         ### Update attributes based on params file ###
         for key, value in self.params["problem"].items():
             setattr(self,key,value)
+
+        self.record_time = self.params["optimization"].get("record_time",0.0)
+        if isinstance(self.record_time,str):
+            self.record_time = 0.0
+
+    def DebugOutput(self):
+        if self.debug_mode:
+
+            # integral of nu_t
+            int_nut = assemble(self.nu_T*dx)/self.dom.volume
+            self.tag_output("int_nu_T", int_nut)
+
+            # integral of tf
+            if self.dom.dim == 3:
+                e1 = Constant((1,0,0)); e2 = Constant((0,1,0)); e3 = Constant((0,0,1));
+            else:
+                e1 = Constant((1,0)); e2 = Constant((0,1));
+
+            int_tf_x = assemble(inner(self.tf,e1)*dx)/self.dom.volume
+            self.tag_output("int_tf_x", int_tf_x)
+            int_tf_y = assemble(inner(self.tf,e2)*dx)/self.dom.volume
+            self.tag_output("int_tf_y", int_tf_y)
+            if self.dom.dim == 3:
+                int_tf_z = assemble(inner(self.tf,e3)*dx)/self.dom.volume
+                self.tag_output("int_tf_z", int_tf_z)
+
+
+            if self.farm.turbine_method == 'alm':
+                self.tag_output("min_chord", np.min(self.chord))
+                self.tag_output("max_chord", np.max(self.chord))
+                self.tag_output("avg_chord", np.mean(self.chord))
+                self.tag_output("min_cl", np.min(self.cl))
+                self.tag_output("max_cl", np.max(self.cl))
+                self.tag_output("avg_cl", np.mean(self.cl))
+                self.tag_output("min_cd", np.min(self.cd))
+                self.tag_output("max_cd", np.max(self.cd))
+                self.tag_output("avg_cd", np.mean(self.cd))
+                self.tag_output("num_blade_segments", self.num_blade_segments)
 
     def ComputeTurbineForce(self,u,inflow_angle,simTime=0.0):
 
@@ -58,19 +98,23 @@ class GenericProblem(object):
         if inflow_angle is not None:
             inflow_angle = inflow_angle-self.dom.inflow_angle
         else:
-            inflow_angle = 0.0
+            inflow_angle = self.dom.inflow_angle
 
         self.fprint('Computing turbine forces using %s' % (self.farm.turbine_method.upper()))
 
         ### Create the turbine force function ###
-        if self.farm.turbine_method == "dolfin":
+        if self.farm.turbine_method == "disabled" or self.farm.numturbs == 0:
+            tf = Function(self.fs.V)
+            self.farm.actuator_disks = []
+
+        elif self.farm.turbine_method == "dolfin":
             self.tf1, self.tf2, self.tf3 = self.farm.DolfinTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
             self.num_blade_segments = self.farm.blade_segments
-
-
+            tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
 
         elif self.farm.turbine_method == "numpy":
             self.tf1, self.tf2, self.tf3 = self.farm.NumpyTurbineForce(self.fs,self.dom.mesh,inflow_angle=inflow_angle)
+            tf = -(self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]) #negative or otherwise we get jets
 
         elif self.farm.turbine_method == 'alm':
             self.rpm = self.params["wind_farm"]["rpm"]
@@ -104,19 +148,42 @@ class GenericProblem(object):
             self.first_call_to_alm = True
             self.blade_pos_previous = [[], [], []]
             self.simTime_list = []
+            self.dt_list = []
+            self.rotor_torque_dolfin_time = []
             self.simTime_id = 0
 
-            self.aoa_file = './output/%s/angle_of_attack.csv' % (self.params.name)
+            ### create output files for alm data ###
+            force_folder = self.params.folder+"data/alm/rotor_force/"
+            aoa_folder = self.params.folder+"data/alm/angle_of_attack/"
+            if not os.path.exists(aoa_folder): os.makedirs(aoa_folder)
+            if not os.path.exists(force_folder): os.makedirs(force_folder)
+            self.aoa_files = []
+            self.force_files = []
+            for i in range(self.farm.numturbs):
+                self.aoa_files.append(aoa_folder+"aoa_turb_"+repr(i)+".csv")
+                temp = ["x","y","z"]
+                self.force_files.append([])
+                for j in range(3):
+                    self.force_files[i].append(force_folder+temp[j]+"_force_turb_"+repr(i)+".csv")
 
+                ### Create header for angle of attack 
+                fp = open(self.aoa_files[i], 'w')
+                fp.write('time, ')
+                for j in range(3):
+                    for k in range(self.num_blade_segments):
+                        fp.write('r%d_n%03d, ' % (j, k))
+                fp.write('\n')
+                fp.close()
 
-            fp = open(self.aoa_file, 'w')
-
-            for j in range(3):
-                for k in range(self.num_blade_segments):
-                    fp.write('r%d_n%03d, ' % (j, k))
-            fp.write('\n')
-            fp.close()
-
+                ### Create header for force files ###
+                for dir_file in self.force_files[i]:
+                    fp = open(dir_file, 'w')
+                    fp.write('time, ')
+                    for j in range(3):
+                        for k in range(self.num_blade_segments):
+                            fp.write('r%d_n%03d, ' % (j, k))
+                    fp.write('\n')
+                    fp.close()
 
             # Initialize the lift and drag files
             for fn in ['lift', 'drag']:
@@ -310,7 +377,6 @@ class GenericProblem(object):
                 twist = twist_interp(interp_points)
                 cl = cl_interp(interp_points)
                 cd = cd_interp(interp_points)
-                self.farm.baseline_chord = np.array(chord)/self.chord_factor
 
                 if self.params['problem']['script_iterator'] > 0:
                     chord_override = chord_interp_override(interp_points)
@@ -332,6 +398,9 @@ class GenericProblem(object):
                 if turb_i == 0 and self.params['problem']['script_iterator'] > 0:
                     chord_to_use = chord_override
                 else:
+                    # chord_to_use = [2.5993912952866394, 3.5492808721592186, 4.67042880238879, 4.94984740731984, 4.791894547336281, 4.520032008634496, 4.450663333333334, 3.86769104037548, 3.395500130915245, 0.2]
+                    # chord_to_use = [2.59978608485722,    3.53358366863681,    4.44802950633928,    4.50303965573438,    4.23785738559839,    4.06900117097451,    4.35521148540168,    3.86769104037540,    3.39550013091521,    0.20000000000000]
+                    # chord_to_use = [2.599786083594759, 3.533583676452576, 4.44802969320108, 4.50303999525842, 4.23785803303602, 4.0690023547926, 4.355211847489540, 3.8676910403754, 3.39550013091524, 0.2]
                     chord_to_use = chord
 
                 for k in range(self.num_blade_segments):
@@ -349,19 +418,17 @@ class GenericProblem(object):
             self.chord = np.array(self.mchord,dtype=float)
             self.cl = np.array(self.mcl,dtype=float)
             self.cd = np.array(self.mcd,dtype=float)
+            self.farm.baseline_chord = np.array(self.chord[0])/self.chord_factor
 
             self.cyld_expr_list = [None]*self.farm.numturbs
             self.tf_list = self.farm.CalculateActuatorLineTurbineForces(self, simTime)
 
             self.CopyALMtoWindFarm()
+            tf = sum(self.tf_list)
+
         else:
             raise ValueError("Unknown turbine method: "+self.farm.turbine_method)
         
-        ### Convolve TF with u ###
-        if self.farm.turbine_method != 'alm':
-            tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
-        else:
-            tf = sum(self.tf_list)
         return tf
 
 
@@ -452,6 +519,7 @@ class StabilizedProblem(GenericProblem):
         
         ### Create Functional ###
         self.ComputeFunctional()
+        self.DebugOutput()
 
 
     def ComputeFunctional(self,inflow_angle=None):
@@ -556,6 +624,7 @@ class TaylorHoodProblem(GenericProblem):
 
         ### Create Functional ###
         self.ComputeFunctional()
+        self.DebugOutput()
 
     def ComputeFunctional(self,inflow_angle=None):
         self.fprint("Setting Up Taylor-Hood Problem",special="header")
@@ -783,6 +852,7 @@ class UnsteadyProblem(GenericProblem):
 
         ### Create Functional ###
         self.ComputeFunctional()
+        self.DebugOutput()
 
     def ComputeFunctional(self,inflow_angle=None):
         # ================================================================
@@ -826,7 +896,7 @@ class UnsteadyProblem(GenericProblem):
 
         # Calculate Reynolds stress 
         self.uk_sum = Function(self.fs.V)
-        self.uk_sum.assign(self.u_k)
+        self.uk_sum.assign(self.dt_c*self.u_k)
         self.vertKE = Function(self.fs.Q)
 
         # Define functions for pressure solutions

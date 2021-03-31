@@ -69,6 +69,8 @@ class GenericSolver(object):
         self.nu_T = self.problem.nu_T
         self.first_save = True
         self.fprint = self.params.fprint
+        self.tag_output = self.params.tag_output
+        self.debug_mode = self.params.debug_mode
         self.simTime = 0.0
 
         ### Update attributes based on params file ###
@@ -82,6 +84,8 @@ class GenericSolver(object):
         self.extra_kwarg = {}
         if self.params.dolfin_adjoint:
             self.extra_kwarg["annotate"] = False
+            
+        if self.params.dolfin_adjoint or self.save_objective:
             self.optimizing = True
             self.J = 0.0
             self.wake_RD = int(self.wake_RD)
@@ -107,6 +111,34 @@ class GenericSolver(object):
             self.J = 0.0
             self.pwr_saved = False
 
+    def DebugOutput(self,t=None,i=None):
+        if self.debug_mode:
+
+            if self.problem.dom.dim == 3:
+                ux, uy, uz = self.problem.u_k.split(True)
+            else:
+                ux, uy = self.problem.u_k.split(True)
+
+            if t is None:
+                suffix = ""
+            else:
+                suffix = "_"+repr(i)
+                self.tag_output("time"+suffix,t)
+
+            self.tag_output("min_x_vel"+suffix,np.min(ux.vector()[:])) # probably not the fastest way to get the average velocity
+            self.tag_output("max_x_vel"+suffix,np.max(ux.vector()[:])) # probably not the fastest way to get the average velocity
+            self.tag_output("avg_x_vel"+suffix,assemble(ux*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
+            self.tag_output("min_y_vel"+suffix,np.min(uy.vector()[:])) # probably not the fastest way to get the average velocity
+            self.tag_output("max_y_vel"+suffix,np.max(uy.vector()[:])) # probably not the fastest way to get the average velocity
+            self.tag_output("avg_y_vel"+suffix,assemble(uy*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
+            if self.problem.dom.dim == 3:
+                self.tag_output("min_z_vel"+suffix,np.min(uz.vector()[:])) # probably not the fastest way to get the average velocity
+                self.tag_output("max_z_vel"+suffix,np.max(uz.vector()[:])) # probably not the fastest way to get the average velocity
+                self.tag_output("avg_z_vel"+suffix,assemble(uy*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
+
+
+
+
     def Save(self,val=0):
         """
         This function saves the mesh and boundary markers to output/.../solutions/
@@ -121,15 +153,17 @@ class GenericSolver(object):
             self.u_file = self.params.Save(u,"velocity",subfolder="solutions/",val=val)
             self.p_file = self.params.Save(p,"pressure",subfolder="solutions/",val=val)
             self.nuT_file = self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val)
-            self.ReyStress_file = self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val)
-            self.vertKE_file = self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val)
+            if self.problem.dom.dim == 3:
+                self.ReyStress_file = self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val)
+                self.vertKE_file = self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val)
             self.first_save = False
         else:
             self.params.Save(u,"velocity",subfolder="solutions/",val=val,file=self.u_file)
             self.params.Save(p,"pressure",subfolder="solutions/",val=val,file=self.p_file)
             self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuT_file)
-            self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val,file=self.ReyStress_file)
-            self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val,file=self.vertKE_file)
+            if self.problem.dom.dim == 3:
+                self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val,file=self.ReyStress_file)
+                self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val,file=self.vertKE_file)
         u.vector()[:]=u.vector()[:]*self.problem.dom.xscale
         self.problem.dom.mesh.coordinates()[:]=self.problem.dom.mesh.coordinates()[:]*self.problem.dom.xscale
 
@@ -323,12 +357,12 @@ class SteadySolver(GenericSolver):
         self.problem.u_k,self.problem.p_k = self.problem.up_k.split(True)
 
         ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
-        # self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
-        # self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='mumps',**self.extra_kwarg)
-        # self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='mumps',**self.extra_kwarg)
-        self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='gmres',**self.extra_kwarg)
-        self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='gmres',**self.extra_kwarg)
-        self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='gmres',**self.extra_kwarg)
+        self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
+        if self.problem.dom.dim == 3:
+            self.fprint("")
+            self.fprint("Projecting Reynolds Stress")
+            self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
+            self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
 
         # self.nu_T = None
 
@@ -371,6 +405,8 @@ class SteadySolver(GenericSolver):
         #     ps.append(perc)
         #     self.fprint("Speed Percent at ("+repr(int(x_val))+", 0, "+repr(HH)+"): "+repr(perc))
         # print(ps)
+
+        self.DebugOutput()
 
 # 
 # ================================================================
@@ -697,7 +733,7 @@ class UnsteadySolver(GenericSolver):
             # self.record_time = self.final_time-2.0*saveInterval
         else:
             self.record_time = 0.0
-
+        self.problem.record_time = self.record_time
         # ================================================================
 
 
@@ -716,7 +752,7 @@ class UnsteadySolver(GenericSolver):
         #     fp.append(File("%s/timeSeries/turbineForce.pvd" % (self.problem.dom.params.folder)))
 
         # Save first timestep (create file pointers for first call)
-        self.SaveTimeSeries(self.simTime)
+        self.SaveTimeSeries(self.simTime, 0.0)
 
         self.fprint("Saving Input Data",special="header")
         if "mesh" in self.params.output:
@@ -820,7 +856,7 @@ class UnsteadySolver(GenericSolver):
         J_old = 0
         J_diff_old = 100000
         min_count = 0
-        i = 0
+        simIter = 0
         stable = False
         tip_speed = self.problem.rpm*2.0*np.pi*self.problem.farm.radius[0]/60.0
 
@@ -883,14 +919,13 @@ class UnsteadySolver(GenericSolver):
             self.simTime += self.problem.dt
 
             # Compute Reynolds Stress
-
-            if self.simTime >= self.u_avg_time and self.simTime < self.record_time:
-                self.problem.uk_sum.assign(self.problem.uk_sum+self.problem.u_k)
-                print("averaging u")
-            elif self.simTime >= self.record_time:
-                # print("calc vertKE")
-                self.problem.vertKE = 1.0#(self.problem.u_k[0]-self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))*(self.problem.u_k[2]-self.problem.uk_sum[2]/(self.record_time-self.u_avg_time))*(self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))
-
+            if self.objective_type == 'KE_entrainment':
+                if self.simTime >= self.u_avg_time and self.simTime < self.record_time:
+                    self.problem.uk_sum.assign(self.problem.uk_sum+self.problem.dt_c*self.problem.u_k)
+                    print("averaging u")
+                elif self.simTime >= self.record_time:
+                    print("calc vertKE")
+                    self.problem.vertKE = (self.problem.u_k[0]-self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))*(self.problem.u_k[2]-self.problem.uk_sum[2]/(self.record_time-self.u_avg_time))*(self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))
             
             if save_next_timestep:
                 # Read in new inlet values
@@ -902,7 +937,7 @@ class UnsteadySolver(GenericSolver):
 
                 # Save output files
                 # self.SaveTimeSeries(fp, self.simTime)
-                self.SaveTimeSeries(self.simTime)
+                self.SaveTimeSeries(self.simTime,simIter)
 
             # Adjust the timestep size, dt, for a balance of simulation speed and stability
             save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
@@ -957,7 +992,7 @@ class UnsteadySolver(GenericSolver):
             # save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
 
             # Calculate the objective function
-            if self.optimizing and self.simTime >= self.record_time:
+            if (self.optimizing or self.save_objective) and self.simTime >= self.record_time:
 
                 # Append the current time step for post production
                 self.adj_time_list.append(self.simTime)
@@ -1000,9 +1035,9 @@ class UnsteadySolver(GenericSolver):
 
             # Print some solver statistics
             self.fprint("%8.2f | %7.2f | %5.2f" % (self.simTime, self.problem.dt, u_max))
-            i+=1
+            simIter+=1
 
-        if self.optimizing:
+        if (self.optimizing or self.save_objective):
             # if dt_sum > 0.0:
             self.J = self.J/float(dt_sum)
 
@@ -1043,8 +1078,9 @@ class UnsteadySolver(GenericSolver):
 
     # ================================================================
 
-    def SaveTimeSeries(self, simTime):
+    def SaveTimeSeries(self, simTime, simIter=None):
 
+        self.DebugOutput(simTime,simIter)
 
         if hasattr(self.problem,"tf_save"):
             self.problem.tf_save.vector()[:] = 0
@@ -1773,17 +1809,15 @@ class MultiAngleSolver(SteadySolver):
         if self.params["domain"]["type"] in ["imported"]:
             raise ValueError("Cannot use a Multi-Angle Solver with an "+self.params["domain"]["type"]+" domain.")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
-        if self.problem.dom.inflow_angle is None:
+        if self.problem.bd.inflow_angle is None:
             self.wind_range = [0, 2.0*np.pi,self.num_wind_angles]
-        elif isinstance(self.problem.dom.inflow_angle,list):
-            if len(self.problem.dom.inflow_angle)==3:
-                self.wind_range = self.problem.dom.inflow_angle
+        elif isinstance(self.problem.bd.inflow_angle,list):
+            if len(self.problem.bd.inflow_angle)==3:
+                self.wind_range = self.problem.bd.inflow_angle
             else:
-                self.wind_range = [self.problem.dom.inflow_angle[0],self.problem.dom.inflow_angle[1],self.num_wind_angles]
+                self.wind_range = [self.problem.bd.inflow_angle[0],self.problem.bd.inflow_angle[1],self.num_wind_angles]
         else:
-            self.wind_range = [self.problem.dom.inflow_angle,self.problem.dom.inflow_angle+2.0*np.pi,self.num_wind_angles]
-
-
+            self.wind_range = [self.problem.bd.inflow_angle,self.problem.bd.inflow_angle+2.0*np.pi,self.num_wind_angles]
 
         self.angles = np.linspace(*self.wind_range,endpoint=self.endpoint)
         # self.angles += self.angle_offset

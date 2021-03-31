@@ -55,7 +55,7 @@ def CreateRefinementList(dom, farm, refine_params):
                 pivot_offset = 3*max(farm.RD)/2.0
                 refine_list.append(["stream",[center,radius,length,theta,pivot_offset,expand_factor]])
 
-    if turbine_num > 0:
+    if turbine_num > 0 and farm.numturbs > 0:
         for i in range(turbine_num,0,-1):
             expand_factor = (turbine_factor)**(i)
 

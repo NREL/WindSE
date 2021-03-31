@@ -1,10 +1,11 @@
 general: 
-    name:               Test
-    preappend_datetime: False
+    name:               Null         # The folder name for the current run 
+    preappend_datetime: False        # if true, the time and date will be preappened to the output folder
     output:             [solution]
     output_folder:      output/ 
     output_type:        pvd
     dolfin_adjoint:     False
+    debug_mode:         False
 
 domain: 
     type:             Null
@@ -42,7 +43,7 @@ domain:
 wind_farm: 
     type:           Null           
     path:           Null
-    display:        False
+    display:        False  ### this does this
     ex_x:           Null    
     ex_y:           Null    
     grid_rows:      Null      
@@ -88,6 +89,7 @@ function_space:
 boundary_conditions:
     vel_profile:    Null
     HH_vel:         8.0
+    vel_height:     "HH"
     power:          0.25
     k:              0.4
     turbsim_path:   Null
@@ -125,14 +127,14 @@ solver:
     save_power:        True
     nonlinear_solver:  snes
     newton_relaxation: 1.0
-    cfl_target: 1.0
+    cfl_target: 0.5
     cl_iterator: 0
 
 optimization:
     control_types:  Null
     layout_bounds:  wind_farm
     objective_type: power
-    save_objective: True
+    save_objective: False
     alm_power_type: real
     opt_turb_id :   all          # int or list or "all" 
     wake_RD:        5

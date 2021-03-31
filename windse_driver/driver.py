@@ -11,11 +11,12 @@ from dolfin import *
 # os.environ['OMP_NUM_THREADS'] = '1'
 
 
-ALL_ACTIONS = ("run")
+ALL_ACTIONS = ("run", "mesh")
 help_msg = """
 Available commands:
 
     run      run windse with a specified params file
+    mesh     export the mesh generated from a param file
 
 Type windse <command> --help for usage help on a specific command.
 For example, windse run --help will list all running options.
@@ -47,11 +48,16 @@ def run_action(params_loc=None):
     ### Clean up other module references ###
     mods_to_remove = []
     for k in sys.modules.keys():
-        if ("windse" in k):
-        # if ("windse" in k or "fenics" in k or "pyadjoint" in k or "dolfin" in k):
+        # if ("windse" in k):
+        if ("windse" in k or "dolfin_adjoint" in k or "fenics_adjoint" in k):
             mods_to_remove.append(k)
     for i in range(len(mods_to_remove)):
         del sys.modules[mods_to_remove[i]]
+
+    ### Clean tape if available ###
+    tape = get_working_tape()
+    if tape is not None:
+        tape.clear_tape()
 
     ### Import fresh version of windse ###
     import windse
@@ -69,7 +75,7 @@ def run_action(params_loc=None):
     ### Perform Optimization ###
     if params.dolfin_adjoint:
         opt=windse.Optimizer(solver)
-        if params["optimization"]["gradient"]:
+        if params["optimization"]["gradient"] or params["general"]["debug_mode"]:
             opt.Gradient()
         if params["optimization"]["taylor_test"]:
             opt.TaylorTest()
@@ -84,8 +90,16 @@ def run_action(params_loc=None):
 
     return runtime
 
-def mesh_action():
-    raise NotImplementedError
+def mesh_action(params_loc=None):
+    import windse
+    from .driver_functions import Initialize, BuildDomain
+
+    params = Initialize()
+    dom, farm = BuildDomain(params)
+
+    dom.ExportMesh()
+
+    print("Mesh Exported to: "+dom.params.folder+"mesh/exported_mesh/")
 
 def test_demo(demo):
     try:

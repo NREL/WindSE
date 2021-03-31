@@ -1,8 +1,9 @@
 import pathlib
 import runpy
 import pytest
-import windse_driver
 import glob, os, sys, numpy
+import copy
+from importlib import reload
 
 
 ### Located Demos ###
@@ -14,6 +15,9 @@ yamls = sorted(pathlib.Path(__file__, demo_path+"Yaml_Examples").resolve().glob(
 
 ### Get Python Files ###
 drivers = sorted(pathlib.Path(__file__, demo_path+"Driver_Example").resolve().glob('*.py'))
+
+### Get current status of modules
+default_modules = list(sys.modules.keys())
 
 ###############################################################
 ######################### Define Tests ########################
@@ -32,5 +36,6 @@ def test_driver_execution(driver):
 def test_yaml_execution(yaml):
     folder = os.path.split(yaml.as_posix())[0]
     os.chdir(folder)
+    import windse_driver
     windse_driver.driver.run_action(params_loc=yaml.as_posix())
     os.chdir(home_path)

@@ -25,6 +25,7 @@ if main_file != "sphinx-build":
     import ast
     import difflib
     import copy
+    import inspect 
 
     # set_log_level(LogLevel.CRITICAL)
 
@@ -35,9 +36,9 @@ if main_file != "sphinx-build":
 
 ### THis is a special class that allows prints to go to file and terminal
 class Logger(object):
-    def __init__(self, filename, rank):
-        self.__dict__ = sys.stdout.__dict__.copy() 
-        self.terminal = sys.stdout
+    def __init__(self, filename, std, rank):
+        self.__dict__ = std.__dict__.copy() 
+        self.terminal = std
         self.rank = rank
         if self.rank == 0:
             self.log = open(filename, "a")
@@ -68,6 +69,7 @@ class Parameters(dict):
     def __init__(self):
         super(Parameters, self).__init__()
         self.current_tab = 0
+        self.tagged_output = {}
         self.windse_path = os.path.dirname(os.path.realpath(__file__))
         self.defaults = yaml.load(open(self.windse_path+"/default_parameters.yaml"),Loader=yaml.SafeLoader)
         self.update(self.defaults)
@@ -154,10 +156,6 @@ class Parameters(dict):
         if yaml_bc.get("boundary_types",{}):
             self.default_bc_types = False
 
-        if yaml_file.get("optimization",{}):
-            if not yaml_file["general"].get("dolfin_adjoint"):
-                print("Warning: Optimization options given, but general:dolfin_ajdoint is set to False")
-
         ### Set the parameters ###
         self.update(self.NestedUpdate(yaml_file))
 
@@ -165,10 +163,22 @@ class Parameters(dict):
         for key, value in self["general"].items():
             setattr(self,key,value)
 
+        ### Check if dolfin_adjoint is unnecessary or required ###
+        optimizing = yaml_file.get("optimization",{}).get("control_types",None) is not None
+        if optimizing and not self.dolfin_adjoint:
+            raise ValueError("Optimization setting provided but general:dolfin_adjoint is set to False")
+        elif not optimizing and self.dolfin_adjoint: 
+            raise ValueError("general:dolfin_adjoint is set to True but no optimization parameters provided")
+
         # print(self.dolfin_adjoint)
         # for module in sys.modules:
         #     if "adjoint" in module:
         #         print(module)
+
+        ### set default name ###
+        if self.name is None:
+            _, yaml_name = os.path.split(loc)
+            self.name = yaml_name.split(".")[0]
 
         ### Set up the folder Structure ###
         timestamp=datetime.datetime.today().strftime('%Y%m%d_%H%M%S')
@@ -207,7 +217,8 @@ class Parameters(dict):
         
         ### Setup the logger ###
         self.log = self.folder+"log.txt"
-        sys.stdout = Logger(self.log, self.rank)
+        sys.stdout = Logger(self.log, sys.stdout, self.rank)
+        sys.stderr = Logger(self.log, sys.stderr, self.rank)
 
         ### Copy params file to output folder ###
         if isinstance(loc,str):
@@ -341,5 +352,34 @@ class Parameters(dict):
 
             if special=="header":
                 self.fprint("",tab=tab+1)
+
+    def tag_output(self, key, value):
+
+        ### Process value ###
+        if not isinstance(value,int):
+            value = float(value)
+
+        ### Grab the name of the module that called this function ###
+        stack = inspect.stack()[1][0]
+        mod = inspect.getmodule(stack)
+        the_module = mod.__name__.split(".")[-1]
+        the_class = stack.f_locals["self"].__class__.__name__
+        the_method = stack.f_code.co_name
+
+        ### This will tell exactly where this function was called from ###
+        # print("I was called by {}:{}.{}()".format(the_module, the_class, the_method))
+
+        ### Check if that module has called before and add the dictionary entries ###
+        if the_module in self.tagged_output.keys():
+            self.tagged_output[the_module].update({key: value})
+        else:
+            self.tagged_output.update({the_module: {key: value}})
+
+        ### Update the yaml file ###
+        with open(self.folder+"tagged_output.yaml","w") as file:
+            yaml.dump(self.tagged_output, file, sort_keys=False)
+
+        ### Print the new dict ###
+        # print(self.tagged_output)
 
 windse_parameters = Parameters()

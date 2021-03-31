@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: "2_yaw_opt_real_local"
+    name: "test"
     preappend_datetime: false
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: True
@@ -34,9 +34,9 @@ domain:
     x_range: [-260, 1430]   # [-2D, 5D between turbs + 6D outlet]  # x-range of the domain | m
     y_range: [-260, 260]    # [-2D, 2D]  # y-range of the domain | m
     z_range: [0.04, 520]    # [  0, 4D]  # z-range of the domain | m
-    nx: 64
-    ny: 20
-    nz: 12
+    nx: 32
+    ny: 10
+    nz: 6
 
 refine:
     warp_type: split
@@ -52,7 +52,7 @@ refine:
         # [box, [  [[-80,750],[-80,80],[ 30,190]]  ]],
         [stream, [  [-80,0,110], 80, 830, 0, 0, 1.5  ]],
         # [sphere, [  [-80,0,110], 80, 860, 0, 0, 1.0  ]],
-        [sphere, [  80  ]],
+        # [sphere, [  80  ]],
         # [simple, [  80  ]]
     ]
 

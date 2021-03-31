@@ -1,9 +1,10 @@
 # General options
 general: 
-    name: "entrainment_opt"
+    name: "entrainment_SLSQP_corrected_baseline_CFL2"
     preappend_datetime: false
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: True
+    output_type: "xdmf"
 
 # Wind Farm constants for a grid farm
 wind_farm: 
@@ -62,14 +63,20 @@ problem:
  
 solver:
     type: unsteady
-    save_interval: 50.0
-    final_time: 250.0
-    cfl_target: 3.0
+    save_interval: 5.0
+    final_time: 300.0
+    cfl_target: 2.
+    save_power: True
+
 
 optimization:
     control_types: [chord]
     objective_type: KE_entrainment
-    ke_location: hub
-    u_avg_time: 200.0
-    record_time: 225.0
+    ke_location: rotor
+    opt_routine: SLSQP
+    u_avg_time: 250.0
+    record_time: 275.0
     optimize: True
+    taylor_test: false
+    save_objective: True
+

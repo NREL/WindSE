@@ -826,6 +826,15 @@ def UpdateActuatorLineForce_deprecated(problem, u_local, simTime_id, dt, turb_i,
 
     simTime = problem.simTime_list[simTime_id]
 
+    fa = open(problem.aoa_files[turb_i], 'a')
+    fx = open(problem.force_files[turb_i][0], 'a')
+    fy = open(problem.force_files[turb_i][1], 'a')
+    fz = open(problem.force_files[turb_i][2], 'a')
+
+    fa.write('%.5f, ' % (simTime))
+    fx.write('%.5f, ' % (simTime))
+    fy.write('%.5f, ' % (simTime))
+    fz.write('%.5f, ' % (simTime))
 
     if verbose:
         print("Current Optimization Time: "+repr(simTime)+", Turbine #"+repr(turb_i))
@@ -997,7 +1006,7 @@ def UpdateActuatorLineForce_deprecated(problem, u_local, simTime_id, dt, turb_i,
         real_cl = np.zeros(problem.num_blade_segments)
         real_cd = np.zeros(problem.num_blade_segments)
 
-        fp = open(problem.aoa_file, 'a')
+
 
         tip_loss = np.zeros(problem.num_blade_segments)
 
@@ -1046,9 +1055,7 @@ def UpdateActuatorLineForce_deprecated(problem, u_local, simTime_id, dt, turb_i,
 
 
             # Write the aoa to a file for future reference
-            fp.write('%.5f, ' % (aoa/np.pi*180.0))
-
-        fp.close()
+            fa.write('%.5f, ' % (aoa/np.pi*180.0))
 
         return real_cl, real_cd, tip_loss
 
@@ -1428,6 +1435,8 @@ def UpdateActuatorLineForce_deprecated(problem, u_local, simTime_id, dt, turb_i,
         nodal_lift = lift*np.exp(-dist2/eps**2)/(eps**3 * np.pi**1.5)
         nodal_drag = drag*np.exp(-dist2/eps**2)/(eps**3 * np.pi**1.5)
 
+
+        
         for k in range(problem.num_blade_segments):
             # The drag unit simply points opposite the relative velocity unit vector
             drag_unit_vec = -np.copy(u_unit_vec[:, k])
@@ -1474,7 +1483,11 @@ def UpdateActuatorLineForce_deprecated(problem, u_local, simTime_id, dt, turb_i,
             # actuator_force = -(actuator_lift - actuator_drag)
 
             # Find the component in the direction tangential to the blade
-            tangential_actuator_force = np.dot(actuator_force, blade_unit_vec[:, 2])
+            tangential_actuator_force = np.dot(actuator_force, blade_unit_vec[:, 1])
+            rotor_plane_force = np.dot(actuator_force, blade_unit_vec)
+            fx.write('%.5f, ' % (rotor_plane_force[0]))
+            fy.write('%.5f, ' % (rotor_plane_force[1]))
+            fz.write('%.5f, ' % (rotor_plane_force[2]))
 
             # Multiply by the distance away from the hub to get a torque
             actuator_torque = tangential_actuator_force*rdim[k]
@@ -1493,6 +1506,11 @@ def UpdateActuatorLineForce_deprecated(problem, u_local, simTime_id, dt, turb_i,
                 u_rel_paraview[idx, :] = u_rel[:, k]
                 u_blade_paraview[idx, :] = blade_vel[:, k]
                 u_fluid_paraview[idx, :] = u_fluid[:, k]
+
+    fx.close()
+    fy.close()
+    fz.close()
+    fa.close()
 
     # Output the numpy version of rotor_torque
     problem.rotor_torque[turb_i] = rotor_torque_numpy_temp
@@ -1552,8 +1570,9 @@ def UpdateActuatorLineForce_deprecated(problem, u_local, simTime_id, dt, turb_i,
         write_paraview_vector('u_rel', u_rel_paraview)
         write_paraview_vector('u_fluid', u_fluid_paraview)
         write_paraview_vector('u_blade', u_blade_paraview)
-
+        
         fp.close()
+
 
     if dfd == None:
         # The total turbine force is the sum of lift and drag effects
@@ -1583,6 +1602,9 @@ def UpdateActuatorLineForce_deprecated(problem, u_local, simTime_id, dt, turb_i,
 
         # Integrate dot(Force, In-Plane-Vector) to get total torque
         # problem.rotor_torque_dolfin[turb_i] = assemble(dot(-tf_individual, cyld_expr)*dx)
+        temp_tor = assemble(dot(-tf_individual, cyld_expr)*dx)
+        problem.rotor_torque_dolfin[turb_i] = temp_tor
+        problem.rotor_torque_dolfin_time[simTime_id] = temp_tor
 
         # Add to the cumulative turbine force
         tf.vector()[:] += tf_vec
@@ -1603,7 +1625,16 @@ def UpdateActuatorLineForce_deprecated(problem, u_local, simTime_id, dt, turb_i,
         problem.cyld = cyld
         # print('just saved turb %.0d at x = %f, y = %.0f, yaw = %.4f' % (turb_i, problem.farm.x[turb_i], problem.farm.y[turb_i], problem.farm.yaw[turb_i]))
 
-    fp = open(problem.aoa_file, 'a')
+    fp = open(problem.aoa_files[turb_i], 'a')
+    fp.write('\n')
+    fp.close()
+    fp = open(problem.force_files[turb_i][0], 'a')
+    fp.write('\n')
+    fp.close()
+    fp = open(problem.force_files[turb_i][1], 'a')
+    fp.write('\n')
+    fp.close()
+    fp = open(problem.force_files[turb_i][2], 'a')
     fp.write('\n')
     fp.close()
 
