@@ -568,6 +568,10 @@ class TurbSimInflow(LogLayerInflow):
         # Define tolerance
         tol = 1e-6
 
+        loc_ux = self.ux.vector().get_local()
+        loc_uy = self.uy.vector().get_local()
+        loc_uz = self.uz.vector().get_local()
+
         # Interpolate a value at each boundary coordinate
         for k in self.boundaryIDs:
             # Get the position corresponding to this boundary id
@@ -576,10 +580,20 @@ class TurbSimInflow(LogLayerInflow):
             # The interpolation point specifies a 3D (z, y, time) point
             xi = np.array([pos[2], pos[1], simTime])
 
+            # This method breaks in parallel
+            # self.ux.vector()[k] = self.interp_u(xi)
+            # self.uy.vector()[k] = self.interp_v(xi)
+            # self.uz.vector()[k] = self.interp_w(xi)
+
             # Get the interpolated value at this point
-            self.ux.vector()[k] = self.interp_u(xi)
-            self.uy.vector()[k] = self.interp_v(xi)
-            self.uz.vector()[k] = self.interp_w(xi)
+            loc_ux[k] = self.interp_u(xi)
+            loc_uy[k] = self.interp_v(xi)
+            loc_uz[k] = self.interp_w(xi)
+
+        # This is safer in parallel
+        self.ux.vector().set_local(loc_ux)
+        self.uy.vector().set_local(loc_uy)
+        self.uz.vector().set_local(loc_uz)
 
         ### Assigning Velocity
         self.bc_velocity = Function(self.fs.V)
