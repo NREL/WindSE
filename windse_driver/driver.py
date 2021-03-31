@@ -3,6 +3,7 @@ import time
 import os.path as osp
 import argparse
 import sys
+from pyadjoint import get_working_tape
 import cProfile
 from dolfin import *
 
