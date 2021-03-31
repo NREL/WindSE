@@ -520,8 +520,7 @@ class StabilizedProblem(GenericProblem):
         stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
         # stab_sans_tf = - eps*inner(grad(q), grad(self.p_k))*dx 
 
-        # self.F += stab
-        # EKYOUNG REMOVE STABILITY
+        self.F += stab
         # self.F_sans_tf += stab
 
         if self.use_25d_model and self.dom.dim == 2 :
