@@ -876,8 +876,9 @@ class UnsteadySolver(GenericSolver):
             b1 = assemble(self.problem.L1, tensor=b1)
             [bc.apply(b1) for bc in self.problem.bd.bcu]
             if self.optimizing:
-                solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default')
                 # solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default',adj_cb=save_adj)
+                # solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default')
+                solver_1.solve(self.problem.u_k.vector(), b1)
             else:
                 # solve(A1, self.problem.u_k.vector(), b1, 'gmres', 'default')
                 solver_1.solve(self.problem.u_k.vector(), b1)
@@ -890,8 +891,11 @@ class UnsteadySolver(GenericSolver):
             tic = time.time()
             b2 = assemble(self.problem.L2, tensor=b2)
             [bc.apply(b2) for bc in self.problem.bd.bcp]
-            # solve(A2, self.problem.p_k.vector(), b2, 'gmres', 'hypre_amg')
-            solver_2.solve(self.problem.p_k.vector(), b2)
+            if self.optimizing:
+                # solve(A2, self.problem.p_k.vector(), b2, 'gmres', 'hypre_amg')
+                solver_2.solve(self.problem.p_k.vector(), b2)
+            else:
+                solver_2.solve(self.problem.p_k.vector(), b2)
             # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.p_k.vector()[:])))
             # print("assemble(func*dx): " + repr(float(assemble(inner(self.problem.p_k,self.problem.p_k)*dx))))
             toc = time.time()
@@ -900,8 +904,11 @@ class UnsteadySolver(GenericSolver):
             # Step 3: Velocity correction step
             tic = time.time()
             b3 = assemble(self.problem.L3, tensor=b3)
-            # solve(A3, self.problem.u_k.vector(), b3, 'gmres', 'default')
-            solver_3.solve(self.problem.u_k.vector(), b3)
+            if self.optimizing:
+                # solve(A3, self.problem.u_k.vector(), b3, 'gmres', 'default')
+                solver_3.solve(self.problem.u_k.vector(), b3)
+            else:
+                solver_3.solve(self.problem.u_k.vector(), b3)
             # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.u_k.vector()[:])))
             # print("assemble(func*dx): " + repr(float(assemble(inner(self.problem.u_k,self.problem.u_k)*dx))))
             toc = time.time()
@@ -952,6 +959,7 @@ class UnsteadySolver(GenericSolver):
 
                 for i in range(len(self.problem.tf_list)):
                     self.problem.tf_list[i].assign(new_tf_list[i])
+                    # print('MPI vec norm = %.15e' % np.linalg.norm(self.problem.tf_list[i].vector()[:]))
 
                 # t2 = time.time()
                 # print(t2-t1)

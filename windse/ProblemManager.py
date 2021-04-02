@@ -477,27 +477,27 @@ class GenericProblem(object):
         adj_stop = time.time()
         self.fprint("Wind Speed Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")
 
-    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None, chord = None, yaw = None, turb_index = 0):
+    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None, chord = None, yaw = None, turb_i = 0):
 
         if c_lift is not None:
             cl = np.array(c_lift, dtype = float)
-            self.cl[turb_index] = cl
+            self.cl[turb_i] = cl
             for k in range(self.num_blade_segments):
-                self.mcl[turb_index][k] = Constant(cl[k])
+                self.mcl[turb_i][k] = Constant(cl[k])
         if c_drag is not None:
             cd = np.array(c_drag, dtype = float)
-            self.cd[turb_index] = cd
+            self.cd[turb_i] = cd
             for k in range(self.num_blade_segments):
-                self.mcd[turb_index][k] = Constant(cd[k])
+                self.mcd[turb_i][k] = Constant(cd[k])
         if chord is not None:
             chord = np.array(chord, dtype = float)
-            self.chord[turb_index] = chord
+            self.chord[turb_i] = chord
             for k in range(self.num_blade_segments):
-                self.mchord[turb_index][k] = Constant(chord[k])
+                self.mchord[turb_i][k] = Constant(chord[k])
         if yaw is not None:
             yaw = float(yaw)
-            self.farm.yaw[turb_index] = yaw
-            self.farm.myaw[turb_index] = Constant(yaw)
+            self.farm.yaw[turb_i] = yaw
+            self.farm.myaw[turb_i] = Constant(yaw)
         
 
         self.CopyALMtoWindFarm()

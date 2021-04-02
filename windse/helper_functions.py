@@ -359,7 +359,7 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
 
 #================================================================
 
-def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, mpi_u_fluid, dfd=None, verbose=False):
+def UpdateActuatorLineForce(problem, mpi_u_fluid_constant, simTime_id, dt, turb_i, dfd=None, verbose=False):
 
     simTime = problem.simTime_list[simTime_id]
 
@@ -620,6 +620,11 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, mpi_u_flui
     theta_offset = (simTime+0.5*dt)/period*2.0*np.pi
     # theta_offset = 0.0
 
+    # Convert the mpi_u_fluid Constant wrapper into a numpy array
+    mpi_u_fluid_buff = np.zeros(mpi_u_fluid_constant.value_size())
+    mpi_u_fluid_constant.eval(mpi_u_fluid_buff, mpi_u_fluid_buff)
+    mpi_u_fluid = mpi_u_fluid_buff.reshape(problem.farm.numturbs, -1)
+
 
     # Treat each blade separately
     for blade_ct, theta_0 in enumerate(theta_vec):
@@ -665,16 +670,22 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, mpi_u_flui
         # Initialize space to hold the fluid velocity at each actuator node
         u_fluid = np.zeros((3, problem.num_blade_segments))
 
-        # Read the fluid velocity for this blade from mpi_u_fluid
+        # Read values from mpi_u_fluid (a [num_turbs x 3_dim*3_rotors*num_blade_segments] numpy array)
         start_pt = blade_ct*3*problem.num_blade_segments
         end_pt = start_pt + 3*problem.num_blade_segments
-
         u_fluid = mpi_u_fluid[turb_i, start_pt:end_pt]
         u_fluid = np.reshape(u_fluid, (3, -1), 'F')
+
+        # Print u_fluid and verify it's the same as from dev (or can be made the same)
+        # u_fluid[0, :] = 10.0
+        # u_fluid[1, :] = 0.0
+        # u_fluid[2, :] = 0.0
 
         for k in range(problem.num_blade_segments):
             u_fluid[:, k] -= np.dot(u_fluid[:, k], blade_unit_vec[:, 1])*blade_unit_vec[:, 1]
 
+        # print(u_fluid)
+        # print('MPI sim time = %.15e' % (simTime))
 
         problem.blade_pos_previous[blade_ct] = blade_pos
                         
@@ -717,6 +728,9 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, mpi_u_flui
             # All force magnitudes get multiplied by the correctly-oriented unit vector
             vector_nodal_lift = np.outer(nodal_lift[:, k], lift_unit_vec)
             vector_nodal_drag = np.outer(nodal_drag[:, k], drag_unit_vec)
+
+            # print('MPI vec norm = %.15e' % np.linalg.norm(vector_nodal_lift))
+            # print('MPI vec norm = %.15e' % np.linalg.norm(vector_nodal_drag))
 
             if dfd == None:
                 lift_force += vector_nodal_lift
@@ -764,6 +778,9 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, mpi_u_flui
         turbine_force = drag_force + lift_force
         turbine_force_for_power = -drag_force + lift_force
 
+        # print('MPI vec norm = %.15e' % np.linalg.norm(vector_nodal_lift))
+        # print('MPI vec norm = %.15e' % np.linalg.norm(turbine_force))
+
         # Riffle-shuffle the x-, y-, and z-column force components
         for k in range(ndim):
             tf_vec[k::ndim] = turbine_force[:, k]
@@ -782,6 +799,11 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, dt, turb_i, mpi_u_flui
             xs=problem.farm.mx[turb_i],
             ys=problem.farm.my[turb_i],
             zs=problem.farm.z[turb_i])
+
+
+        temp_tor = assemble(dot(-tf, cyld_expr)*dx)
+        problem.rotor_torque_dolfin[turb_i] = temp_tor
+        problem.rotor_torque_dolfin_time[simTime_id] = temp_tor
 
 
         problem.cyld_expr_list[turb_i] = cyld_expr

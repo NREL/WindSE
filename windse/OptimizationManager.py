@@ -413,9 +413,22 @@ class Optimizer(object):
         f_header = "control    value    derivative"
         f.write(f_header+"\n")
 
+        self.fprint('========Gradient Data========')
+        d_out = '%12s: %12s, %22s' % ('Control', 'Value', 'Derivative')
+        self.fprint(d_out)
+
+        d_global = np.zeros(self.params.num_procs, dtype=np.float64)
+
         for i, d in enumerate(der):
             ctl_val = float(self.controls[i].values())
-            d_out = str(self.names[i] + "    " +repr(ctl_val)+ "    " +repr(float(d)))
+            # d_out = str(self.names[i] + "    " +repr(ctl_val)+ "    " +repr(float(d)))
+
+            d_format = np.float64(d)
+            self.params.comm.Gather(d_format, d_global, root=0)
+            d_sum = np.sum(d_global)
+            d_out = '%12s: %12.5e, %22.15e' % (self.names[i], ctl_val, d_sum)
+
+            # print('Rank %d, %s' % (self.params.rank, d_out))
             self.fprint(d_out)
             f.write(d_out+"\n")
         f.close()

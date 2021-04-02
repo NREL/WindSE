@@ -1083,6 +1083,9 @@ class GenericWindFarm(object):
                 min_dist_node_id, dist = bbox.compute_closest_entity(turbine_loc_point)
                 problem.min_dist.append(dist)
 
+            # Create a Constant "wrapper" to enable dolfin to track mpi_u_fluid
+            problem.mpi_u_fluid_constant = Constant(np.zeros((problem.farm.numturbs, 3*3*problem.num_blade_segments)))
+
 
         def init_unsteady_alm_terms(problem):
 
@@ -1227,10 +1230,13 @@ class GenericWindFarm(object):
         # Call the function to build the complete mpi_u_fluid array
         mpi_u_fluid = init_mpi_alm(problem)
 
+        # Populate the Constant "wrapper" with the velocity values to enable dolfin to track mpi_u_fluid
+        problem.mpi_u_fluid_constant.assign(Constant(mpi_u_fluid))
+
         # Call the ALM function for each turbine individually
         alm_output_list = []
         for turb_index in range(problem.farm.numturbs):
-            alm_output_list.append(UpdateActuatorLineForce(problem, problem.u_k1, problem.simTime_id, problem.dt, turb_index, mpi_u_fluid, dfd=dfd))
+            alm_output_list.append(UpdateActuatorLineForce(problem, problem.mpi_u_fluid_constant, problem.simTime_id, problem.dt, turb_index, dfd=dfd))
             # alm_output_list.append(UpdateActuatorLineForce_deprecated(problem, problem.u_k1, problem.simTime_id, problem.dt, turb_index, mpi_u_fluid, dfd=dfd))
             # print("tf   = "+repr(np.mean(alm_output_list[-1].vector()[:])))
 
