@@ -252,7 +252,7 @@ class Optimizer(object):
             ### Output gradient ###
             if hasattr(self,"gradient"):
                 for i, d in enumerate(self.gradients):
-                    self.tag_output("grad_"+self.names[i],float(d))
+                    self.tag_output("grad_"+self.names[i],float(d), collective_output='sum')
             
             ### TODO: Output taylor convergence data
             if hasattr(self,"conv_rate"):

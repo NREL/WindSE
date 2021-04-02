@@ -353,33 +353,58 @@ class Parameters(dict):
             if special=="header":
                 self.fprint("",tab=tab+1)
 
-    def tag_output(self, key, value):
+    def tag_output(self, key, value, collective_output=None):
 
         ### Process value ###
         if not isinstance(value,int):
             value = float(value)
 
-        ### Grab the name of the module that called this function ###
-        stack = inspect.stack()[1][0]
-        mod = inspect.getmodule(stack)
-        the_module = mod.__name__.split(".")[-1]
-        the_class = stack.f_locals["self"].__class__.__name__
-        the_method = stack.f_code.co_name
+        if self.num_procs > 1:
+            send_data = np.float64(value)
+            mpi_buff = np.zeros(self.num_procs, dtype=np.float64)
+            self.comm.Gather(send_data, mpi_buff, root=0)
 
-        ### This will tell exactly where this function was called from ###
-        # print("I was called by {}:{}.{}()".format(the_module, the_class, the_method))
+            differing_opinions = False
 
-        ### Check if that module has called before and add the dictionary entries ###
-        if the_module in self.tagged_output.keys():
-            self.tagged_output[the_module].update({key: value})
-        else:
-            self.tagged_output.update({the_module: {key: value}})
+            if not np.all(np.isclose(mpi_buff, mpi_buff[0])):
+                differing_opinions = True
 
-        ### Update the yaml file ###
-        with open(self.folder+"tagged_output.yaml","w") as file:
-            yaml.dump(self.tagged_output, file, sort_keys=False)
+            if differing_opinions or collective_output is not None:
+                if collective_output == 'sum' or 'sum' in key:
+                    value = np.sum(mpi_buff)
+                elif collective_output == 'avg' or 'avg' in key:
+                    value = np.mean(mpi_buff)
+                elif collective_output == 'max' or 'max' in key:
+                    value = np.amax(mpi_buff)
+                elif collective_output == 'min' or 'min' in key:
+                    value = np.amin(mpi_buff)
+                else:
+                    print('WARNING: tagging %s in parallel may result in disagreement between processors.' % (key))
 
-        ### Print the new dict ###
-        # print(self.tagged_output)
+                value = float(value)
+
+        if self.rank == 0:
+            ### Grab the name of the module that called this function ###
+            stack = inspect.stack()[1][0]
+            mod = inspect.getmodule(stack)
+            the_module = mod.__name__.split(".")[-1]
+            the_class = stack.f_locals["self"].__class__.__name__
+            the_method = stack.f_code.co_name
+
+            ### This will tell exactly where this function was called from ###
+            # print("I was called by {}:{}.{}()".format(the_module, the_class, the_method))
+
+            ### Check if that module has called before and add the dictionary entries ###
+            if the_module in self.tagged_output.keys():
+                self.tagged_output[the_module].update({key: value})
+            else:
+                self.tagged_output.update({the_module: {key: value}})
+
+            ### Update the yaml file ###
+            with open(self.folder+"tagged_output.yaml","w") as file:
+                yaml.dump(self.tagged_output, file, sort_keys=False)
+
+            ### Print the new dict ###
+            # print(self.tagged_output)
 
 windse_parameters = Parameters()

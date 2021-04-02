@@ -66,32 +66,32 @@ class GenericBoundary(object):
     def DebugOutput(self):
         if self.debug_mode:
             # Average of the x and y-velocities
-            self.tag_output("min_x", np.min(self.ux.vector()[:]))
-            self.tag_output("max_x", np.max(self.ux.vector()[:]))
-            self.tag_output("avg_x", np.mean(self.ux.vector()[:]))
-            self.tag_output("min_y", np.min(self.uy.vector()[:]))
-            self.tag_output("max_y", np.max(self.uy.vector()[:]))
-            self.tag_output("avg_y", np.mean(self.uy.vector()[:]))
+            self.tag_output("min_x", self.ux.vector().min())
+            self.tag_output("max_x", self.ux.vector().max())
+            self.tag_output("avg_x", self.ux.vector().sum()/self.ux.vector().size())
+            self.tag_output("min_y", self.uy.vector().min())
+            self.tag_output("max_y", self.uy.vector().max())
+            self.tag_output("avg_y", self.uy.vector().sum()/self.uy.vector().size())
 
             # If applicable, average of z-velocities
             if self.dom.dim == 3:
-                self.tag_output("min_z", np.min(self.uz.vector()[:]))
-                self.tag_output("max_z", np.max(self.uz.vector()[:]))
-                self.tag_output("avg_z", np.mean(self.uz.vector()[:]))
+                self.tag_output("min_z", self.uz.vector().min())
+                self.tag_output("max_z", self.uz.vector().max())
+                self.tag_output("avg_z", self.uz.vector().sum()/self.uz.vector().size())
 
             # Average of the pressures
-            self.tag_output("min_p", np.min(self.bc_pressure.vector()[:]))
-            self.tag_output("max_p", np.max(self.bc_pressure.vector()[:]))
-            self.tag_output("avg_p", np.mean(self.bc_pressure.vector()[:]))
+            self.tag_output("min_p", self.bc_pressure.vector().min())
+            self.tag_output("max_p", self.bc_pressure.vector().max())
+            self.tag_output("avg_p", self.bc_pressure.vector().sum()/self.bc_pressure.vector().size())
 
             # Average of all initialized fields (confirms function assignment) ### Depends on DOFS
-            self.tag_output("min_initial_values", np.min(self.u0.vector()[:]))
-            self.tag_output("max_initial_values", np.max(self.u0.vector()[:]))
-            self.tag_output("avg_initial_values", np.mean(self.u0.vector()[:]))
+            self.tag_output("min_initial_values", self.u0.vector().min())
+            self.tag_output("max_initial_values", self.u0.vector().max())
+            self.tag_output("avg_initial_values", self.u0.vector().sum()/self.u0.vector().size())
 
             # Get number of boundary conditions 
             num_bc = len(self.bcu) + len(self.bcp) + len(self.bcs)
-            self.tag_output("num_bc",num_bc)
+            self.tag_output("num_bc", num_bc)
 
     def SetupBoundaries(self):
         ### Create the equations need for defining the boundary conditions ###
