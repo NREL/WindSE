@@ -813,16 +813,16 @@ class UnsteadySolver(GenericSolver):
         #     sol_choice = 'gmres'
         #     pre_choice = 'default'
 
-        solver_1 = PETScKrylovSolver('gmres', 'jacobi')
-        # solver_1 = PETScKrylovSolver('gmres', 'default')
+        # solver_1 = PETScKrylovSolver('gmres', 'jacobi')
+        solver_1 = PETScKrylovSolver('gmres', 'default')
         solver_1.set_operator(A1)
 
-        solver_2 = PETScKrylovSolver('gmres', 'petsc_amg')
-        # solver_2 = PETScKrylovSolver('gmres', 'hypre_amg')
+        # solver_2 = PETScKrylovSolver('gmres', 'petsc_amg')
+        solver_2 = PETScKrylovSolver('gmres', 'hypre_amg')
         solver_2.set_operator(A2)
 
-        solver_3 = PETScKrylovSolver('cg', 'jacobi')
-        # solver_3 = PETScKrylovSolver('gmres', 'default')
+        # solver_3 = PETScKrylovSolver('cg', 'jacobi')
+        solver_3 = PETScKrylovSolver('gmres', 'default')
         solver_3.set_operator(A3)
 
         pr = cProfile.Profile()
