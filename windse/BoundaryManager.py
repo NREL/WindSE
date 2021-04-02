@@ -591,9 +591,9 @@ class TurbSimInflow(LogLayerInflow):
             loc_uz[k] = self.interp_w(xi)
 
         # This is safer in parallel
-        self.ux.vector().set_local(loc_ux)
-        self.uy.vector().set_local(loc_uy)
-        self.uz.vector().set_local(loc_uz)
+        self.ux.vector()[:] = (loc_ux)
+        self.uy.vector()[:] = (loc_uy)
+        self.uz.vector()[:] = (loc_uz)
 
         ### Assigning Velocity
         self.bc_velocity = Function(self.fs.V)
