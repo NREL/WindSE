@@ -50,7 +50,7 @@ def test_yaml_execution(yaml_file):
     ### Set the number of processes and launch using mpirun as if from the command line
     cl_command = "mpirun -n %d windse run %s -p general:name:%s" % (num_procs, yaml_file, parallel_yaml_name)
     # print(cl_command)
-    # cl_output = subprocess.run(cl_command.split())
+    cl_output = subprocess.run(cl_command.split())
 
     # driver.run_action(params_loc=yaml_file.as_posix())
     os.chdir(home_path)
