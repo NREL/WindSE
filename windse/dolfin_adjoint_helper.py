@@ -439,7 +439,8 @@ class ControlUpdaterBlock(Block):
 # ================================================================
 # ================================================================
 
-def UpdateActuatorLineForce(problem, u_local, simTime_id, turb_index, dt, **kwargs):
+# def UpdateActuatorLineForce(problem, u_local, simTime_id, turb_i, dt, **kwargs):
+def UpdateActuatorLineForce(problem, mpi_u_fluid_constant, simTime_id, dt, turb_i, **kwargs):
     '''This is the adjoint version of RelativeHeight. It's goal is to 
     calculate the height of the turbine's base. At the same time, it creates
     a block that helps propagate the adjoint information.'''
@@ -450,11 +451,12 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, turb_index, dt, **kwar
 
     ### Get the actual output ###
     with stop_annotating():
-        func_output = backend_UpdateActuatorLineForce(problem, u_local, simTime_id, turb_index, dt, **kwargs)
+        func_output = backend_UpdateActuatorLineForce(problem, mpi_u_fluid_constant, simTime_id, dt, turb_i, **kwargs)
+
 
     ### Create the block object ###
     if annotate:
-        block = ActuatorLineForceBlock(problem, u_local, simTime_id, turb_index, dt, **kwargs)
+        block = ActuatorLineForceBlock(problem, mpi_u_fluid_constant, simTime_id, dt, turb_i, **kwargs)
 
     ### Prepare outputs for recording on tape ###
     r = []
@@ -479,39 +481,42 @@ def UpdateActuatorLineForce(problem, u_local, simTime_id, turb_index, dt, **kwar
 class ActuatorLineForceBlock(Block):
     '''This is the Block class that will be used to calculate adjoint 
     information for optimizations. '''
-    def __init__(self, problem, u_local, simTime_id, dt, turb_index, **kwargs):
+    def __init__(self, problem, mpi_u_fluid_constant, simTime_id, dt, turb_i, **kwargs):
         super(ActuatorLineForceBlock, self).__init__()
         # self.problem = copy.copy(problem)
         # self.simTime = copy.copy(simTime)
-        # self.turb_index = copy.copy(turb_index)
+        # self.turb_i = copy.copy(turb_i)
         # self.u_local = u_local.copy()
-
-
 
         self.problem = problem
         self.simTime_id = copy.copy(simTime_id)
         self.simTime = self.problem.simTime_list[simTime_id]
         self.dt = dt
-        self.turb_index = turb_index
-        self.u_local = u_local.copy()
+        self.turb_i = turb_i
+        self.u_local = problem.u_k
+        # self.mpi_u_fluid_constant = mpi_u_fluid_constant
 
         # Add dependencies on the controls
         for j in range(self.problem.num_blade_segments):
-            self.problem.mcl[self.turb_index][j].block_variable.tag = ("c_lift", self.turb_index, j)
-            self.add_dependency(self.problem.mcl[self.turb_index][j])
+            self.problem.mcl[self.turb_i][j].block_variable.tag = ("c_lift", self.turb_i, j)
+            self.add_dependency(self.problem.mcl[self.turb_i][j])
 
-            self.problem.mcd[self.turb_index][j].block_variable.tag = ("c_drag", self.turb_index, j)
-            self.add_dependency(self.problem.mcd[self.turb_index][j])
+            self.problem.mcd[self.turb_i][j].block_variable.tag = ("c_drag", self.turb_i, j)
+            self.add_dependency(self.problem.mcd[self.turb_i][j])
 
-            self.problem.mchord[self.turb_index][j].block_variable.tag = ("chord", self.turb_index, j)
-            self.add_dependency(self.problem.mchord[self.turb_index][j])
+            self.problem.mchord[self.turb_i][j].block_variable.tag = ("chord", self.turb_i, j)
+            self.add_dependency(self.problem.mchord[self.turb_i][j])
 
 
-        self.problem.farm.myaw[self.turb_index].block_variable.tag = ("yaw", self.turb_index, -1)
-        self.add_dependency(self.problem.farm.myaw[self.turb_index])
+        self.problem.farm.myaw[self.turb_i].block_variable.tag = ("yaw", self.turb_i, -1)
+        self.add_dependency(self.problem.farm.myaw[self.turb_i])
 
-        self.problem.u_k1.block_variable.tag = ("u_local",self.turb_index,-1)
+        self.problem.u_k1.block_variable.tag = ("u_local",self.turb_i,-1)
         self.add_dependency(self.problem.u_k1)
+
+        # FIXME: This needs to be made a dolfin object so that it can be tracked
+        self.problem.mpi_u_fluid_constant.block_variable.tag = ("mpi_u_fluid",self.turb_i,-1)
+        self.add_dependency(self.problem.mpi_u_fluid_constant)
 
         # Tabulate which controls matter
         self.control_types = []
@@ -536,11 +541,12 @@ class ActuatorLineForceBlock(Block):
 
     def prepare_recompute_component(self, inputs, relevant_outputs):
         # update the new controls inside the windfarm
-        c_lift = inputs[0:-2:3]
-        c_drag = inputs[1:-2:3]
-        chord =  inputs[2:-2:3]
-        yaw  = inputs[-2]
-        u_k1 = inputs[-1]
+        c_lift = inputs[0:-3:3]
+        c_drag = inputs[1:-3:3]
+        chord =  inputs[2:-3:3]
+        yaw  = inputs[-3]
+        u_k1 = inputs[-2]
+        mpi_u_fluid = inputs[-1]
 
         # c_lift = inputs[0:-1:3]
         # c_drag = inputs[1:-1:3]
@@ -556,13 +562,13 @@ class ActuatorLineForceBlock(Block):
         # print()
 
         self.problem.fprint("Current Forward Time: "+repr(self.simTime),tab=1)
-        self.problem.fprint("Turbine "+repr(self.turb_index),tab=2)
-        self.problem.fprint("Current Yaw:   "+repr(float(self.problem.farm.myaw[self.turb_index])),tab=2)
-        self.problem.fprint("Current Chord: "+str(np.array(self.problem.mchord[self.turb_index],dtype=float)),tab=2)
+        self.problem.fprint("Turbine "+repr(self.turb_i),tab=2)
+        self.problem.fprint("Current Yaw:   "+repr(float(self.problem.farm.myaw[self.turb_i])),tab=2)
+        self.problem.fprint("Current Chord: "+str(np.array(self.problem.mchord[self.turb_i],dtype=float)),tab=2)
         # self.problem.fprint("",special="footer")
 
 
-        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord, yaw=yaw, turb_index=self.turb_index)
+        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord, yaw=yaw, turb_i=self.turb_i)
 
         # print()
         # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.u_k.vector()[:])))
@@ -572,9 +578,9 @@ class ActuatorLineForceBlock(Block):
         # print("u_k1 = "+repr(np.mean(u_k1.vector()[:])))
         # print("uloc = "+repr(np.mean(self.u_local.vector()[:])))
 
-
         # Since dfd=None here, prepared is a dolfin function (tf) [1 x numPts*ndim]
-        prepared = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
+        # prepared = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_i, self.mpi_u_fluid)
+        prepared = backend_UpdateActuatorLineForce(self.problem, mpi_u_fluid, self.simTime_id, self.dt, self.turb_i)
         # print("tf   = "+repr(np.mean(prepared.vector()[:])))
         # print()
 
@@ -596,11 +602,12 @@ class ActuatorLineForceBlock(Block):
 
     def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
         ### update the new controls inside the windfarm ###
-        c_lift = inputs[0:-2:3]
-        c_drag = inputs[1:-2:3]
-        chord =  inputs[2:-2:3]
-        yaw  = inputs[-2]
-        u_k1 = inputs[-1]
+        c_lift = inputs[0:-3:3]
+        c_drag = inputs[1:-3:3]
+        chord =  inputs[2:-3:3]
+        yaw  = inputs[-3]
+        u_k1 = inputs[-2]
+        mpi_u_fluid = inputs[-1]
 
         # c_lift = inputs[0:-1:3]
         # c_drag = inputs[1:-1:3]
@@ -609,9 +616,9 @@ class ActuatorLineForceBlock(Block):
         # u_k1 = self.u_local
 
         self.problem.fprint("Current Adjoint Time: "+repr(self.simTime),tab=1)
-        self.problem.fprint("Turbine "+repr(self.turb_index),tab=2)
-        self.problem.fprint("Current Yaw:   "+repr(float(self.problem.farm.myaw[self.turb_index])),tab=2)
-        self.problem.fprint("Current Chord: "+str(np.array(self.problem.mchord[self.turb_index],dtype=float)),tab=2)
+        self.problem.fprint("Turbine "+repr(self.turb_i),tab=2)
+        self.problem.fprint("Current Yaw:   "+repr(float(self.problem.farm.myaw[self.turb_i])),tab=2)
+        self.problem.fprint("Current Chord: "+str(np.array(self.problem.mchord[self.turb_i],dtype=float)),tab=2)
         if self.simTime>=self.problem.record_time and self.problem.farm.numturbs==1:
             t_ids = np.logical_and(np.array(self.problem.simTime_list)>=self.problem.record_time,np.array(self.problem.simTime_list)<=self.simTime)
             dts = np.array(self.problem.dt_list)[t_ids]
@@ -624,14 +631,14 @@ class ActuatorLineForceBlock(Block):
 
         prepared = {}
 
-        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord, yaw=yaw, turb_index=self.turb_index)
+        self.problem.UpdateActuatorLineControls(c_lift = c_lift, c_drag = c_drag, chord = chord, yaw=yaw, turb_i=self.turb_i)
 
         # for name in self.control_types:
         #     # pr = cProfile.Profile()
         #     # pr.enable()
         #     # print("calculating "+name+" derivatives")
         #     # Since dfd is not None here, prepared is a Numpy array of derivatives [numPts*ndim x numControls] 
-        #     prepared[name] = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index, dfd=name, verbose=True)
+        #     prepared[name] = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_i, dfd=name, verbose=True)
         #     # pr.disable()
         #     # pr.print_stats()
 
@@ -644,15 +651,18 @@ class ActuatorLineForceBlock(Block):
                 old_chord_value = copy.copy(chord[i])
                 h_mag = 0.0001#*old_chord_value
                 chord[i] = old_chord_value+h_mag
-                self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
-                temp_uph = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
+                self.problem.UpdateActuatorLineControls(chord = chord, turb_i=self.turb_i)
+                # temp_uph = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_i, self.mpi_u_fluid)
+                temp_uph = backend_UpdateActuatorLineForce(self.problem, mpi_u_fluid, self.simTime_id, self.dt, self.turb_i)
                 chord[i] = old_chord_value-h_mag
-                self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
-                temp_umh = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
+                self.problem.UpdateActuatorLineControls(chord = chord, turb_i=self.turb_i)
+                # temp_umh = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_i, self.mpi_u_fluid)
+                temp_umh = backend_UpdateActuatorLineForce(self.problem, mpi_u_fluid, self.simTime_id, self.dt, self.turb_i)
                 chord[i] = old_chord_value
-                self.problem.UpdateActuatorLineControls(chord = chord, turb_index=self.turb_index)
+                self.problem.UpdateActuatorLineControls(chord = chord, turb_i=self.turb_i)
                 dtf_dc = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
                 prepared["chord"].append(dtf_dc)
+            #FIXME: combine all these vectors onto rank 0, sum them, then broadcast that as the prepared vector
             prepared["chord"] = np.array(prepared["chord"]).T
 
         if "yaw" in self.control_types:
@@ -660,13 +670,15 @@ class ActuatorLineForceBlock(Block):
             old_yaw_value = copy.copy(yaw)
             h_mag = 0.0001#*old_chord_value
             yaw = old_yaw_value+h_mag
-            self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
-            temp_uph = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
+            self.problem.UpdateActuatorLineControls(yaw = yaw, turb_i=self.turb_i)
+            # temp_uph = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_i, self.mpi_u_fluid)
+            temp_uph = backend_UpdateActuatorLineForce(self.problem, mpi_u_fluid, self.simTime_id, self.dt, self.turb_i)
             yaw = old_yaw_value-h_mag
-            self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
-            temp_umh = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
+            self.problem.UpdateActuatorLineControls(yaw = yaw, turb_i=self.turb_i)
+            # temp_umh = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_i, self.mpi_u_fluid)
+            temp_umh = backend_UpdateActuatorLineForce(self.problem, mpi_u_fluid, self.simTime_id, self.dt, self.turb_i)
             yaw = old_yaw_value
-            self.problem.UpdateActuatorLineControls(yaw = yaw, turb_index=self.turb_index)
+            self.problem.UpdateActuatorLineControls(yaw = yaw, turb_i=self.turb_i)
             dyaw_dc = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
             # print(min(temp_uph.vector().get_local()),max(temp_uph.vector().get_local()))
             # print(min(temp_umh.vector().get_local()),max(temp_umh.vector().get_local()))
@@ -683,7 +695,7 @@ class ActuatorLineForceBlock(Block):
 
 
 
-        # tf = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_index)
+        # tf = backend_UpdateActuatorLineForce(self.problem, u_k1, self.simTime_id, self.dt, self.turb_i)
         # gut = dolfin.grad(u_k1)
         # gtt = dolfin.grad(tf)
         # gu = gut#.T
@@ -771,24 +783,36 @@ class ActuatorLineForceBlock(Block):
 
         if self.problem.farm.use_local_velocity:
             h_mag = 0.0001#*np.linalg.norm(u_local_vec)
-            u_local_vec = u_k1.vector().get_local()
+            # u_local_vec = u_k1.vector().get_local()
             # print(np.linalg.norm(u_local_vec))
+
+            mpi_u_fluid_buff = np.zeros(mpi_u_fluid.value_size())
+            mpi_u_fluid.eval(mpi_u_fluid_buff, mpi_u_fluid_buff)
 
             prepared["u_local"] = []
 
             for i in range(self.problem.dom.dim):
-                h = np.zeros(u_local_vec.shape)
-                h[i::3] = h_mag
+                # h = np.zeros(u_local_vec.shape)
+                # h[i::3] = h_mag
             
-                u_mh = dolfin.Function(u_k1.function_space())
-                u_mh.vector()[:] = u_local_vec-h
+                # u_mh = dolfin.Function(u_k1.function_space())
+                # u_mh.vector()[:] = u_local_vec-h
 
 
-                u_ph = dolfin.Function(u_k1.function_space())
-                u_ph.vector()[:] = u_local_vec+h
+                # u_ph = dolfin.Function(u_k1.function_space())
+                # u_ph.vector()[:] = u_local_vec+h
 
-                temp_umh = backend_UpdateActuatorLineForce(self.problem, u_mh, self.simTime_id, self.dt, self.turb_index)
-                temp_uph = backend_UpdateActuatorLineForce(self.problem, u_ph, self.simTime_id, self.dt, self.turb_index)
+                # Perturb the mpi_u_fluid values in the x, y, and z-directions by +/- h
+                h = np.zeros(mpi_u_fluid.value_size())
+                h[i::3] = h_mag
+
+                mpi_u_fluid_mh = dolfin.Constant(mpi_u_fluid_buff - h)
+                mpi_u_fluid_ph = dolfin.Constant(mpi_u_fluid_buff + h)
+
+                # temp_umh = backend_UpdateActuatorLineForce(self.problem, u_mh, self.simTime_id, self.dt, self.turb_i, self.mpi_u_fluid)
+                # temp_uph = backend_UpdateActuatorLineForce(self.problem, u_ph, self.simTime_id, self.dt, self.turb_i, self.mpi_u_fluid)
+                temp_umh = backend_UpdateActuatorLineForce(self.problem, mpi_u_fluid_mh, self.simTime_id, self.dt, self.turb_i)
+                temp_uph = backend_UpdateActuatorLineForce(self.problem, mpi_u_fluid_ph, self.simTime_id, self.dt, self.turb_i)
                 dtf_du = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
 
                 prepared["u_local"].append(dtf_du)

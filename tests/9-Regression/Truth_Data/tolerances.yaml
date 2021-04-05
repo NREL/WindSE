@@ -5,3 +5,5 @@ FunctionSpaceManager:
 SolverManager:
   "*max": [1e-3,"absolute"] 
   "*min": [1e-3,"absolute"] 
+DomainManager:
+  volume: [1e-9, "relative"]

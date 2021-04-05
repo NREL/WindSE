@@ -38,8 +38,8 @@ def initialize(loc,updated_parameters=[]):
     global PowerInflow, UniformInflow, LogLayerInflow, TurbSimInflow
     from windse.BoundaryManager import PowerInflow, UniformInflow, LogLayerInflow, TurbSimInflow
 
-    global StabilizedProblem, TaylorHoodProblem, UnsteadyProblem
-    from windse.ProblemManager import StabilizedProblem, TaylorHoodProblem, UnsteadyProblem
+    global StabilizedProblem, TaylorHoodProblem, IterativeSteady, UnsteadyProblem
+    from windse.ProblemManager import StabilizedProblem, TaylorHoodProblem, IterativeSteady, UnsteadyProblem
 
-    global SteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
-    from windse.SolverManager import SteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
+    global SteadySolver, IterativeSteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
+    from windse.SolverManager import SteadySolver, IterativeSteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver

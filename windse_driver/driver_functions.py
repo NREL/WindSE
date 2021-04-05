@@ -141,6 +141,7 @@ def BuildProblem(params,dom,farm):
     prob_dict = {"stabilized":windse.StabilizedProblem,
                  "steady":windse.StabilizedProblem,
                  "taylor_hood":windse.TaylorHoodProblem,
+                 "iterative_steady":windse.IterativeSteady,
                  "unsteady":windse.UnsteadyProblem}
     problem = prob_dict[params["problem"]["type"]](dom,farm,fs,bc)#,opt=opt)
 
@@ -166,6 +167,7 @@ def BuildSolver(params,problem):
     if isinstance(params["boundary_conditions"]["inflow_angle"],list):
         params["solver"]["type"] = "multiangle"
     solve_dict = {"steady":windse.SteadySolver,
+                  "iterative_steady":windse.IterativeSteadySolver,
                   "unsteady":windse.UnsteadySolver,
                   "multiangle":windse.MultiAngleSolver,
                   "imported_inflow":windse.TimeSeriesSolver}

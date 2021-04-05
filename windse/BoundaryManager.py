@@ -66,32 +66,32 @@ class GenericBoundary(object):
     def DebugOutput(self):
         if self.debug_mode:
             # Average of the x and y-velocities
-            self.tag_output("min_x", np.min(self.ux.vector()[:]))
-            self.tag_output("max_x", np.max(self.ux.vector()[:]))
-            self.tag_output("avg_x", np.mean(self.ux.vector()[:]))
-            self.tag_output("min_y", np.min(self.uy.vector()[:]))
-            self.tag_output("max_y", np.max(self.uy.vector()[:]))
-            self.tag_output("avg_y", np.mean(self.uy.vector()[:]))
+            self.tag_output("min_x", self.ux.vector().min())
+            self.tag_output("max_x", self.ux.vector().max())
+            self.tag_output("avg_x", self.ux.vector().sum()/self.ux.vector().size())
+            self.tag_output("min_y", self.uy.vector().min())
+            self.tag_output("max_y", self.uy.vector().max())
+            self.tag_output("avg_y", self.uy.vector().sum()/self.uy.vector().size())
 
             # If applicable, average of z-velocities
             if self.dom.dim == 3:
-                self.tag_output("min_z", np.min(self.uz.vector()[:]))
-                self.tag_output("max_z", np.max(self.uz.vector()[:]))
-                self.tag_output("avg_z", np.mean(self.uz.vector()[:]))
+                self.tag_output("min_z", self.uz.vector().min())
+                self.tag_output("max_z", self.uz.vector().max())
+                self.tag_output("avg_z", self.uz.vector().sum()/self.uz.vector().size())
 
             # Average of the pressures
-            self.tag_output("min_p", np.min(self.bc_pressure.vector()[:]))
-            self.tag_output("max_p", np.max(self.bc_pressure.vector()[:]))
-            self.tag_output("avg_p", np.mean(self.bc_pressure.vector()[:]))
+            self.tag_output("min_p", self.bc_pressure.vector().min())
+            self.tag_output("max_p", self.bc_pressure.vector().max())
+            self.tag_output("avg_p", self.bc_pressure.vector().sum()/self.bc_pressure.vector().size())
 
             # Average of all initialized fields (confirms function assignment) ### Depends on DOFS
-            self.tag_output("min_initial_values", np.min(self.u0.vector()[:]))
-            self.tag_output("max_initial_values", np.max(self.u0.vector()[:]))
-            self.tag_output("avg_initial_values", np.mean(self.u0.vector()[:]))
+            self.tag_output("min_initial_values", self.u0.vector().min())
+            self.tag_output("max_initial_values", self.u0.vector().max())
+            self.tag_output("avg_initial_values", self.u0.vector().sum()/self.u0.vector().size())
 
             # Get number of boundary conditions 
             num_bc = len(self.bcu) + len(self.bcp) + len(self.bcs)
-            self.tag_output("num_bc",num_bc)
+            self.tag_output("num_bc", num_bc)
 
     def SetupBoundaries(self):
         ### Create the equations need for defining the boundary conditions ###
@@ -100,64 +100,113 @@ class GenericBoundary(object):
 
         self.fprint("Applying Boundary Conditions",offset=1)
 
-        unique_ids = np.unique(self.dom.boundary_markers.array())
+        # If running in parallel, avoid using boundary markers
+        if self.params.num_procs > 1:
 
-        ### Assemble boundary conditions ###
-        bcu_eqns = []
-        bcp_eqns = []
-        for bc_type, bs in self.boundary_types.items():
-            if bc_type == "inflow":
-                for b in bs:
-                    if self.boundary_names[b] in unique_ids:
-                        bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
+            self.bcu = []
+            self.bcp = []
+            self.bcs = []
 
-            elif bc_type == "no_slip":
-                for b in bs:
-                    bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.zeros, self.boundary_names[b]])
+            for bc_type, bc_loc_list in self.boundary_types.items():
+                for bc_loc in bc_loc_list:
 
-            elif bc_type == "free_slip":
-                temp_list = list(self.boundary_names.keys()) # get ordered list
-                for b in bs:
+                    # Translate the boundary name, a string, into an integer index:
+                    # East = 0, North = 1, West = 2, South = 3, Bottom = 4, Top = 5
+                    bc_loc_id = self.boundary_names[bc_loc] - 1
 
-                    ### get a facet on the relevant boundary ###
-                    boundary_id = self.boundary_names[b]
+                    # Get the correct compiled subdomain based off the location id
+                    bc_domain = self.dom.boundary_subdomains[bc_loc_id]
 
-                    ### check to make sure the free slip boundary still exists ###
-                    if boundary_id in unique_ids:
+                    # Append the right type of Dirichlet BC to the list
+                    if bc_type == 'inflow':
+                        self.bcu.append(DirichletBC(self.fs.V, self.bc_velocity, bc_domain))
+                        self.bcs.append(DirichletBC(self.fs.W.sub(0), self.bc_velocity, bc_domain))
 
-                        facet_ids = self.dom.boundary_markers.where_equal(boundary_id)
-                        test_facet = Facet(self.dom.mesh,facet_ids[int(len(facet_ids)/2.0)])
+                    elif bc_type == 'no_slip':
+                        if self.dom.mesh.topology().dim() == 3:
+                            zeros = Constant((0.0, 0.0, 0.0))
+                        elif self.dom.mesh.topology().dim() == 2:
+                            zeros = Constant((0.0, 0.0))
 
-                        ### get the function space sub form the normal ###
-                        facet_normal = test_facet.normal().array()
-                        field_id = int(np.argmin(abs(abs(facet_normal)-1.0)))
+                        self.bcu.append(DirichletBC(self.fs.V, zeros, bc_domain))
+                        self.bcs.append(DirichletBC(self.fs.W.sub(0), zeros, bc_domain))
 
-                        bcu_eqns.append([self.fs.V.sub(field_id), self.fs.W.sub(0).sub(field_id), self.zero, boundary_id])
+                    elif bc_type == 'free_slip':
+                        # Identify the component/direction normal to this wall
+                        if bc_loc == 'east' or bc_loc == 'west':
+                            norm_comp = 0
+                        elif bc_loc == 'south' or bc_loc == 'north':
+                            norm_comp = 1
+                        elif bc_loc == 'bottom' or bc_loc == 'top':
+                            norm_comp = 2
 
-            elif bc_type == "no_stress":
-                for b in bs:
-                    bcu_eqns.append([None, None, None, self.boundary_names[b]])
-                    bcp_eqns.append([self.fs.Q, self.fs.W.sub(1), self.zero, self.boundary_names[b]])
+                        self.bcu.append(DirichletBC(self.fs.V.sub(norm_comp), Constant(0.0), bc_domain))
+                        self.bcs.append(DirichletBC(self.fs.W.sub(0).sub(norm_comp), Constant(0.0), bc_domain))
 
-            else:
-                raise ValueError(bc_type+" is not a recognized boundary type")
-        bcs_eqns = bcu_eqns#+bcp_eqns
+                    elif bc_type == 'no_stress':
+                        self.bcp.append(DirichletBC(self.fs.Q, Constant(0.0), bc_domain))
 
-        ### Set the boundary conditions ###
-        self.bcu = []
-        for i in range(len(bcu_eqns)):
-            if bcu_eqns[i][0] is not None:
-                self.bcu.append(DirichletBC(bcu_eqns[i][0], bcu_eqns[i][2], self.dom.boundary_markers, bcu_eqns[i][3]))
+        else:
 
-        self.bcp = []
-        for i in range(len(bcp_eqns)):
-            if bcp_eqns[i][0] is not None:
-                self.bcp.append(DirichletBC(bcp_eqns[i][0], bcp_eqns[i][2], self.dom.boundary_markers, bcp_eqns[i][3]))
+            unique_ids = np.unique(self.dom.boundary_markers.array())
 
-        self.bcs = []
-        for i in range(len(bcs_eqns)):
-            if bcs_eqns[i][0] is not None:
-                self.bcs.append(DirichletBC(bcs_eqns[i][1], bcs_eqns[i][2], self.dom.boundary_markers, bcs_eqns[i][3]))
+            ### Assemble boundary conditions ###
+            bcu_eqns = []
+            bcp_eqns = []
+            for bc_type, bs in self.boundary_types.items():
+                if bc_type == "inflow":
+                    for b in bs:
+                        if self.boundary_names[b] in unique_ids:
+                            bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
+
+                elif bc_type == "no_slip":
+                    for b in bs:
+                        bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.zeros, self.boundary_names[b]])
+
+                elif bc_type == "free_slip":
+                    temp_list = list(self.boundary_names.keys()) # get ordered list
+                    for b in bs:
+
+                        ### get a facet on the relevant boundary ###
+                        boundary_id = self.boundary_names[b]
+
+                        ### check to make sure the free slip boundary still exists ###
+                        if boundary_id in unique_ids:
+
+                            facet_ids = self.dom.boundary_markers.where_equal(boundary_id)
+                            test_facet = Facet(self.dom.mesh,facet_ids[int(len(facet_ids)/2.0)])
+
+                            ### get the function space sub form the normal ###
+                            facet_normal = test_facet.normal().array()
+                            field_id = int(np.argmin(abs(abs(facet_normal)-1.0)))
+
+                            bcu_eqns.append([self.fs.V.sub(field_id), self.fs.W.sub(0).sub(field_id), self.zero, boundary_id])
+
+                elif bc_type == "no_stress":
+                    for b in bs:
+                        bcu_eqns.append([None, None, None, self.boundary_names[b]])
+                        bcp_eqns.append([self.fs.Q, self.fs.W.sub(1), self.zero, self.boundary_names[b]])
+
+                else:
+                    raise ValueError(bc_type+" is not a recognized boundary type")
+            bcs_eqns = bcu_eqns#+bcp_eqns
+
+            ### Set the boundary conditions ###
+            self.bcu = []
+            for i in range(len(bcu_eqns)):
+                if bcu_eqns[i][0] is not None:
+                    self.bcu.append(DirichletBC(bcu_eqns[i][0], bcu_eqns[i][2], self.dom.boundary_markers, bcu_eqns[i][3]))
+
+            self.bcp = []
+            for i in range(len(bcp_eqns)):
+                if bcp_eqns[i][0] is not None:
+                    self.bcp.append(DirichletBC(bcp_eqns[i][0], bcp_eqns[i][2], self.dom.boundary_markers, bcp_eqns[i][3]))
+
+            self.bcs = []
+            for i in range(len(bcs_eqns)):
+                if bcs_eqns[i][0] is not None:
+                    self.bcs.append(DirichletBC(bcs_eqns[i][1], bcs_eqns[i][2], self.dom.boundary_markers, bcs_eqns[i][3]))
+
 
         self.fprint("Boundary Conditions Applied",offset=1)
         self.fprint("")
@@ -519,6 +568,10 @@ class TurbSimInflow(LogLayerInflow):
         # Define tolerance
         tol = 1e-6
 
+        loc_ux = self.ux.vector().get_local()
+        loc_uy = self.uy.vector().get_local()
+        loc_uz = self.uz.vector().get_local()
+
         # Interpolate a value at each boundary coordinate
         for k in self.boundaryIDs:
             # Get the position corresponding to this boundary id
@@ -527,10 +580,20 @@ class TurbSimInflow(LogLayerInflow):
             # The interpolation point specifies a 3D (z, y, time) point
             xi = np.array([pos[2], pos[1], simTime])
 
+            # This method breaks in parallel
+            # self.ux.vector()[k] = self.interp_u(xi)
+            # self.uy.vector()[k] = self.interp_v(xi)
+            # self.uz.vector()[k] = self.interp_w(xi)
+
             # Get the interpolated value at this point
-            self.ux.vector()[k] = self.interp_u(xi)
-            self.uy.vector()[k] = self.interp_v(xi)
-            self.uz.vector()[k] = self.interp_w(xi)
+            loc_ux[k] = self.interp_u(xi)
+            loc_uy[k] = self.interp_v(xi)
+            loc_uz[k] = self.interp_w(xi)
+
+        # This is safer in parallel
+        self.ux.vector()[:] = (loc_ux)
+        self.uy.vector()[:] = (loc_uy)
+        self.uz.vector()[:] = (loc_uz)
 
         ### Assigning Velocity
         self.bc_velocity = Function(self.fs.V)

@@ -64,7 +64,7 @@ wind_farm:
     use_local_velocity: True
     max_chord:      1000
     chord_factor:   1.0           
-    gauss_factor:   3.0           
+    gauss_factor:   2.0           
 
 refine:
     warp_type:      Null
@@ -128,6 +128,7 @@ solver:
     nonlinear_solver:  snes
     newton_relaxation: 1.0
     cfl_target: 0.5
+    cl_iterator: 0
 
 optimization:
     control_types:  Null

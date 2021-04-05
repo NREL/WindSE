@@ -118,7 +118,7 @@ class GenericWindFarm(object):
         file_string = self.params.folder+"/plots/"+filename+".pdf"
 
         ### Check if folder exists ###
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
+        if not os.path.exists(folder_string) and self.params.rank == 0: os.makedirs(folder_string)
 
         ### Create a list that outlines the extent of the farm ###
         if self.optimize and "layout" in self.control_types and self.layout_bounds == "wind_farm":
@@ -181,7 +181,7 @@ class GenericWindFarm(object):
         file_string = self.params.folder+"/plots/"+filename+".pdf"
 
         ### Check if folder exists ###
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
+        if not os.path.exists(folder_string) and self.params.rank == 0: os.makedirs(folder_string)
 
         ### Calculate x values ###
         x = np.linspace(0,1,self.blade_segments)
@@ -237,7 +237,7 @@ class GenericWindFarm(object):
             file_string = self.params.folder+"/data/"+filename+".txt"
 
         ### Check if folder exists ###
-        if not os.path.exists(folder_string): os.makedirs(folder_string)
+        if not os.path.exists(folder_string) and self.params.rank == 0: os.makedirs(folder_string)
 
         ### Define the header string ###
         head_str="#    x    y    HH    Yaw    Diameter    Thickness    Axial_Induction"
@@ -1007,28 +1007,241 @@ class GenericWindFarm(object):
 
         ### Save the actuator disks for post processing ###
         self.fprint("Projecting Turbine Force")
-        self.actuator_disks = project(rd,fs.V,solver_type='mumps',**self.extra_kwarg)
+        self.actuator_disks = project(rd,fs.V,solver_type='cg',**self.extra_kwarg)
+        # self.actuator_disks = project(rd,fs.V,solver_type='mumps',**self.extra_kwarg)
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
         return (tf1, tf2, tf3)
+
 
     def CalculateActuatorLineTurbineForces(self, problem, simTime, dfd=None, verbose=False):
         # if dfd is None, alm_output is a dolfin function (tf) [1 x numPts*ndim]
         # otherwise, it returns a numpy array of derivatives [numPts*ndim x numControls]
 
         # for all turbs:
-        #     tf, tf_ind = BuildSingleALM(problem, simTime, dfd, turb_i)
+        #     tf, tf_ind = BuildSingleALM(problem, simTime, dfd, k)
+
+        def rot_x(theta):
+            Rx = np.array([[1, 0, 0],
+                           [0, np.cos(theta), -np.sin(theta)],
+                           [0, np.sin(theta), np.cos(theta)]])
+
+            return Rx
+
+        def rot_y(theta):
+            Ry = np.array([[np.cos(theta), 0, np.sin(theta)],
+                           [0, 1, 0],
+                           [-np.sin(theta), 0, np.cos(theta)]])
+            
+            return Ry
+
+        def rot_z(theta):
+            Rz = np.array([[np.cos(theta), -np.sin(theta), 0],
+                           [np.sin(theta), np.cos(theta), 0],
+                           [0, 0, 1]])
+            
+            return Rz
+
+        # ================================================================
+
+        def init_constant_alm_terms(problem):
+
+            # Create unit-length blade 1, oriented along the positive y-axis
+            blade_1_pos = np.vstack((np.zeros(problem.num_blade_segments),
+                                     np.linspace(0.0, 1.0, problem.num_blade_segments),
+                                     np.zeros(problem.num_blade_segments)))
+
+
+            # Create unit-length blade 2, rotated 120* around the x-axis
+            theta_2 = 120.0/180.0*np.pi
+            blade_2_pos = np.dot(rot_x(theta_2), blade_1_pos)
+
+            # Create unit-length blade 3, rotated 240* around the x-axis
+            theta_3 = 240.0/180.0*np.pi
+            blade_3_pos = np.dot(rot_x(theta_3), blade_1_pos)
+
+            # Combine all the blades into a single array, dim = [3, num_blade_segments*3]
+            # This should be shared with updateActuatorLineForce
+            problem.blade_pos_base = np.hstack((blade_1_pos, blade_2_pos, blade_3_pos))
+
+            # Get the coordinates of the vector function space
+            coords = problem.fs.V.tabulate_dof_coordinates()
+            coords = np.copy(coords[0::problem.dom.dim, :])
+
+            problem.coords = coords
+
+            # Resape a linear copy of the coordinates for every mesh point
+            problem.coordsLinear = np.copy(coords.reshape(-1, 1))
+
+            bbox = problem.dom.mesh.bounding_box_tree()
+
+            problem.min_dist = []
+
+            for k in range(problem.farm.numturbs):
+                turbine_loc_point = Point(problem.farm.x[k], problem.farm.y[k], problem.farm.z[k])
+                min_dist_node_id, dist = bbox.compute_closest_entity(turbine_loc_point)
+                problem.min_dist.append(dist)
+
+            # Create a Constant "wrapper" to enable dolfin to track mpi_u_fluid
+            problem.mpi_u_fluid_constant = Constant(np.zeros((problem.farm.numturbs, 3*3*problem.num_blade_segments)))
+
+
+        def init_unsteady_alm_terms(problem):
+
+            problem.rotor_torque = np.zeros(problem.farm.numturbs)
+            problem.rotor_torque_count = np.zeros(problem.farm.numturbs)
+            problem.rotor_torque_dolfin = np.zeros(problem.farm.numturbs)
+
+
+        def init_mpi_alm(problem):
+
+            # Create an empty array to hold all the components of velocity
+            mpi_u_fluid = np.zeros((problem.farm.numturbs, 3*3*problem.num_blade_segments))
+            mpi_u_fluid_count = np.zeros((problem.farm.numturbs, 3*3*problem.num_blade_segments))
+
+            # Calculate the angular position of the blades at the current time
+            period = 60.0/problem.rpm
+            # theta = (simTime+0.5*problem.dt)/period*2.0*np.pi
+
+            # Current time at the end of the fluid solve
+            simTime = problem.simTime_list[problem.simTime_id]
+
+
+            # Time at the end of the previous fluid solve
+            time_offset = 1
+
+            try:
+                prevTime = problem.simTime_list[problem.simTime_id - time_offset]
+            except:
+                prevTime = problem.simTime_list[0]
+
+            # The velocity should be probed at the time location midway between this
+            # step and the previous step
+            theta = 0.5*(prevTime + simTime)/period*2.0*np.pi
+
+            # Each turbine must be treated individually to account for varying 
+            # radii, heights, positions, etc.
+            for k in range(problem.farm.numturbs):
+
+                # Get the radius of this turbine and scale the unit blade position
+                R = problem.farm.radius[k]
+                blade_pos = R*problem.blade_pos_base
+
+                # Rotate the blades into the correct angular position around the x-axis
+                # since the turbine blades are currently all modeled in sync, this 
+                # could actually be done outside the FOR loop, but for generality and/or 
+                # future out-of-phase simulations, it is left here
+                blade_pos = np.dot(rot_x(theta), blade_pos)
+
+                # Get the yaw of this turbine and rotate around the z-axis
+                yaw = float(problem.farm.myaw[k])
+                blade_pos = np.dot(rot_z(yaw), blade_pos)
+
+                # Get the position of this turbine and shift the blade positions there
+                x_pos = problem.farm.x[k]
+                y_pos = problem.farm.y[k]
+                z_pos = problem.farm.z[k]
+                blade_pos[0, :] += x_pos
+                blade_pos[1, :] += y_pos
+                blade_pos[2, :] += z_pos
+
+                # Need to probe the velocity point at each actuator node,
+                # where actuator nodes are individual columns of blade_pos
+                for j in range(np.shape(blade_pos)[1]):
+                    # If using the local velocity, measure at the blade
+                    if problem.farm.use_local_velocity:
+                        xi = blade_pos[0, j]
+                    else:
+                        xi = problem.dom.x_range[0]
+
+                    yi = blade_pos[1, j]
+                    zi = blade_pos[2, j]
+
+                    # Try to access the fluid velocity at this actuator point
+                    # If this rank doesn't own that point, an error will occur,
+                    # in which case zeros should be reported
+                    try:
+                        fn_val = problem.u_k1(xi, yi, zi)
+                        mpi_u_fluid[k, 3*j:3*j+3] = fn_val
+                        mpi_u_fluid_count[k, 3*j:3*j+3] = [1, 1, 1]
+                    except:
+                        pass
+
+            data_in_fluid = np.zeros((self.params.num_procs, np.shape(mpi_u_fluid)[0], np.shape(mpi_u_fluid)[1]))
+            self.params.comm.Gather(mpi_u_fluid, data_in_fluid, root=0)
+
+            data_in_count = np.zeros((self.params.num_procs, np.shape(mpi_u_fluid_count)[0], np.shape(mpi_u_fluid_count)[1]))
+            self.params.comm.Gather(mpi_u_fluid_count, data_in_count, root=0)
+
+            if self.params.rank == 0:
+                mpi_u_fluid = np.sum(data_in_fluid, axis=0)
+                mpi_u_fluid_count = np.sum(data_in_count, axis=0)
+
+                # This removes the possibility of a velocity shared between multiple nodes being reported
+                # multiple times and being effectively doubled (or worse) when summing mpi_u_fluid across processes
+                mpi_u_fluid = mpi_u_fluid/mpi_u_fluid_count
+
+            self.params.comm.Bcast(mpi_u_fluid, root=0)
+
+            return mpi_u_fluid
+
+        # ================================================================
+
+        def finalize_mpi_alm(problem):
+
+            data_in_torque = np.zeros((self.params.num_procs, problem.farm.numturbs))
+            self.params.comm.Gather(problem.rotor_torque, data_in_torque, root=0)
+
+            data_in_torque_count = np.zeros((self.params.num_procs, problem.farm.numturbs))
+            self.params.comm.Gather(problem.rotor_torque_count, data_in_torque_count, root=0)
+
+            if self.params.rank == 0:
+                # print(data_in_torque)
+                # print(data_in_torque_count)
+                problem.rotor_torque = np.sum(data_in_torque, axis=0)
+                problem.rotor_torque_count = np.sum(data_in_torque_count, axis=0)
+
+                # print(problem.rotor_torque_count)
+
+                # This removes the possibility of a power being doubled or tripled
+                # if multiple ranks include this turbine and therefore calculate a torque
+                problem.rotor_torque = problem.rotor_torque/problem.rotor_torque_count
+
+            self.params.comm.Bcast(problem.rotor_torque, root=0)
+
+        # ================================================================
+
+
+        # ================================================================
 
         tic = time.time()
         problem.simTime_list.append(simTime)
         problem.dt_list.append(problem.dt)
         problem.rotor_torque_dolfin_time.append(0.0)
 
+        # If this is the first call to the function, set some things up before proceeding
+        if problem.simTime_id == 0:
+            init_constant_alm_terms(problem)
+
+        # Initialize summation, counting, etc., variables for alm solve
+        init_unsteady_alm_terms(problem)
+
+        # Call the function to build the complete mpi_u_fluid array
+        mpi_u_fluid = init_mpi_alm(problem)
+
+        # Populate the Constant "wrapper" with the velocity values to enable dolfin to track mpi_u_fluid
+        problem.mpi_u_fluid_constant.assign(Constant(mpi_u_fluid))
+
+        # Call the ALM function for each turbine individually
         alm_output_list = []
         for turb_index in range(problem.farm.numturbs):
-            alm_output_list.append(UpdateActuatorLineForce(problem, problem.u_k1, problem.simTime_id, problem.dt, turb_index, dfd=dfd))
+            alm_output_list.append(UpdateActuatorLineForce(problem, problem.mpi_u_fluid_constant, problem.simTime_id, problem.dt, turb_index, dfd=dfd))
+            # alm_output_list.append(UpdateActuatorLineForce_deprecated(problem, problem.u_k1, problem.simTime_id, problem.dt, turb_index, mpi_u_fluid, dfd=dfd))
             # print("tf   = "+repr(np.mean(alm_output_list[-1].vector()[:])))
+
+        # Do some sharing of information when everything is finished
+        finalize_mpi_alm(problem)
 
         problem.simTime_id += 1
         toc = time.time()

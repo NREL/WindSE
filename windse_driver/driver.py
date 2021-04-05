@@ -4,6 +4,8 @@ import os.path as osp
 import argparse
 import sys
 from pyadjoint import get_working_tape
+import cProfile
+from dolfin import *
 
 # import os
 # os.environ['OMP_NUM_THREADS'] = '1'
@@ -59,7 +61,10 @@ def run_action(params_loc=None):
 
     ### Import fresh version of windse ###
     import windse
-    from .driver_functions import SetupSimulation
+    try:
+        from .driver_functions import SetupSimulation
+    except:
+        from driver_functions import SetupSimulation
 
     ### Setup everything ###
     params, problem, solver = SetupSimulation(params_loc)
@@ -77,9 +82,11 @@ def run_action(params_loc=None):
         if params["optimization"]["optimize"]:
             opt.Optimize()
 
+
     tock = time.time()
     runtime = tock-tick
-    print("Run Complete: {:1.2f} s".format(runtime))
+    if params.rank == 0:
+        print("Run Complete: {:1.2f} s".format(runtime))
 
     return runtime
 
@@ -109,5 +116,17 @@ def main():
                "mesh": mesh_action}
     actions[get_action()]()
 
+    # list_timings(TimingClear.clear, [TimingType.wall])
+
+    # first_arg = get_action()
+
+    # if first_arg == 'run': 
+    #     cprof_action = 'run_action()'
+    # elif first_arg == 'mesh': 
+    #     cprof_action = 'mesh_action()'
+
+    # cProfile.run(cprof_action, 'test')
+
 if __name__ == "__main__":
     main()
+    

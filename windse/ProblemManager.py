@@ -127,8 +127,8 @@ class GenericProblem(object):
 
             self.chord_factor = float(self.params["wind_farm"]["chord_factor"])
 
-            print('Minimum Space Between Mesh: ', hmin)
-            print('Gaussian Width: ', self.gaussian_width)
+            self.fprint('Minimum Space Between Mesh: %f' % (hmin))
+            self.fprint('Gaussian Width: %f' % (self.gaussian_width))
 
             # self.num_blade_segments = 10
             # self.num_blade_segments = int(10.0*self.farm.radius[0]/hmin)
@@ -137,7 +137,7 @@ class GenericProblem(object):
                 self.farm.blade_segments = self.num_blade_segments
             else:
                 self.num_blade_segments = self.farm.blade_segments
-            print('Num blade segments: ', self.num_blade_segments)
+            self.fprint('Num blade segments: %d' % (self.num_blade_segments))
 
             self.mchord = []
             self.mtwist = []
@@ -145,7 +145,6 @@ class GenericProblem(object):
             self.mcd = []
 
             self.num_times_called = 0
-            self.first_call_to_function = True
             self.first_call_to_alm = True
             self.blade_pos_previous = [[], [], []]
             self.simTime_list = []
@@ -208,7 +207,7 @@ class GenericProblem(object):
                     num_files = len(glob.glob('%s/*.txt' % (airfoil_data_path)))
 
                     for file_id in range(num_files):
-                        print('Reading Airfoil Data #%d' % (file_id))
+                        # print('Reading Airfoil Data #%d' % (file_id))
                         data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, file_id), skip_header=1, delimiter=' ')
 
                         if file_id == 0:
@@ -268,32 +267,105 @@ class GenericProblem(object):
                 cd_interp = interp.interp1d(actual_x, actual_cd)
 
                 if self.params['problem']['script_iterator'] == 1:
-                    actual_x_override = np.linspace(0.0, 1.0, 10)
-                    actual_chord_override = np.array([4.749999999999964473e+00,
-                        4.749999999999989342e+00,
-                        4.750000000000000000e+00,
-                        4.749999999999996447e+00,
-                        4.749999999999998224e+00,
-                        4.749999999999999112e+00,
-                        4.450663333333332083e+00,
-                        3.867691040375480060e+00,
-                        8.488750327288195896e-01,
-                        1.000000000000000056e-01])
+                    # actual_chord_override = np.array([4.749999999999964473e+00,
+                    #     4.749999999999989342e+00,
+                    #     4.750000000000000000e+00,
+                    #     4.749999999999996447e+00,
+                    #     4.749999999999998224e+00,
+                    #     4.749999999999999112e+00,
+                    #     4.450663333333332083e+00,
+                    #     3.867691040375480060e+00,
+                    #     8.488750327288195896e-01,
+                    #     1.000000000000000056e-01])
+
+                    # Rollercoaster chord
+                    # actual_chord_override = np.array([2.625003373758692859e+00,
+                    #     4.155334586096127047e+00,
+                    #     5.350334971114000915e+00,
+                    #     5.349201385073955706e+00,
+                    #     4.113615408074356772e+00,
+                    #     2.310353854848651967e+00,
+                    #     1.275891949427846672e+00,
+                    #     1.360607260649611794e+00,
+                    #     2.500724540479074776e+00,
+                    #     2.000000000000000111e-01])
+
+                    # two-turbine power optimization result
+                    # actual_chord_override = np.array([2.599932521058577972e+00,
+                    #     3.655152166735353259e+00,
+                    #     4.303587816194747617e+00,
+                    #     3.987666943125669050e+00,
+                    #     3.191648166607643500e+00,
+                    #     2.553086977597530449e+00,
+                    #     2.242893315052848724e+00,
+                    #     2.172796739396936960e+00,
+                    #     2.000000000000000111e-01])
+
+                    # two-turbine power optimization result (newer result, obtained using cfl = 2.0 instead of 2.5)
+                    actual_chord_override = np.array([2.599908825,
+                        3.654252701,
+                        4.300236963,
+                        3.978497397,
+                        3.178777094,
+                        2.545014297,
+                        2.247624970,
+                        2.188315504,
+                        0.200000000])
+
+                    actual_x_override = np.linspace(0.0, 1.0, np.size(actual_chord_override))
 
                     chord_interp_override = interp.interp1d(actual_x_override, actual_chord_override)
 
                 if self.params['problem']['script_iterator'] == 2:
-                    actual_x_override = np.linspace(0.0, 1.0, 10)
-                    actual_chord_override = np.array([5.200000000000000178e+00,
-                        7.027575555710222410e+00,
-                        8.476945227498621449e+00,
-                        8.280660000000001020e+00,
-                        6.990223354798463795e+00,
-                        5.499632522453062222e+00,
-                        4.450663333333333860e+00,
-                        3.867691040375480060e+00,
-                        8.488750327288112629e-01,
-                        1.000000000000000056e-01])
+                    # actual_chord_override = np.array([5.200000000000000178e+00,
+                    #     7.027575555710222410e+00,
+                    #     8.476945227498621449e+00,
+                    #     8.280660000000001020e+00,
+                    #     6.990223354798463795e+00,
+                    #     5.499632522453062222e+00,
+                    #     4.450663333333333860e+00,
+                    #     3.867691040375480060e+00,
+                    #     8.488750327288112629e-01,
+                    #     1.000000000000000056e-01])
+
+                    # two-turbine power optimization result
+                    # actual_chord_override = np.array([2.599932521058577972e+00,
+                    #     3.655152166735353259e+00,
+                    #     4.303587816194747617e+00,
+                    #     3.987666943125669050e+00,
+                    #     3.191648166607643500e+00,
+                    #     2.553086977597530449e+00,
+                    #     2.242893315052848724e+00,
+                    #     2.172796739396936960e+00,
+                    #     2.000000000000000111e-01])
+
+                    # actual_chord_override[1:-1] = 1.05*actual_chord_override[1:-1]
+
+
+                    # two-turbine power optimization result (with 50% more change along optimized direction)
+                    # actual_chord_override = np.array([2.59989878,
+                    #     3.656438255,
+                    #     4.312742105,
+                    #     4.00897182,
+                    #     3.235834005,
+                    #     2.632667705,
+                    #     2.37238998,
+                    #     2.381786645,
+                    #     0.2])
+
+                    # two-turbine power optimization result (with 50% more change along optimized direction)
+                    # newer result, obtained using cfl = 2.0 instead of 2.5
+                    actual_chord_override = np.array([2.599863238,
+                        3.655089051,
+                        4.307715820,
+                        3.995217504,
+                        3.216527391,
+                        2.620558679,
+                        2.379487455,
+                        2.405064793,
+                        0.200000000])
+
+                    actual_x_override = np.linspace(0.0, 1.0, np.size(actual_chord_override))
 
                     chord_interp_override = interp.interp1d(actual_x_override, actual_chord_override)
 
@@ -337,7 +409,7 @@ class GenericProblem(object):
                     turb_i_lift.append(Constant(cl[k]))
                     turb_i_drag.append(Constant(cd[k]))
 
-                print('Turbine #%d: Chord = ' % (turb_i), chord_to_use)
+                self.fprint('Turbine #%d: Chord = %s' % (turb_i, np.array2string(chord_to_use, precision=6, separator=', ')))
 
                 self.mchord.append(turb_i_chord)
                 self.mtwist.append(turb_i_twist)
@@ -405,27 +477,27 @@ class GenericProblem(object):
         adj_stop = time.time()
         self.fprint("Wind Speed Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")
 
-    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None, chord = None, yaw = None, turb_index = 0):
+    def UpdateActuatorLineControls(self, c_lift = None, c_drag = None, chord = None, yaw = None, turb_i = 0):
 
         if c_lift is not None:
             cl = np.array(c_lift, dtype = float)
-            self.cl[turb_index] = cl
+            self.cl[turb_i] = cl
             for k in range(self.num_blade_segments):
-                self.mcl[turb_index][k] = Constant(cl[k])
+                self.mcl[turb_i][k] = Constant(cl[k])
         if c_drag is not None:
             cd = np.array(c_drag, dtype = float)
-            self.cd[turb_index] = cd
+            self.cd[turb_i] = cd
             for k in range(self.num_blade_segments):
-                self.mcd[turb_index][k] = Constant(cd[k])
+                self.mcd[turb_i][k] = Constant(cd[k])
         if chord is not None:
             chord = np.array(chord, dtype = float)
-            self.chord[turb_index] = chord
+            self.chord[turb_i] = chord
             for k in range(self.num_blade_segments):
-                self.mchord[turb_index][k] = Constant(chord[k])
+                self.mchord[turb_i][k] = Constant(chord[k])
         if yaw is not None:
             yaw = float(yaw)
-            self.farm.yaw[turb_index] = yaw
-            self.farm.myaw[turb_index] = Constant(yaw)
+            self.farm.yaw[turb_i] = yaw
+            self.farm.myaw[turb_i] = Constant(yaw)
         
 
         self.CopyALMtoWindFarm()
@@ -498,6 +570,7 @@ class StabilizedProblem(GenericProblem):
         
         ### Calculate nu_T
         self.nu_T=l_mix**2.*S
+        # self.nu_T=Constant(0.0)
         self.ReyStress=self.nu_T*grad(self.u_k)
         self.vertKE= self.ReyStress[0,2]*self.u_k[0]
 
@@ -611,6 +684,154 @@ class TaylorHoodProblem(GenericProblem):
             self.F -= term25
 
         self.fprint("Taylor-Hood Problem Setup",special="footer")
+
+# ================================================================
+
+class IterativeSteady(GenericProblem):
+    """
+    The IterativeSteady sets up everything required for solving Navier-Stokes using
+    the SIMPLE algorithm
+
+    Args: 
+        domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
+        windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
+        function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
+        boundary_conditions (:meth:`windse.BoundaryManager.GenericBoundary`): a windse boundary object.
+    """
+    def __init__(self, domain, windfarm, function_space, boundary_conditions):
+        super(IterativeSteady, self).__init__(domain, windfarm, function_space, boundary_conditions)
+        self.fprint("Setting Up *Iterative* Steady Problem", special="header")
+
+        ### Create Functional ###
+        self.ComputeFunctional()
+
+    def ComputeFunctional(self,inflow_angle=None):
+        # ================================================================
+
+        # Define fluid properties
+        # FIXME: These should probably be set in params.yaml input filt
+        # nu = 1/10000
+        nu = Constant(self.viscosity)
+
+        # Trial functions for velocity and pressure
+        u = TrialFunction(self.fs.V)
+        p = TrialFunction(self.fs.Q)
+
+        # Test functions for velocity and pressure
+        v = TestFunction(self.fs.V)
+        q = TestFunction(self.fs.Q)
+
+        ### Define Velocity Functions ###
+        self.u_k = Function(self.fs.V, name="u_k")
+        self.u_hat = Function(self.fs.V)
+        self.u_s = Function(self.fs.V)
+        self.du = Function(self.fs.V)
+        self.u_k_old = Function(self.fs.V)
+
+        ### Define Pressure Functions ###
+        self.p_k = Function(self.fs.Q, name="p_k")
+        self.p_s = Function(self.fs.Q)
+        self.dp = Function(self.fs.Q)
+        self.p_k_old = Function(self.fs.Q)
+
+        U_CN = 0.5*(u + self.u_k) 
+
+        # Adams-Bashforth velocity
+        # U_AB = 1.5*u_k - 0.5*u_k_old # Time level k+1/2
+        U_AB = 2.0*self.u_k - 1.0*self.u_k_old # Time level k+1
+
+        ### Define Eddy viscosity ###
+        use_eddy_viscosity = True
+
+        if use_eddy_viscosity:
+            # Define filter scale (all models use this)
+            filter_scale = CellVolume(self.dom.mesh)**(1.0/self.dom.dim)
+
+            # Strain rate tensor, 0.5*(du_i/dx_j + du_j/dx_i)
+            Sij = sym(grad(U_AB))
+
+            # sqrt(Sij*Sij)
+            strainMag = (2.0*inner(Sij, Sij))**0.5
+
+            # Smagorinsky constant, typically close to 0.17
+            Cs = 0.17
+
+            vonKarman=0.41
+            # lmax Default = 15.0
+            # l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/self.lmax)))
+
+            l_mix = Function(self.fs.Q)
+            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:],(1.+np.divide(vonKarman*self.bd.depth.vector()[:],self.lmax)))
+
+            # Eddy viscosity
+            # self.nu_T = Cs**2 * filter_scale**2 * strainMag
+            self.nu_T = l_mix**2 * strainMag
+
+        else:
+            self.nu_T = Constant(0.0)
+
+        # ================================================================
+
+        # FIXME: This up_k function is only present to avoid errors  
+        # during assignments in GenericSolver.__init__
+
+        # Create the combined function space
+        self.up_k = Function(self.fs.W)
+
+        # Create the turbine force
+        # FIXME: Should this be set by a numpy array operation or a fenics function?
+        # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
+        # self.tf = Function(self.fs.V)
+
+        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
+        # self.u_k.assign(self.bd.bc_velocity)
+
+        # self.u_k2.vector()[:] = 0.0
+        # self.u_k1.vector()[:] = 0.0
+
+        # ================================================================
+
+        # Solve for u_hat, a velocity estimate which doesn't include pressure gradient effects
+        F1 = inner(dot(self.u_k, nabla_grad(u)), v)*dx \
+           + (nu+self.nu_T)*inner(grad(u), grad(v))*dx \
+           + inner(self.tf, v)*dx 
+
+        self.F1_lhs = lhs(F1)
+        self.F1_rhs = rhs(F1)
+
+
+        # Use u_hat to solve for the pressure field
+        self.F2_lhs = inner(grad(p), grad(q))*dx
+        self.F2_rhs = - div(self.u_hat)*q*dx
+
+        self.dt_1 = Constant(1) # Becomes (1/dt, 0) for (unsteady, steady) state
+        self.dt_2 = Constant(1) # Becomes (1/dt, 1) for (unsteady, steady) state
+        self.dt_3 = Constant(1) # Becomes (  dt, 1) for (unsteady, steady) state
+
+        # Solve for u_star, a predicted velocity which includes the pressure gradient
+        F3 = inner(dot(self.u_k, nabla_grad(u)), v)*dx \
+           + (nu+self.nu_T)*inner(grad(u), grad(v))*dx \
+           + inner(self.tf, v)*dx \
+           + inner(grad(self.p_k), v)*dx \
+           + self.dt_1*inner(u - self.u_k, v)*dx
+
+
+        self.F3_lhs = lhs(F3)
+        self.F3_rhs = rhs(F3)
+
+
+        # Define variational problem for step 2: pressure correction
+        self.F4_lhs = inner(grad(p), grad(q))*dx
+        self.F4_rhs = - self.dt_2*div(self.u_s)*q*dx
+
+
+        # Define variational problem for step 3: velocity update
+        self.F5_lhs = inner(u, v)*dx
+        self.F5_rhs = - self.dt_3*inner(grad(self.dp), v)*dx
+
+        # ================================================================
+
+        self.fprint("*Iterative* Steady Problem Setup",special="footer")
 
 # ================================================================
 
@@ -747,18 +968,26 @@ class UnsteadyProblem(GenericProblem):
         #    + dot(nabla_grad(self.p_k1), v)*dx \
         #    - dot(-self.tf, v)*dx
 
+        # F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
+        #    + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
+        #    + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
+        #    + dot(nabla_grad(self.p_k1), v)*dx \
+        #    - dot(self.tf, v)*dx
+
         F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
            + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
-           + dot(nabla_grad(self.p_k1), v)*dx \
+           + inner(grad(self.p_k1), v)*dx \
            - dot(self.tf, v)*dx
 
         self.a1 = lhs(F1)
         self.L1 = rhs(F1)
 
         # Define variational problem for step 2: pressure correction
-        self.a2 = dot(nabla_grad(p), nabla_grad(q))*dx
-        self.L2 = dot(nabla_grad(self.p_k1), nabla_grad(q))*dx - (1.0/self.dt_c)*div(self.u_k)*q*dx
+        # self.a2 = dot(nabla_grad(p), nabla_grad(q))*dx
+        # self.L2 = dot(nabla_grad(self.p_k1), nabla_grad(q))*dx - (1.0/self.dt_c)*div(self.u_k)*q*dx
+        self.a2 = inner(grad(p), grad(q))*dx
+        self.L2 = inner(grad(self.p_k1), grad(q))*dx - (1.0/self.dt_c)*div(self.u_k)*q*dx
 
         # phi = p - self.p_k
         # F2 = inner(grad(q), grad(phi))*dx - (1.0/self.dt_c)*div(u_k)*q*dx
@@ -766,8 +995,10 @@ class UnsteadyProblem(GenericProblem):
         # self.L2 = rhs(F2)
 
         # Define variational problem for step 3: velocity update
-        self.a3 = dot(u, v)*dx
-        self.L3 = dot(self.u_k, v)*dx - self.dt_c*dot(nabla_grad(self.p_k - self.p_k1), v)*dx
+        # self.a3 = dot(u, v)*dx
+        # self.L3 = dot(self.u_k, v)*dx - self.dt_c*dot(nabla_grad(self.p_k - self.p_k1), v)*dx
+        self.a3 = inner(u, v)*dx
+        self.L3 = inner(self.u_k, v)*dx - self.dt_c*inner(grad(self.p_k - self.p_k1), v)*dx
 
         # F3 = inner(u, v)*dx - inner(self.u_k, v)*dx + self.dt_c*inner(phi, v)*dx
         # self.a3 = lhs(F3)

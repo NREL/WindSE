@@ -113,6 +113,7 @@ class TaylorHoodFunctionSpace(GenericFunctionSpace):
         self.fprint("Creating Function Space",special="header")
         V = VectorElement('Lagrange', self.mesh.ufl_cell(), 2) 
         Q = FiniteElement('Lagrange', self.mesh.ufl_cell(), 1)
+        self.T = FunctionSpace(dom.mesh, TensorElement('Lagrange', dom.mesh.ufl_cell(), 1))
         self.W = FunctionSpace(self.mesh, MixedElement([V,Q]))
 
         self.SetupSubspaces()

@@ -1,12 +1,26 @@
-*.DS_Store
-*.pyc
-*/output/
-*output/
-*/.ipynb_checkpoints/
-*.ipynb_checkpoints/
-*.egg-info/
-*/.egg-info/
+# Ignore hidden files
+.*
+!/.gitignore
+
+# Ignore notebook files
+*.ipynb
+
+# Ignore result files
+*.png
+*.eps
+*.pdf
+
+*.xlsx
+*.yaml
+*.txt
+*.csv
+*.zip
+
 *.pvd
 *.vtu
+*.vtk
 *.xdmf
 *.h5
+
+*.sh
+
