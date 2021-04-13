@@ -815,14 +815,17 @@ class UnsteadySolver(GenericSolver):
 
         # solver_1 = PETScKrylovSolver('gmres', 'jacobi')
         solver_1 = PETScKrylovSolver('gmres', 'default')
+        # solver_1 = PETScKrylovSolver('default', 'default')
         solver_1.set_operator(A1)
 
         # solver_2 = PETScKrylovSolver('gmres', 'petsc_amg')
         solver_2 = PETScKrylovSolver('gmres', 'hypre_amg')
+        # solver_2 = PETScKrylovSolver('default', 'default')
         solver_2.set_operator(A2)
 
         # solver_3 = PETScKrylovSolver('cg', 'jacobi')
         solver_3 = PETScKrylovSolver('gmres', 'default')
+        # solver_3 = PETScKrylovSolver('default', 'default')
         solver_3.set_operator(A3)
 
         pr = cProfile.Profile()
@@ -1089,6 +1092,7 @@ class UnsteadySolver(GenericSolver):
     def SaveTimeSeries(self, simTime, simIter=None):
 
         self.DebugOutput(simTime,simIter)
+        ### TODO THIS NEED TO BE CLEAN TO ACCOUNT FOR DISKS
 
         if hasattr(self.problem,"tf_save"):
             self.problem.tf_save.vector()[:] = 0

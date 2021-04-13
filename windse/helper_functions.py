@@ -361,7 +361,10 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
 
 def UpdateActuatorLineForce(problem, mpi_u_fluid_constant, simTime_id, dt, turb_i, dfd=None, verbose=False):
 
+
+
     simTime = problem.simTime_list[simTime_id]
+    # print("debug data:", simTime,  mpi_u_fluid_constant.values())
 
     if verbose:
         print("Current Optimization Time: "+repr(simTime)+", Turbine #"+repr(turb_i))
