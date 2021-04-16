@@ -910,7 +910,6 @@ class ActuatorLineForceBlock(Block):
             # adj_output = dolfin.Function(self.u_local.function_space())
             # adj_output.vector()[:] = (prepared[name][0]+prepared[name][1]+prepared[name][2])*adj_vec
 
-            print(name, " - ",self.problem.params.rank,": ",adj_output)
 
             return adj_output.vector()
         elif name == "yaw":
@@ -924,7 +923,6 @@ class ActuatorLineForceBlock(Block):
             adj_vec = adj_inputs[0].get_local()
             adj_output = np.float64(np.inner(comp_vec, adj_vec))
             adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
-            print(name, " - ",self.problem.params.rank,": ",adj_output)
 
             return np.array(adj_output)
 
