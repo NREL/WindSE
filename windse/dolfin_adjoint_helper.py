@@ -92,7 +92,6 @@ class BaseHeightBlock(Block):
             # adj = (self.ground(x,y+h)-self.ground(x,y-h))/(2*h)
 
         adj_output = adj_input * adj
-        adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
 
         return adj_output
 
