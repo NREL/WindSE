@@ -271,7 +271,7 @@ class ActuatorDiskForceBlock(Block):
 
         adj_output = np.float64(adj_output)
         recv_buff = np.zeros(1, dtype=np.float64)
-        self.problem.params.comm.Allreduce(adj_output, recv_buff)
+        self.farm.params.comm.Allreduce(adj_output, recv_buff)
         adj_output = recv_buff
 
         # adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
