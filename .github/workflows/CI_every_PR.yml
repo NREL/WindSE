@@ -37,6 +37,12 @@ jobs:
         run: |
           conda activate test-environment
           pytest -v --cov=windse tests
+          
+      - name: Run parallel regression tests within WindSE
+        shell: pwsh
+        run: |
+          conda activate test-environment
+          mpiexec -n 2 pytest -v tests/test_regression.py
       
       # Run coveralls
       - name: Run coveralls
