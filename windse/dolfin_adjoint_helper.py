@@ -269,7 +269,12 @@ class ActuatorDiskForceBlock(Block):
         for i in range(3):
             adj_output += np.inner(adj_inputs[i].get_local(self.all_ids),prepared[name][i][:,turb_idx])
 
-        adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
+        adj_output = np.float64(adj_output)
+        recv_buff = np.zeros(1, dtype=np.float64)
+        self.problem.params.comm.Allreduce(adj_output, recv_buff)
+        adj_output = recv_buff
+
+        # adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
         return np.array(adj_output)
 
 
@@ -915,14 +920,23 @@ class ActuatorLineForceBlock(Block):
             comp_vec = prepared[name]
             adj_vec = adj_inputs[0].get_local()
             adj_output = np.float64(np.inner(comp_vec, adj_vec))
-            adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
+
+            recv_buff = np.zeros(1, dtype=np.float64)
+            self.problem.params.comm.Allreduce(adj_output, recv_buff)
+            adj_output = recv_buff
+
+            # adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
             return np.array(adj_output)
         else:
             comp_vec = prepared[name][:, segment_index]
             adj_vec = adj_inputs[0].get_local()
             adj_output = np.float64(np.inner(comp_vec, adj_vec))
-            adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
 
+            recv_buff = np.zeros(1, dtype=np.float64)
+            self.problem.params.comm.Allreduce(adj_output, recv_buff)
+            adj_output = recv_buff
+
+            # adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
             return np.array(adj_output)
 
 
