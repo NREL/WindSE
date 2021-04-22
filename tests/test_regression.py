@@ -29,7 +29,7 @@ default_modules = sys.modules.keys()
 ### Run Demo Yaml Files
 @pytest.mark.parametrize('yaml_file', yaml_files, ids=lambda yaml_file: yaml_file.parts[-2]+"/"+yaml_file.parts[-1])
 def test_yaml_execution(yaml_file):
-
+    
     ### Filter out some benign numpy warnings ###
     warnings.filterwarnings("ignore", message="numpy.dtype size changed")
     warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
@@ -40,7 +40,7 @@ def test_yaml_execution(yaml_file):
     from windse_driver import driver
     driver.run_action(params_loc=yaml_file.as_posix())
     os.chdir(home_path)
-
+    
     ### Grab the name of the run ###
     _, yaml_name = os.path.split(yaml_file)
     yaml_name = yaml_name.split(".")[0]
