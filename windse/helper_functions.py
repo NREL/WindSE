@@ -363,6 +363,19 @@ def UpdateActuatorLineForce(problem, mpi_u_fluid_constant, simTime_id, dt, turb_
 
     simTime = problem.simTime_list[simTime_id]
 
+
+    fa = open(problem.aoa_files[turb_i], 'a')
+    fx = open(problem.force_files[turb_i][0], 'a')
+    fy = open(problem.force_files[turb_i][1], 'a')
+    fz = open(problem.force_files[turb_i][2], 'a')
+
+    fa.write('%.5f, ' % (simTime))
+    fx.write('%.5f, ' % (simTime))
+    fy.write('%.5f, ' % (simTime))
+    fz.write('%.5f, ' % (simTime))
+
+
+
     if verbose:
         print("Current Optimization Time: "+repr(simTime)+", Turbine #"+repr(turb_i))
         sys.stdout.flush()
@@ -497,10 +510,9 @@ def UpdateActuatorLineForce(problem, mpi_u_fluid_constant, simTime_id, dt, turb_
             real_cd[k] = problem.interp_drag(aoa, rdim[k])
 
             # Write the aoa to a file for future reference
-            # fp.write('%.5f, ' % (aoa/np.pi*180.0))
+            fa.write('%.5f, ' % (aoa/np.pi*180.0))
 
         # fp.close()
-
         return real_cl, real_cd, tip_loss
 
 
@@ -760,12 +772,23 @@ def UpdateActuatorLineForce(problem, mpi_u_fluid_constant, simTime_id, dt, turb_
             # Find the component in the direction tangential to the blade
             tangential_actuator_force = np.dot(actuator_force, blade_unit_vec[:, 2])
 
+            rotor_plane_force = np.dot(actuator_force, blade_unit_vec)
+            fx.write('%.5f, ' % (rotor_plane_force[0]))
+            fy.write('%.5f, ' % (rotor_plane_force[1]))
+            fz.write('%.5f, ' % (rotor_plane_force[2]))
+
             # Multiply by the distance away from the hub to get a torque
             actuator_torque = tangential_actuator_force*rdim[k]
 
             # Add to the total torque
             rotor_torque_numpy_temp += actuator_torque  ### Should this be an output?
 
+
+
+    fx.close()
+    fy.close()
+    fz.close()
+    fa.close()
 
     # Output the numpy version of rotor_torque
     problem.rotor_torque[turb_i] = rotor_torque_numpy_temp
