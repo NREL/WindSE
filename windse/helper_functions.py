@@ -785,6 +785,10 @@ def UpdateActuatorLineForce(problem, mpi_u_fluid_constant, simTime_id, dt, turb_
 
 
 
+    fx.write('\n')
+    fy.write('\n')
+    fz.write('\n')
+    fa.write('\n')
     fx.close()
     fy.close()
     fz.close()
