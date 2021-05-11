@@ -7,13 +7,21 @@ import pytest
 import os, sys
 import yaml
 import warnings
+from mpi4py import MPI
+
+comm = MPI.COMM_WORLD
+num_procs = comm.Get_size()
 
 ### Located Demos ###
 home_path = os.getcwd()
 reg_path = "../9-Regression/"
 
-### Get Yaml Files ###
-yaml_files = sorted(pathlib.Path(__file__, reg_path).resolve().glob('*.yaml'))
+if num_procs > 1:
+    ### Get Yaml Files to be run in parallel ###
+    yaml_files = sorted(pathlib.Path(__file__, reg_path).resolve().glob('*Unsteady.yaml'))
+else:
+    ### Get Yaml Files to be run in serial (all of them) ###
+    yaml_files = sorted(pathlib.Path(__file__, reg_path).resolve().glob('*.yaml'))
 
 ### Import the tolerances ###
 tolerances = yaml.load(open("tests/9-Regression/Truth_Data/tolerances.yaml"),Loader=yaml.SafeLoader)

@@ -42,7 +42,7 @@ jobs:
         shell: pwsh
         run: |
           conda activate test-environment
-          mpirun -n 2 python -m pytest --with-mpi -v --cov=windse tests/test_regression.py
+          mpirun -n 2 pytest -v --cov=windse tests/test_regression.py
       
       # Run coveralls
       - name: Run coveralls

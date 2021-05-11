@@ -88,6 +88,8 @@ def run_action(params_loc=None):
     if params.rank == 0:
         print("Run Complete: {:1.2f} s".format(runtime))
 
+    params.comm.Barrier()
+
     return runtime
 
 def mesh_action(params_loc=None):
