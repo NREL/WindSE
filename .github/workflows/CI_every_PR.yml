@@ -36,13 +36,14 @@ jobs:
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -v --cov=windse tests
+          pytest -v --cov=windse tests/test_demos.py
+          pytest -v --cov=windse tests/test_regression.py
           
       - name: Run parallel regression tests within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
-          mpirun -n 2 pytest -v --cov=windse tests/test_regression.py
+          mpirun -n 2 pytest -v --cov=windse tests/test_regression_parallel.py
       
       # Run coveralls
       - name: Run coveralls
