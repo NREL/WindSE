@@ -1383,6 +1383,57 @@ class RandomWindFarm(GenericWindFarm):
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
     def __init__(self,dom):
+
+
+        def generate_random_point(x_range, y_range):
+            
+            rand_pt = np.random.rand(2)
+            
+            # This shifts and scales numbers in the range (0, 1) to (x_range[0], x_range[1])
+            rand_pt[0] = x_range[0]*(1.0-rand_pt[0]) + x_range[1]*rand_pt[0]
+            rand_pt[1] = y_range[0]*(1.0-rand_pt[1]) + y_range[1]*rand_pt[1]
+            
+            return rand_pt
+
+        def build_random_samples(N, x_range, y_range, min_dist):
+            rand_samples = np.zeros((N, 2))
+            
+            add_margin = True
+            
+            if add_margin == True:
+                x_range = [x_range[0]+0.5*min_dist, x_range[1]-0.5*min_dist]
+                y_range = [y_range[0]+0.5*min_dist, y_range[1]-0.5*min_dist]
+            
+            for k in range(N):
+                if k == 0:
+                    new_pt = generate_random_point(x_range, y_range)
+                    rand_samples[0, :] = new_pt
+
+                else:
+                    collision = True
+                    attempt = 0
+                    max_iter = 50000
+                    
+                    while collision == True:
+                        new_pt = generate_random_point(x_range, y_range)
+                        attempt += 1
+                                        
+                        dx_2 = (rand_samples[0:k, :] - new_pt)**2
+                        dist_2 = np.sum(dx_2, axis = 1)
+                                        
+                        if np.amin(dist_2) < min_dist**2:
+                            collision = True
+                        else:
+                            collision = False
+                            rand_samples[k, :] = new_pt
+
+                        if attempt > max_iter:
+                            print("Couldn't place point %d of %d after %d iterations." % (k+1, N, max_iter))
+                            print("Returning partial result with only %d of %d points." % (k, N))
+                            return rand_samples[0:k, :]
+
+            return rand_samples
+
         super(RandomWindFarm, self).__init__(dom)
         Sx = self.dom.xscale
         self.fprint("Generating Random Farm",special="header")
