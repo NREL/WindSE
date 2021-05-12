@@ -1384,7 +1384,6 @@ class RandomWindFarm(GenericWindFarm):
     """
     def __init__(self,dom):
 
-
         def generate_random_point(x_range, y_range):
             
             rand_pt = np.random.rand(2)
