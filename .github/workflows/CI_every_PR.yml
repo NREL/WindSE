@@ -32,12 +32,13 @@ jobs:
           bash ./install.sh test-environment
           conda activate test-environment
         
-      # - name: Run all tests within WindSE
-      #   shell: pwsh
-      #   run: |
-      #     conda activate test-environment
-      #     pytest -v --cov=windse tests
-          
+      - name: Run all tests within WindSE
+        shell: pwsh
+        run: |
+          conda activate test-environment
+          pytest -v --cov=windse tests/test_demos.py
+          pytest -v --cov=windse tests/test_regression.py
+        
       - name: Run parallel regression tests within WindSE
         shell: pwsh
         run: |
