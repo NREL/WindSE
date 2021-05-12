@@ -47,7 +47,7 @@ def test_yaml_execution(yaml_file):
     os.chdir(folder)
     from windse_driver import driver
     driver.run_action(params_loc=yaml_file.as_posix())
-    comm.Barrier()
+    # comm.Barrier()
     os.chdir(home_path)
     
     ### Grab the name of the run ###
