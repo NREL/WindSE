@@ -155,8 +155,10 @@ class GenericProblem(object):
             ### create output files for alm data ###
             force_folder = self.params.folder+"data/alm/rotor_force/"
             aoa_folder = self.params.folder+"data/alm/angle_of_attack/"
-            if not os.path.exists(aoa_folder): os.makedirs(aoa_folder)
-            if not os.path.exists(force_folder): os.makedirs(force_folder)
+            # if not os.path.exists(aoa_folder): os.makedirs(aoa_folder)
+            # if not os.path.exists(force_folder): os.makedirs(force_folder)
+            if not os.path.exists(aoa_folder) and self.params.rank==0: os.makedirs(aoa_folder)
+            if not os.path.exists(force_folder) and self.params.rank==0: os.makedirs(force_folder)
             self.aoa_files = []
             self.force_files = []
             for i in range(self.farm.numturbs):
