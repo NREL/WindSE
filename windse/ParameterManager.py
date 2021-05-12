@@ -7,6 +7,7 @@ functions don't need to be accessed by the end user.
 import __main__
 import os
 import yaml
+import warnings
 
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
@@ -166,9 +167,9 @@ class Parameters(dict):
         ### Check if dolfin_adjoint is unnecessary or required ###
         optimizing = yaml_file.get("optimization",{}).get("control_types",None) is not None
         if optimizing and not self.dolfin_adjoint:
-            raise ValueError("Optimization setting provided but general:dolfin_adjoint is set to False")
+            warnings.warn("Optimization setting provided but general:dolfin_adjoint is set to False")
         elif not optimizing and self.dolfin_adjoint: 
-            raise ValueError("general:dolfin_adjoint is set to True but no optimization parameters provided")
+            warnings.warn("general:dolfin_adjoint is set to True but no optimization parameters provided")
 
         # print(self.dolfin_adjoint)
         # for module in sys.modules:
