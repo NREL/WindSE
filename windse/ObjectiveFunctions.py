@@ -35,8 +35,8 @@ def CalculatePowerFunctional(solver,inflow_angle = 0.0):
                 tf1 = solver.problem.farm.actuator_disks_list[i] * cos(yaw)**2
                 tf2 = solver.problem.farm.actuator_disks_list[i] * sin(yaw)**2
                 tf3 = solver.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
-                tf = tf1*solver.u_k[0]**2+tf2*solver.u_k[1]**2+tf3*solver.u_k[0]*solver.u_k[1]
-                J_list[i+1] = assemble(dot(tf,solver.u_k)*dx,**solver.extra_kwarg)
+                tf = tf1*solver.problem.u_k[0]**2+tf2*solver.problem.u_k[1]**2+tf3*solver.problem.u_k[0]*solver.problem.u_k[1]
+                J_list[i+1] = assemble(dot(tf,solver.problem.u_k)*dx,**solver.extra_kwarg)
             else:
                 print("WARNING: missing individual turbine actuator disk, only able to report full farm power")
 

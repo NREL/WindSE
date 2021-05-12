@@ -206,6 +206,10 @@ class Parameters(dict):
             for sub in subfolder_list:
                 os.makedirs('%s/%s' % (self.folder, sub), exist_ok=True)
 
+            os.makedirs('%s/data/alm' % (self.folder), exist_ok=True)
+            os.makedirs('%s/data/alm/rotor_force' % (self.folder), exist_ok=True)
+            os.makedirs('%s/data/alm/angle_of_attack' % (self.folder), exist_ok=True)
+
         # Wait until rank 0 has created the directory structure
         self.comm.barrier()
 

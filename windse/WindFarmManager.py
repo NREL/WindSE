@@ -1084,7 +1084,7 @@ class GenericWindFarm(object):
                 problem.min_dist.append(dist)
 
             # Create a Constant "wrapper" to enable dolfin to track mpi_u_fluid
-            problem.mpi_u_fluid_constant = Constant(np.zeros((problem.farm.numturbs, 3*3*problem.num_blade_segments)))
+            problem.mpi_u_fluid_constant = Constant(np.zeros((problem.farm.numturbs, 3*3*problem.num_blade_segments)),name="mpi_u_fluid")
 
 
         def init_unsteady_alm_terms(problem):
@@ -1162,7 +1162,7 @@ class GenericWindFarm(object):
                     # If this rank doesn't own that point, an error will occur,
                     # in which case zeros should be reported
                     try:
-                        fn_val = problem.u_k1(xi, yi, zi)
+                        fn_val = problem.u_k1(np.array([xi, yi, zi]))
                         mpi_u_fluid[k, 3*j:3*j+3] = fn_val
                         mpi_u_fluid_count[k, 3*j:3*j+3] = [1, 1, 1]
                     except:
@@ -1231,7 +1231,7 @@ class GenericWindFarm(object):
         mpi_u_fluid = init_mpi_alm(problem)
 
         # Populate the Constant "wrapper" with the velocity values to enable dolfin to track mpi_u_fluid
-        problem.mpi_u_fluid_constant.assign(Constant(mpi_u_fluid))
+        problem.mpi_u_fluid_constant.assign(Constant(mpi_u_fluid,name="temp_u_f"))
 
         # Call the ALM function for each turbine individually
         alm_output_list = []
