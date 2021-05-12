@@ -91,8 +91,9 @@ class BaseHeightBlock(Block):
             adj = self.ground(x,y,dy=1)
             # adj = (self.ground(x,y+h)-self.ground(x,y-h))/(2*h)
 
+        adj_output = adj_input * adj
 
-        return adj_input * adj
+        return adj_output
 
 
 def RadialChordForce(r,chord):
@@ -268,6 +269,12 @@ class ActuatorDiskForceBlock(Block):
         for i in range(3):
             adj_output += np.inner(adj_inputs[i].get_local(self.all_ids),prepared[name][i][:,turb_idx])
 
+        adj_output = np.float64(adj_output)
+        recv_buff = np.zeros(1, dtype=np.float64)
+        self.farm.params.comm.Allreduce(adj_output, recv_buff)
+        adj_output = recv_buff
+
+        # adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
         return np.array(adj_output)
 
 
@@ -912,12 +919,24 @@ class ActuatorLineForceBlock(Block):
         elif name == "yaw":
             comp_vec = prepared[name]
             adj_vec = adj_inputs[0].get_local()
-            adj_output = np.inner(comp_vec, adj_vec)
+            adj_output = np.float64(np.inner(comp_vec, adj_vec))
+
+            recv_buff = np.zeros(1, dtype=np.float64)
+            self.problem.params.comm.Allreduce(adj_output, recv_buff)
+            adj_output = recv_buff
+
+            # adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
             return np.array(adj_output)
         else:
             comp_vec = prepared[name][:, segment_index]
             adj_vec = adj_inputs[0].get_local()
-            adj_output = np.inner(comp_vec, adj_vec)
+            adj_output = np.float64(np.inner(comp_vec, adj_vec))
+
+            recv_buff = np.zeros(1, dtype=np.float64)
+            self.problem.params.comm.Allreduce(adj_output, recv_buff)
+            adj_output = recv_buff
+
+            # adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
             return np.array(adj_output)
 
 
@@ -1038,7 +1057,11 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
     if not self.forward_kwargs:
         dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters={'linear_solver': 'mumps'})
     else:
-        dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, **self.forward_kwargs)
+        if "krylov_solver_parameters" in self.forward_kwargs.keys():
+            solver_parameters={'linear_solver': self.forward_kwargs["krylov_method"], 'preconditioner': self.forward_kwargs["krylov_preconditioner"]}
+            dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters=solver_parameters)
+        else:
+            dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, **self.forward_kwargs)
         # print()
         # print("func = "+repr(np.mean(func.vector().get_local())))
 
