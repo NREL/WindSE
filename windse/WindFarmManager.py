@@ -1386,24 +1386,24 @@ class RandomWindFarm(GenericWindFarm):
 
         def generate_random_point(x_range, y_range):
             
-            rand_pt = np.random.rand(2)
+            rand_pt = np.zeros(2)
             
-            # This shifts and scales numbers in the range (0, 1) to (x_range[0], x_range[1])
-            rand_pt[0] = x_range[0]*(1.0-rand_pt[0]) + x_range[1]*rand_pt[0]
-            rand_pt[1] = y_range[0]*(1.0-rand_pt[1]) + y_range[1]*rand_pt[1]
+            # This assigns numbers in the range (x_range[0], x_range[1])
+            rand_pt[0] = np.random.uniform(x_range[0], x_range[1])
+            rand_pt[1] = np.random.uniform(y_range[0], y_range[1])
             
             return rand_pt
 
-        def build_random_samples(N, x_range, y_range, min_dist, x_margin=None, y_margin=None):
+        def build_random_samples(N, x_range, y_range, min_dist, x_padding=None, y_padding=None):
             rand_samples = np.zeros((N, 2))
 
-            if x_margin is not None:
-                x_range[0] = x_range[0] + x_margin[0]
-                x_range[1] = x_range[1] - x_margin[1]
+            if x_padding is not None:
+                x_range[0] = x_range[0] + x_padding[0]
+                x_range[1] = x_range[1] - x_padding[1]
 
-            if y_margin is not None:
-                y_range[0] = y_range[0] + y_margin[0]
-                y_range[1] = y_range[1] - y_margin[1]
+            if y_padding is not None:
+                y_range[0] = y_range[0] + y_padding[0]
+                y_range[1] = y_range[1] - y_padding[1]
             
             # Declare the maximum number of attempts at placing a turbine          
             maximum_iterations = 50000
