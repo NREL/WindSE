@@ -52,7 +52,7 @@ def GetBlockageFunctional(solver, inflow_angle=0.0):
             mx = solver.problem.farm.mx[i]
             my = solver.problem.farm.my[i]
             mz = solver.problem.farm.mz[i]
-            x0 = [mx,my,mz]
+            x0 = [mx, my, mz]
 
             # Get a convenience copy of turbine i's yaw
             yaw = solver.problem.farm.myaw[i]
@@ -61,13 +61,15 @@ def GetBlockageFunctional(solver, inflow_angle=0.0):
             
             if kp['type'] == 'upstream':
                 # Place the cylinders upstream from the rotor aligned with the hub axis
-                axial_gaussian = exp(-pow((xs[0]/(0.5*kp['length'])), kp['sharpness']))
+                ax = xs[0]/(0.5*kp['length'])
+                axial_gaussian = exp(-pow(ax, kp['sharpness']))
                 rad = (xs[1]**2 + xs[2]**2)/kp['radius']**2
                 radial_gaussian = exp(-pow(rad, kp['sharpness']))
 
             elif kp['type'] == 'above':
-                # Place the cylinders above the rotor aligned with the Z-direction        
-                axial_gaussian = exp(-pow((xs[2]/(0.5*kp['length'])), kp['sharpness']))
+                # Place the cylinders above the rotor aligned with the Z-direction
+                ax = xs[2]/(0.5*kp['length'])        
+                axial_gaussian = exp(-pow(ax, kp['sharpness']))
                 rad = (xs[0]**2 + xs[1]**2)/kp['radius']**2
                 radial_gaussian = exp(-pow(rad, kp['sharpness']))
                 
