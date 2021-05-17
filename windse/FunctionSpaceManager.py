@@ -91,7 +91,8 @@ class LinearFunctionSpace(GenericFunctionSpace):
         self.fprint("Velocity DOFS:   {:d}".format(self.V.dim()))
         self.fprint("Pressure DOFS:   {:d}".format(self.Q.dim()))
         self.fprint("Total DOFS:      {:d}".format(self.W.dim()))
-        
+        self.fprint("Min Mesh Radius: {:0.5f} m".format(dom.mesh.hmin()))
+        self.fprint("Max Mesh Radius: {:0.5f} m".format(dom.mesh.hmax()))
         self.DebugOutput()
 
         fs_stop = time.time()
@@ -121,6 +122,8 @@ class TaylorHoodFunctionSpace(GenericFunctionSpace):
         self.fprint("Velocity DOFS: {:d}".format(self.V.dim()))
         self.fprint("Pressure DOFS: {:d}".format(self.Q.dim()))
         self.fprint("Total DOFS:    {:d}".format(self.W.dim()))
+        self.fprint("Min Mesh Radius: {:0.5f} m".format(dom.mesh.hmin()))
+        self.fprint("Max Mesh Radius: {:0.5f} m".format(dom.mesh.hmax()))
 
         self.DebugOutput()
 

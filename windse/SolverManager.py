@@ -32,6 +32,8 @@ if main_file != "sphinx-build":
     if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
         from windse.dolfin_adjoint_helper import Marker, ControlUpdater
+    else:
+        from windse.helper_functions import ControlUpdater
 
     ### Import objective functions ###
     import windse.ObjectiveFunctions as obj_funcs
@@ -72,6 +74,8 @@ class GenericSolver(object):
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
         self.simTime = 0.0
+        self.iter_theta = 0.0
+        self.iter_val = 0
 
         ### Update attributes based on params file ###
         for key, value in self.params["solver"].items():
@@ -81,20 +85,19 @@ class GenericSolver(object):
         for key, value in self.params["optimization"].items():
             setattr(self,key,value)
 
-        self.extra_kwarg = {}
+        self.extra_kwarg = {}            
         if self.params.dolfin_adjoint:
             self.extra_kwarg["annotate"] = False
-            
-        if self.params.dolfin_adjoint or self.save_objective:
+
+        self.optimizing = False
+        if self.params.performing_opt_calc or self.save_objective:
             self.optimizing = True
             self.J = 0.0
             self.wake_RD = int(self.wake_RD)
             self.adj_file = XDMFFile(self.params.folder+"timeSeries/local_adjoint.xdmf")
             self.adj_time_iter = 1
             self.adj_time_list = [0.0]
-            self.objective_func = obj_funcs.objectives_dict[self.objective_type]
             self.J_saved = False
-
 
             if isinstance(self.opt_turb_id,int):
                 self.opt_turb_id = [self.opt_turb_id]
@@ -102,14 +105,11 @@ class GenericSolver(object):
                 self.opt_turb_id = range(self.problem.farm.numturbs) 
             elif isinstance(self.opt_turb_id, str):
                 self.opt_turb_id = [int(self.opt_turb_id)]
-        else:
-            self.optimizing = False
 
         #Check if we need to save the power output
         if self.save_power:
             self.power_func = obj_funcs.objectives_dict[self.power_type]
             self.J = 0.0
-            self.pwr_saved = False
 
     def DebugOutput(self,t=None,i=None):
         if self.debug_mode:
@@ -212,11 +212,46 @@ class GenericSolver(object):
     #     f.close()
 
 
+    def EvaluateObjective(self):
+        self.fprint("Evaluating Objective Data",special="header")
+        start = time.time()
 
+        first_call = True
+        if self.J_saved:
+            first_call = False
 
+        ### Convert to list ###
+        if  not isinstance(self.objective_type,list):
+            self.objective_type = [self.objective_type]
 
+        ### Iterate over objectives ###
+        obj_list = [self.simTime]
+        for objective in self.objective_type:
+            self.objective_func = obj_funcs.objectives_dict[objective]
+            obj_list.append(self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle),first_call=first_call))
+        J = obj_list[1]
 
+        ### Flip the sign because the objective is minimized but these values are maximized
+        for i in range(1,len(obj_list)):
+            obj_list[i] = -obj_list[i]
 
+        ### Save to csv ###
+        if self.J_saved:
+            self.params.save_csv("objective_data",data=[obj_list],subfolder=self.params.folder+"data/",mode='a')
+        else:
+            ### Generate the header ###
+            header = "Time, "
+            for name in self.objective_type:
+                header += name + ", "
+            header = header[:-2]
+
+            self.params.save_csv("objective_data",header=header,data=[obj_list],subfolder=self.params.folder+"data/",mode='w')
+            self.J_saved = True
+
+        stop = time.time()
+        self.fprint("Complete: {:1.2f} s".format(stop-start),special="footer")
+        
+        return J
 
 class SteadySolver(GenericSolver):
     """
@@ -229,7 +264,7 @@ class SteadySolver(GenericSolver):
         super(SteadySolver, self).__init__(problem)
         self.u_k,self.p_k = split(self.problem.up_k)
 
-    def Solve(self,iter_val=0):
+    def Solve(self):
         """
         This solves the problem setup by the problem object.
         """
@@ -237,13 +272,13 @@ class SteadySolver(GenericSolver):
         ### Save Files before solve ###
         self.fprint("Saving Input Data",special="header")
         if "mesh" in self.params.output:
-            self.problem.dom.Save(val=iter_val)
+            self.problem.dom.Save(val=self.iter_val)
         if "initial_guess" in self.params.output:
-            self.problem.bd.SaveInitialGuess(val=iter_val)
+            self.problem.bd.SaveInitialGuess(val=self.iter_val)
         if "height" in self.params.output and self.problem.dom.dim == 3:
-            self.problem.bd.SaveHeight(val=iter_val)
+            self.problem.bd.SaveHeight(val=self.iter_val)
         if "turbine_force" in self.params.output:
-            self.problem.farm.SaveActuatorDisks(val=iter_val)
+            self.problem.farm.SaveActuatorDisks(val=self.iter_val)
         self.fprint("Finished",special="footer")
 
         # exit()
@@ -369,7 +404,7 @@ class SteadySolver(GenericSolver):
         ### Save solutions ###
         if "solution" in self.params.output:
             self.fprint("Saving Solution",special="header")
-            self.Save(val=iter_val)
+            self.Save(val=self.iter_val)
             self.fprint("Finished",special="footer")
 
         ### calculate the power for each turbine ###
@@ -377,17 +412,17 @@ class SteadySolver(GenericSolver):
         ### Fix how angle is transfered ###
         ###################################
         # if self.save_power:
-        #     self.SavePower(((iter_val-self.problem.dom.inflow_angle)))
+        #     self.SavePower(((self.iter_theta-self.problem.dom.inflow_angle)))
 
 
-
-
-        if self.optimizing:
-            self.J += self.objective_func(self,(iter_val-self.problem.dom.inflow_angle)) 
+        ### Evaluate the objectives ###
+        if self.optimizing or self.save_objective:
+            self.J += self.EvaluateObjective()
+            # self.J += self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle)) 
             self.J = ControlUpdater(self.J, self.problem)
 
         if self.save_power and "power" not in self.objective_type:
-            self.power_func(self,(iter_val-self.problem.dom.inflow_angle))
+            self.power_func(self,(self.iter_theta-self.problem.dom.inflow_angle))
 
             # print(self.outflow_markers)
             # self.J += -dot(self.problem.farm.rotor_disks,self.u_k)*dx
@@ -422,7 +457,7 @@ class IterativeSteadySolver(GenericSolver):
         super(IterativeSteadySolver, self).__init__(problem)
         self.u_k,self.p_k = split(self.problem.up_k)
 
-    def Solve(self,iter_val=0):
+    def Solve(self):
         """
         This solves the problem setup by the problem object.
         """
@@ -468,13 +503,13 @@ class IterativeSteadySolver(GenericSolver):
         ### Save Files before solve ###
         self.fprint("Saving Input Data",special="header")
         if "mesh" in self.params.output:
-            self.problem.dom.Save(val=iter_val)
+            self.problem.dom.Save(val=self.iter_val)
         if "initial_guess" in self.params.output:
-            self.problem.bd.SaveInitialGuess(val=iter_val)
+            self.problem.bd.SaveInitialGuess(val=self.iter_val)
         if "height" in self.params.output and self.problem.dom.dim == 3:
-            self.problem.bd.SaveHeight(val=iter_val)
+            self.problem.bd.SaveHeight(val=self.iter_val)
         if "turbine_force" in self.params.output:
-            self.problem.farm.SaveActuatorDisks(val=iter_val)
+            self.problem.farm.SaveActuatorDisks(val=self.iter_val)
         self.fprint("Finished",special="footer")
 
         self.SaveTimeSeries(0)
@@ -656,12 +691,14 @@ class IterativeSteadySolver(GenericSolver):
         if self.params.rank == 0:
             print('TOTAL CPU TIME = %f seconds' % (outer_toc - outer_tic))
 
-        if self.optimizing:
-            self.J += self.objective_func(self,(iter_val-self.problem.dom.inflow_angle)) 
+        ### Evaluate the objectives ###
+        if self.optimizing or self.save_objective:
+            self.J += self.EvaluateObjective()
+            # self.J += self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle)) 
             self.J = ControlUpdater(self.J, self.problem)
 
         if self.save_power and "power" not in self.objective_type:
-            self.power_func(self,(iter_val-self.problem.dom.inflow_angle))
+            self.power_func(self,(self.iter_theta-self.problem.dom.inflow_angle))
 
     def SaveTimeSeries(self, simTime):
         # if hasattr(self.problem,"tf_save"):
@@ -704,7 +741,7 @@ class UnsteadySolver(GenericSolver):
 
     # ================================================================
 
-    def Solve(self,iter_val=0):
+    def Solve(self):
         # Start the unsteady solver ONLY if an unsteady problem has been created
         if self.problem.params["problem"]["type"] == 'unsteady':
             self.fprint("Solving with UnsteadySolver", special="header")
@@ -756,13 +793,13 @@ class UnsteadySolver(GenericSolver):
 
         self.fprint("Saving Input Data",special="header")
         if "mesh" in self.params.output:
-            self.problem.dom.Save(val=iter_val)
+            self.problem.dom.Save(val=self.iter_val)
         if "initial_guess" in self.params.output:
-            self.problem.bd.SaveInitialGuess(val=iter_val)
+            self.problem.bd.SaveInitialGuess(val=self.iter_val)
         if "height" in self.params.output and self.problem.dom.dim == 3:
-            self.problem.bd.SaveHeight()
+            self.problem.bd.SaveHeight(val=self.iter_val)
         # if "turbine_force" in self.params.output:
-        #     self.problem.farm.SaveTurbineForce(val=iter_val)
+        #     self.problem.farm.SaveTurbineForce(val=self.iter_val)
 
         self.fprint("Finished",special="footer")
 
@@ -1002,14 +1039,16 @@ class UnsteadySolver(GenericSolver):
             # # Adjust the timestep size, dt, for a balance of simulation speed and stability
             # save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
 
+            if self.save_objective:
+                J_next = self.EvaluateObjective()
+
             # Calculate the objective function
-            if (self.optimizing or self.save_objective) and self.simTime >= self.record_time:
+            if self.optimizing and self.simTime >= self.record_time:
 
                 # Append the current time step for post production
                 self.adj_time_list.append(self.simTime)
 
-                # Calculate functional and compute running average
-                self.J += float(self.problem.dt)*self.objective_func(self,(iter_val-self.problem.dom.inflow_angle))
+                self.J += float(self.problem.dt)*J_next
                 dt_sum += self.problem.dt 
                 J_new = float(self.J/dt_sum)
 
@@ -1032,7 +1071,7 @@ class UnsteadySolver(GenericSolver):
 
             # to only call the power functional once, check if a) the objective is the power, b) that we are before record time
             if self.save_power and ("power" not in self.objective_type or ("power" in self.objective_type and self.simTime < self.record_time) ):
-                self.power_func(self,(iter_val-self.problem.dom.inflow_angle))
+                self.power_func(self,(self.iter_theta-self.problem.dom.inflow_angle))
 
             # After changing timestep size, A1 must be reassembled
             # FIXME: This may be unnecessary (or could be sped up by changing only the minimum amount necessary)
@@ -1840,7 +1879,9 @@ class MultiAngleSolver(SteadySolver):
             self.fprint("Wind Angle: "+repr(theta))
             if i > 0 or not near(theta,self.problem.dom.inflow_angle):
                 self.ChangeWindAngle(theta)
-            self.orignal_solve(iter_val=theta)
+            self.iter_theta = theta
+            self.iter_val = theta
+            self.orignal_solve()
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
 
 class TimeSeriesSolver(SteadySolver):
@@ -1878,7 +1919,8 @@ class TimeSeriesSolver(SteadySolver):
                 self.ChangeWindSpeed(speed)
             if i > 0 or not near(theta,self.problem.dom.inflow_angle):
                 self.ChangeWindAngle(theta)
-            self.orignal_solve(iter_val=time)
+            self.iter_val = time
+            self.orignal_solve()
 
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
 

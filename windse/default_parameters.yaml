@@ -141,8 +141,8 @@ optimization:
     min_total:      0
     wake_length:    5
     wake_radius:    0.5
-    ke_location:    Null
-    record_time:    computed
+    ke_location:    rotor # hub, rotor, tip (only rotor works for now)
+    record_time:    0.0 # float or "computed"  
     u_avg_time:     0
     taylor_test:    False
     optimize:       False
