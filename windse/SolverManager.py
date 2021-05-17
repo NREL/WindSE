@@ -1039,7 +1039,7 @@ class UnsteadySolver(GenericSolver):
             # # Adjust the timestep size, dt, for a balance of simulation speed and stability
             # save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
 
-            if self.save_objective:
+            if self.save_objective or (self.optimizing and self.simTime >= self.record_time):
                 J_next = self.EvaluateObjective()
 
             # Calculate the objective function
