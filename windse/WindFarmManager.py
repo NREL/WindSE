@@ -1383,6 +1383,67 @@ class RandomWindFarm(GenericWindFarm):
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
     def __init__(self,dom):
+
+        def generate_random_point(x_range, y_range):
+            
+            rand_pt = np.zeros(2)
+            
+            # This assigns numbers in the range (x_range[0], x_range[1])
+            rand_pt[0] = np.random.uniform(x_range[0], x_range[1])
+            rand_pt[1] = np.random.uniform(y_range[0], y_range[1])
+            
+            return rand_pt
+
+        def build_random_samples(N, x_range, y_range, min_dist, x_padding=None, y_padding=None):
+            rand_samples = np.zeros((N, 2))
+
+            if x_padding is not None:
+                x_range[0] = x_range[0] + x_padding[0]
+                x_range[1] = x_range[1] - x_padding[1]
+
+            if y_padding is not None:
+                y_range[0] = y_range[0] + y_padding[0]
+                y_range[1] = y_range[1] - y_padding[1]
+            
+            # Declare the maximum number of attempts at placing a turbine          
+            maximum_iterations = 50000
+
+            for k in range(N):
+                if k == 0:
+                    # The first turbine can always be added (guaranteed collision free)
+                    new_pt = generate_random_point(x_range, y_range)
+                    rand_samples[0, :] = new_pt
+
+                else:
+                    # Additional turbines must be tested to enforce the minimum separation distance
+                    collision = True
+                    attempt = 0
+                    
+                    while collision == True:
+                        new_pt = generate_random_point(x_range, y_range)
+                        attempt += 1
+                                        
+                        dx_2 = (rand_samples[0:k, :] - new_pt)**2
+                        dist_2 = np.sum(dx_2, axis = 1)
+                                        
+                        if np.amin(dist_2) < min_dist**2:
+                            collision = True
+                        else:
+                            collision = False
+                            rand_samples[k, :] = new_pt
+
+                        if attempt > maximum_iterations:
+                            # If the total numer of turbines couldn't be placed, raise an error or return the incomplete list
+                            # (since the list is incomplete, numturbs needs to be updated with the reduced value)
+                            # raise ValueError("Couldn't place point %d of %d after %d iterations." % (k+1, N, maximum_iterations))
+                            self.fprint("WARNING: Couldn't place point %d of %d after %d iterations." % (k+1, N, maximum_iterations))
+                            self.fprint("WARNING: Consider reducing the number of turbines or decreasing the minimum separation distance.")
+                            self.fprint("WARNING: Proceeding with incomplete random farm, numturbs = %d turbines." % (k))
+                            self.numturbs = k
+                            return rand_samples[0:k, :]
+
+            return rand_samples
+
         super(RandomWindFarm, self).__init__(dom)
         Sx = self.dom.xscale
         self.fprint("Generating Random Farm",special="header")
@@ -1395,6 +1456,7 @@ class RandomWindFarm(GenericWindFarm):
         self.radius = self.RD/2.0
         self.ex_x   = self.ex_x * Sx
         self.ex_y   = self.ex_y * Sx
+        self.min_sep_dist = self.min_sep_dist * self.RD
 
         ### Print some useful stats ###
         self.fprint("Force Type:         {0}".format(self.force))
@@ -1408,9 +1470,13 @@ class RandomWindFarm(GenericWindFarm):
             np.random.seed(self.seed)
 
         ### Create the x and y coords ###
-        self.x = np.random.uniform(self.ex_x[0]+self.radius,self.ex_x[1]-self.radius,self.numturbs)
-        self.y = np.random.uniform(self.ex_y[0]+self.radius,self.ex_y[1]-self.radius,self.numturbs)
+        # self.x = np.random.uniform(self.ex_x[0]+self.radius,self.ex_x[1]-self.radius,self.numturbs)
+        # self.y = np.random.uniform(self.ex_y[0]+self.radius,self.ex_y[1]-self.radius,self.numturbs)
 
+        rand_locations = build_random_samples(self.numturbs, self.ex_x, self.ex_y, self.min_sep_dist)
+
+        self.x = rand_locations[:, 0]
+        self.y = rand_locations[:, 1]
 
         ### Convert the constant parameters to lists ###
         self.CreateLists()
