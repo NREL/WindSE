@@ -77,14 +77,16 @@ class GenericWindFarm(object):
             else:
                 setattr(self,key,value)
 
+        ### Check if we need a 
         self.extra_kwarg = {}
-        self.optimize = False
-
         if self.params.dolfin_adjoint:
+            self.extra_kwarg["annotate"] = False
+
+        self.optimizing = False
+        if self.params.performing_opt_calc:
             self.layout_bounds = self.params["optimization"]["layout_bounds"]
             self.control_types = self.params["optimization"]["control_types"]
-            self.extra_kwarg["annotate"] = False
-            self.optimize = True
+            self.optimizing = True
 
     def DebugOutput(self):
         if self.debug_mode:
@@ -121,7 +123,7 @@ class GenericWindFarm(object):
         if not os.path.exists(folder_string) and self.params.rank == 0: os.makedirs(folder_string)
 
         ### Create a list that outlines the extent of the farm ###
-        if self.optimize and "layout" in self.control_types and self.layout_bounds == "wind_farm":
+        if self.optimizing and "layout" in self.control_types and self.layout_bounds != "wind_farm":
             ex_list_x = [self.layout_bounds[0][0],self.layout_bounds[0][1],self.layout_bounds[0][1],self.layout_bounds[0][0],self.layout_bounds[0][0]]
             ex_list_y = [self.layout_bounds[1][0],self.layout_bounds[1][0],self.layout_bounds[1][1],self.layout_bounds[1][1],self.layout_bounds[1][0]]
         else:

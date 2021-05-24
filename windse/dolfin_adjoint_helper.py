@@ -339,9 +339,7 @@ class MarkerBlock(Block):
 
 
 def ControlUpdater(J ,problem, **kwargs):
-    '''This is the adjoint version of RelativeHeight. It's goal is to 
-    calculate the height of the turbine's base. At the same time, it creates
-    a block that helps propagate the adjoint information.'''
+
     annotate = annotate_tape(kwargs)
     J = create_overloaded_object(J)
 
@@ -355,8 +353,6 @@ def ControlUpdater(J ,problem, **kwargs):
     return J
 
 class ControlUpdaterBlock(Block):
-    '''This is the Block class that will be used to calculate adjoint 
-    information for optimizations. '''
     def __init__(self, J, problem):
         super(ControlUpdaterBlock, self).__init__()
         self.problem = problem

@@ -165,11 +165,14 @@ class Parameters(dict):
             setattr(self,key,value)
 
         ### Check if dolfin_adjoint is unnecessary or required ###
-        optimizing = yaml_file.get("optimization",{}).get("control_types",None) is not None
-        if optimizing and not self.dolfin_adjoint:
-            warnings.warn("Optimization setting provided but general:dolfin_adjoint is set to False")
-        elif not optimizing and self.dolfin_adjoint: 
-            warnings.warn("general:dolfin_adjoint is set to True but no optimization parameters provided")
+        opt_gradient = yaml_file.get("optimization",{}).get("gradient",False)
+        opt_taylor   = yaml_file.get("optimization",{}).get("taylor_test",False)
+        opt_optimize = yaml_file.get("optimization",{}).get("optimize",False)
+        self.performing_opt_calc = opt_gradient or opt_taylor or opt_optimize
+        if self.performing_opt_calc and not self.dolfin_adjoint:
+            raise ValueError("Asked to perform gradient, Taylor test, or optimization but general:dolfin_adjoint is set to False. These operations will not work without dolfin_adjoint.")
+        elif not self.performing_opt_calc and self.dolfin_adjoint: 
+            warnings.warn("general:dolfin_adjoint is set to True but no optimization parameters provided. This will cause unneeded overhead.")
 
         # print(self.dolfin_adjoint)
         # for module in sys.modules:
@@ -310,6 +313,32 @@ class Parameters(dict):
 
             func.rename(old_filename,old_filename)
             return file
+
+    def save_csv(self, filename, data=None, subfolder="", header=None, mode='w'):
+        ### Check Processor ###
+        if self.rank == 0:
+
+            ### Set the output folder ###
+            out_f = subfolder
+
+            ### Check if folder exists ###
+            if not os.path.exists(out_f): os.makedirs(out_f, exist_ok=True)
+
+            ### Open the file ###
+            f = open(out_f+filename+".csv",mode)
+
+            ### Write the header if present ###
+            if header is not None:
+                f.write(header)
+                f.write("\n")
+
+            ### Write the data ###
+            if data is not None:
+                np.savetxt(f,data, delimiter=', ')
+
+            ### Close the file ###
+            f.close()
+        MPI.comm_world.barrier()
 
     def fprint(self,string,tab=None,offset=0,special=None):
         """

@@ -23,7 +23,7 @@ if main_file != "sphinx-build":
 
 
 
-def CalculatePowerFunctional(solver,inflow_angle = 0.0):
+def CalculatePowerFunctional(solver,inflow_angle = 0.0,first_call=False):
     J = -assemble(dot(solver.problem.tf,solver.problem.u_k)*dx)
 
     if solver.save_power or solver.save_objective:
@@ -45,20 +45,19 @@ def CalculatePowerFunctional(solver,inflow_angle = 0.0):
         folder_string = solver.params.folder+"data/"
         if not os.path.exists(folder_string): os.makedirs(folder_string)
 
-        if solver.pwr_saved:
-            f = open(folder_string+"power_data.txt",'a')
-        else:
+        if first_call:
             f = open(folder_string+"power_data.txt",'w')
             header = str("Time    "+"Turbine_%d    "*solver.problem.farm.numturbs % tuple(range(solver.problem.farm.numturbs))+"Sum"+"\n")
             f.write(header)
-            solver.pwr_saved = True
+        else:
+            f = open(folder_string+"power_data.txt",'a')
 
         np.savetxt(f,[J_list])
         f.close()
 
     return J
 
-def CalculateActuatorLinePowerFunctional(solver,inflow_angle = 0.0):
+def CalculateActuatorLinePowerFunctional(solver,inflow_angle = 0.0,first_call=False):
     # J = assemble(solver.problem.tf_list[0]*dx)
     # J = assemble(solver.problem.tf_list[0][0]*solver.problem.tf_list[0][0]*dx)
     # J = assemble(-2.0*np.pi*solver.problem.rpm/60.0*abs(inner(solver.problem.tf_list[0],solver.problem.cyld_expr_list[0]))*dx)
@@ -99,20 +98,19 @@ def CalculateActuatorLinePowerFunctional(solver,inflow_angle = 0.0):
         folder_string = solver.params.folder+"data/"
         if not os.path.exists(folder_string): os.makedirs(folder_string)
 
-        if solver.pwr_saved:
-            f = open(folder_string+"power_data.txt",'a')
-        else:
-            f = open(folder_string+"power_data.txt",'w')
+        if first_call:
+            f = open(folder_string+"alm_power_data.txt",'w')
             header = str("Time    "+"Turbine_%d    "*solver.problem.farm.numturbs % tuple(range(solver.problem.farm.numturbs))+"Sum"+"\n")
             f.write(header)
-            solver.pwr_saved = True
+        else:
+            f = open(folder_string+"alm_power_data.txt",'a')
 
         np.savetxt(f,[J_list])
         f.close()
 
     return J
 
-def Calculate2DPowerFunctional(solver,inflow_angle = 0.0):
+def Calculate2DPowerFunctional(solver,inflow_angle = 0.0,first_call=False):
         x=SpatialCoordinate(solver.problem.dom.mesh)
         J=0.
         J_list=np.zeros(solver.problem.farm.numturbs+2)
@@ -164,72 +162,71 @@ def Calculate2DPowerFunctional(solver,inflow_angle = 0.0):
             folder_string = solver.params.folder+"data/"
             if not os.path.exists(folder_string): os.makedirs(folder_string)
 
-            if solver.pwr_saved:
-                f = open(folder_string+"power_data.txt",'a')
-            else:
-                f = open(folder_string+"power_data.txt",'w')
+            if first_call:
+                f = open(folder_string+"2d_power_data.txt",'w')
                 header = srt("Time    "+"Turbine_%d    "*solver.problem.farm.numturbs % tuple(range(solver.problem.farm.numturbs))+"Sum"+"\n")
                 f.write(header)
-                solver.pwr_saved = True
+            else:
+                f = open(folder_string+"2d_power_data.txt",'a')
 
             np.savetxt(f,[J_list])
             f.close()
 
         return J
 
-def CalculateKEEntrainment(solver,inflow_angle = 0.0):
-    print("Using Kinetic Energy Entrainment Functional")
+def CalculateKEEntrainment(solver,inflow_angle = 0.0,first_call=False):
+    solver.fprint("Using Kinetic Energy Entrainment Functional")
     turb_id = solver.opt_turb_id[0]
     HH = solver.problem.farm.HH[turb_id]
     R = solver.problem.farm.RD[turb_id]/2.0
 
     # mark cells in area of interest
-    if not hasattr(solver,"outflow_markers"):
-        solver.objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim())
-        # solver.objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim()-1)
+    if first_call:
+        solver.KE_objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim())
+        # solver.KE_objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim()-1)
 
-        solver.objective_markers.set_all(0)
+        solver.KE_objective_markers.set_all(0)
         x0 = min(solver.problem.farm.x)
         x1 = solver.problem.dom.x_range[1]
         y0 = min(solver.problem.farm.y)-3.0*max(solver.problem.farm.RD)/2.0
         y1 = max(solver.problem.farm.y)+3.0*max(solver.problem.farm.RD)/2.0
-        if solver.ke_location =="tip":
-            z0 = min(solver.problem.farm.z)
-            z1 = max(solver.problem.farm.z)+max(solver.problem.farm.RD)/2.0
-        elif solver.ke_location == "hub":
-            z0 = min(solver.problem.farm.z)-solver.problem.dom.mesh.hmin()*1.0
-            z1 = max(solver.problem.farm.z)+solver.problem.dom.mesh.hmin()*1.0
-        elif solver.ke_location == "rotor":
-            z0_in = HH + R - solver.problem.dom.mesh.hmin()*1.0
-            z1_in = HH + R + solver.problem.dom.mesh.hmin()*1.0
-            z0_out = HH - R - solver.problem.dom.mesh.hmin()*1.0
-            z1_out = HH - R + solver.problem.dom.mesh.hmin()*1.0
+        # if solver.ke_location =="tip":
+        #     z0 = min(solver.problem.farm.z)
+        #     z1 = max(solver.problem.farm.z)+max(solver.problem.farm.RD)/2.0
+        # elif solver.ke_location == "hub":
+        #     z0 = min(solver.problem.farm.z)-solver.problem.dom.mesh.hmin()*1.0
+        #     z1 = max(solver.problem.farm.z)+solver.problem.dom.mesh.hmin()*1.0
+        # elif solver.ke_location == "rotor":
+        z0_in = min(solver.problem.farm.z) + R - solver.problem.dom.mesh.hmin()*1.0
+        z1_in = max(solver.problem.farm.z) + R + solver.problem.dom.mesh.hmin()*1.0
+        z0_out = min(solver.problem.farm.z) - R - solver.problem.dom.mesh.hmin()*1.0
+        z1_out = max(solver.problem.farm.z) - R + solver.problem.dom.mesh.hmin()*1.0
  
         fluxIn =  CompiledSubDomain("x[0]>x0 && x[0]<x1 && x[1]>y0 && x[1]<y1  && x[2]>z0 && x[2]<z1",x0=x0,x1=x1,y0=y0,y1=y1,z0=z0_in,z1=z1_in)
         fluxOut = CompiledSubDomain("x[0]>x0 && x[0]<x1 && x[1]>y0 && x[1]<y1  && x[2]>z0 && x[2]<z1",x0=x0,x1=x1,y0=y0,y1=y1,z0=z0_out,z1=z1_out)
         # AOI  = CompiledSubDomain("x[0]>x0 && x[0]<x1 && x[1]>y0 && x[1]<y1  && x[2]>z0 && x[2]<z1",x0=x0,x1=x1,y0=y0,y1=y1,z0=z0,z1=z1)
-        # AOI.mark(solver.objective_markers,1)
-        fluxIn.mark(solver.objective_markers,1)
-        fluxOut.mark(solver.objective_markers,2)
-        File(solver.params.folder+"test2.pvd")<<solver.objective_markers
+        # AOI.mark(solver.KE_objective_markers,1)
+        fluxIn.mark(solver.KE_objective_markers,1)
+        fluxOut.mark(solver.KE_objective_markers,2)
+        File(solver.params.folder+"mesh/KE_objective_markers.pvd")<<solver.KE_objective_markers
 
         if solver.save_objective:
             folder_string = solver.params.folder+"data/"
             if not os.path.exists(folder_string): os.makedirs(folder_string)
-            f = open(folder_string+"objective_data.txt",'w')
+            f = open(folder_string+"KE_entrainment_data.txt",'w')
             header = str("Time    "+"Entrainment\n")
             f.write(header)
             f.close()
 
-    dx_KE = Measure('dx', subdomain_data=solver.objective_markers)
-    # ds_KE = Measure('ds', subdomain_data=solver.objective_markers)
+    dx_KE = Measure('dx', subdomain_data=solver.KE_objective_markers)
+    # ds_KE = Measure('ds', subdomain_data=solver.KE_objective_markers)
 
 
     J = assemble(-(solver.problem.vertKE*dx_KE(1) - solver.problem.vertKE*dx_KE(2)))
 
     if solver.save_objective:
         folder_string = solver.params.folder+"data/"
-        f = open(folder_string+"objective_data.txt",'a')
+        f = open(folder_string+"KE_entrainment_data.txt",'a')
         out_data = [solver.simTime]
         out_data.extend([float(J)])
         np.savetxt(f,[out_data])
@@ -239,7 +236,7 @@ def CalculateKEEntrainment(solver,inflow_angle = 0.0):
 
 
 
-def CalculateWakeCenter(solver,inflow_angle = 0.0):
+def CalculateWakeCenter(solver,inflow_angle = 0.0,first_call=False):
 
     turb_id = solver.opt_turb_id[0]
 
@@ -255,7 +252,7 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
         x0.append(xunique[np.argmin(np.abs(xunique-xtarget))])
 
     ### If we haven't made the markers yet, do it ###
-    if not hasattr(solver,"outflow_markers"):
+    if first_call:
 
         ### Get some parameters ###
         y_factor = 2.0
@@ -269,24 +266,24 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
         uz=HH+z_factor*R
 
         ### Create the Facet Function ###
-        solver.outflow_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim() - 1)
-        solver.outflow_markers.set_all(0)
+        solver.WC_objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim() - 1)
+        solver.WC_objective_markers.set_all(0)
 
         ### Mark the mesh ###
         for i, x in enumerate(x0):
             RDregion  = CompiledSubDomain("near(x[0], x0, tol) && x[1]>=ly && x[1]<=uy  && x[2]>=lz && x[2]<=uz",x0 = x, ly=ly, uy=uy, lz=lz, uz=uz, tol = 1e-2)
-            RDregion.mark(solver.outflow_markers,i+1)
+            RDregion.mark(solver.WC_objective_markers,i+1)
 
         if solver.save_objective:
             ### Save the markers for debugging ###
-            File(solver.params.folder+"mesh/outflow_markers.pvd") << solver.outflow_markers
+            File(solver.params.folder+"mesh/WC_objective_markers.pvd") << solver.WC_objective_markers
 
             ### Create output folder ###
             folder_string = solver.params.folder+"data/"
             if not os.path.exists(folder_string): os.makedirs(folder_string)
 
             ### Open the save file ### 
-            f = open(folder_string+"objective_data.txt",'w')
+            f = open(folder_string+"wake_center_data.txt",'w')
             header = str("Time    "+"%dRD_cx    %dRD_cy    %dRD_cz    "*nRD % tuple(np.repeat(range(1,nRD+1),3))+"\n")
             f.write(header)
 
@@ -294,18 +291,18 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
         if solver.save_objective:
             ### Open to save file (append mode) ###
             folder_string = solver.params.folder+"data/"
-            f = open(folder_string+"objective_data.txt",'a')
+            f = open(folder_string+"wake_center_data.txt",'a')
 
     ### Create the measures ###
-    ds_internal = Measure('dS', subdomain_data=solver.outflow_markers)
-    ds_external = Measure('ds', subdomain_data=solver.outflow_markers)
+    ds_internal = Measure('dS', subdomain_data=solver.WC_objective_markers)
+    ds_external = Measure('ds', subdomain_data=solver.WC_objective_markers)
     x = SpatialCoordinate(solver.problem.dom.mesh)
 
     ### Get the 'Mass' Function ###
     u_ref = solver.problem.bd.bc_velocity
     u     = solver.problem.u_k
     u_dif_mag = sqrt((u[0]-u_ref[0])**2.0+(u[1]-u_ref[1])**2.0+(u[2]-u_ref[2])**2.0)
-    # print(type(u_dif_mag))
+    # solver.fprint(type(u_dif_mag))
     # u_dif_mag = sqrt((u[0]-u_ref[0])**2.0)
 
     ### Calculate the Centroids for each RD ###
@@ -323,7 +320,7 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
 
         ### Switch measure depending on location of RD ###
         if abs(x0[i] - solver.problem.dom.x_range[1]) <= 1e-2:
-            # print("External for " +repr(x0[i]))
+            # solver.fprint("External for " +repr(x0[i]))
             M = assemble(u_dif_mag*ds_external(i+1), **anno_switch)
             Mx = assemble(x[0]*u_dif_mag*ds_external(i+1), **anno_false)
             My = assemble(x[1]*u_dif_mag*ds_external(i+1), **anno_switch)
@@ -339,7 +336,7 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
 
         ### Return Objective Function ###
         if i+1 == record_RD:
-            print("RD"+repr(i+1)+" Centroid: "+repr((Mx/M,My/M,Mz/M)))
+            solver.fprint("RD"+repr(i+1)+" Centroid: "+repr((Mx/M,My/M,Mz/M)))
             # J = -pow(My/M*My/M,1.0/2.0) ## if need to be strictly positive
             J = -My/M
 
@@ -351,11 +348,11 @@ def CalculateWakeCenter(solver,inflow_angle = 0.0):
 
     return J
 
-def CalculateWakeDeficit(solver,inflow_angle = 0.0):
+def CalculateWakeDeficit(solver,inflow_angle = 0.0,first_call=False):
     turb_id = solver.opt_turb_id[0]
 
     ### If we haven't made the markers yet, do it ###
-    if not hasattr(solver,"outflow_markers"):
+    if first_call:
 
         ### Get some parameters ###
         z0 = solver.problem.farm.HH[turb_id]
@@ -368,37 +365,37 @@ def CalculateWakeDeficit(solver,inflow_angle = 0.0):
         ux=x0+L
 
         ### Create the Facet Function ###
-        solver.outflow_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim() - 1)
-        solver.outflow_markers.set_all(0)
+        solver.WD_objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim() - 1)
+        solver.WD_objective_markers.set_all(0)
 
         ### Mark the mesh ###
         wake_region  = CompiledSubDomain("x[0]>=lx && x[0]<=ux && x[1]*x[1]+x[2]*x[2] <= R*R", lx=lx, ux=ux, R=R, tol = 1e-2)
-        wake_region.mark(solver.outflow_markers,1)
+        wake_region.mark(solver.WD_objective_markers,1)
 
         unit = Function(solver.problem.fs.Q)
         unit.vector()[:] = 1.0
-        dx_internal = Measure('dx', subdomain_data=solver.outflow_markers)
-        solver.outflow_markers_vol = assemble(unit*dx_internal(1))
+        dx_internal = Measure('dx', subdomain_data=solver.WD_objective_markers)
+        solver.WD_objective_markers_vol = assemble(unit*dx_internal(1))
 
         if solver.save_objective:
             ### Save the markers for debugging ###
-            File(solver.params.folder+"mesh/outflow_markers.pvd") << solver.outflow_markers
+            File(solver.params.folder+"mesh/WD_objective_markers.pvd") << solver.WD_objective_markers
 
             ### Create output folder ###
             folder_string = solver.params.folder+"data/"
             if not os.path.exists(folder_string): os.makedirs(folder_string)
 
             ### Open the save file ### 
-            f = open(folder_string+"objective_data.txt",'w')
+            f = open(folder_string+"wake_deficit_data.txt",'w')
 
     else:
         if solver.save_objective:
             ### Open to save file (append mode) ###
             folder_string = solver.params.folder+"data/"
-            f = open(folder_string+"objective_data.txt",'a')
+            f = open(folder_string+"wake_deficit_data.txt",'a')
 
     ### Create the measures ###
-    dx_internal = Measure('dx', subdomain_data=solver.outflow_markers)
+    dx_internal = Measure('dx', subdomain_data=solver.WD_objective_markers)
 
     ### Get the Deficit Function ###
     u_ref = solver.problem.bd.bc_velocity
@@ -412,15 +409,15 @@ def CalculateWakeDeficit(solver,inflow_angle = 0.0):
     out_data = [solver.simTime]
 
     ### Calculate the percent change ###
-    J_deficit = assemble(u_dif_mag*dx_internal(1))/solver.outflow_markers_vol
-    J_ref     = assemble(ux_ref*dx_internal(1))/solver.outflow_markers_vol
-    J         = assemble(u_dif_mag/ux_ref*dx_internal(1))/solver.outflow_markers_vol
+    J_deficit = assemble(u_dif_mag*dx_internal(1))/solver.WD_objective_markers_vol
+    J_ref     = assemble(ux_ref*dx_internal(1))/solver.WD_objective_markers_vol
+    J         = assemble(u_dif_mag/ux_ref*dx_internal(1))/solver.WD_objective_markers_vol
 
     ### Collect Data ###
     out_data.extend([J_deficit,J_ref,J])
 
     ### Return Objective Function ###
-    print("Wake Deficit %: "+repr(J*100))
+    solver.fprint("Wake Deficit %: "+repr(J*100))
 
     if solver.save_objective:
         ### Save Data ###
