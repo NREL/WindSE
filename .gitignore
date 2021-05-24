@@ -6,7 +6,7 @@
 *.ipynb
 
 # Ignore result files
-*output/*
+output/
 *.png
 *.eps
 *.pdf
