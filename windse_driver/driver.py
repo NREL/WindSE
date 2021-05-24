@@ -73,7 +73,7 @@ def run_action(params_loc=None):
     solver.Solve()
 
     ### Perform Optimization ###
-    if params.dolfin_adjoint:
+    if params.performing_opt_calc:
         opt=windse.Optimizer(solver)
         if params["optimization"]["gradient"] or params["general"]["debug_mode"]:
             opt.Gradient()

@@ -36,7 +36,7 @@ if main_file != "sphinx-build":
         from windse.helper_functions import ControlUpdater
 
     ### Import objective functions ###
-    import windse.ObjectiveFunctions as obj_funcs
+    import windse.objective_functions as obj_funcs
 
     ### This import improves the plotter functionality on Mac ###
     if platform == 'darwin':
