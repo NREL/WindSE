@@ -1,39 +1,34 @@
-#######################################################################
-####################### Preamble (do not edit) ########################
-#######################################################################
-
-import __main__
-import os
-
-### Get the name of program importing this package ###
-if hasattr(__main__,"__file__"):
-    main_file = os.path.basename(__main__.__file__)
-else:
-    main_file = "ipython"
-
-### This checks if we are just doing documentation ###
-if main_file != "sphinx-build":
-    from dolfin import *
-
-    ### Import the cumulative parameters ###
-    from windse import windse_parameters
-
-    ### Check if we need dolfin_adjoint ###
-    if windse_parameters["general"].get("dolfin_adjoint", False):
-        from dolfin_adjoint import *
-
-#######################################################################
-#######################################################################
+### These must be imported ###
+from dolfin import *
+from dolfin_adjoint import *
 
 ### Additional import statements ###
 import numpy as np
 import math
+import os
 
 ### Declare Unique name
 name = "KE_entrainment"
 
+### Set default keyword argument values ###
+keyword_defaults = {
+    "ke_location": "rotor", # location of measurement hub, rotor, tip (only rotor works for now)
+    }
+
 ### Define objective function
-def objective(solver,inflow_angle = 0.0,first_call=False):
+def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
+    '''
+    The "KE_entrainment" objective function computed the vertical kinetic
+    entrainment behind a single turbine
+
+    Keyword arguments:
+        ke_location: location of measurement, hub, rotor, tip (only rotor works for now)
+    '''
+
+    ### Extract keyword arguments
+    ke_location = kwargs.pop("ke_location")
+
+
     solver.fprint("Using Kinetic Energy Entrainment Functional")
     turb_id = solver.opt_turb_id[0]
     HH = solver.problem.farm.HH[turb_id]
@@ -49,13 +44,13 @@ def objective(solver,inflow_angle = 0.0,first_call=False):
         x1 = solver.problem.dom.x_range[1]
         y0 = min(solver.problem.farm.y)-3.0*max(solver.problem.farm.RD)/2.0
         y1 = max(solver.problem.farm.y)+3.0*max(solver.problem.farm.RD)/2.0
-        # if solver.ke_location =="tip":
+        # if ke_location =="tip":
         #     z0 = min(solver.problem.farm.z)
         #     z1 = max(solver.problem.farm.z)+max(solver.problem.farm.RD)/2.0
-        # elif solver.ke_location == "hub":
+        # elif ke_location == "hub":
         #     z0 = min(solver.problem.farm.z)-solver.problem.dom.mesh.hmin()*1.0
         #     z1 = max(solver.problem.farm.z)+solver.problem.dom.mesh.hmin()*1.0
-        # elif solver.ke_location == "rotor":
+        # elif ke_location == "rotor":
         z0_in = min(solver.problem.farm.z) + R - solver.problem.dom.mesh.hmin()*1.0
         z1_in = max(solver.problem.farm.z) + R + solver.problem.dom.mesh.hmin()*1.0
         z0_out = min(solver.problem.farm.z) - R - solver.problem.dom.mesh.hmin()*1.0
@@ -79,7 +74,6 @@ def objective(solver,inflow_angle = 0.0,first_call=False):
 
     dx_KE = Measure('dx', subdomain_data=solver.KE_objective_markers)
     # ds_KE = Measure('ds', subdomain_data=solver.KE_objective_markers)
-
 
     J = assemble(-(solver.problem.vertKE*dx_KE(1) - solver.problem.vertKE*dx_KE(2)))
 

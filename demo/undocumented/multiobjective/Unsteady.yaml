@@ -53,5 +53,12 @@ solver:
     power_type: alm_power
 
 optimization:
-    objective_type: [alm_power, wake_center, KE_entrainment]
+    # objective_type: [alm_power, wake_center, KE_entrainment]
+    objective_type: 
+        alm_power:
+            alm_power_type: real
+        wake_center:
+            wake_RD: 5
+        KE_entrainment:
+            ke_location: rotor
     save_objective: True

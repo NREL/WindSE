@@ -1,6 +1,6 @@
 general: 
     output: ["mesh","initial_guess","height","turbine_force","solution"]
-    dolfin_adjoint: True
+    dolfin_adjoint: False
     debug_mode: True
 
 wind_farm: 

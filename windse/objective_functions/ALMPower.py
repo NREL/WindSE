@@ -1,39 +1,35 @@
-#######################################################################
-####################### Preamble (do not edit) ########################
-#######################################################################
-
-import __main__
-import os
-
-### Get the name of program importing this package ###
-if hasattr(__main__,"__file__"):
-    main_file = os.path.basename(__main__.__file__)
-else:
-    main_file = "ipython"
-
-### This checks if we are just doing documentation ###
-if main_file != "sphinx-build":
-    from dolfin import *
-
-    ### Import the cumulative parameters ###
-    from windse import windse_parameters
-
-    ### Check if we need dolfin_adjoint ###
-    if windse_parameters["general"].get("dolfin_adjoint", False):
-        from dolfin_adjoint import *
-
-#######################################################################
-#######################################################################
+### These must be imported ###
+from dolfin import *
+from dolfin_adjoint import *
 
 ### Additional import statements ###
 import numpy as np
 import math
+import os
 
 ### Declare Unique name
 name = "alm_power"
 
+### Set default keyword argument values ###
+keyword_defaults = {
+    "alm_power_type": "real" 
+    }
+
 ### Define objective function
-def objective(solver,inflow_angle = 0.0,first_call=False):
+def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
+    '''
+    The "alm_power" objective function computes the power using actuator lines 
+    by dotting the turbine force in the rotor plane with the moment arm of the 
+    turbine blade multiplied by angular velocity. Can be used for multiple
+    turbines.
+
+    Keyword arguments:
+        alm_power_type: real or fake; 
+                            real - dotting the turbine force with the moment arm of the turbine blade 
+                            fake - simply multiply the turbine force by the velocity
+    '''
+
+
     # J = assemble(solver.problem.tf_list[0]*dx)
     # J = assemble(solver.problem.tf_list[0][0]*solver.problem.tf_list[0][0]*dx)
     # J = assemble(-2.0*np.pi*solver.problem.rpm/60.0*abs(inner(solver.problem.tf_list[0],solver.problem.cyld_expr_list[0]))*dx)
@@ -54,16 +50,19 @@ def objective(solver,inflow_angle = 0.0,first_call=False):
     # J = assemble(inner(solver.problem.u_k,as_vector((1.0,0.0,0.0)))*dx)
     # J = assemble(inner(solver.problem.u_k,as_vector((1.0,0.0,0.0)))*dx)
 
+    ### Extract keyword arguments
+    alm_power_type = kwargs.pop("alm_power_type")
+
     J_list=np.zeros(solver.problem.farm.numturbs+2)
     J_list[0]=solver.simTime
     J = 0.0
     for i in range(solver.problem.farm.numturbs):
-        if solver.alm_power_type == "real":
+        if alm_power_type == "real":
             J_temp = -assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*inner(-solver.problem.tf_list[i], solver.problem.cyld_expr_list[i])*dx)
-        elif solver.alm_power_type == "fake":
+        elif alm_power_type == "fake":
             J_temp = -assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*dot(-solver.problem.tf_list[i],solver.problem.u_k)*dx)
         else:
-            raise ValueError("Unknown ALM Power type: "+repr(solver.alm_power_type))
+            raise ValueError("Unknown ALM Power type: "+repr(alm_power_type))
         J_list[i+1] = J_temp
         J += J_temp
     J_list[-1] = float(J)

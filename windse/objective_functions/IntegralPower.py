@@ -1,39 +1,28 @@
-#######################################################################
-####################### Preamble (do not edit) ########################
-#######################################################################
-
-import __main__
-import os
-
-### Get the name of program importing this package ###
-if hasattr(__main__,"__file__"):
-    main_file = os.path.basename(__main__.__file__)
-else:
-    main_file = "ipython"
-
-### This checks if we are just doing documentation ###
-if main_file != "sphinx-build":
-    from dolfin import *
-
-    ### Import the cumulative parameters ###
-    from windse import windse_parameters
-
-    ### Check if we need dolfin_adjoint ###
-    if windse_parameters["general"].get("dolfin_adjoint", False):
-        from dolfin_adjoint import *
-
-#######################################################################
-#######################################################################
+### These must be imported ###
+from dolfin import *
+from dolfin_adjoint import *
 
 ### Additional import statements ###
 import numpy as np
 import math
+import os
 
 ### Declare Unique name
 name = "power"
 
+### Set default keyword argument values ###
+keyword_defaults = {}
+
 ### Define objective function
-def objective(solver,inflow_angle = 0.0,first_call=False):
+def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwargs):
+    '''
+    The "power" objective function calculates the power using actuator disks, 
+    by computing the integral of turbine force dotted with velocity. 
+    '''
+
+    # if not annotate:
+    #     stop_annotating()
+
     J = -assemble(dot(solver.problem.tf,solver.problem.u_k)*dx)
 
     if solver.save_power or solver.save_objective:
@@ -65,4 +54,5 @@ def objective(solver,inflow_angle = 0.0,first_call=False):
         np.savetxt(f,[J_list])
         f.close()
 
+    # start_annotating()
     return J

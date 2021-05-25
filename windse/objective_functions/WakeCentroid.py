@@ -1,45 +1,47 @@
-#######################################################################
-####################### Preamble (do not edit) ########################
-#######################################################################
-
-import __main__
-import os
-
-### Get the name of program importing this package ###
-if hasattr(__main__,"__file__"):
-    main_file = os.path.basename(__main__.__file__)
-else:
-    main_file = "ipython"
-
-### This checks if we are just doing documentation ###
-if main_file != "sphinx-build":
-    from dolfin import *
-
-    ### Import the cumulative parameters ###
-    from windse import windse_parameters
-
-    ### Check if we need dolfin_adjoint ###
-    if windse_parameters["general"].get("dolfin_adjoint", False):
-        from dolfin_adjoint import *
-
-#######################################################################
-#######################################################################
+### These must be imported ###
+from dolfin import *
+from dolfin_adjoint import *
 
 ### Additional import statements ###
 import numpy as np
 import math
+import os
 
 ### Declare Unique name
 name = "wake_center"
 
+### Set default keyword argument values ###
+keyword_defaults = {
+    "wake_RD":     5,
+    "wake_length": 5,
+    "wake_radius": 0.5
+    }
+
 ### Define objective function
-def objective(solver,inflow_angle = 0.0,first_call=False):
+def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
+    '''
+    The "wake_center" objective function computes the wake n rotor diameters
+    downstream from a single turbine. This calculation is perform by centering
+    a cylinder oriented along the streamwise direction downstream and calculating
+    the center of mass of the velocity deficit, or centroid. 
+
+    Keyword arguments:
+        wake_RD:     Number of rotor diameters downstream where the centroid will be computed
+        wake_length: The streamwise length for the area of integration (not used)
+        wake_radius: The radius of the cylinder (not used)
+    '''
+
+    ### Extract keyword arguments
+    wake_RD = kwargs.pop("wake_RD")
+    wake_length = kwargs.pop("wake_length")
+    wake_radius = kwargs.pop("wake_radius")
+
 
     turb_id = solver.opt_turb_id[0]
 
     ### Get the maximum number of Roter Diameters down stream ###
     nRD = math.ceil((solver.problem.dom.x_range[1]-solver.problem.farm.x[turb_id])/(solver.problem.farm.RD[turb_id]))
-    record_RD = min(nRD,solver.wake_RD)
+    record_RD = min(nRD,int(wake_RD))
 
     ### Get the mesh nodes that are closest to each Rotor Diameter ###
     xunique = np.unique(solver.problem.dom.mesh.coordinates()[:,0])
@@ -142,7 +144,5 @@ def objective(solver,inflow_angle = 0.0,first_call=False):
     if solver.save_objective:
         np.savetxt(f,[out_data])
         f.close()
-
-    print(type(J))
 
     return J

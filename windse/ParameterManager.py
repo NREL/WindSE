@@ -73,7 +73,13 @@ class Parameters(dict):
         self.tagged_output = {}
         self.windse_path = os.path.dirname(os.path.realpath(__file__))
         self.defaults = yaml.load(open(self.windse_path+"/default_parameters.yaml"),Loader=yaml.SafeLoader)
+
+        ### Update self with the defaults ###
         self.update(self.defaults)
+
+        ### Include the defaults from all the objectives ###
+        import windse.objective_functions as obj_funcs
+        self["optimization"]["objective_type"] = obj_funcs.objective_kwargs
 
         # Create an MPI communicator and initialize rank and num_procs 
         self.comm = MPI.comm_world
@@ -156,6 +162,17 @@ class Parameters(dict):
         self.default_bc_types = True
         if yaml_bc.get("boundary_types",{}):
             self.default_bc_types = False
+
+        ### Setup objective functions if needed ###
+        yaml_op = yaml_file.get("optimization",{})
+        objective_type = yaml_op.get("objective_type", None)
+        if objective_type is None:
+            self["optimization"]["objective_type"] = self.defaults["optimization"]["objective_type"]
+        elif isinstance(objective_type,dict):
+            new_objective_type = {}
+            for key in objective_type.keys():
+                new_objective_type[key] = self["optimization"]["objective_type"][key]
+            self["optimization"]["objective_type"] = new_objective_type
 
         ### Set the parameters ###
         self.update(self.NestedUpdate(yaml_file))

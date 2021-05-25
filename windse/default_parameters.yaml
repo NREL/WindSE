@@ -135,16 +135,10 @@ optimization:
     layout_bounds:  wind_farm
     objective_type: power
     save_objective: False
-    alm_power_type: real
     opt_turb_id :   all          # int or list or "all" 
-    wake_RD:        5
-    min_total:      0
-    wake_length:    5
-    wake_radius:    0.5
-    ke_location:    rotor # hub, rotor, tip (only rotor works for now)
     record_time:    0.0 # float or "computed"  
     u_avg_time:     0
+    opt_routine:    SLSQP      # alternative: L-BFGS-B
     taylor_test:    False
     optimize:       False
     gradient:       False
-    opt_routine:    SLSQP      # alternative: L-BFGS-B

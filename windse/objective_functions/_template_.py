@@ -1,47 +1,30 @@
-#######################################################################
-####################### Preamble (do not edit) ########################
-#######################################################################
-
-import __main__
-import os
-
-### Get the name of program importing this package ###
-if hasattr(__main__,"__file__"):
-    main_file = os.path.basename(__main__.__file__)
-else:
-    main_file = "ipython"
-
-### This checks if we are just doing documentation ###
-if main_file != "sphinx-build":
-    from dolfin import *
-
-    ### Import the cumulative parameters ###
-    from windse import windse_parameters
-
-    ### Check if we need dolfin_adjoint ###
-    if windse_parameters["general"].get("dolfin_adjoint", False):
-        from dolfin_adjoint import *
-
-#######################################################################
-#######################################################################
-
 # Feel free to rename this file anything. if the file starts with a '_',
 # it will be ignored in the import.
 
+### These must be imported ###
+from dolfin import *
+from dolfin_adjoint import *
+
 ### Additional import statements ###
 import numpy as np
-import math
 
 ### Declare Unique name
 name = "objective_name"
 
 ### Run this code to see which names are already taken ###
 # import windse.objective_functions as obj_funcs
-# print(obj_funcs.objectives_dict.keys())
+# print(obj_funcs.objective_functions.keys())
+# print(obj_funcs.objective_kwargs)
 # exit()
 
+### Set default keyword argument values ###
+# These must be a dictionary and will be passed in via the kwargs.
+# Leave empty if no argument are needed. 
+keyword_defaults = {}
+
+
 ### Define objective function
-def objective(solver, inflow_angle = 0.0, first_call=False):
+def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     '''
     This is the function that you use to calculate the objective.
     Do not rename this function. The solver input should contain 
@@ -56,10 +39,14 @@ def objective(solver, inflow_angle = 0.0, first_call=False):
     from yaw). This is a legacy option and probably should not be
     used as it will likely be removed in the future.
 
-    Finally, first_call is a flag that let this function know if 
-    this is the first time it has been called. This is useful for
-    saving objective specific files as it lets you know you need
-    to create the file if true and append to the file if false. 
+    The first_call flag lets this function know if this is the 
+    first time it has been called. This is useful for saving 
+    objective specific files as it lets you know you need to 
+    create the file if true and append to the file if false. 
+
+    Any additional keyword argument can be popped from
+    kwargs. These arguments are loaded through the yaml file and
+    directly passed to the objective() function.
 
     To make sure your function plays nice with dolfin_adjoint, 
     try to exclusively use dolfin operation such as assemble and 
@@ -72,6 +59,19 @@ def objective(solver, inflow_angle = 0.0, first_call=False):
     numpy_adjoint. Either way, it should probably reference 
     'adjoint' Note: to check this, make sure 
     general:dolfin_adjoint is set to True in the yaml file.
+
+    Finally, the output of the objective function should be a 
+    single value.
+
+    When creating a new objective function make sure to fill out
+    the doc string below and delete everything above this line:
+    ------------------------------------------------------------
+
+    Description of objective function
+
+    Keyword arguments:
+        kw1: description of argument
+        kw2: description of argument
     '''
 
     ### this is a dummy value and can be removed
