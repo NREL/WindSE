@@ -31,11 +31,11 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
             my = solver.problem.farm.my[i]
             mz = solver.problem.farm.mz[i]
             x0 = [mx,my,mz]
-            W = solver.problem.farm.W[i]*1.0
+            W = solver.problem.farm.thickness[i]*1.0
             R = solver.problem.farm.RD[i]/2.0 
             ma = solver.problem.farm.ma[i]
-            yaw = solver.problem.farm.myaw[i]+delta_yaw
-            u = solver.u_next
+            yaw = solver.problem.farm.myaw[i]+inflow_angle
+            u = solver.u_k
             A = pi*R**2.0
             C_tprime = 4*ma/(1-ma)
             C_pprime = 0.45/(1-ma)**3
@@ -74,7 +74,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
 
             if first_call:
                 f = open(folder_string+"2d_power_data.txt",'w')
-                header = srt("Time    "+"Turbine_%d    "*solver.problem.farm.numturbs % tuple(range(solver.problem.farm.numturbs))+"Sum"+"\n")
+                header = str("Time    "+"Turbine_%d    "*solver.problem.farm.numturbs % tuple(range(solver.problem.farm.numturbs))+"Sum"+"\n")
                 f.write(header)
             else:
                 f = open(folder_string+"2d_power_data.txt",'a')

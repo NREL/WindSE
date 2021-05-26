@@ -27,6 +27,7 @@ if main_file != "sphinx-build":
     import difflib
     import copy
     import inspect 
+    import copy
 
     # set_log_level(LogLevel.CRITICAL)
 
@@ -75,7 +76,8 @@ class Parameters(dict):
         self.defaults = yaml.load(open(self.windse_path+"/default_parameters.yaml"),Loader=yaml.SafeLoader)
 
         ### Update self with the defaults ###
-        self.update(self.defaults)
+        defaults_bak = copy.deepcopy(self.defaults)
+        self.update(defaults_bak)
 
         ### Include the defaults from all the objectives ###
         import windse.objective_functions as obj_funcs
@@ -151,7 +153,7 @@ class Parameters(dict):
             self.TerminalUpdate(yaml_file,keys_list[:-1],keys_list[-1])
 
         ### Check for incorrect parameters ###
-        self.CheckParameters(yaml_file,self.defaults)
+        self.CheckParameters(yaml_file,self)
         self.fprint("Parameter Check Passed")
 
         ### Check is specific parameters were provided ###
