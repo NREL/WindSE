@@ -5,7 +5,7 @@ import argparse
 import sys
 from pyadjoint import get_working_tape
 import cProfile
-from dolfin import *
+import dolfin
 
 # import os
 # os.environ['OMP_NUM_THREADS'] = '1'
@@ -51,6 +51,7 @@ def run_action(params_loc=None):
         # if ("windse" in k):
         if ("windse" in k or "dolfin_adjoint" in k or "fenics_adjoint" in k):
             mods_to_remove.append(k)
+
     for i in range(len(mods_to_remove)):
         del sys.modules[mods_to_remove[i]]
 

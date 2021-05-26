@@ -25,6 +25,7 @@ if main_file != "sphinx-build":
     import numpy as np
     from scipy.interpolate import interp2d, interp1d,RectBivariateSpline
     import shutil
+    from pyadjoint import stop_annotating
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -632,10 +633,12 @@ class GenericDomain(object):
         
         self.fprint("Moving Mesh to New Boundary Using ALE")
         ### The way dolfin_adjoint overwrites ALE.move is destructive so we have to use a work around
+        print(self.params.dolfin_ALE_move.__module__)
         if self.params.dolfin_adjoint:
             ALE.move(self.mesh,self.bmesh)
         else:
-            self.params.dolfin_ALE_move(self.mesh,self.bmesh)
+            with stop_annotating():
+                ALE.move(self.mesh,self.bmesh)
 
         move_stop = time.time()
         self.fprint("Mesh Moved: {:1.2f} s".format(move_stop-move_start),special="footer")

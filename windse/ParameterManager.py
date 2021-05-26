@@ -21,13 +21,12 @@ if main_file != "sphinx-build":
     import numpy as np
     from math import ceil
     import shutil
-    from dolfin import *
+    import dolfin
     import sys
     import ast
     import difflib
     import copy
     import inspect 
-    import copy
 
     # set_log_level(LogLevel.CRITICAL)
 
@@ -71,10 +70,6 @@ class Parameters(dict):
     def __init__(self):
         super(Parameters, self).__init__()
 
-        ### Before we do anything, we need to save ALE.move from dolfin_adjoints grasp
-        self.dolfin_ALE_move = ALE.move
-
-
         self.current_tab = 0
         self.tagged_output = {}
         self.windse_path = os.path.dirname(os.path.realpath(__file__))
@@ -89,7 +84,7 @@ class Parameters(dict):
         self["optimization"]["objective_type"] = obj_funcs.objective_kwargs
 
         # Create an MPI communicator and initialize rank and num_procs 
-        self.comm = MPI.comm_world
+        self.comm = dolfin.MPI.comm_world
         self.rank = self.comm.Get_rank()
         self.num_procs = self.comm.Get_size()
 
@@ -319,18 +314,18 @@ class Parameters(dict):
 
             if filetype == "pvd":
                 file_string = self.folder+subfolder+filename+".pvd"
-                out = File(file_string)
+                out = dolfin.File(file_string)
                 out << (func,val)
             elif filetype == "xdmf":
                 file_string = self.folder+subfolder+filename+".xdmf"
-                out = XDMFFile(file_string)
+                out = dolfin.XDMFFile(file_string)
                 out.write(func,val)
 
             func.rename(old_filename,old_filename)
             return out
 
         else:
-            if filetype == "pvd" or isinstance(func,type(Mesh)):
+            if filetype == "pvd" or isinstance(func,type(dolfin.Mesh)):
                 file << (func,val)
             elif filetype == "xdmf":
                 file.write(func,val)
@@ -362,7 +357,7 @@ class Parameters(dict):
 
             ### Close the file ###
             f.close()
-        MPI.comm_world.barrier()
+        dolfin.MPI.comm_world.barrier()
 
     def fprint(self,string,tab=None,offset=0,special=None):
         """
