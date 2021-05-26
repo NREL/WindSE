@@ -70,6 +70,11 @@ class Parameters(dict):
     """
     def __init__(self):
         super(Parameters, self).__init__()
+
+        ### Before we do anything, we need to save ALE.move from dolfin_adjoints grasp
+        self.dolfin_ALE_move = ALE.move
+
+
         self.current_tab = 0
         self.tagged_output = {}
         self.windse_path = os.path.dirname(os.path.realpath(__file__))
