@@ -633,7 +633,6 @@ class GenericDomain(object):
         
         self.fprint("Moving Mesh to New Boundary Using ALE")
         ### The way dolfin_adjoint overwrites ALE.move is destructive so we have to use a work around
-        print(self.params.dolfin_ALE_move.__module__)
         if self.params.dolfin_adjoint:
             ALE.move(self.mesh,self.bmesh)
         else:
