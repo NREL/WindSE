@@ -17,8 +17,11 @@ name = "cyld_kernel"
 ### Set default keyword argument values ###
 # These must be a dictionary and will be passed in via the kwargs.
 # Leave empty if no argument are needed. 
-keyword_defaults = {}
-
+keyword_defaults = {'type': 'above', # 'upstream'
+                    'radius': 0.5,
+                    'length': 3.0,
+                    'sharpness': 6,
+                    }
 
 ### Define objective function
 def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
@@ -77,15 +80,11 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
 
     # ================================================================
 
-    # Declare some of the properties of the kernel
-    kp = dict()
-    # kp['type'] = 'upstream'
-    kp['type'] = 'above'
-    kp['radius'] = solver.problem.farm.RD[0]/2.0
-    kp['length'] = 3.0*2.0*kp['radius']
-    kp['sharpness'] = 6
+    # Modify some of the properties of the kernel
+    kwargs['radius'] *= solver.problem.farm.RD[0]
+    kwargs['length'] *= solver.problem.farm.RD[0]
 
-    kernel_exp = build_cylindrical_kernels(solver, kp)
+    kernel_exp = build_cylindrical_kernels(solver, kwargs)
 
     # Normalize this kernel function
     vol = assemble(kernel_exp*dx)/solver.problem.farm.numturbs
