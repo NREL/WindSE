@@ -1,10 +1,3 @@
-
-
-
-
-# Feel free to rename this file anything. if the file starts with a '_',
-# it will be ignored in the import.
-
 ### These must be imported ###
 from dolfin import *
 from dolfin_adjoint import *
@@ -111,4 +104,3 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     J = -assemble(sqrt(inner(solver.problem.u_k, solver.problem.u_k))*kernel_exp*dx)
 
     return J
-    
