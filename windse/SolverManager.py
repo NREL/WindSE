@@ -36,7 +36,7 @@ if main_file != "sphinx-build":
         from windse.helper_functions import ControlUpdater
 
     ### Import objective functions ###
-    import windse.ObjectiveFunctions as obj_funcs
+    import windse.objective_functions as obj_funcs
 
     ### This import improves the plotter functionality on Mac ###
     if platform == 'darwin':
@@ -93,7 +93,6 @@ class GenericSolver(object):
         if self.params.performing_opt_calc or self.save_objective:
             self.optimizing = True
             self.J = 0.0
-            self.wake_RD = int(self.wake_RD)
             self.adj_file = XDMFFile(self.params.folder+"timeSeries/local_adjoint.xdmf")
             self.adj_time_iter = 1
             self.adj_time_list = [0.0]
@@ -108,7 +107,8 @@ class GenericSolver(object):
 
         #Check if we need to save the power output
         if self.save_power:
-            self.power_func = obj_funcs.objectives_dict[self.power_type]
+            self.power_func = obj_funcs.objective_functions[self.power_type]
+            self.power_func_kwargs = obj_funcs.objective_kwargs[self.power_type]
             self.J = 0.0
 
     def DebugOutput(self,t=None,i=None):
@@ -211,6 +211,21 @@ class GenericSolver(object):
     #     np.savetxt(f,[J_list])
     #     f.close()
 
+    def EvaulatePowerFunctional(self):
+
+        first_call = True
+        if self.J_saved:
+            first_call = False
+
+        annotate = self.params.dolfin_adjoint 
+
+        args = (self, (self.iter_theta-self.problem.dom.inflow_angle))
+        kwargs = {"first_call": first_call, "annotate": annotate}
+        kwargs.update(self.power_func_kwargs)
+        out = obj_funcs.annotated_objective(self.power_func, *args, **kwargs)
+
+        return out
+
 
     def EvaluateObjective(self):
         self.fprint("Evaluating Objective Data",special="header")
@@ -220,15 +235,32 @@ class GenericSolver(object):
         if self.J_saved:
             first_call = False
 
+        annotate = self.params.dolfin_adjoint 
+
+        print(self.objective_type)
+
+
         ### Convert to list ###
-        if  not isinstance(self.objective_type,list):
-            self.objective_type = [self.objective_type]
+        if isinstance(self.objective_type,str):
+            self.objective_type = {self.objective_type: obj_funcs.objective_kwargs[self.objective_type]}
+        elif isinstance(self.objective_type,list):
+            new_objective_type = {}
+            for obj in self.objective_type:
+                new_objective_type[obj] = obj_funcs.objective_kwargs[obj]
+            self.objective_type = new_objective_type
+
+        print(self.objective_type)
+
 
         ### Iterate over objectives ###
         obj_list = [self.simTime]
-        for objective in self.objective_type:
-            self.objective_func = obj_funcs.objectives_dict[objective]
-            obj_list.append(self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle),first_call=first_call))
+        for objective, obj_kwargs in self.objective_type.items():
+            objective_func = obj_funcs.objective_functions[objective]
+            args = (self, (self.iter_theta-self.problem.dom.inflow_angle))
+            kwargs = {"first_call": first_call, "annotate": annotate}
+            kwargs.update(obj_kwargs)
+            out = obj_funcs.annotated_objective(objective_func, *args, **kwargs)
+            obj_list.append(out)
         J = obj_list[1]
 
         # ### Flip the sign because the objective is minimized but these values are maximized
@@ -422,7 +454,7 @@ class SteadySolver(GenericSolver):
             self.J = ControlUpdater(self.J, self.problem)
 
         if self.save_power and "power" not in self.objective_type:
-            self.power_func(self,(self.iter_theta-self.problem.dom.inflow_angle))
+            self.EvaulatePowerFunctional()
 
             # print(self.outflow_markers)
             # self.J += -dot(self.problem.farm.rotor_disks,self.u_k)*dx
@@ -698,7 +730,7 @@ class IterativeSteadySolver(GenericSolver):
             self.J = ControlUpdater(self.J, self.problem)
 
         if self.save_power and "power" not in self.objective_type:
-            self.power_func(self,(self.iter_theta-self.problem.dom.inflow_angle))
+            self.EvaulatePowerFunctional()
 
     def SaveTimeSeries(self, simTime):
         # if hasattr(self.problem,"tf_save"):
@@ -1052,14 +1084,15 @@ class UnsteadySolver(GenericSolver):
                 dt_sum += self.problem.dt 
                 J_new = float(self.J/dt_sum)
 
+                ### TODO, replace this with an actual stabilization criteria such as relative difference tolerance
                 # Check the change in J with respect to time and check if we are "stable" i.e. hit the required number of minimums
                 J_diff = J_new-J_old
-                if J_diff_old <= 0 and J_diff > 0 and self.min_total:
-                    if min_count == self.min_total:
-                        stable = True
-                    else:
-                        min_count += 1
-                J_diff_old = J_diff
+                # if J_diff_old <= 0 and J_diff > 0 and self.min_total:
+                #     if min_count == self.min_total:
+                #         stable = True
+                #     else:
+                #         min_count += 1
+                # J_diff_old = J_diff
                 J_old = J_new
 
                 # Another stable checking method that just looks at the difference
@@ -1071,7 +1104,7 @@ class UnsteadySolver(GenericSolver):
 
             # to only call the power functional once, check if a) the objective is the power, b) that we are before record time
             if self.save_power and ("power" not in self.objective_type or ("power" in self.objective_type and self.simTime < self.record_time) ):
-                self.power_func(self,(self.iter_theta-self.problem.dom.inflow_angle))
+                self.EvaulatePowerFunctional()
 
             # After changing timestep size, A1 must be reassembled
             # FIXME: This may be unnecessary (or could be sped up by changing only the minimum amount necessary)

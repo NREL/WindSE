@@ -1,0 +1,64 @@
+general:
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: False
+    debug_mode: True
+
+wind_farm:
+    type: imported              
+    path: Input_Data/iea_rwt.txt
+    turbine_method: alm 
+    read_turb_data: Input_Data/baseline.csv
+    rpm: 4.0 
+    chord_factor: 1.0
+    gauss_factor: 2.0    
+
+domain:
+    type: box           
+    x_range: [-260, 780]
+    y_range: [-260, 260]
+    z_range: [0.04, 520]
+    nx: 30     
+    ny: 15     
+    nz: 15     
+
+refine:
+    warp_type: split        
+    warp_percent: 0.83333333
+    warp_height: 260        
+    refine_custom: [
+        [stream, [  [-80,0,110], 80, 860, 0, 0, 1.5  ]],
+    ]
+function_space:
+    type: linear 
+
+boundary_conditions:
+    vel_profile: log
+    HH_vel: 9.0 
+    k: 0.4      
+    boundary_types:
+        inflow: ["west"]
+        no_stress: ["east"]
+        free_slip: ["top","north","south"]
+        no_slip: ["bottom"]
+
+problem:
+    type: unsteady     
+    viscosity: 0.000015
+
+solver:
+    type: unsteady     
+    save_interval: 5.0 
+    final_time: 10.0   
+    save_power: true
+    power_type: alm_power
+
+optimization:
+    # objective_type: [alm_power, wake_center, KE_entrainment]
+    objective_type: 
+        alm_power:
+            alm_power_type: real
+        wake_center:
+            wake_RD: 5
+        KE_entrainment:
+            ke_location: rotor
+    save_objective: True

@@ -6,14 +6,15 @@
 *.ipynb
 
 # Ignore result files
+output/
 *.png
 *.eps
 *.pdf
 
 *.xlsx
-*.yaml
-*.txt
-*.csv
+# *.yaml
+# *.txt
+# *.csv
 *.zip
 
 *.pvd
@@ -22,5 +23,8 @@
 *.xdmf
 *.h5
 
+# Ignore Scripts
 *.sh
 
+# Ignore compiled python
+*__pycache__*

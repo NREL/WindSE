@@ -21,7 +21,7 @@ if main_file != "sphinx-build":
     import numpy as np
     from math import ceil
     import shutil
-    from dolfin import *
+    import dolfin
     import sys
     import ast
     import difflib
@@ -69,14 +69,22 @@ class Parameters(dict):
     """
     def __init__(self):
         super(Parameters, self).__init__()
+
         self.current_tab = 0
         self.tagged_output = {}
         self.windse_path = os.path.dirname(os.path.realpath(__file__))
         self.defaults = yaml.load(open(self.windse_path+"/default_parameters.yaml"),Loader=yaml.SafeLoader)
-        self.update(self.defaults)
+
+        ### Update self with the defaults ###
+        defaults_bak = copy.deepcopy(self.defaults)
+        self.update(defaults_bak)
+
+        ### Include the defaults from all the objectives ###
+        import windse.objective_functions as obj_funcs
+        self["optimization"]["objective_type"] = obj_funcs.objective_kwargs
 
         # Create an MPI communicator and initialize rank and num_procs 
-        self.comm = MPI.comm_world
+        self.comm = dolfin.MPI.comm_world
         self.rank = self.comm.Get_rank()
         self.num_procs = self.comm.Get_size()
 
@@ -145,7 +153,7 @@ class Parameters(dict):
             self.TerminalUpdate(yaml_file,keys_list[:-1],keys_list[-1])
 
         ### Check for incorrect parameters ###
-        self.CheckParameters(yaml_file,self.defaults)
+        self.CheckParameters(yaml_file,self)
         self.fprint("Parameter Check Passed")
 
         ### Check is specific parameters were provided ###
@@ -156,6 +164,17 @@ class Parameters(dict):
         self.default_bc_types = True
         if yaml_bc.get("boundary_types",{}):
             self.default_bc_types = False
+
+        ### Setup objective functions if needed ###
+        yaml_op = yaml_file.get("optimization",{})
+        objective_type = yaml_op.get("objective_type", None)
+        if objective_type is None:
+            self["optimization"]["objective_type"] = self.defaults["optimization"]["objective_type"]
+        elif isinstance(objective_type,dict):
+            new_objective_type = {}
+            for key in objective_type.keys():
+                new_objective_type[key] = self["optimization"]["objective_type"][key]
+            self["optimization"]["objective_type"] = new_objective_type
 
         ### Set the parameters ###
         self.update(self.NestedUpdate(yaml_file))
@@ -295,18 +314,18 @@ class Parameters(dict):
 
             if filetype == "pvd":
                 file_string = self.folder+subfolder+filename+".pvd"
-                out = File(file_string)
+                out = dolfin.File(file_string)
                 out << (func,val)
             elif filetype == "xdmf":
                 file_string = self.folder+subfolder+filename+".xdmf"
-                out = XDMFFile(file_string)
+                out = dolfin.XDMFFile(file_string)
                 out.write(func,val)
 
             func.rename(old_filename,old_filename)
             return out
 
         else:
-            if filetype == "pvd" or isinstance(func,type(Mesh)):
+            if filetype == "pvd" or isinstance(func,type(dolfin.Mesh)):
                 file << (func,val)
             elif filetype == "xdmf":
                 file.write(func,val)
@@ -338,7 +357,7 @@ class Parameters(dict):
 
             ### Close the file ###
             f.close()
-        MPI.comm_world.barrier()
+        dolfin.MPI.comm_world.barrier()
 
     def fprint(self,string,tab=None,offset=0,special=None):
         """
