@@ -292,7 +292,7 @@ class GenericWindFarm(object):
         self.params["wind_farm"]["ex_x"] = self.ex_x
         self.params["wind_farm"]["ex_y"] = self.ex_y
         self.params["wind_farm"]["ex_z"] = self.ex_z
-
+        
         return [self.ex_x,self.ex_y,self.ex_z]
 
     def CreateConstants(self):
@@ -1315,17 +1315,6 @@ class GridWindFarm(GenericWindFarm):
             self.ex_x   = self.ex_x * Sx
             self.ex_y   = self.ex_y * Sx
 
-        ### Print some useful stats ###
-        self.fprint("Force Type:         {0}".format(self.force))
-        self.fprint("Number of Rows:     {:d}".format(self.grid_rows))
-        self.fprint("Number of Columns:  {:d}".format(self.grid_cols))
-        self.fprint("Number of Turbines: {:d}".format(self.numturbs))
-        if self.jitter > 0.0:
-            self.fprint("Amount of Jitter:   {: 1.2f}".format(self.jitter))
-            self.fprint("Random Seed: " + repr(self.seed))
-        self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0]/Sx,self.ex_x[1]/Sx))
-        self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0]/Sx,self.ex_y[1]/Sx))
-
         ### Create the x and y coords ###
         if self.grid_cols > 1:
             self.grid_x = np.linspace(self.ex_x[0]+self.radius,self.ex_x[1]-self.radius,self.grid_cols)
@@ -1338,6 +1327,17 @@ class GridWindFarm(GenericWindFarm):
 
         ### Use the x and y coords to make a mesh grid ###
         self.x, self.y = np.meshgrid(self.grid_x,self.grid_y)
+        
+        # Apply y shear if included in user yaml. Shear is in meters.
+        if self.y_shear is not None:
+            for idx in range(self.grid_cols):
+                self.y[:, idx] += self.y_shear * idx
+        
+        # Apply x shear if included in user yaml. Shear is in meters.
+        if self.x_shear is not None:
+            for idx in range(self.grid_rows):
+                self.x[idx, :] += self.x_shear * idx
+
         self.x = self.x.flatten()
         self.y = self.y.flatten()
 
@@ -1347,6 +1347,21 @@ class GridWindFarm(GenericWindFarm):
                 np.random.seed(self.seed)
             self.x += np.random.randn(self.numturbs)*self.jitter
             self.y += np.random.randn(self.numturbs)*self.jitter
+            
+        # Recompute the extents based on grid manipulations
+        self.ex_x = [np.min(self.x), np.max(self.x)]
+        self.ex_y = [np.min(self.y), np.max(self.y)]
+            
+        ### Print some useful stats ###
+        self.fprint("Force Type:         {0}".format(self.force))
+        self.fprint("Number of Rows:     {:d}".format(self.grid_rows))
+        self.fprint("Number of Columns:  {:d}".format(self.grid_cols))
+        self.fprint("Number of Turbines: {:d}".format(self.numturbs))
+        if self.jitter > 0.0:
+            self.fprint("Amount of Jitter:   {: 1.2f}".format(self.jitter))
+            self.fprint("Random Seed: " + repr(self.seed))
+        self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0]/Sx,self.ex_x[1]/Sx))
+        self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0]/Sx,self.ex_y[1]/Sx))
 
         ### Convert the constant parameters to lists ###
         self.CreateLists()
@@ -1364,15 +1379,6 @@ class GridWindFarm(GenericWindFarm):
         self.DebugOutput()
         self.fprint("Wind Farm Generated",special="footer")
         
-        print('wind turbine locations')
-        print(np.vstack((self.x, self.y, self.z)))
-        
-        import matplotlib.pyplot as plt
-        
-        plt.scatter(self.x, self.y)
-        plt.show()
-        exit()
-
 
 class RandomWindFarm(GenericWindFarm):
     """
