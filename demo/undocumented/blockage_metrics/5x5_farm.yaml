@@ -1,0 +1,70 @@
+# General options
+general: 
+    name: 5x5_Wind_Farm_4      # Name of the output folder
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+
+# Wind Farm Parameters:
+wind_farm: 
+
+    ########################## Grid Wind Farm #########################
+    type: grid            #                          |
+    grid_rows: 5          # Number of rows           | -
+    grid_cols: 5          # Number of columns        | -
+    ex_x: [-845, 845]     # x-extent of the farm     | m
+    ex_y: [-845, 845]     # y-extent of the farm     | m
+    HH: 110.0                # Hub Height               | m
+    RD: 130.0             # Turbine Diameter         | m
+    thickness: 13.0       # Effective Thickness      | m
+    yaw: 0.0           # Yaw                      | rads
+    axial: 0.33           # Axial Induction          | -
+    ###################################################################
+
+# Domain Parameters: Uncomment a set to change domain shape
+domain: 
+    
+    ########################### Box Domain ############################
+    type: box              #                       |
+    x_range: [-1560, 1300] # x-range of the domain | m
+    y_range: [-1560, 1300] # y-range of the domain | m
+    z_range: [0.04, 500]   # z-range of the domain | m
+    nx: 30                 # Number of x-nodes     | -
+    ny: 30                 # Number of y-nodes     | -
+    nz: 9                 # Number of z-nodes      | -
+    ###################################################################
+
+refine:
+    warp_type: split
+    warp_percent: 0.85     # percent of cells moved       | -
+    warp_height: 250       # move cell below this value   | m
+    refine_custom: [
+        [box, [  [[-975,975],[-975,975],[0,240]]  ]],
+        [simple, [  175  ]]
+    ]
+    # turbine_num: 2         # number of turbine refinements| -
+    # turbine_factor: 1.25   # turbine radius multiplier    | -
+
+
+function_space:
+    type: linear
+
+boundary_conditions:
+    vel_profile: log
+    HH_vel: 8.0
+    k: 0.4
+    inflow_angle: 0.785
+    ######### Uncomment to test out custom BCs for BoxDomain ##########
+    # boundary_types:
+    #     inflow: ["west","top"]
+    #     no_stress: [""east"]
+    #     free_slip: ["north","south"]
+    #     no_slip: ["bottom"]
+    ###################################################################
+
+problem:
+    type: stabilized
+    viscosity: 0.01
+    lmax: 50
+
+solver:
+    type: steady
+    save_power: true

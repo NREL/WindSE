@@ -237,9 +237,6 @@ class GenericSolver(object):
 
         annotate = self.params.dolfin_adjoint 
 
-        print(self.objective_type)
-
-
         ### Convert to list ###
         if isinstance(self.objective_type,str):
             self.objective_type = {self.objective_type: obj_funcs.objective_kwargs[self.objective_type]}
@@ -249,13 +246,11 @@ class GenericSolver(object):
                 new_objective_type[obj] = obj_funcs.objective_kwargs[obj]
             self.objective_type = new_objective_type
 
-        print(self.objective_type)
-
-
         ### Iterate over objectives ###
         obj_list = [self.simTime]
         for objective, obj_kwargs in self.objective_type.items():
-            objective_func = obj_funcs.objective_functions[objective]
+            objective_split = objective.split("_#")[0]
+            objective_func = obj_funcs.objective_functions[objective_split]
             args = (self, (self.iter_theta-self.problem.dom.inflow_angle))
             kwargs = {"first_call": first_call, "annotate": annotate}
             kwargs.update(obj_kwargs)
@@ -273,7 +268,7 @@ class GenericSolver(object):
         else:
             ### Generate the header ###
             header = "Time, "
-            for name in self.objective_type:
+            for name in self.objective_type.keys():
                 header += name + ", "
             header = header[:-2]
 
@@ -282,7 +277,6 @@ class GenericSolver(object):
 
         stop = time.time()
         self.fprint("Complete: {:1.2f} s".format(stop-start),special="footer")
-        
         return J
 
 class SteadySolver(GenericSolver):

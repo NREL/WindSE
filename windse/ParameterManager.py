@@ -81,6 +81,7 @@ class Parameters(dict):
 
         ### Include the defaults from all the objectives ###
         import windse.objective_functions as obj_funcs
+        self.obj_names = obj_funcs.objective_functions.keys()
         self["optimization"]["objective_type"] = obj_funcs.objective_kwargs
 
         # Create an MPI communicator and initialize rank and num_procs 
@@ -106,7 +107,8 @@ class Parameters(dict):
     def CheckParameters(self,updates,defaults,out_string=""):
         default_keys = defaults.keys()
         for key in updates.keys():
-            if key not in default_keys:
+            split_key = key.split("_#")[0]
+            if split_key not in default_keys:
                 suggestion = difflib.get_close_matches(key, default_keys, n=1)
                 if suggestion:
                     raise KeyError(out_string + key + " is not a valid parameter, did you mean: "+suggestion[0])
@@ -114,7 +116,7 @@ class Parameters(dict):
                     raise KeyError(out_string + key + " is not a valid parameter")
             elif isinstance(updates[key],dict):
                 in_string =out_string + key + ":"
-                self.CheckParameters(updates[key],defaults[key],out_string=in_string)
+                self.CheckParameters(updates[key],defaults[split_key],out_string=in_string)
 
     def NestedUpdate(self,dic,subdic=None):
         if subdic is None:
@@ -164,6 +166,7 @@ class Parameters(dict):
         self.default_bc_types = True
         if yaml_bc.get("boundary_types",{}):
             self.default_bc_types = False
+        print(self["optimization"]["objective_type"])
 
         ### Setup objective functions if needed ###
         yaml_op = yaml_file.get("optimization",{})
@@ -171,10 +174,7 @@ class Parameters(dict):
         if objective_type is None:
             self["optimization"]["objective_type"] = self.defaults["optimization"]["objective_type"]
         elif isinstance(objective_type,dict):
-            new_objective_type = {}
-            for key in objective_type.keys():
-                new_objective_type[key] = self["optimization"]["objective_type"][key]
-            self["optimization"]["objective_type"] = new_objective_type
+            self["optimization"]["objective_type"] = objective_type
 
         ### Set the parameters ###
         self.update(self.NestedUpdate(yaml_file))
