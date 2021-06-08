@@ -1310,7 +1310,7 @@ class GridWindFarm(GenericWindFarm):
             x_dist = self.x_spacing * (self.grid_cols - 1)
             y_dist = self.y_spacing * (self.grid_rows - 1)
             self.ex_x = [0., x_dist + 2 * self.radius]
-            self.ex_y = [0., y_dist + 2 * self.radius]
+            self.ex_y = [-y_dist / 2 - self.radius, y_dist / 2 + self.radius]
         else:
             self.ex_x   = self.ex_x * Sx
             self.ex_y   = self.ex_y * Sx
