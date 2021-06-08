@@ -213,7 +213,7 @@ class Optimizer(object):
             else:
                 self.layout_bounds = np.array([[0,0],[0,0]])
             self.layout_bounds = self.layout_bounds*self.xscale
-
+            
         self.iteration = 0
 
         self.fprint("Setting Up Optimizer",special="header")

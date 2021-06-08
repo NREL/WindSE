@@ -46,6 +46,10 @@ wind_farm:
     display:        False  ### this does this
     ex_x:           Null    
     ex_y:           Null    
+    x_spacing:      Null
+    y_spacing:      Null
+    x_shear:        Null
+    y_shear:        Null
     min_sep_dist:       2 # The minimum separation distance for a random farm, expressed in units of rotor diameter
     grid_rows:      Null      
     grid_cols:      Null      
