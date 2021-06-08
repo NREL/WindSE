@@ -74,6 +74,9 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
         kw2: description of argument
     '''
 
+    ### you can extract any kwarg using ###
+    # value = kwargs.pop("value_name")
+
     ### this is a dummy value and can be removed
     J = Constant(0.0)
 
