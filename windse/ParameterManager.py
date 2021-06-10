@@ -166,7 +166,6 @@ class Parameters(dict):
         self.default_bc_types = True
         if yaml_bc.get("boundary_types",{}):
             self.default_bc_types = False
-        print(self["optimization"]["objective_type"])
 
         ### Setup objective functions if needed ###
         yaml_op = yaml_file.get("optimization",{})
@@ -174,6 +173,14 @@ class Parameters(dict):
         if objective_type is None:
             self["optimization"]["objective_type"] = self.defaults["optimization"]["objective_type"]
         elif isinstance(objective_type,dict):
+            ### make sure to add in any default values the user may not have set for the objectives 
+            import windse.objective_functions as obj_funcs
+            for key, value in objective_type.items():
+                objective_split = key.split("_#")[0]
+                obj_default = obj_funcs.objective_kwargs[objective_split]
+                for k, v in obj_default.items():
+                    if k not in value.keys():
+                        value[k] = v
             self["optimization"]["objective_type"] = objective_type
 
         ### Set the parameters ###
