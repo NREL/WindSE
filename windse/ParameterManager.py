@@ -172,6 +172,13 @@ class Parameters(dict):
         objective_type = yaml_op.get("objective_type", None)
         if objective_type is None:
             self["optimization"]["objective_type"] = self.defaults["optimization"]["objective_type"]
+        elif isinstance(self.objective_type,str):
+            self.objective_type = {self.objective_type: obj_funcs.objective_kwargs[self.objective_type]}
+        elif isinstance(self.objective_type,list):
+            new_objective_type = {}
+            for obj in self.objective_type:
+                new_objective_type[obj] = obj_funcs.objective_kwargs[obj]
+            self.objective_type = new_objective_type
         elif isinstance(objective_type,dict):
             ### make sure to add in any default values the user may not have set for the objectives 
             import windse.objective_functions as obj_funcs
