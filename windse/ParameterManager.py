@@ -194,10 +194,10 @@ class Parameters(dict):
                 for k, v in obj_default.items():
                     if k not in value.keys():
                         value[k] = v
-        self["optimization"]["objective_type"] = objective_type
 
         ### Set the parameters ###
         self.update(self.NestedUpdate(yaml_file))
+        self["optimization"]["objective_type"] = objective_type
 
         ### Create Instances of the general options ###
         for key, value in self["general"].items():
