@@ -110,6 +110,7 @@ class GenericSolver(object):
             self.power_func = obj_funcs.objective_functions[self.power_type]
             self.power_func_kwargs = obj_funcs.objective_kwargs[self.power_type]
             self.J = 0.0
+            self.J_saved = False
 
     def DebugOutput(self,t=None,i=None):
         if self.debug_mode:
