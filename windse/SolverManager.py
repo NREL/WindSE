@@ -110,6 +110,7 @@ class GenericSolver(object):
             self.power_func = obj_funcs.objective_functions[self.power_type]
             self.power_func_kwargs = obj_funcs.objective_kwargs[self.power_type]
             self.J = 0.0
+            self.J_saved = False
 
     def DebugOutput(self,t=None,i=None):
         if self.debug_mode:
@@ -236,15 +237,6 @@ class GenericSolver(object):
             first_call = False
 
         annotate = self.params.dolfin_adjoint 
-
-        ### Convert to list ###
-        if isinstance(self.objective_type,str):
-            self.objective_type = {self.objective_type: obj_funcs.objective_kwargs[self.objective_type]}
-        elif isinstance(self.objective_type,list):
-            new_objective_type = {}
-            for obj in self.objective_type:
-                new_objective_type[obj] = obj_funcs.objective_kwargs[obj]
-            self.objective_type = new_objective_type
 
         ### Iterate over objectives ###
         obj_list = [self.simTime]
@@ -447,7 +439,7 @@ class SteadySolver(GenericSolver):
             # self.J += self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle)) 
             self.J = ControlUpdater(self.J, self.problem)
 
-        if self.save_power and "power" not in self.objective_type:
+        if self.save_power:
             self.EvaulatePowerFunctional()
 
             # print(self.outflow_markers)
@@ -723,7 +715,7 @@ class IterativeSteadySolver(GenericSolver):
             # self.J += self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle)) 
             self.J = ControlUpdater(self.J, self.problem)
 
-        if self.save_power and "power" not in self.objective_type:
+        if self.save_power and "power":
             self.EvaulatePowerFunctional()
 
     def SaveTimeSeries(self, simTime):
@@ -992,7 +984,7 @@ class UnsteadySolver(GenericSolver):
             self.simTime += self.problem.dt
 
             # Compute Reynolds Stress
-            if self.objective_type == 'KE_entrainment':
+            if 'KE_entrainment' in self.objective_type.keys():
                 if self.simTime >= self.u_avg_time and self.simTime < self.record_time:
                     self.problem.uk_sum.assign(self.problem.uk_sum+self.problem.dt_c*self.problem.u_k)
                     print("averaging u")
@@ -1097,7 +1089,7 @@ class UnsteadySolver(GenericSolver):
                 print("Change in Objective    : "+repr(float(J_diff)))
 
             # to only call the power functional once, check if a) the objective is the power, b) that we are before record time
-            if self.save_power and ("power" not in self.objective_type or ("power" in self.objective_type and self.simTime < self.record_time) ):
+            if self.save_power:
                 self.EvaulatePowerFunctional()
 
             # After changing timestep size, A1 must be reassembled

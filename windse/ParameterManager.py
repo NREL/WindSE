@@ -166,18 +166,38 @@ class Parameters(dict):
         self.default_bc_types = True
         if yaml_bc.get("boundary_types",{}):
             self.default_bc_types = False
-        print(self["optimization"]["objective_type"])
 
         ### Setup objective functions if needed ###
         yaml_op = yaml_file.get("optimization",{})
         objective_type = yaml_op.get("objective_type", None)
+
+        ### Load in the defaults objective dictionaries 
+        import windse.objective_functions as obj_funcs
+
+        ### Replace the dictionary defaults with the real default
         if objective_type is None:
-            self["optimization"]["objective_type"] = self.defaults["optimization"]["objective_type"]
+            objective_type = self.defaults["optimization"]["objective_type"]
+
+        ### Process the objective keyword arguments
+        if isinstance(objective_type,str):
+            objective_type = {objective_type: obj_funcs.objective_kwargs[objective_type]}
+        elif isinstance(objective_type,list):
+            new_objective_type = {}
+            for obj in objective_type:
+                new_objective_type[obj] = obj_funcs.objective_kwargs[obj]
+            objective_type = new_objective_type
         elif isinstance(objective_type,dict):
-            self["optimization"]["objective_type"] = objective_type
+            ### make sure to add in any default values the user may not have set for the objectives 
+            for key, value in objective_type.items():
+                objective_split = key.split("_#")[0]
+                obj_default = obj_funcs.objective_kwargs[objective_split]
+                for k, v in obj_default.items():
+                    if k not in value.keys():
+                        value[k] = v
 
         ### Set the parameters ###
         self.update(self.NestedUpdate(yaml_file))
+        self["optimization"]["objective_type"] = objective_type
 
         ### Create Instances of the general options ###
         for key, value in self["general"].items():
