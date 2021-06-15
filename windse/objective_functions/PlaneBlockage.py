@@ -51,7 +51,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     ### Compute velocity deficit
     u_ref = solver.problem.bd.bc_velocity[0]
     u     = solver.problem.u_k[0]
-    ud    = u_ref - u
+    ud    = (u_ref - u)/u_ref
 
     ### Evaluate objective ###
     J = assemble(ud*dx(1))
