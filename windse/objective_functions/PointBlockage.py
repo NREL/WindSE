@@ -29,7 +29,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     x0 = np.array(kwargs.pop("location"))
     u_ref = solver.problem.bd.bc_velocity
     u     = solver.problem.u_k
-    ud = u_ref(x0)-u(x0)
+    ud = (u_ref(x0)-u(x0))/u_ref(x0)
     J = ud[0]
     
     return J

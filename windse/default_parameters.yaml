@@ -8,27 +8,29 @@ general:
     debug_mode:         False
 
 domain: 
-    type:             Null
-    path:             Null
-    mesh_path:        Null
-    terrain_path:     Null
-    bound_path:       Null
-    filetype:         xml.gz
-    scaled:           False # Extremely experimental 
-    ground_reference: 0.0
-    x_range:          Null
-    y_range:          Null
-    z_range:          Null
-    nx:               Null
-    ny:               Null
-    nz:               Null
-    mesh_type:        mshr
-    center:           Null
-    radius:           Null
-    nt:               Null
-    res:              Null
-    interpolated:     False
-    analytic:         False
+    type:                Null
+    path:                Null
+    mesh_path:           Null
+    terrain_path:        Null
+    bound_path:          Null
+    filetype:            xml.gz
+    scaled:              False # Extremely experimental 
+    ground_reference:    0.0
+    streamwise_periodic: False
+    spanwise_periodic:   False
+    x_range:             Null
+    y_range:             Null
+    z_range:             Null
+    nx:                  Null
+    ny:                  Null
+    nz:                  Null
+    mesh_type:           mshr
+    center:              Null
+    radius:              Null
+    nt:                  Null
+    res:                 Null
+    interpolated:        False
+    analytic:            False
     gaussian:
         center:  [0.0, 0.0]
         theta:   0.0
@@ -120,6 +122,7 @@ problem:
     viscosity:     0.1
     lmax:          15
     script_iterator: 0
+    use_corrective_force: False
 
 solver:
     type:              steady

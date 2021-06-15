@@ -1538,3 +1538,12 @@ class InterpolatedBoxDomain(BoxDomain):
         self.DebugOutput()
         self.fprint("")
         self.fprint("Domain Finalized")
+
+
+class PeriodicDomain(BoxDomain):
+    def __init__(self):
+        super(PeriodicDomain, self).__init__()
+
+
+        # self.extra_forcing_term
+

@@ -582,6 +582,20 @@ class StabilizedProblem(GenericProblem):
         # else :
         # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx# + inner(self.tf,v)*dx 
         self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+        
+        ################ THIS IS A CHEAT ####################
+
+        if self.use_corrective_force:
+            self.fprint("Using Corrective Force")
+            extra_S = sqrt(2*inner(0.5*(grad(self.bd.bc_velocity)+grad(self.bd.bc_velocity).T),0.5*(grad(self.bd.bc_velocity)+grad(self.bd.bc_velocity).T)))
+            extra_l_mix = Function(self.fs.Q)
+            extra_l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:]/Sx,(1.+np.divide(vonKarman*self.bd.depth.vector()[:]/Sx,self.lmax)))
+            extra_nu_T = extra_l_mix**2.*extra_S
+            extra_DP =dot(self.bd.u0,grad(self.bd.u0)) - div((nu+extra_nu_T)*grad(self.bd.bc_velocity))
+
+            self.F += inner(extra_DP,v)*dx
+        ########################################################
+
         # self.F_sans_tf =  (1.0)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx
         # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_k[0]**2+self.u_k[1]**2),v)*dx 
 
