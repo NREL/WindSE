@@ -169,7 +169,7 @@ class Parameters(dict):
 
         ### Setup objective functions if needed ###
         yaml_op = yaml_file.get("optimization",{})
-        objective_type = yaml_op.get("objective_type", None)
+        objective_type = yaml_op.pop("objective_type", None)
 
         ### Load in the defaults objective dictionaries 
         import windse.objective_functions as obj_funcs
@@ -196,8 +196,8 @@ class Parameters(dict):
                         value[k] = v
 
         ### Set the parameters ###
-        self["optimization"]["objective_type"] = objective_type
         self.update(self.NestedUpdate(yaml_file))
+        self["optimization"]["objective_type"] = objective_type
 
         ### Create Instances of the general options ###
         for key, value in self["general"].items():
