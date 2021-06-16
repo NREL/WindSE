@@ -154,41 +154,42 @@ class GenericBoundary(object):
             bcu_eqns = []
             bcp_eqns = []
             for bc_type, bs in self.boundary_types.items():
-                if bc_type == "inflow":
-                    for b in bs:
-                        if self.boundary_names[b] in unique_ids:
-                            bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
+                if bs is not None:
+                    if bc_type == "inflow":
+                        for b in bs:
+                            if self.boundary_names[b] in unique_ids:
+                                bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
 
-                elif bc_type == "no_slip":
-                    for b in bs:
-                        bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.zeros, self.boundary_names[b]])
+                    elif bc_type == "no_slip":
+                        for b in bs:
+                            bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.zeros, self.boundary_names[b]])
 
-                elif bc_type == "free_slip":
-                    temp_list = list(self.boundary_names.keys()) # get ordered list
-                    for b in bs:
+                    elif bc_type == "free_slip":
+                        temp_list = list(self.boundary_names.keys()) # get ordered list
+                        for b in bs:
 
-                        ### get a facet on the relevant boundary ###
-                        boundary_id = self.boundary_names[b]
+                            ### get a facet on the relevant boundary ###
+                            boundary_id = self.boundary_names[b]
 
-                        ### check to make sure the free slip boundary still exists ###
-                        if boundary_id in unique_ids:
+                            ### check to make sure the free slip boundary still exists ###
+                            if boundary_id in unique_ids:
 
-                            facet_ids = self.dom.boundary_markers.where_equal(boundary_id)
-                            test_facet = Facet(self.dom.mesh,facet_ids[int(len(facet_ids)/2.0)])
+                                facet_ids = self.dom.boundary_markers.where_equal(boundary_id)
+                                test_facet = Facet(self.dom.mesh,facet_ids[int(len(facet_ids)/2.0)])
 
-                            ### get the function space sub form the normal ###
-                            facet_normal = test_facet.normal().array()
-                            field_id = int(np.argmin(abs(abs(facet_normal)-1.0)))
+                                ### get the function space sub form the normal ###
+                                facet_normal = test_facet.normal().array()
+                                field_id = int(np.argmin(abs(abs(facet_normal)-1.0)))
 
-                            bcu_eqns.append([self.fs.V.sub(field_id), self.fs.W.sub(0).sub(field_id), self.zero, boundary_id])
+                                bcu_eqns.append([self.fs.V.sub(field_id), self.fs.W.sub(0).sub(field_id), self.zero, boundary_id])
 
-                elif bc_type == "no_stress":
-                    for b in bs:
-                        bcu_eqns.append([None, None, None, self.boundary_names[b]])
-                        bcp_eqns.append([self.fs.Q, self.fs.W.sub(1), self.zero, self.boundary_names[b]])
+                    elif bc_type == "no_stress":
+                        for b in bs:
+                            bcu_eqns.append([None, None, None, self.boundary_names[b]])
+                            bcp_eqns.append([self.fs.Q, self.fs.W.sub(1), self.zero, self.boundary_names[b]])
 
-                else:
-                    raise ValueError(bc_type+" is not a recognized boundary type")
+                    else:
+                        raise ValueError(bc_type+" is not a recognized boundary type")
             bcs_eqns = bcu_eqns#+bcp_eqns
 
             ### Set the boundary conditions ###
@@ -470,8 +471,9 @@ class LogLayerInflow(GenericBoundary):
 
         for key, values in self.boundary_types.items():
             self.fprint("Boundary Type: {0}, Applied to:".format(key))
-            for value in values:
-                self.fprint(value,offset=1)
+            if values is not None:
+                for value in values:
+                    self.fprint(value,offset=1)
         self.fprint("")
 
         ### Compute distances ###
