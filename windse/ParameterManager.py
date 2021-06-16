@@ -196,8 +196,8 @@ class Parameters(dict):
                         value[k] = v
 
         ### Set the parameters ###
-        self.update(self.NestedUpdate(yaml_file))
         self["optimization"]["objective_type"] = objective_type
+        self.update(self.NestedUpdate(yaml_file))
 
         ### Create Instances of the general options ###
         for key, value in self["general"].items():
