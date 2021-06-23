@@ -46,15 +46,19 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     region.mark(plane_marker,1)
 
     ### Create measure
-    dx = Measure('dx', subdomain_data=plane_marker)
+    dx = Measure('dx', domain=solver.problem.dom.mesh, subdomain_data=plane_marker)
     V = assemble(Constant(1.0)*dx(1))
 
-    ### Compute velocity deficit
-    u_ref = solver.problem.bd.bc_velocity[0]
-    u     = solver.problem.u_k[0]
-    # ud    = (u - u_ref)/u_ref
-    ud    = u
+    if V <= 1e-10:
+        J = np.nan
+        print("Warning: No area of integration for plane blockage, refine mesh or increase thickness.")
+    else:
+        ### Compute velocity deficit
+        u_ref = solver.problem.bd.bc_velocity[0]
+        u     = solver.problem.u_k[0]
+        # ud    = (u - u_ref)/u_ref
+        ud    = u
 
-    ### Evaluate objective ###
-    J = assemble(ud*dx(1))/V
+        ### Evaluate objective ###
+        J = assemble(ud*dx(1))/V
     return J
