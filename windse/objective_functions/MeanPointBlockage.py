@@ -6,13 +6,12 @@ from dolfin_adjoint import *
 import numpy as np
 
 ### Declare Unique name
-name = "point_blockage"
+name = "mean_point_blockage"
 
 
 ### Set default keyword argument values ###
 keyword_defaults = {
-    "location": (0,0,0),
-    "offset_by_mean": False
+    "z_value": 240
 }
 
 
@@ -20,17 +19,21 @@ keyword_defaults = {
 def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     '''
     This is a simple blockage metric that evaluates the velocity deficit at 
-    a single location in the farm.
+    a single location above the mean location of all turbine in the farm.
 
     Keyword arguments:
-        location: where the deficit is evaluated
+        z_value: z location to evaluate
     '''
 
-    x0 = np.array(kwargs.pop("location"))
+    x0 = np.mean(solver.problem.farm.x)
+    y0 = np.mean(solver.problem.farm.y)
+    z0 = float(kwargs.pop("z_value"))
+    p0 = np.array([x0,y0,z0])
+
     u_ref = solver.problem.bd.bc_velocity
     u     = solver.problem.u_k
-    # ud = (u(x0)-u_ref(x0))/u_ref(x0)
-    ud = u(x0)
+    # ud = (u(p0)-u_ref(p0))/u_ref(p0)
+    ud = u(p0)
     J = ud[0]
     
     return J
