@@ -47,12 +47,14 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
 
     ### Create measure
     dx = Measure('dx', subdomain_data=plane_marker)
+    V = assemble(Constant(1.0)*dx(1))
 
     ### Compute velocity deficit
     u_ref = solver.problem.bd.bc_velocity[0]
     u     = solver.problem.u_k[0]
-    ud    = (u_ref - u)/u_ref
+    # ud    = (u - u_ref)/u_ref
+    ud    = u
 
     ### Evaluate objective ###
-    J = assemble(ud*dx(1))
+    J = assemble(ud*dx(1))/V
     return J

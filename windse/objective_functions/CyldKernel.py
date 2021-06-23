@@ -100,6 +100,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
         kernel.rename('kernel', 'kernel')
         fp << kernel
 
-    J = -assemble(sqrt(inner(solver.problem.u_k, solver.problem.u_k))*kernel_exp*dx)
+    # J = -assemble(sqrt(inner(solver.problem.u_k, solver.problem.u_k))*kernel_exp*dx)
+    J = assemble(solver.problem.u_k[0]*kernel_exp*dx)
 
     return J
