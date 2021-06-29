@@ -262,7 +262,7 @@ class GenericSolver(object):
             header = "Time, "
             for name in self.objective_type.keys():
                 header += name + ", "
-            header += header[:-2]
+            header = header[:-2]
 
             self.params.save_csv("objective_data",header=header,data=[obj_list],subfolder=self.params.folder+"data/",mode='w')
             self.J_saved = True

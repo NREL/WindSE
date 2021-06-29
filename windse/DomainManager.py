@@ -825,6 +825,7 @@ class BoxDomain(GenericDomain):
         start = Point(self.x_range[0], self.y_range[0], self.z_range[0])
         stop  = Point(self.x_range[1], self.y_range[1], self.z_range[1])
         self.mesh = BoxMesh(start, stop, self.nx, self.ny, self.nz)
+
         # box = Box(start,stop)
         # self.mesh = generate_mesh(box,self.nx)
         self.bmesh = BoundaryMesh(self.mesh,"exterior")

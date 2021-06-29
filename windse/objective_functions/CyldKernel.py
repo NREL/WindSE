@@ -87,7 +87,8 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     kernel_exp = build_cylindrical_kernels(solver, kwargs)
 
     # Normalize this kernel function
-    vol = assemble(kernel_exp*dx)/solver.problem.farm.numturbs
+    # vol = assemble(kernel_exp*dx)/solver.problem.farm.numturbs
+    vol = assemble(kernel_exp*dx)
     kernel_exp = kernel_exp/vol
 
     save_debugging_files = False
@@ -100,6 +101,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
         kernel.rename('kernel', 'kernel')
         fp << kernel
 
-    J = -assemble(sqrt(inner(solver.problem.u_k, solver.problem.u_k))*kernel_exp*dx)
+    # J = -assemble(sqrt(inner(solver.problem.u_k, solver.problem.u_k))*kernel_exp*dx)
+    J = assemble(solver.problem.u_k[0]*kernel_exp*dx)
 
     return J

@@ -12,7 +12,7 @@ name = "plane_blockage"
 ### Set default keyword argument values ###
 keyword_defaults = {
     "axis": 2,
-    "thickness": 50,
+    "thickness": "rmax",
     "center" : 250,
     "offset_by_mean": False
 }
@@ -35,24 +35,35 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     thickness = kwargs.pop("thickness")
     center =    kwargs.pop("center")
 
+    if thickness == "rmax":
+        thickness = solver.problem.dom.mesh.rmax()
+
     ### Get bounds of integration ###
     lb = center - thickness/2.0
     ub = center + thickness/2.0
-    region = CompiledSubDomain("x[axis]>=lb && x[axis]<=ub", lb=lb, ub=ub, axis=axis)
 
-    ### Create the Mesh Function to hold the region of integration
-    plane_marker = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim())
-    plane_marker.set_all(0)
-    region.mark(plane_marker,1)
+    # ### Create the Mesh Function to hold the region of integration
+    # region = CompiledSubDomain("x[axis]>=lb && x[axis]<=ub", lb=lb, ub=ub, axis=axis)
+    # plane_marker = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim())
+    # plane_marker.set_all(0)
+    # region.mark(plane_marker,1)
+    # File("test_"+repr(center)+".pvd")<<plane_marker
 
-    ### Create measure
-    dx = Measure('dx', subdomain_data=plane_marker)
+    # ### Create measure
+    plane_marker = Expression('x[axis] < lb ? 0.0 : (x[axis] > ub ? 0.0 : 1.0)', lb=lb, ub=ub, axis=axis, degree=1)
+    dx = Measure('dx', domain=solver.problem.dom.mesh)
+    V = assemble(plane_marker*dx)
 
-    ### Compute velocity deficit
-    u_ref = solver.problem.bd.bc_velocity[0]
-    u     = solver.problem.u_k[0]
-    ud    = (u_ref - u)/u_ref
+    if V <= 1e-10:
+        J = np.nan
+        print("Warning: No area of integration for plane blockage, refine mesh or increase thickness.")
+    else:
+        ### Compute velocity deficit
+        # u_ref = solver.problem.bd.bc_velocity[0]
+        # u     = solver.problem.u_k[0]
+        # ud    = (u - u_ref)/u_ref
+        # ud    = u
 
-    ### Evaluate objective ###
-    J = assemble(ud*dx(1))
+        ### Evaluate objective ###
+        J = assemble(plane_marker*solver.problem.u_k[0]*dx)/V
     return J
