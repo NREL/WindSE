@@ -93,6 +93,8 @@ class LinearFunctionSpace(GenericFunctionSpace):
         self.fprint("Total DOFS:      {:d}".format(self.W.dim()))
         self.fprint("Min Mesh Radius: {:0.5f} m".format(dom.mesh.hmin()))
         self.fprint("Max Mesh Radius: {:0.5f} m".format(dom.mesh.hmax()))
+        self.fprint("Min Mesh rmin: {:0.5f} m".format(dom.mesh.rmin()))
+        self.fprint("Max Mesh rmax: {:0.5f} m".format(dom.mesh.rmax()))
         self.DebugOutput()
 
         fs_stop = time.time()

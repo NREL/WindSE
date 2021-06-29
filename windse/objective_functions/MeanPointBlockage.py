@@ -30,10 +30,10 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     z0 = float(kwargs.pop("z_value"))
     p0 = np.array([x0,y0,z0])
 
-    u_ref = solver.problem.bd.bc_velocity
-    u     = solver.problem.u_k
+    # u_ref = solver.problem.bd.bc_velocity
+    # u     = solver.problem.u_k
     # ud = (u(p0)-u_ref(p0))/u_ref(p0)
-    ud = u(p0)
-    J = ud[0]
+    # ud = u(p0)
+    J = solver.problem.up_k(p0)[0]
     
     return J

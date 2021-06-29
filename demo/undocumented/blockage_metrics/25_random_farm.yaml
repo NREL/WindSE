@@ -13,12 +13,14 @@ wind_farm:
     RD: 130.0        
     thickness: 13.0  
     yaw: 0.0         
-    axial: 0.33      
+    axial: 0.33  
+    seed: 1
+    # turbine_method: disabled    
 
 # Domain Parameters: Uncomment a set to change domain shape
 domain: 
     type: box              #                       |
-    x_range: [-390, 1950] # x-range of the domain | m
+    x_range: [-780, 2340] # x-range of the domain | m
     y_range: [-1170, 1170] # y-range of the domain | m
     z_range: [0.04, 780]   # z-range of the domain | m
     nx: 20                 # Number of x-nodes     | -
@@ -30,8 +32,8 @@ refine:
     warp_percent: 0.85     # percent of cells moved       | -
     warp_height: 250       # move cell below this value   | m
     refine_custom: [
-        [box, [  [[-130,1690],[-910,910],[0,240]]  ]],
-        # [simple, [  175  ]]
+        [box, [  [[-520,1690],[-910,910],[0,240]]  ]],
+        [simple, [  175  ]]
     ]
 
 function_space:
@@ -51,7 +53,8 @@ boundary_conditions:
 
 problem:
     type: stabilized
-    viscosity: 0.000015
+    viscosity: 0.02
+    # viscosity: 0.000015
     lmax: 50
 
 solver:
@@ -71,11 +74,11 @@ optimization:
             z_value: 370
         plane_blockage_#01:
             axis: 0
-            thickness: 130.0
+            thickness: rmax
             center: -390
         plane_blockage_#02:
             axis: 2
-            thickness: 130.0
+            thickness: rmax
             center: 240.0
         cyld_kernel_#01:
             type: upstream
