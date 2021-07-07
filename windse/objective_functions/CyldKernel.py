@@ -123,7 +123,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
             kernel_exp_list[k] = kernel_exp_list[k]/vol
 
             # J_ind = -assemble(sqrt(inner(solver.problem.u_k, solver.problem.u_k))*kernel_exp_list[k]*dx)
-            J_ind = assemble(solver.problem.u_k[0]*kernel_exp_list[k]*dx)
+            J_ind = assemble(solver.problem.u_k[0]*kernel_exp_list[k]/vol/solver.problem.farm.numturbs*dx)
 
             mx = solver.problem.farm.mx[k]
             my = solver.problem.farm.my[k]
