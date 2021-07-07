@@ -238,6 +238,17 @@ class GenericSolver(object):
 
         annotate = self.params.dolfin_adjoint 
 
+        ### Convert to list ###
+        if isinstance(self.objective_type,str):
+            self.objective_type = {self.objective_type: obj_funcs.objective_kwargs[self.objective_type]}
+        elif isinstance(self.objective_type,list):
+            new_objective_type = {}
+            for obj in self.objective_type:
+                new_objective_type[obj] = obj_funcs.objective_kwargs[obj]
+            self.objective_type = new_objective_type
+
+        default_param_dict = obj_funcs.objective_kwargs.copy()
+
         ### Iterate over objectives ###
         obj_list = [self.simTime]
         for objective, obj_kwargs in self.objective_type.items():
@@ -245,7 +256,9 @@ class GenericSolver(object):
             objective_func = obj_funcs.objective_functions[objective_split]
             args = (self, (self.iter_theta-self.problem.dom.inflow_angle))
             kwargs = {"first_call": first_call, "annotate": annotate}
+            kwargs.update(default_param_dict[objective])
             kwargs.update(obj_kwargs)
+            print(kwargs)
             out = obj_funcs.annotated_objective(objective_func, *args, **kwargs)
             obj_list.append(out)
         J = obj_list[1]
