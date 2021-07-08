@@ -767,6 +767,17 @@ class UnsteadySolver(GenericSolver):
             raise ValueError("UnsteadySolver can only be run with ProblemType = unsteady, not %s" \
                 % (self.problem.params["problem"]["type"]))
 
+        # Check whether this is a pseudo_steady run (and run the unsteady
+        # solver until the average velocity measured after two flow throughs
+        # converges).
+        pseudo_steady = False
+
+        if self.final_time.lower() == 'none':
+            pseudo_steady = True
+            self.fprint('Found option "None" for final_time, ')
+            self.fprint('Running until unsteady solver is converged.')
+            self.final_time = 1000000.0
+
         # ================================================================
         
         # Start a counter for the total simulation time
@@ -789,8 +800,16 @@ class UnsteadySolver(GenericSolver):
         else:
             self.record_time = 0.0
         self.problem.record_time = self.record_time
-        # ================================================================
 
+        # Calculate what time to start the averaging process
+        init_average = True
+        if pseudo_steady:
+            two_flowthrough_time = 2.0*(self.problem.dom.x_range[1] - self.problem.dom.x_range[0])/self.params['boundary_conditions']['HH_vel']
+            average_start_time = two_flowthrough_time
+        else:
+            average_start_time = 50.0
+
+        # ================================================================
 
         # Start a counter for the number of saved files
         saveCount = 0
@@ -868,18 +887,18 @@ class UnsteadySolver(GenericSolver):
         #     sol_choice = 'gmres'
         #     pre_choice = 'default'
 
-        # solver_1 = PETScKrylovSolver('gmres', 'jacobi')
-        solver_1 = PETScKrylovSolver('gmres', 'default')
+        solver_1 = PETScKrylovSolver('gmres', 'jacobi')
+        # solver_1 = PETScKrylovSolver('gmres', 'default')
         # solver_1 = PETScKrylovSolver('default', 'default')
         solver_1.set_operator(A1)
 
-        # solver_2 = PETScKrylovSolver('gmres', 'petsc_amg')
-        solver_2 = PETScKrylovSolver('gmres', 'hypre_amg')
+        solver_2 = PETScKrylovSolver('gmres', 'petsc_amg')
+        # solver_2 = PETScKrylovSolver('gmres', 'hypre_amg')
         # solver_2 = PETScKrylovSolver('default', 'default')
         solver_2.set_operator(A2)
 
-        # solver_3 = PETScKrylovSolver('cg', 'jacobi')
-        solver_3 = PETScKrylovSolver('gmres', 'default')
+        solver_3 = PETScKrylovSolver('cg', 'jacobi')
+        # solver_3 = PETScKrylovSolver('gmres', 'default')
         # solver_3 = PETScKrylovSolver('default', 'default')
         solver_3.set_operator(A3)
 
@@ -916,12 +935,13 @@ class UnsteadySolver(GenericSolver):
         min_count = 0
         simIter = 0
         stable = False
-        tip_speed = self.problem.rpm*2.0*np.pi*self.problem.farm.radius[0]/60.0
+
+        if self.problem.farm.turbine_method == "alm":
+            tip_speed = self.problem.rpm*2.0*np.pi*self.problem.farm.radius[0]/60.0
+        else:
+            tip_speed = 0.0
 
         # self.problem.alm_power_sum = 0.0
-        init_average = True
-        average_start_time = 200.0
-        # print("uk("+repr(self.simTime)+")   = "+repr(np.mean(self.problem.u_k.vector()[:])))
 
         while not stable and self.simTime < self.final_time:
             self.problem.bd.UpdateVelocity(self.simTime)
@@ -1036,20 +1056,51 @@ class UnsteadySolver(GenericSolver):
                 output_str = 'Rotor Power (dolfin): %s MW' % (np.array2string(self.problem.alm_power_dolfin/1.0e6, precision=8, separator=', '))
                 self.fprint(output_str)
 
+            else:
+                # This is a hack to avoid errors when using something other than ALM
+                # e.g., actuator disks
+                self.problem.alm_power = np.zeros(self.problem.farm.numturbs)
+                self.problem.alm_power_dolfin = np.zeros(self.problem.farm.numturbs)
+
                 # exit()
             toc = time.time()
             timing[3] += toc - tic
 
             if self.simTime > average_start_time:
                 if init_average:
-                    average_vel = Function(self.problem.fs.V)
-                    average_vel.vector()[:] = self.problem.u_k1.vector()[:]*self.problem.dt
+
+                    convergence_history = []
+
+                    average_vel_sum = Function(self.problem.fs.V)
+                    average_vel_1 = Function(self.problem.fs.V)
+                    average_vel_2 = Function(self.problem.fs.V)
+
+                    average_vel_sum.vector()[:] = self.problem.u_k1.vector()[:]*self.problem.dt_previous
+                    average_vel_1.vector()[:] = average_vel_sum.vector()[:]/(self.simTime-average_start_time)
+                    average_vel_2.vector()[:] = 0.0
 
                     average_power = self.problem.alm_power*self.problem.dt
 
                     init_average = False
                 else:
-                    average_vel.vector()[:] += self.problem.u_k1.vector()[:]*self.problem.dt
+                    average_vel_sum.vector()[:] += self.problem.u_k1.vector()[:]*self.problem.dt_previous
+
+                    average_vel_2.vector()[:] = average_vel_1.vector()[:]
+                    average_vel_1.vector()[:] = average_vel_sum.vector()[:]/(self.simTime-average_start_time)
+
+                    norm_diff = norm(average_vel_2.vector() - average_vel_1.vector(), 'linf')
+                    print('Change Between Steps (norm)', norm_diff)
+
+
+                    if norm_diff < 1e-4:
+                        # If the average is no longer changing, stop this run
+                        convergence_history.append(1)
+
+                        # Only mark "stable" if the last 2 tests have passed
+                        if convergence_history[-1] == 1 and convergence_history[-2] == 1:
+                            stable = True
+                    else:
+                        convergence_history.append(0)
 
                     average_power += self.problem.alm_power*self.problem.dt
 
@@ -1112,10 +1163,10 @@ class UnsteadySolver(GenericSolver):
 
 
         if self.simTime > average_start_time:
-            average_vel.vector()[:] = average_vel.vector()[:]/(self.simTime-average_start_time)
-            fp = File('./output/%s/average_vel.pvd' % (self.params.name))
-            average_vel.rename('average_vel', 'average_vel')
-            fp << average_vel
+            average_vel_sum.vector()[:] = average_vel_sum.vector()[:]/(self.simTime-average_start_time)
+            fp = File('./output/%s/average_vel_sum.pvd' % (self.params.name))
+            average_vel_sum.rename('average_vel_sum', 'average_vel_sum')
+            fp << average_vel_sum
 
             average_power = average_power/(self.simTime-average_start_time)
             # self.fprint('AVERAGE Rotor Power: %.6f MW' % (average_power/1e6))
@@ -1152,14 +1203,21 @@ class UnsteadySolver(GenericSolver):
         self.DebugOutput(simTime,simIter)
         ### TODO THIS NEED TO BE CLEAN TO ACCOUNT FOR DISKS
 
-        if hasattr(self.problem,"tf_save"):
-            self.problem.tf_save.vector()[:] = 0
-            for fun in self.problem.tf_list:
-                self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.vector()[:]
+        if self.problem.farm.turbine_method == "alm":
+            if hasattr(self.problem,"tf_save"):
+                self.problem.tf_save.vector()[:] = 0
+                for fun in self.problem.tf_list:
+                    self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.vector()[:]
+            else:
+                self.problem.tf_save = Function(self.problem.fs.V)
+                for fun in self.problem.tf_list:
+                    self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.vector()[:]
         else:
-            self.problem.tf_save = Function(self.problem.fs.V)
-            for fun in self.problem.tf_list:
-                self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.vector()[:]
+            if hasattr(self.problem,"tf_save"):
+                self.problem.tf_save = project(self.problem.tf, self.problem.fs.V, solver_type='cg')
+            else:
+                self.problem.tf_save = Function(self.problem.fs.V)
+                self.problem.tf_save = project(self.problem.tf, self.problem.fs.V, solver_type='cg')
 
 
         if self.first_save:
@@ -1207,6 +1265,8 @@ class UnsteadySolver(GenericSolver):
     # ================================================================
 
     def AdjustTimestepSize(self, save_next_timestep, saveInterval, simTime, u_max, u_max_k1):
+        # Save the old dt for reference
+        self.problem.dt_previous = self.problem.dt
 
         # Set the CFL target (0.2 is a good value for stability and speed, YMMV)
         # cfl_target = 0.5
@@ -1245,9 +1305,9 @@ class UnsteadySolver(GenericSolver):
 
         # dt_new = 0.04
         if self.params.num_procs > 1:
-            dt_new_vec = np.zeros(self.params.num_procs)
-            self.params.comm.Gather(dt_new, dt_new_vec, root=0)
-            self.params.comm.Bcast(dt_new_vec, root=0)
+            dt_new_vec = np.zeros(self.params.num_procs, dtype=np.float64)
+            dt_new = np.array(dt_new, dtype=np.float64)
+            self.params.comm.Allgather(dt_new, dt_new_vec)
             dt_new = np.amin(dt_new_vec)
 
         # print('Rank %d dt = %.15e' % (self.params.rank, dt_new))

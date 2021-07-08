@@ -550,7 +550,7 @@ class StabilizedProblem(GenericProblem):
         
         nu = self.viscosity
         vonKarman=0.41
-        eps=Constant(1.0)
+        eps=Constant(self.params['problem']['stability_eps'])
         eps.rename("eps","eps")
 
         self.fprint("Viscosity:                 {:1.2e}".format(float(self.viscosity)))
@@ -935,23 +935,46 @@ class UnsteadyProblem(GenericProblem):
         # ================================================================
 
         # Calculate eddy viscosity, if using
-        use_eddy_viscosity = True
+        # turb_model = 'smagorinsky'
+        turb_model = 'mixing_length'
+        # turb_model = None
 
-        if use_eddy_viscosity:
-            # Define filter scale
-            filter_scale = CellVolume(self.dom.mesh)**(1.0/self.dom.dim)
+        if turb_model is not None:
 
             # Strain rate tensor, 0.5*(du_i/dx_j + du_j/dx_i)
-            Sij = sym(nabla_grad(U_AB))
+            Sij = sym(grad(U_AB))
 
             # sqrt(Sij*Sij)
             strainMag = (2.0*inner(Sij, Sij))**0.5
 
-            # Smagorinsky constant, typically around 0.17
-            Cs = 0.17
+            if turb_model == 'smagorinsky':
+                # Smagorinsky constant, typically around 0.17
+                Cs = 0.17
 
-            # Eddy viscosity
-            self.nu_T = Cs**2 * filter_scale**2 * strainMag
+                # Define filter scale (all models use this)
+                filter_scale = CellVolume(self.dom.mesh)**(1.0/self.dom.dim)
+
+                # Eddy viscosity
+                self.nu_T = Cs**2 * filter_scale**2 * strainMag
+
+            elif turb_model == 'mixing_length':
+                # von Karman constant
+                vonKarman = 0.41
+
+                if self.dom.dim == 3:
+                    depth = self.bd.depth.vector()[:]
+                else:
+                    depth = self.farm.HH[0]
+
+                numer = vonKarman*depth
+                denom = 1.0 + vonKarman*depth/self.lmax
+
+                l_mix = Function(self.fs.Q)
+                l_mix.vector()[:] = numer/denom
+
+                # Eddy viscosity
+                self.nu_T = l_mix**2 * strainMag
+
         else:
             self.nu_T = Constant(0)
 
@@ -971,6 +994,11 @@ class UnsteadyProblem(GenericProblem):
         self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
         self.u_k.assign(self.bd.bc_velocity)
 
+        # Only the actuator lines point "upstream" against the flow
+        # all other actuator forces need to be reversed to follow
+        # the convention used in the unsteady problem
+        if self.farm.turbine_method != "alm":
+            self.tf *= -1.0
 
         # self.u_k2.vector()[:] = 0.0
         # self.u_k1.vector()[:] = 0.0
@@ -990,11 +1018,12 @@ class UnsteadyProblem(GenericProblem):
         #    + dot(nabla_grad(self.p_k1), v)*dx \
         #    - dot(self.tf, v)*dx
 
+
         F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
            + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
            + inner(grad(self.p_k1), v)*dx \
-           - dot(self.tf, v)*dx
+           - dot(self.tf, v)*dx \
 
         self.a1 = lhs(F1)
         self.L1 = rhs(F1)

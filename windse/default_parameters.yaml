@@ -123,6 +123,7 @@ problem:
     lmax:          15
     script_iterator: 0
     use_corrective_force: False
+    stability_eps: 1.0
 
 solver:
     type:              steady
