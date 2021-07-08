@@ -28,10 +28,10 @@ mkdir -p LOGS
 for((j=0;j<$N_LOOP;j++))
 do
 
-  for((i=0;i<$N_JOB;i++))
+  for((i=0;i<$N_JOB_PER_LOOP;i++))
   do
 
-    jobid=$((i + j*N_JOB))
+    jobid=$((i + j*N_JOB_PER_LOOP))
     windse run test.yaml -p 'general':'name':test_$jobid > LOGS/log$jobid &
 
   done
