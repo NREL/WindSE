@@ -997,6 +997,8 @@ class UnsteadyProblem(GenericProblem):
         # Only the actuator lines point "upstream" against the flow
         # all other actuator forces need to be reversed to follow
         # the convention used in the unsteady problem
+        # FIXME: We should be consistent about which way the turbine
+        # forces are oriented.
         if self.farm.turbine_method != "alm":
             self.tf *= -1.0
 
@@ -1018,12 +1020,11 @@ class UnsteadyProblem(GenericProblem):
         #    + dot(nabla_grad(self.p_k1), v)*dx \
         #    - dot(self.tf, v)*dx
 
-
         F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
            + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
            + inner(grad(self.p_k1), v)*dx \
-           - dot(self.tf, v)*dx \
+           - dot(self.tf, v)*dx
 
         self.a1 = lhs(F1)
         self.L1 = rhs(F1)
