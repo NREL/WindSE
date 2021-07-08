@@ -806,6 +806,7 @@ class UnsteadySolver(GenericSolver):
         if pseudo_steady:
             two_flowthrough_time = 2.0*(self.problem.dom.x_range[1] - self.problem.dom.x_range[0])/self.params['boundary_conditions']['HH_vel']
             average_start_time = two_flowthrough_time
+            self.fprint('Start averaging after two flow-throughs, or %.1f seconds' % (two_flowthrough_time))
         else:
             average_start_time = 50.0
 
