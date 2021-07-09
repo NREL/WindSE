@@ -25,6 +25,31 @@ def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwa
 
     J = -assemble(dot(solver.problem.tf,solver.problem.u_k)*dx)
 
+    # coords = solver.problem.fs.V.tabulate_dof_coordinates()
+    # coords = coords[0::3, :]
+
+    # ymin = solver.problem.dom.y_range[0]
+    # ymax = solver.problem.dom.y_range[1]
+    # y_coords = coords[:, 1]
+
+    # zero_field = Function(solver.problem.fs.V)
+    # temp_vector = np.copy(zero_field.vector()[:])
+    # temp_vector[0::3] = -(y_coords - ymin)*(y_coords - ymax)
+
+    # temp_vector = temp_vector/np.amax(temp_vector)*solver.problem.params['boundary_conditions']['HH_vel']
+
+    # zero_field.vector()[:] = temp_vector[:]
+
+    # saved_zero_field = File('zero_field.pvd')
+    # saved_zero_field << zero_field
+
+    # if solver.params['solver']['type'] == 'unsteady':
+    #     fac = -1.0
+    # else:
+    #     fac = 1.0
+
+    # J = -assemble(dot(fac*solver.problem.tf,zero_field)*dx)
+
     if solver.save_power or solver.save_objective:
         J_list=np.zeros(solver.problem.farm.numturbs+2)
         J_list[0]=solver.simTime

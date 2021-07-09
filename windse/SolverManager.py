@@ -772,11 +772,12 @@ class UnsteadySolver(GenericSolver):
         # converges).
         pseudo_steady = False
 
-        if self.final_time.lower() == 'none':
+        if type(self.final_time) == str and self.final_time.lower() == 'none':
             pseudo_steady = True
             self.fprint('Found option "None" for final_time, ')
             self.fprint('Running until unsteady solver is converged.')
             self.final_time = 1000000.0
+            #self.final_time = 10.0
 
         # ================================================================
         
@@ -808,7 +809,7 @@ class UnsteadySolver(GenericSolver):
             average_start_time = two_flowthrough_time
             self.fprint('Start averaging after two flow-throughs, or %.1f seconds' % (two_flowthrough_time))
         else:
-            average_start_time = 50.0
+            average_start_time = 5.0
 
         # ================================================================
 
@@ -1109,11 +1110,11 @@ class UnsteadySolver(GenericSolver):
             # # Adjust the timestep size, dt, for a balance of simulation speed and stability
             # save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
 
-            if self.save_objective or (self.optimizing and self.simTime >= self.record_time):
+            if self.save_objective or (self.optimizing and self.simTime >= self.record_time and not pseudo_steady):
                 J_next = self.EvaluateObjective()
 
             # Calculate the objective function
-            if self.optimizing and self.simTime >= self.record_time:
+            if self.optimizing and self.simTime >= self.record_time and not pseudo_steady:
 
                 # Append the current time step for post production
                 self.adj_time_list.append(self.simTime)
@@ -1158,7 +1159,10 @@ class UnsteadySolver(GenericSolver):
             self.fprint("%8.2f | %7.2f | %5.2f" % (self.simTime, self.problem.dt, u_max))
             simIter+=1
 
-        if (self.optimizing or self.save_objective):
+        if pseudo_steady:
+            self.J = self.EvaluateObjective()
+
+        elif (self.optimizing or self.save_objective):
             # if dt_sum > 0.0:
             self.J = self.J/float(dt_sum)
 
