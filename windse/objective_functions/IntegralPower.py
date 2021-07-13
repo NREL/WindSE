@@ -23,7 +23,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwa
     # if not annotate:
     #     stop_annotating()
 
-    J = -assemble(dot(solver.problem.tf,solver.problem.u_k)*dx)
+    J = assemble(dot(solver.problem.tf,solver.problem.u_k)*dx)
 
     if solver.save_power or solver.save_objective:
         J_list=np.zeros(solver.problem.farm.numturbs+2)
