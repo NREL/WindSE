@@ -155,9 +155,12 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
     elif 'SNOPT' in kwargs['opt_routine']:
         prob.driver = om.pyOptSparseDriver()
         prob.driver.options['optimizer'] = 'SNOPT'
+        folder_output = kwargs["options"]["folder"]
+        prob.driver.opt_settings["Summary file"] = os.path.join(folder_output, "SNOPT_summary.out")
+        prob.driver.opt_settings["Print file"] = os.path.join(folder_output, "SNOPT_print.out")
     
     prob.model.add_design_var('DVs', lower=lower_bounds, upper=upper_bounds)
-    prob.model.add_objective('obj')
+    prob.model.add_objective('obj', ref=kwargs["options"]["obj_ref"], ref0=kwargs["options"]["obj_ref0"])
     
     for idx, constraint_type in enumerate(constraint_types):
         con_name = f'con_{idx}'
@@ -549,17 +552,26 @@ class Optimizer(object):
 
         self.fprint("Beginning Optimization",special="header")
         
+        options = {
+            "disp" : True,
+            "folder" : self.params.folder,
+            }
+        if hasattr(self, 'obj_ref'):
+            options["obj_ref"] = self.obj_ref
+        if hasattr(self, 'obj_ref0'):
+            options["obj_ref0"] = self.obj_ref0
+        
         # TODO : simplify this logic
         if "SNOPT" in self.opt_routine or "OM_SLSQP" in self.opt_routine:
             if "layout" in self.control_types:
-                m_opt=minimize(self.Jhat, method="Custom", options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
+                m_opt=minimize(self.Jhat, method="Custom", options = options, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
             else:
-                m_opt=minimize(self.Jhat, method="Custom", options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
+                m_opt=minimize(self.Jhat, method="Custom", options = options, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
         else:
             if "layout" in self.control_types:
-                m_opt=minimize(self.Jhat, method=self.opt_routine, options = {"disp": True}, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+                m_opt=minimize(self.Jhat, method=self.opt_routine, options = options, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
             else:
-                m_opt=minimize(self.Jhat, method=self.opt_routine, options = {"disp": True}, bounds = self.bounds, callback = self.OptPrintFunction)
+                m_opt=minimize(self.Jhat, method=self.opt_routine, options = options, bounds = self.bounds, callback = self.OptPrintFunction)
                 
         self.m_opt = m_opt
 

@@ -150,3 +150,5 @@ optimization:
     taylor_test:    False
     optimize:       False
     gradient:       False
+    obj_ref:        1.
+    obj_ref0:       0.
