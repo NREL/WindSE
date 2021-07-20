@@ -238,15 +238,6 @@ class GenericSolver(object):
 
         annotate = self.params.dolfin_adjoint 
 
-        ### Convert to list ###
-        if isinstance(self.objective_type,str):
-            self.objective_type = {self.objective_type: obj_funcs.objective_kwargs[self.objective_type]}
-        elif isinstance(self.objective_type,list):
-            new_objective_type = {}
-            for obj in self.objective_type:
-                new_objective_type[obj] = obj_funcs.objective_kwargs[obj]
-            self.objective_type = new_objective_type
-
         ### Iterate over objectives ###
         obj_list = [self.simTime]
         for objective, obj_kwargs in self.objective_type.items():
