@@ -1063,6 +1063,7 @@ class UnsteadySolver(GenericSolver):
                 # e.g., actuator disks
                 self.problem.alm_power = np.zeros(self.problem.farm.numturbs)
                 self.problem.alm_power_dolfin = np.zeros(self.problem.farm.numturbs)
+                self.J = ControlUpdater(self.J, self.problem, time=self.simTime)
 
                 # exit()
             toc = time.time()

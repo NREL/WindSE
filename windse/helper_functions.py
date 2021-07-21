@@ -64,7 +64,7 @@ def RadialChordForce(r,chord):
     return force/int_force
 
 def ControlUpdater(J ,problem, **kwargs):
-    pass
+    return J
 
 
 
