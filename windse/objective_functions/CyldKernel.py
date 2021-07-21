@@ -47,16 +47,18 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
 
         kernel_exp = 0
 
-        for i in range(solver.problem.farm.numturbs):
+        kernel_exp_list = []
 
-            # Get a convenience copy of turbine i's location
-            mx = solver.problem.farm.mx[i]
-            my = solver.problem.farm.my[i]
-            mz = solver.problem.farm.mz[i]
+        for k in range(solver.problem.farm.numturbs):
+
+            # Get a convenience copy of turbine k's location
+            mx = solver.problem.farm.mx[k]
+            my = solver.problem.farm.my[k]
+            mz = solver.problem.farm.mz[k]
             x0 = [mx, my, mz]
 
-            # Get a convenience copy of turbine i's yaw
-            yaw = solver.problem.farm.myaw[i]
+            # Get a convenience copy of turbine k's yaw
+            yaw = solver.problem.farm.myaw[k]
 
             xs = rotate_and_shift_points(x, x0, yaw, kp)
 
@@ -76,7 +78,9 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
 
             kernel_exp += axial_gaussian*radial_gaussian
 
-        return kernel_exp
+            kernel_exp_list.append(axial_gaussian*radial_gaussian)
+
+        return kernel_exp, kernel_exp_list
 
     # ================================================================
 
@@ -84,7 +88,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     kwargs['radius'] *= solver.problem.farm.RD[0]
     kwargs['length'] *= solver.problem.farm.RD[0]
 
-    kernel_exp = build_cylindrical_kernels(solver, kwargs)
+    kernel_exp, kernel_exp_list = build_cylindrical_kernels(solver, kwargs)
 
     # Normalize this kernel function
     # vol = assemble(kernel_exp*dx)/solver.problem.farm.numturbs
@@ -103,5 +107,38 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
 
     # J = -assemble(sqrt(inner(solver.problem.u_k, solver.problem.u_k))*kernel_exp*dx)
     J = assemble(solver.problem.u_k[0]*kernel_exp*dx)
+
+
+    calculate_individual_blockage = True
+
+    print('Objective Value: ', float(J))
+
+    if calculate_individual_blockage:
+
+        blockage_array = []
+
+        print('Calculating Individual Turbine Blockage')
+
+        for k in range(solver.problem.farm.numturbs):
+            kernel_exp_list[k] = kernel_exp_list[k]/vol
+
+            # J_ind = -assemble(sqrt(inner(solver.problem.u_k, solver.problem.u_k))*kernel_exp_list[k]*dx)
+            J_ind = assemble(solver.problem.u_k[0]*kernel_exp_list[k]/vol/solver.problem.farm.numturbs*dx)
+
+            mx = solver.problem.farm.mx[k]
+            my = solver.problem.farm.my[k]
+            mz = solver.problem.farm.mz[k]
+            yaw = solver.problem.farm.myaw[k]
+
+            blockage_array.append([k, mx, my, mz, yaw, J_ind])
+
+        blockage_array = np.array(blockage_array)
+
+        folder_string = solver.params.folder+"data/"
+        np.savetxt('%sindividual_blockage.csv' % (folder_string),
+            blockage_array,
+            fmt='%.6e',
+            header='Turbine ID (#), X-Location (m), Y-Location (m), Z-Location (m), Yaw (Rad), Blockage (m/s)',
+            delimiter=',')
 
     return J
