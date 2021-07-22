@@ -23,13 +23,13 @@ rstprocess.process()
 # -- Project information -----------------------------------------------------
 
 project = u'WindSE'
-copyright = u'2019, Ryan King, Jeffery Allen and Ethan Young'
-author = u'Ryan King, Jeffery Allen and Ethan Young'
+copyright = u'2021, Ryan King, Jeffery Allen, Ethan Young, John Jasa'
+author = u'Ryan King, Jeffery Allen, Ethan Young, John Jasa'
 
 # The short X.Y version
 version = u''
 # The full version, including alpha/beta/rc tags
-release = u'2020.5.0'
+release = u'2021.07a'
 
 
 # -- General configuration ---------------------------------------------------
