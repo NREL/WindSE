@@ -433,6 +433,54 @@ class GenericProblem(object):
         
         return tf
 
+    def ComputeTurbulenceModel(self, u):
+        self.fprint(f"Using Turbulence Model: {self.turbulence_model}")
+        if self.turbulence_model is not None:
+            # Calculate eddy viscosity, if using
+            # self.turbulence_model = 'smagorinsky'
+            # self.turbulence_model = 'mixing_length'
+            # self.turbulence_model = None
+
+            # Strain rate tensor, 0.5*(du_i/dx_j + du_j/dx_i)
+            Sij = sym(grad(u))
+
+            # sqrt(Sij*Sij)
+            strainMag = (2.0*inner(Sij, Sij))**0.5
+
+            if self.turbulence_model == 'smagorinsky':
+                # Smagorinsky constant, typically around 0.17
+                Cs = 0.17
+
+                # Define filter scale (all models use this)
+                filter_scale = CellVolume(self.dom.mesh)**(1.0/self.dom.dim)
+
+                # Eddy viscosity
+                nu_T = Cs**2 * filter_scale**2 * strainMag
+
+            elif self.turbulence_model == 'mixing_length':
+                # von Karman constant
+                vonKarman = 0.41
+
+                if self.dom.dim == 3:
+                    depth = self.bd.depth.vector()[:]
+                else:
+                    depth = self.farm.HH[0]
+
+                numer = vonKarman*depth
+                denom = 1.0 + vonKarman*depth/self.lmax
+
+                l_mix = Function(self.fs.Q)
+                l_mix.vector()[:] = numer/denom
+                l_mix.rename("l_mix","l_mix")
+
+                # Eddy viscosity
+                nu_T = l_mix**2 * strainMag
+
+        else:
+            nu_T = Constant(0)
+
+        return nu_T
+
 
     ############################################
     ############################################
@@ -557,21 +605,9 @@ class StabilizedProblem(GenericProblem):
         self.fprint("Max Mixing Length:         {:1.2e}".format(float(self.lmax)))
         self.fprint("Stabilization Coefficient: {:1.2e}".format(float(eps)))
 
-        ### Calculate the stresses and viscosities ###
-        S = sqrt(2*inner(0.5*(grad(self.u_k)+grad(self.u_k).T),0.5*(grad(self.u_k)+grad(self.u_k).T)))
-
-        ### Create l_mix based on distance to the ground ###
-        if self.dom.dim == 3:
-            ### https://doi.org/10.5194/wes-4-127-2019###
-            l_mix = Function(self.fs.Q)
-            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:]/Sx,(1.+np.divide(vonKarman*self.bd.depth.vector()[:]/Sx,self.lmax)))
-        else:
-            l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/self.lmax)))
-        # l_mix = Expression("x[2]/8.",degree=2)
-        l_mix.rename("l_mix","l_mix")
-        
         ### Calculate nu_T
-        self.nu_T=l_mix**2.*S
+        self.nu_T=self.ComputeTurbulenceModel(self.u_k)
+
         # self.nu_T=Constant(0.0)
         self.ReyStress=self.nu_T*grad(self.u_k)
         self.vertKE= self.ReyStress[0,2]*self.u_k[0]
@@ -664,19 +700,8 @@ class TaylorHoodProblem(GenericProblem):
         ### (this will become a separate function.)
         self.up_k.assign(self.bd.u0)
 
-        ### Calculate the stresses and viscosities ###
-        S = sqrt(2.*inner(0.5*(grad(self.u_k)+grad(self.u_k).T),0.5*(grad(self.u_k)+grad(self.u_k).T)))
-
-        ### Create l_mix based on distance to the ground ###
-        if self.dom.dim == 3:
-            ### https://doi.org/10.5194/wes-4-127-2019###
-            l_mix = Function(self.fs.Q)
-            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:],(1.+np.divide(vonKarman*self.bd.depth.vector()[:],self.lmax)))
-        else:
-            l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/self.lmax)))
-
         ### Calculate nu_T
-        self.nu_T=l_mix**2.*S
+        self.nu_T=self.ComputeTurbulenceModel(self.u_k)
 
         ### Create the turbine force ###
         self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
@@ -756,35 +781,8 @@ class IterativeSteady(GenericProblem):
         # U_AB = 1.5*u_k - 0.5*u_k_old # Time level k+1/2
         U_AB = 2.0*self.u_k - 1.0*self.u_k_old # Time level k+1
 
-        ### Define Eddy viscosity ###
-        use_eddy_viscosity = True
-
-        if use_eddy_viscosity:
-            # Define filter scale (all models use this)
-            filter_scale = CellVolume(self.dom.mesh)**(1.0/self.dom.dim)
-
-            # Strain rate tensor, 0.5*(du_i/dx_j + du_j/dx_i)
-            Sij = sym(grad(U_AB))
-
-            # sqrt(Sij*Sij)
-            strainMag = (2.0*inner(Sij, Sij))**0.5
-
-            # Smagorinsky constant, typically close to 0.17
-            Cs = 0.17
-
-            vonKarman=0.41
-            # lmax Default = 15.0
-            # l_mix = Constant(vonKarman*self.farm.HH[0]/(1+(vonKarman*self.farm.HH[0]/self.lmax)))
-
-            l_mix = Function(self.fs.Q)
-            l_mix.vector()[:] = np.divide(vonKarman*self.bd.depth.vector()[:],(1.+np.divide(vonKarman*self.bd.depth.vector()[:],self.lmax)))
-
-            # Eddy viscosity
-            # self.nu_T = Cs**2 * filter_scale**2 * strainMag
-            self.nu_T = l_mix**2 * strainMag
-
-        else:
-            self.nu_T = Constant(0.0)
+        # Compute eddy viscosity
+        self.nu_T=self.ComputeTurbulenceModel(U_AB)
 
         # ================================================================
 
@@ -933,50 +931,7 @@ class UnsteadyProblem(GenericProblem):
         U_AB = 1.5*self.u_k1 - 0.5*self.u_k2
 
         # ================================================================
-
-        # Calculate eddy viscosity, if using
-        # turb_model = 'smagorinsky'
-        turb_model = 'mixing_length'
-        # turb_model = None
-
-        if turb_model is not None:
-
-            # Strain rate tensor, 0.5*(du_i/dx_j + du_j/dx_i)
-            Sij = sym(grad(U_AB))
-
-            # sqrt(Sij*Sij)
-            strainMag = (2.0*inner(Sij, Sij))**0.5
-
-            if turb_model == 'smagorinsky':
-                # Smagorinsky constant, typically around 0.17
-                Cs = 0.17
-
-                # Define filter scale (all models use this)
-                filter_scale = CellVolume(self.dom.mesh)**(1.0/self.dom.dim)
-
-                # Eddy viscosity
-                self.nu_T = Cs**2 * filter_scale**2 * strainMag
-
-            elif turb_model == 'mixing_length':
-                # von Karman constant
-                vonKarman = 0.41
-
-                if self.dom.dim == 3:
-                    depth = self.bd.depth.vector()[:]
-                else:
-                    depth = self.farm.HH[0]
-
-                numer = vonKarman*depth
-                denom = 1.0 + vonKarman*depth/self.lmax
-
-                l_mix = Function(self.fs.Q)
-                l_mix.vector()[:] = numer/denom
-
-                # Eddy viscosity
-                self.nu_T = l_mix**2 * strainMag
-
-        else:
-            self.nu_T = Constant(0)
+        self.nu_T = self.ComputeTurbulenceModel(U_AB)
 
         # ================================================================
 

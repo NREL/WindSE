@@ -50,6 +50,7 @@ boundary_conditions:
 problem:
     type: unsteady               # The unsteady solver is required for ALM simulations
     viscosity: 0.000015          # The kinematic viscosity of the fluid | m^2/s
+    turbulence_model: smagorinsky
 
 solver:
     type: unsteady               # The unsteady solver is required for ALM simulations

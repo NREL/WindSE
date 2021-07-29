@@ -401,18 +401,38 @@ class ControlUpdaterBlock(Block):
             self.add_dependency(self.farm.ma[i])
             self.num_dependancies += 1
 
+        J.block_variable.tag = ("J",-1,-1)
+        self.add_dependency(J)
+        self.num_dependancies += 1
+
     def __str__(self):
         return "ControlUpdaterBlock"
 
+    def recompute_component(self, inputs, block_variable, idx, prepared):
+        return inputs[-1]
 
     def recompute(self, markings=False):
         print(f"Forward Solve Time: {self.time}")
         self.Update()
+
+        # Run original recompute
+        Block.evaluate_adj(self, markings)
         return
 
+    def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
+        name, turb_id, seg_id = block_variable.tag
+        if name == "J":
+            return adj_inputs[0]
+        else:
+            return 0.0
+
+    @no_annotations
     def evaluate_adj(self, markings=False):
         print(f"Adjoint Solve Time: {self.time}")
         self.Update()
+
+        # Run original evaluate_adj
+        Block.evaluate_adj(self, markings)
         return
 
     def Update(self):
@@ -424,39 +444,14 @@ class ControlUpdaterBlock(Block):
         # update farm floats
         for i in range(len(inputs)):
             name, turb_id, seg_id = deps[i].tag
-            if name in ["c_lift","c_drag","chord"]:
-                self.control_dict[name][turb_id][seg_id] = float(inputs[i])
-            else:
-                self.control_dict[name][turb_id] = float(inputs[i])
+            if name != "J":
+                if name in ["c_lift","c_drag","chord"]:
+                    self.control_dict[name][turb_id][seg_id] = float(inputs[i])
+                else:
+                    self.control_dict[name][turb_id] = float(inputs[i])
 
         # update farm Constants()
         self.farm.SimpleControlUpdate()
-
-    # def recompute_component(self, inputs, block_variable, idx, prepared):
-    #     name, turb_id, seg_id = block_variable.tag
-    #     print(name)
-    #     if name == "J":
-    #         print(f"Forward Solve Time: {self.problem.simTime}")
-    #     return inputs[-1]
-
-    # def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
-
-    #     name, turb_id, seg_id = block_variable.tag
-
-    #     if name == "J":
-    #         print(f"Adjoint Solve Time: {self.problem.simTime}")
-    #         self.farm.SimpleControlUpdate()
-    #         return adj_inputs[0]
-    #     elif name in ["c_lift","c_drag","chord"]:
-    #         self.control_dict[name][turb_id][seg_id] = float(inputs[idx])
-    #         return 0.0
-    #     else:
-    #         self.control_dict[name][turb_id] = float(inputs[idx])
-    #         return 0.0
-
-
-
-
 
 
 
