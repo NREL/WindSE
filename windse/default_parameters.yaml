@@ -121,8 +121,10 @@ problem:
     use_25d_model: False
     viscosity:     0.1
     lmax:          15
+    turbulence_model: mixing_length # mixing_length, smagorinsky, or None
     script_iterator: 0
     use_corrective_force: False
+    stability_eps: 1.0
 
 solver:
     type:              steady

@@ -344,7 +344,7 @@ def ControlUpdater(J ,problem, **kwargs):
     J = create_overloaded_object(J)
 
     if annotate:        
-        block = ControlUpdaterBlock(J, problem)
+        block = ControlUpdaterBlock(J, problem,**kwargs)
         block.add_output(J.create_block_variable())
 
         tape = get_working_tape()
@@ -353,11 +353,11 @@ def ControlUpdater(J ,problem, **kwargs):
     return J
 
 class ControlUpdaterBlock(Block):
-    def __init__(self, J, problem):
+    def __init__(self, J, problem, **kwargs):
         super(ControlUpdaterBlock, self).__init__()
         self.problem = problem
         self.farm = problem.farm
-
+        self.time = kwargs.get("time",None)
         self.control_dict = {
                                 "c_lift": self.farm.cl,
                                 "c_drag": self.farm.cd,
@@ -411,23 +411,47 @@ class ControlUpdaterBlock(Block):
     def recompute_component(self, inputs, block_variable, idx, prepared):
         return inputs[-1]
 
+    def recompute(self, markings=False):
+        print(f"Forward Solve Time: {self.time}")
+        self.Update()
+
+        # Run original recompute
+        Block.evaluate_adj(self, markings)
+        return
+
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
-
         name, turb_id, seg_id = block_variable.tag
-
         if name == "J":
-            self.farm.SimpleControlUpdate()
             return adj_inputs[0]
-        elif name in ["c_lift","c_drag","chord"]:
-            self.control_dict[name][turb_id][seg_id] = float(inputs[idx])
-            return 0.0
         else:
-            self.control_dict[name][turb_id] = float(inputs[idx])
             return 0.0
 
+    @no_annotations
+    def evaluate_adj(self, markings=False):
+        print(f"Adjoint Solve Time: {self.time}")
+        self.Update()
 
+        # Run original evaluate_adj
+        Block.evaluate_adj(self, markings)
+        return
 
+    def Update(self):
 
+        # Get new dependency values
+        deps = self.get_dependencies()
+        inputs = [bv.saved_output for bv in deps]
+
+        # update farm floats
+        for i in range(len(inputs)):
+            name, turb_id, seg_id = deps[i].tag
+            if name != "J":
+                if name in ["c_lift","c_drag","chord"]:
+                    self.control_dict[name][turb_id][seg_id] = float(inputs[i])
+                else:
+                    self.control_dict[name][turb_id] = float(inputs[i])
+
+        # update farm Constants()
+        self.farm.SimpleControlUpdate()
 
 
 
