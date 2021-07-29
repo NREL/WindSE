@@ -223,7 +223,7 @@ class GenericSolver(object):
         args = (self, (self.iter_theta-self.problem.dom.inflow_angle))
         kwargs = {"first_call": first_call, "annotate": annotate}
         kwargs.update(self.power_func_kwargs)
-        out = obj_funcs.annotated_objective(self.power_func, *args, **kwargs)
+        out = obj_funcs._annotated_objective(self.power_func, *args, **kwargs)
 
         return out
 
@@ -246,7 +246,7 @@ class GenericSolver(object):
             args = (self, (self.iter_theta-self.problem.dom.inflow_angle))
             kwargs = {"first_call": first_call, "annotate": annotate}
             kwargs.update(obj_kwargs)
-            out = obj_funcs.annotated_objective(objective_func, *args, **kwargs)
+            out = obj_funcs._annotated_objective(objective_func, *args, **kwargs)
             obj_list.append(out)
         J = obj_list[1]
 

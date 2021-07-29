@@ -1,3 +1,11 @@
+'''
+The objective function live in the windse/objective_functions folder.
+These functions should be called using the dictionary
+objective_funcs[<name>](solver, *args, **kwargs), where <name> is the
+function name. 
+'''
+
+
 from os.path import dirname, basename, isfile, join
 import glob
 import importlib
@@ -12,13 +20,13 @@ else:
     main_file = "ipython"
     
 ### Make sure only the objective dictionary is imported ###
-__all__ = ["annotated_objective", "objective_functions", "objective_kwargs"]
+__all__ = ["_annotated_objective", "objective_functions", "objective_kwargs"]
 
 ### Get all files in folder ###
 files = glob.glob(join(dirname(__file__), "*.py"))
 
 ### Create a function that will turn off annotation where needed ###
-def annotated_objective(objective, *args, **kwargs):
+def _annotated_objective(objective, *args, **kwargs):
     '''
     This is a wrapper function that allows dolfin_adjoint to record the objective functions to the tape
     '''
