@@ -182,11 +182,11 @@ def CalculateDiskTurbineForces(x,wind_farm,fs,dfd=None,save_actuators=False,spar
 
     ### Define Radial Force Functions ###
     if wind_farm.force == "constant":
-        def RForce(r): return 1.0
+        def RForce(r): return -1.0
         def dRForce(r,d_r): return 0.0
     elif wind_farm.force == "sine":
-        def RForce(r): return (r*np.sin(np.pi*r)+0.5)/S_norm
-        def dRForce(r,d_r): return (r*np.cos(np.pi*r)*(np.pi*d_r) + d_r*np.sin(np.pi*r))/S_norm
+        def RForce(r): return -(r*np.sin(np.pi*r)+0.5)/S_norm
+        def dRForce(r,d_r): return -(r*np.cos(np.pi*r)*(np.pi*d_r) + d_r*np.sin(np.pi*r))/S_norm
     else:
         ValueError("Unknown force type: "+wind_farm.force)
 

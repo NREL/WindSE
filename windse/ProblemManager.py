@@ -614,10 +614,10 @@ class StabilizedProblem(GenericProblem):
 
         ### Create the functional ###
         # if self.farm.yaw[0]**2 > 1e-4:
-        #     self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+        #     self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf,v)*dx 
         # else :
-        # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx# + inner(self.tf,v)*dx 
-        self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+        # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx# - inner(self.tf,v)*dx 
+        self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf,v)*dx 
         
         ################ THIS IS A CHEAT ####################
 
@@ -633,7 +633,7 @@ class StabilizedProblem(GenericProblem):
         ########################################################
 
         # self.F_sans_tf =  (1.0)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx
-        # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf*(self.u_k[0]**2+self.u_k[1]**2),v)*dx 
+        # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf*(self.u_k[0]**2+self.u_k[1]**2),v)*dx 
 
         ### Add in the Stabilizing term ###
         # stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
@@ -707,7 +707,7 @@ class TaylorHoodProblem(GenericProblem):
         self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
 
         ### Create the functional ###
-        self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx + inner(self.tf,v)*dx 
+        self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf,v)*dx 
 
         if self.use_25d_model:
             if self.dom.dim == 3:
@@ -808,7 +808,7 @@ class IterativeSteady(GenericProblem):
         # Solve for u_hat, a velocity estimate which doesn't include pressure gradient effects
         F1 = inner(dot(self.u_k, nabla_grad(u)), v)*dx \
            + (nu+self.nu_T)*inner(grad(u), grad(v))*dx \
-           + inner(self.tf, v)*dx 
+           - inner(self.tf, v)*dx 
 
         self.F1_lhs = lhs(F1)
         self.F1_rhs = rhs(F1)
@@ -825,7 +825,7 @@ class IterativeSteady(GenericProblem):
         # Solve for u_star, a predicted velocity which includes the pressure gradient
         F3 = inner(dot(self.u_k, nabla_grad(u)), v)*dx \
            + (nu+self.nu_T)*inner(grad(u), grad(v))*dx \
-           + inner(self.tf, v)*dx \
+           - inner(self.tf, v)*dx \
            + inner(grad(self.p_k), v)*dx \
            + self.dt_1*inner(u - self.u_k, v)*dx
 
@@ -954,8 +954,8 @@ class UnsteadyProblem(GenericProblem):
         # the convention used in the unsteady problem
         # FIXME: We should be consistent about which way the turbine
         # forces are oriented.
-        if self.farm.turbine_method != "alm":
-            self.tf *= -1.0
+        # if self.farm.turbine_method != "alm":
+        #     self.tf *= -1.0
 
         # self.u_k2.vector()[:] = 0.0
         # self.u_k1.vector()[:] = 0.0

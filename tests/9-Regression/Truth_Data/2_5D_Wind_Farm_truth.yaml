@@ -46,12 +46,12 @@ BoundaryManager:
   num_bc: 7
 ProblemManager:
   int_nu_T: 2.6081935768183183e-12
-  int_tf_x: 0.0027187801116942056
+  int_tf_x: -0.0027187801116942056
   int_tf_y: 0.0
 SolverManager:
   min_x_vel: 3.3930493907099284
   max_x_vel: 8.597708944018562
   avg_x_vel: 8.000000000001911
-  min_y_vel: -0.9577858699493272
-  max_y_vel: 0.9575791647336437
-  avg_y_vel: -2.30335479441805e-08
+  min_y_vel: -0.957785869949327
+  max_y_vel: 0.9575791647336435
+  avg_y_vel: -2.3033547953228162e-08

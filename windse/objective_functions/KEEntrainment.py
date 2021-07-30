@@ -75,7 +75,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     dx_KE = Measure('dx', subdomain_data=solver.KE_objective_markers)
     # ds_KE = Measure('ds', subdomain_data=solver.KE_objective_markers)
 
-    J = assemble(-(solver.problem.vertKE*dx_KE(1) - solver.problem.vertKE*dx_KE(2)))
+    J = assemble((solver.problem.vertKE*dx_KE(1) - solver.problem.vertKE*dx_KE(2)))
 
     if solver.save_objective:
         folder_string = solver.params.folder+"data/"

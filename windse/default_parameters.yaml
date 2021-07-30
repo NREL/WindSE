@@ -141,6 +141,7 @@ solver:
     cl_iterator: 0
 
 optimization:
+    opt_type:       minimize # minimize or maximize
     control_types:  Null
     layout_bounds:  wind_farm
     objective_type: power

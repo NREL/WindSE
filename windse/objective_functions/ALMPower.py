@@ -58,9 +58,9 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     J = 0.0
     for i in range(solver.problem.farm.numturbs):
         if alm_power_type == "real":
-            J_temp = -assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*inner(-solver.problem.tf_list[i], solver.problem.cyld_expr_list[i])*dx)
+            J_temp = assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*inner(-solver.problem.tf_list[i], solver.problem.cyld_expr_list[i])*dx)
         elif alm_power_type == "fake":
-            J_temp = -assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*dot(-solver.problem.tf_list[i],solver.problem.u_k)*dx)
+            J_temp = assemble(1e-6*(2.0*np.pi*solver.problem.rpm/60.0)*dot(-solver.problem.tf_list[i],solver.problem.u_k)*dx)
         else:
             raise ValueError("Unknown ALM Power type: "+repr(alm_power_type))
         J_list[i+1] = J_temp
