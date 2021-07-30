@@ -993,7 +993,7 @@ class GenericWindFarm(object):
             elif self.force == "chord":
                 chord = self.mchord[i]
                 force = RadialChordForce(r,chord)
-            F = 0.5*A*C_tprime*force
+            F = -0.5*A*C_tprime*force
 
             ### Calculate normalization constant ###
             volNormalization = T_norm*D_norm*W*R**(self.dom.dim-1)

@@ -137,7 +137,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
         if i+1 == record_RD:
             solver.fprint("RD"+repr(i+1)+" Centroid: "+repr((Mx/M,My/M,Mz/M)))
             # J = -pow(My/M*My/M,1.0/2.0) ## if need to be strictly positive
-            J = -My/M
+            J = My/M
 
 
     ### Save Data ###
