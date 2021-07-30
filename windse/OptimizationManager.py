@@ -568,6 +568,13 @@ class Optimizer(object):
         if hasattr(self, 'obj_ref0'):
             options["obj_ref0"] = self.obj_ref0
         
+        if self.opt_type == "minimize":
+            opt_function = minimize
+        elif self.opt_type == "maximize":
+            opt_function = maximize
+        else:
+            raise ValueError(f"Unknown optimization type: {self.opt_type}")
+
         # TODO : simplify this logic
         if "SNOPT" in self.opt_routine or "OM_SLSQP" in self.opt_routine:
             if "layout" in self.control_types:
@@ -579,7 +586,7 @@ class Optimizer(object):
                 m_opt=opt_function(self.Jhat, method=self.opt_routine, options = options, constraints = self.dist_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
             else:
                 m_opt=opt_function(self.Jhat, method=self.opt_routine, options = options, bounds = self.bounds, callback = self.OptPrintFunction)
-             
+
         self.m_opt = m_opt
 
         if self.num_controls == 1:
