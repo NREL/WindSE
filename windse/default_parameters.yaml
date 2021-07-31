@@ -1,157 +1,160 @@
-general: 
-    name:               Null         # The folder name for the current run 
-    preappend_datetime: False        # if true, the time and date will be preappened to the output folder
-    output:             [solution]
-    output_folder:      output/ 
-    output_type:        pvd
-    dolfin_adjoint:     False
-    debug_mode:         False
+# These are all the available parameters. For more details visit https://windse.readthedocs.io/en/latest/params.html
 
-domain: 
-    type:                Null
-    path:                Null
-    mesh_path:           Null
-    terrain_path:        Null
-    bound_path:          Null
-    filetype:            xml.gz
-    scaled:              False # Extremely experimental 
-    ground_reference:    0.0
-    streamwise_periodic: False
-    spanwise_periodic:   False
-    x_range:             Null
-    y_range:             Null
-    z_range:             Null
-    nx:                  Null
-    ny:                  Null
-    nz:                  Null
-    mesh_type:           mshr
-    center:              Null
-    radius:              Null
-    nt:                  Null
-    res:                 Null
-    interpolated:        False
-    analytic:            False
-    gaussian:
-        center:  [0.0, 0.0]
-        theta:   0.0
-        amp:     Null
-        sigma_x: Null
-        sigma_y: Null
-    plane: 
-        intercept: [0.0, 0.0, 0.0]
-        mx:        Null
-        my:        Null
+general:                        # parameters for ParameterManager
+    name:               Null        # The folder name for the current run 
+    preappend_datetime: False       # if true, the time and date will be preappened to the output folder
+    output:             [solution]  # These are the fields that can be saved during/after the simulation, choices: "mesh", "initial_guess", "height", "turbine_force", "solution", "debug"
+    output_folder:      output/     # This is the root folder for all the output files
+    output_type:        pvd         # this is the filetype various fields are saved it, choices "pvd", "xdmf" (note "xdmf" is better for parallel, but "pvd" can be opened during simulation)
+    dolfin_adjoint:     False       # If true, this will import dolfin_adjoint which is required for calculating gradients. Must be true for optimizations 
+    debug_mode:         False       # If true, a file, tagged_output.yaml, in the root output folder. used for recursive tests
 
-wind_farm: 
-    type:           Null           
-    path:           Null
-    display:        False  ### this does this
-    ex_x:           Null    
-    ex_y:           Null    
-    x_spacing:      Null
-    y_spacing:      Null
-    x_shear:        Null
-    y_shear:        Null
-    min_sep_dist:       2 # The minimum separation distance for a random farm, expressed in units of rotor diameter
-    grid_rows:      Null      
-    grid_cols:      Null      
-    jitter:         0.0          
-    numturbs:       Null
-    seed:           Null      
-    HH:             Null             
-    RD:             Null             
-    thickness:      Null      
-    yaw:            Null            
-    axial:          Null          
-    force:          sine
-    turbine_method: dolfin
-    rpm:            10.0
-    read_turb_data: Null
-    blade_segments: computed
-    use_local_velocity: True
-    max_chord:      1000
-    chord_factor:   1.0           
-    gauss_factor:   2.0           
+domain:                         # parameters for DomainManager
+    type:                Null       # The type of domain    
+    path:                Null       # The path to all domain files if using imported domain and standard naming
+    mesh_path:           Null       # a specific path for the imported mesh file
+    terrain_path:        Null       # a specific path for the terrain file if using complex/interpolated terrain
+    bound_path:          Null       # a specific path to a MeshFunction file that store the boundary IDs
+    filetype:            xml.gz     # The file type for imported domains. Choices: xml, xml.gz, h5
+    scaled:              False      # Attempt scale the domain to km instead of m. (Extremely experimental, do not use)
+    ground_reference:    0.0        # the z-coordinate of the ground. 
+    streamwise_periodic: False      # sets periodic boundary conditions along the x-direction (Not yet implemented)
+    spanwise_periodic:   False      # sets periodic boundary conditions along the y-direction (Not yet implemented)
+    x_range:             Null       # the extents, in meters, of the domain in the streamwise direction
+    y_range:             Null       # the extents, in meters, of the domain in the spanwise direction
+    z_range:             Null       # the extents, in meters, of the domain in the vertical direction
+    nx:                  Null       # the number of nodes in the streamwise direction
+    ny:                  Null       # the number of nodes in the spanwise direction
+    nz:                  Null       # the number of nodes in the vertical direction
+    mesh_type:           mshr       # sets how the cylinder/circle domains are meshed. Choices: "mshr", "elliptic", "squircular", "stretch"
+    center:              Null       # center of the cylinder/circle domains
+    radius:              Null       # radius for the cylinder/circle domains
+    nt:                  Null       # number of nodes in the theta direction for cylinder/circle domains
+    res:                 Null       # the mshr resolution for cylinder/circle domains with the mshr mesh_type
+    interpolated:        False      # lets you define a terrain_path to have complex domain
+    analytic:            False      # use an analytic function instead of a terrain_path
+    gaussian:                       # create a gaussian hill analytic complex terrain
+        center:  [0.0, 0.0]             # center of the hill
+        theta:   0.0                    # rotation of the hill
+        amp:     Null                   # height of the hill
+        sigma_x: Null                   # skew in x
+        sigma_y: Null                   # skew in y
+    plane:                          # create a plane analytic complex terrain
+        intercept: [0.0, 0.0, 0.0]      # z = mx(x-x0)+my(y-y0)+z0
+        mx:        Null                 # x slope
+        my:        Null                 # y slope
 
-refine:
-    warp_type:      Null
-    warp_strength:  Null
-    warp_percent:   Null
-    warp_height:    Null
-    farm_num:       0
-    farm_type:      square
-    farm_factor:    1.0
-    turbine_num:    0
-    turbine_type:   simple
-    turbine_factor: 1.0
-    refine_custom:  Null
-    refine_power_calc: False
+wind_farm:                  # parameters for WindFarmManager
+    type:           Null        # type of wind farm       
+    path:           Null        # location of imported wind farm 
+    display:        False       # Does nothing
+    ex_x:           Null        # extents of the farm in the x direction in meters
+    ex_y:           Null        # extents of the farm in the y direction in meters
+    x_spacing:      Null        # x spacing between turbines in meters
+    y_spacing:      Null        # y spacing between turbines in meters
+    x_shear:        Null        # x offset between rows in meters
+    y_shear:        Null        # y offset between columns in meters
+    min_sep_dist:      2        # The minimum separation distance for a random farm, expressed in units of rotor diameter
+    grid_rows:      Null        # Number of turbines in the y direction
+    grid_cols:      Null        # number of turbines in the x direction
+    jitter:         0.0         # magnitude of random noise added to a gridded wind farm
+    numturbs:       Null        # total number of turbines
+    seed:           Null        # seed to fix the randomness between runs
+    HH:             Null        # hub height in meters
+    RD:             Null        # rotor diameter in meters
+    thickness:      Null        # thickness of the actuator disk in meters (usually 10% of RD)
+    yaw:            Null        # yaw of the turbine relative to inflow angle
+    axial:          Null        # axial induction value for actuator disks
+    force:          sine        # distribution of force along the radial direction of an actuator disk. choices: constant, sine, ?chord?
+    turbine_method: dolfin      # how the turbine force is constructed. choices: dolfin, numpy, alm, disabled
+    rpm:            10.0        # rotations per minute for the alm method
+    read_turb_data: Null        # location of alm data
+    blade_segments: computed    # number of nodes along the rotor radius 
+    use_local_velocity: True    # use the velocity at the rotor to compute alm forces (otherwise use inflow)
+    max_chord:      1000        # upper limit when optimizing chord
+    chord_factor:   1.0         # This multiplies all the chords by a constant factor, e.g., 2.0 makes a chord that's twice as thick everywhere 
+    gauss_factor:   2.0         # This is the factor that gets multiplied by the minimum mesh spacing to set the gaussian width, e.g., gaussian_width = 2.0*dx_min
 
-function_space:
-    type:              Null
-    quadrature_degree: 6
-    turbine_space:     Quadrature
-    turbine_degree:    6
+refine:                     # parameters for RefinementManager
+    warp_type:      Null        # warping will shift the nodes along the z direction concentrating them near the ground. choices: "smooth", "split"
+    warp_strength:  Null        # for smooth warps, how aggressively they are moved to the ground
+    warp_percent:   Null        # for split warps, percentage moved below the warp_heigth
+    warp_height:    Null        # for split warps, where the spit happens
+    farm_num:       0           # number of farm level refinements
+    farm_type:      square      # type of farm level refinements. choices: "full", "box", "cylinder", "stream"
+    farm_factor:    1.0         # scaling factor for the size of the refinement  
+    turbine_num:    0           # number of turbine level refinements
+    turbine_type:   simple      # type of turbine refinement. choices: "simple", "tear", "wake"
+    turbine_factor: 1.0         # scaling factor for the size of the refinement 
+    refine_custom:  Null        # allows for a list of custom refine commands
+    refine_power_calc: False    # bare minimum refinement around turbines to increase power calculation accuracy
 
-boundary_conditions:
-    vel_profile:    Null
-    HH_vel:         8.0
-    vel_height:     "HH"
-    power:          0.25
-    k:              0.4
-    turbsim_path:   Null
-    inflow_angle:   Null
-    boundary_names: 
-        east:    Null   # positive x
-        north:   Null   # positive y
-        west:    Null   # negative x
-        south:   Null   # negative y
-        bottom:  Null   # negative z
-        top:     Null   # positive z
-        inflow:  Null
-        outflow: Null
-    boundary_types: 
-        inflow:    Null
-        no_slip:   Null
-        free_slip: Null
-        no_stress: Null
+function_space:                 # parameters for the FunctionSpaceManager
+    type:              Null         # type of function space
+    quadrature_degree: 6            # used when calculating integrals
+    turbine_space:     Quadrature   # used with numpy turbine_method, sets the space the turbine are calculate on 
+    turbine_degree:    6            # used with numpy turbine_method, sets degree
 
-problem:
-    type:          Null
-    use_25d_model: False
-    viscosity:     0.1
-    lmax:          15
-    turbulence_model: mixing_length # mixing_length, smagorinsky, or None
-    script_iterator: 0
-    use_corrective_force: False
-    stability_eps: 1.0
+boundary_conditions:    # parameters for the BoundaryManager
+    vel_profile:    Null    # inflow velocity profile, choices: "uniform", "power", "log", "turbsim"
+    HH_vel:         8.0     # velocity at hub height (m/s) TODO: rename to "ref_vel"
+    vel_height:     "HH"    # sets the location of the reference velocity
+    power:          0.25    # exponent for the power inflow
+    k:              0.4     # The constant used in the log layer flow
+    turbsim_path:   Null    # location for the turbsim inflow data
+    inflow_angle:   Null    # angle of the inflow velocity
+    boundary_names:         # used for renaming the boundries
+        east:    Null           # positive x
+        north:   Null           # positive y
+        west:    Null           # negative x
+        south:   Null           # negative y
+        bottom:  Null           # negative z
+        top:     Null           # positive z
+        inflow:  Null           # inflow, used in cylinder/circle
+        outflow: Null           # outflow, used in cylinder/circle
+    boundary_types:         # used for changing the boundary types 
+        inflow:    Null         # list of inflow bc names
+        no_slip:   Null         # list of no_slip bc names
+        free_slip: Null         # list of free_slip bc names
+        no_stress: Null         # list of no_stress bc names
 
-solver:
-    type:              steady
-    final_time:        1.0
-    save_interval:     1.0
-    num_wind_angles:   1
-    endpoint:          False
-    velocity_path:     Null
-    power_type:        power
-    save_power:        True
-    nonlinear_solver:  snes
-    newton_relaxation: 1.0
-    cfl_target: 0.5
-    cl_iterator: 0
+problem:                        # parameters for ProblemManager
+    type:          Null             # type of model
+    use_25d_model: False            # break divergence free to entrain momentum from "above" and "below"
+    viscosity:     0.1              # viscosity
+    lmax:          15               # mixing length
+    turbulence_model: mixing_length # turbulence model. Choices: mixing_length, smagorinsky, or None
+    script_iterator: 0              # debugging tool, do not use
+    use_corrective_force: False     # add a force to the weak form to allow the inflow to recover
+    stability_eps: 1.0              # stability term to help increase the well-possessedness of the linear mixed formulation
 
-optimization:
-    opt_type:       maximize # minimize or maximize
-    control_types:  Null
-    layout_bounds:  wind_farm
-    objective_type: power
-    save_objective: False
-    opt_turb_id :   all          # int or list or "all" 
-    record_time:    0.0 # float or "computed"  
-    u_avg_time:     0
-    opt_routine:    SLSQP      # alternative: L-BFGS-B
-    taylor_test:    False
-    optimize:       False
-    gradient:       False
-    obj_ref:        1.
-    obj_ref0:       0.
+solver:                         # parameters for the SolverManager
+    type:              steady       # type of solver
+    pseudo_steady: False            # used with unsteady solver to create a iterative steady solver.
+    final_time:        1.0          # final time of unsteady solve (s)
+    save_interval:     1.0          # how often to save during unsteady solve (s)
+    num_wind_angles:   1            # number of wind angle to sweep through for multiangle solve
+    endpoint:          False        # include the final wind angle in the sweep
+    velocity_path:     Null         # location of inflow velocities for multivelocity
+    power_type:        power        # type of power calculation. choices: 2d_power, power, alm_powe
+    save_power:        True         # save the power data to the data folder
+    nonlinear_solver:  snes         # type of nonlinear solver. choices: snes, newton
+    newton_relaxation: 1.0          # relaxation parameter (0,1] for newton
+    cfl_target: 0.5                 # target cfl number for unsteady solve 
+    cl_iterator: 0                  # debugging tool, do not use
+
+optimization:                   # parameters for OptimizationManager
+    opt_type:       maximize        # minimize or maximize
+    control_types:  Null            # controls to optimize, list of: "layout", "yaw", "axial", "chord", "lift", or "drag"
+    layout_bounds:  wind_farm       # special bound for layout optimizations
+    objective_type: power           # name of the function to maximize or minimize. look in objective_functions for choices
+    save_objective: False           # save the objective do a file in data/
+    opt_turb_id :   all             # which turbines to optimize, int or list or "all" 
+    record_time:    0.0             # when to start recording for unsteady objectives float or "computed"  
+    u_avg_time:     0               # when to start averaging velocity for use in objective functions
+    opt_routine:    SLSQP           # optimization method, choices: SLSQP, L-BFGS-B, OM_SLSQP, SNOPT (requires custom install)
+    obj_ref:        1.              # Sets the value of the objective function that will be treated as 1 by the SNOPT driver             
+    obj_ref0:       0.              # Sets the value of the objective function that will be treated as 0 by the SNOPT driver
+    taylor_test:    False           # Run the taylor test
+    optimize:       False           # optimize the problem
+    gradient:       False           # output the gradient

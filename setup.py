@@ -5,8 +5,8 @@ from setuptools import setup
 
 setup(name ="windse",
       description="Wind Systems Engineering",
-      version="2020.5.0",
-      author="Ryan King, Jeffery Allen, Ethan Young",
+      version="2021.8.0",
+      author="Ryan King, Jeffery Allen, Ethan Young, John Jasa",
       author_email="ryan.king@nrel.gov, jeff.allen@nrel.gov",
       url="https://github.com/NREL/WindSE",
       include_package_data=True,

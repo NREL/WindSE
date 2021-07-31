@@ -8,6 +8,7 @@ import __main__
 import os
 import yaml
 import warnings
+import copy
 
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
@@ -25,7 +26,6 @@ if main_file != "sphinx-build":
     import sys
     import ast
     import difflib
-    import copy
     import inspect 
 
     # set_log_level(LogLevel.CRITICAL)
@@ -84,10 +84,9 @@ class Parameters(dict):
         self.obj_names = obj_funcs.objective_functions.keys()
         self["optimization"]["objective_type"] = obj_funcs.objective_kwargs
 
-        # Create an MPI communicator and initialize rank and num_procs 
-        self.comm = dolfin.MPI.comm_world
-        self.rank = self.comm.Get_rank()
-        self.num_procs = self.comm.Get_size()
+        # print(dir(obj_funcs))
+        # print(obj_funcs.alm_power())
+        # exit()
 
     def TerminalUpdate(self,dic,keys,value):
         if len(keys) > 1:
@@ -140,6 +139,11 @@ class Parameters(dict):
             loc (str): This string is the location of the .yaml parameters file.
 
         """
+
+        # Create an MPI communicator and initialize rank and num_procs 
+        self.comm = dolfin.MPI.comm_world
+        self.rank = self.comm.Get_rank()
+        self.num_procs = self.comm.Get_size()
 
         ### Load the yaml file (requires PyYaml)
         if isinstance(loc,dict):

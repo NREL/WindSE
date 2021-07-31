@@ -223,7 +223,7 @@ class GenericSolver(object):
         args = (self, (self.iter_theta-self.problem.dom.inflow_angle))
         kwargs = {"first_call": first_call, "annotate": annotate}
         kwargs.update(self.power_func_kwargs)
-        out = obj_funcs.annotated_objective(self.power_func, *args, **kwargs)
+        out = obj_funcs._annotated_objective(self.power_func, *args, **kwargs)
 
         return out
 
@@ -246,7 +246,7 @@ class GenericSolver(object):
             args = (self, (self.iter_theta-self.problem.dom.inflow_angle))
             kwargs = {"first_call": first_call, "annotate": annotate}
             kwargs.update(obj_kwargs)
-            out = obj_funcs.annotated_objective(objective_func, *args, **kwargs)
+            out = obj_funcs._annotated_objective(objective_func, *args, **kwargs)
             obj_list.append(out)
         J = obj_list[1]
 
@@ -767,13 +767,8 @@ class UnsteadySolver(GenericSolver):
             raise ValueError("UnsteadySolver can only be run with ProblemType = unsteady, not %s" \
                 % (self.problem.params["problem"]["type"]))
 
-        # Check whether this is a pseudo_steady run (and run the unsteady
-        # solver until the average velocity measured after two flow throughs
-        # converges).
-        pseudo_steady = False
-
         if type(self.final_time) == str and self.final_time.lower() == 'none':
-            pseudo_steady = True
+            self.pseudo_steady = True
             self.fprint('Found option "None" for final_time, ')
             self.fprint('Running until unsteady solver is converged.')
             self.final_time = 1000000.0
@@ -804,7 +799,7 @@ class UnsteadySolver(GenericSolver):
 
         # Calculate what time to start the averaging process
         init_average = True
-        if pseudo_steady:
+        if self.pseudo_steady:
             two_flowthrough_time = 2.0*(self.problem.dom.x_range[1] - self.problem.dom.x_range[0])/self.params['boundary_conditions']['HH_vel']
             average_start_time = two_flowthrough_time
             self.fprint('Start averaging after two flow-throughs, or %.1f seconds' % (two_flowthrough_time))
@@ -1111,11 +1106,11 @@ class UnsteadySolver(GenericSolver):
             # # Adjust the timestep size, dt, for a balance of simulation speed and stability
             # save_next_timestep = self.AdjustTimestepSize(save_next_timestep, self.save_interval, self.simTime, u_max, u_max_k1)
 
-            if self.save_objective or (self.optimizing and self.simTime >= self.record_time and not pseudo_steady):
+            if self.save_objective or (self.optimizing and self.simTime >= self.record_time and not self.pseudo_steady):
                 J_next = self.EvaluateObjective()
 
             # Calculate the objective function
-            if self.optimizing and self.simTime >= self.record_time and not pseudo_steady:
+            if self.optimizing and self.simTime >= self.record_time and not self.pseudo_steady:
 
                 # Append the current time step for post production
                 self.adj_time_list.append(self.simTime)
@@ -1160,7 +1155,7 @@ class UnsteadySolver(GenericSolver):
             self.fprint("%8.2f | %7.2f | %5.2f" % (self.simTime, self.problem.dt, u_max))
             simIter+=1
 
-        if pseudo_steady:
+        if self.pseudo_steady:
             self.J = self.EvaluateObjective()
 
         elif (self.optimizing or self.save_objective):
