@@ -18,7 +18,7 @@ if hasattr(__main__,"__file__"):
 else:
     main_file = "ipython"
 
-if main_file != "sphinx-build":
+if not main_file in ["sphinx-build", "__main__.py"]:
     from pyadjoint import stop_annotating, annotate_tape
 
 ### Make sure only the objective dictionary is imported ###
