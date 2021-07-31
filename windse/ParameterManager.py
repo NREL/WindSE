@@ -10,6 +10,7 @@ import yaml
 import warnings
 import copy
 
+
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
     main_file = os.path.basename(__main__.__file__)
@@ -17,7 +18,7 @@ else:
     main_file = "ipython"
     
 ### This checks if we are just doing documentation ###
-if main_file != "sphinx-build":
+if not main_file in ["sphinx-build", "__main__.py"]:
     import datetime
     import numpy as np
     from math import ceil

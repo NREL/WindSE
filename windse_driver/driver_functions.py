@@ -8,7 +8,7 @@ else:
     main_file = "ipython"
 
 ### This checks if we are just doing documentation ###
-if main_file != "sphinx-build":
+if not main_file in ["sphinx-build", "__main__.py"]:
     import time
     import os.path as osp
     import argparse
