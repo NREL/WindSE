@@ -2,7 +2,7 @@ WindSE API
 ==========
 
 .. autosummary::
-    :toctree: _modules
+    :toctree: modules
     :template: module.rst
 
     windse.ParameterManager
