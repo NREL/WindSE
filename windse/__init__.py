@@ -11,8 +11,9 @@ if hasattr(__main__,"__file__"):
     main_file = os.path.basename(__main__.__file__)
 else:
     main_file = "ipython"
-    
+
 from windse.ParameterManager import windse_parameters
+
 def initialize(loc,updated_parameters=[]):
     """
     This function initializes all the submodules in WindSE.
@@ -25,7 +26,7 @@ def initialize(loc,updated_parameters=[]):
     windse_parameters.Load(loc,updated_parameters=updated_parameters)
 
     global BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce, Optimizer#, ReducedFunctional
-    if windse_parameters["general"].get("dolfin_adjoint", False) or main_file == "sphinx-build":
+    if windse_parameters["general"].get("dolfin_adjoint", False) or main_file in ["sphinx-build", "__main__.py"]:
         from windse.dolfin_adjoint_helper import BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce#, ReducedFunctional
         from windse.OptimizationManager import Optimizer
     else:
@@ -51,3 +52,4 @@ def initialize(loc,updated_parameters=[]):
 
     global SteadySolver, IterativeSteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
     from windse.SolverManager import SteadySolver, IterativeSteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
+
