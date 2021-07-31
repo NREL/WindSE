@@ -1,11 +1,22 @@
-import numpy as np
-import time
-import os.path as osp
-import argparse
-import sys
-from pyadjoint import get_working_tape
-import cProfile
-import dolfin
+import os
+import __main__
+
+### Get the name of program importing this package ###
+if hasattr(__main__,"__file__"):
+    main_file = os.path.basename(__main__.__file__)
+else:
+    main_file = "ipython"
+
+### This checks if we are just doing documentation ###
+if main_file != "sphinx-build":
+    import numpy as np
+    import time
+    import os.path as osp
+    import argparse
+    import sys
+    from pyadjoint import get_working_tape
+    import cProfile
+    import dolfin
 
 # import os
 # os.environ['OMP_NUM_THREADS'] = '1'
