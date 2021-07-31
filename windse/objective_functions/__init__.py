@@ -9,7 +9,6 @@ function name.
 from os.path import dirname, basename, isfile, join
 import glob
 import importlib
-from pyadjoint import stop_annotating, annotate_tape
 import __main__
 import copy
 
@@ -18,7 +17,10 @@ if hasattr(__main__,"__file__"):
     main_file = basename(__main__.__file__)
 else:
     main_file = "ipython"
-    
+
+if main_file != "sphinx-build":
+    from pyadjoint import stop_annotating, annotate_tape
+
 ### Make sure only the objective dictionary is imported ###
 __all__ = ["_annotated_objective", "objective_functions", "objective_kwargs"]
 

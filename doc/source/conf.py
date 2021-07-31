@@ -18,6 +18,8 @@ import sys
 sys.path.append(os.getcwd())
 sys.path.insert(0, os.path.abspath('../../'))
 import rstprocess
+import windse_driver.driver_functions
+# print(dir(windse))
 rstprocess.process()
 
 # -- Project information -----------------------------------------------------

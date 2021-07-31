@@ -3,7 +3,15 @@ This is the init file for WindSE. It handle importing all the
 submodules and initializing the parameters.
 """
 
+import os
+import __main__
 
+### Get the name of program importing this package ###
+if hasattr(__main__,"__file__"):
+    main_file = os.path.basename(__main__.__file__)
+else:
+    main_file = "ipython"
+    
 from windse.ParameterManager import windse_parameters
 def initialize(loc,updated_parameters=[]):
     """
@@ -17,7 +25,7 @@ def initialize(loc,updated_parameters=[]):
     windse_parameters.Load(loc,updated_parameters=updated_parameters)
 
     global BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce, Optimizer#, ReducedFunctional
-    if windse_parameters["general"].get("dolfin_adjoint", False):
+    if windse_parameters["general"].get("dolfin_adjoint", False) or main_file == "sphinx-build":
         from windse.dolfin_adjoint_helper import BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce#, ReducedFunctional
         from windse.OptimizationManager import Optimizer
     else:
