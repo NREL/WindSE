@@ -120,7 +120,6 @@ boundary_conditions:    # parameters for the BoundaryManager
 
 problem:                        # parameters for ProblemManager
     type:          Null             # type of model
-    pseudo_steady: False            # used with unsteady solver to create a iterative steady solver.
     use_25d_model: False            # break divergence free to entrain momentum from "above" and "below"
     viscosity:     0.1              # viscosity
     lmax:          15               # mixing length
@@ -131,6 +130,7 @@ problem:                        # parameters for ProblemManager
 
 solver:                         # parameters for the SolverManager
     type:              steady       # type of solver
+    pseudo_steady: False            # used with unsteady solver to create a iterative steady solver.
     final_time:        1.0          # final time of unsteady solve (s)
     save_interval:     1.0          # how often to save during unsteady solve (s)
     num_wind_angles:   1            # number of wind angle to sweep through for multiangle solve
