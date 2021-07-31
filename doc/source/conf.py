@@ -29,7 +29,7 @@ author = u'Ryan King, Jeffery Allen, Ethan Young, John Jasa'
 # The short X.Y version
 version = u''
 # The full version, including alpha/beta/rc tags
-release = u'2021.07a'
+release = u'2021.08.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -105,7 +105,11 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
-
+html_logo = "logo_wide.png"
+html_theme_options = {
+    'logo_only': True,
+    'display_version': False,
+}
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #

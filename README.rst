@@ -6,13 +6,13 @@ Simple Description:
 
 WindSE is a python package that uses a FEniCS backend to perform wind farm simulations and optimization. Documentation can be found at: https://windse.readthedocs.io/en/latest/ 
 
-Installation
-============
+Quick Start-Up Guide:
+=====================
 
-It is easies to run WindSE within a conda environment. To install conda check this link: `Conda Installation. <https://conda.io/projects/conda/en/latest/user-guide/install/>`_ Additionally, WindSE has been tested on MacOS Catalina (10.15), but in theory should also run on linux. Windows is not recommended. 
+It is easiest to run WindSE within a conda environment. To install conda check this link: `Conda Installation <https://conda.io/projects/conda/en/latest/user-guide/install/>`_. Additionally, WindSE has been tested on MacOS (Catalina 10.15) and Linux (CentOS 7). Windows is not recommended. 
 
-Source Conda Installation (Script):
------------------------------------
+Quick Installation Instructions:
+--------------------------------
 
 The easiest way to install windse is to run::
 
@@ -22,41 +22,18 @@ Then the enviroment can be activated using::
 
     conda activate <enviroment_name>
 
-Source Conda Installation (Manual):
------------------------------------
+Quick Demo Instructions:
+------------------------
 
-If you want to use the latest version or just want to setup the environment manually, follow these steps. After conda is installed, create a new environment using::
-
-    conda create --name <enviroment_name>
-
-You can replace the name <enviroment_name> with a different name for the environment if you want. Next we activate the environment using::
+Activate the conda environment using::
 
     conda activate <enviroment_name>
 
-or whatever you named your environment. Now we need to install the dependent packages using::
+Then to run a simple demo, navigate to <windse root>/demos/documented/Yaml_Examples/ and run::
 
-    conda install -c conda-forge fenics=2019.1.0 dolfin-adjoint mshr matplotlib scipy pyyaml memory_profiler pytest
+    windse run 0-wind_farm_2D.yaml
 
-Next, we need to install the `tsfc form compilers: <https://fenics.readthedocs.io/projects/ffc/en/latest/installation.html>`_::
+The output of this simulation will be located in the output/2_5D_Wind_Farm/ folder. Use `Paraview <https://www.paraview.org/download/>`_ to visualize the results in the solutions/ folder. To learn what parameter can be set in the yaml file, head to the `Parameter Documentation <https://windse.readthedocs.io/en/latest/params.html>`_.
 
-    pip install git+https://github.com/blechta/tsfc.git@2018.1.0
-    pip install git+https://github.com/blechta/COFFEE.git@2018.1.0
-    pip install git+https://github.com/blechta/FInAT.git@2018.1.0
-    pip install singledispatch networkx pulp
-
-Finally, download/clone the WindSE repo and run::
-
-    pip install -e .
-
-in the root folder. 
-
-Conda-Forge Installation (Automatic):
--------------------------------
-
-The package is available on conda-forge. To install conda check out this link: `Conda Installation. <https://conda.io/projects/conda/en/latest/user-guide/install/>`_ After conda is installed, you can automatically setup the WindSE environment using::
-
-    conda create --name <enviroment_name>
-    conda activate <enviroment_name>
-    conda install -c conda-forge windse
 
 

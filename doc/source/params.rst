@@ -3,10 +3,15 @@
 The Parameter File
 ==================
 
-This is a comprehensive list of all the available parameters. The default values are stored within ``default_parameters.yaml`` located in the windse directory of the python source files 
+This is a comprehensive list of all the available parameters. The default values are stored within ``default_parameters.yaml`` located in the windse directory of the python source files. 
 
 
 .. contents:: :local:
+
+Adding a New Parameter
+----------------------
+
+To add a new parameter, first add an entry in the ``default_parameters.yaml`` file under one of the major sections with a unique name. The value of that entry will then be an attribute of the class associated with that section. For example: adding the entry ``test_param: 42`` under the ``wind_farm`` section will add the attribute ``self.test_param`` to the ``GenericWindFarm`` class with the default value of 42.
 
 
 General Options
@@ -21,6 +26,7 @@ This section is for options about the run itself. The basic format is::
         output_folder:      <str> 
         output_type:        <str>
         dolfin_adjoint:     <bool>
+        debug_mode:         <bool>
 
 +------------------------+-----------------------------------------------------+----------+-----------------------+
 | Option                 | Description                                         | Required | Default               |
@@ -40,6 +46,8 @@ This section is for options about the run itself. The basic format is::
 +------------------------+-----------------------------------------------------+----------+-----------------------+
 | ``dolfin_adjoint``     | Required if performing any optimization.            | no       | False                 |
 +------------------------+-----------------------------------------------------+----------+-----------------------+
+| ``debug_mode``         | Saves "tagged_output.yaml" full of debug data       | no       | False                 |
++------------------------+-----------------------------------------------------+----------+-----------------------+
 
 
 
@@ -49,27 +57,29 @@ Domain Options
 This section will define all the parameters for the domain::
 
     domain: 
-        type:             <str>
-        path:             <str>
-        mesh_path:        <str>
-        terrain_path:     <str>
-        bound_path:       <str>
-        filetype:         <str>
-        scaled:           <bool>
-        ground_reference: <float>
-        x_range:          <float list>
-        y_range:          <float list>
-        z_range:          <float list>
-        nx:               <int>
-        ny:               <int>
-        nz:               <int>
-        mesh_type:        <str>
-        center:           <float list>
-        radius:           <float>
-        nt:               <int>
-        res:              <int>
-        interpolated:     <bool>
-        analytic:         <bool>
+        type:                <str>
+        path:                <str>
+        mesh_path:           <str>
+        terrain_path:        <str>
+        bound_path:          <str>
+        filetype:            <str>
+        scaled:              <bool>
+        ground_reference:    <float>
+        streamwise_periodic: <bool>
+        spanwise_periodic:   <bool>
+        x_range:             <float list>
+        y_range:             <float list>
+        z_range:             <float list>
+        nx:                  <int>
+        ny:                  <int>
+        nz:                  <int>
+        mesh_type:           <str>
+        center:              <float list>
+        radius:              <float>
+        nt:                  <int>
+        res:                 <int>
+        interpolated:        <bool>
+        analytic:            <bool>
         gaussian: 
             center:   <float list>
             theta:    <float>
@@ -110,6 +120,12 @@ This section will define all the parameters for the domain::
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``ground_reference``   | | The height (z coordinate) that is           | no                 | 0.0         | m           |
 |                        | | considered ground                           |                    |             |             |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+| ``streamwise_periodic``| | Sets periodic boundary condition in the x   | no                 | False       | \-          |
+|                        | | direction (NOT FULLY IMPLEMENTED)           |                    |             |             |
++------------------------+-----------------------------------------------+--------------------+-------------+-------------+
+| ``spanwise_periodic``  | | Sets periodic boundary condition in the y   | no                 | False       | \-          |
+|                        | | direction (NOT FULLY IMPLEMENTED)           |                    |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
 | ``x_range``            | List of two floats defining the x range       | | "rectangle"      | None        | m           |
 |                        |                                               | | "box"            |             |             |
@@ -218,25 +234,35 @@ Wind Farm Options
 This section will define all the parameters for the wind farm::
 
     wind_farm: 
-        type:           <str>
-        path:           <str>
-        display:        <str>
-        ex_x:           <float list>
-        ex_y:           <float list>
-        grid_rows:      <int>
-        grid_cols:      <int>
-        jitter:         <float>
-        numturbs:       <int>
-        seed:           <int>
-        HH:             <float>
-        RD:             <float>
-        thickness:      <float>
-        yaw:            <float>
-        axial:          <float>
-        force:          <str>
-        turbine_method: <str>
-        rpm:            <float>
-        read_turb_data: <str>
+        type:               <str>
+        path:               <str>
+        display:            <str>
+        ex_x:               <float list>
+        ex_y:               <float list>
+        x_spacing:          <float>
+        y_spacing:          <float>
+        x_shear:            <float>
+        y_shear:            <float>
+        min_sep_dist:       <float>
+        grid_rows:          <int>
+        grid_cols:          <int>
+        jitter:             <float>
+        numturbs:           <int>
+        seed:               <int>
+        HH:                 <float>
+        RD:                 <float>
+        thickness:          <float>
+        yaw:                <float>
+        axial:              <float>
+        force:              <str>
+        turbine_method:     <str>
+        rpm:                <float>
+        read_turb_data:     <str>
+        blade_segments:     <int or str>
+        use_local_velocity: <bool>  
+        max_chord:          <float>     
+        chord_factor:       <float>     
+        gauss_factor:       <float>     
 
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
 | Option                 | Description                                   | Required (for)     | Default  | Units       |
@@ -254,6 +280,21 @@ This section will define all the parameters for the wind farm::
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
 | ``ex_y``               | | The y extents of the farm where turbines    | | "grid"           | None     | m           |
 |                        | | can be placed                               | | "random"         |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``x_spacing``          | | Alternative method for defining grid farm   | "grid"             | None     | m           |
+|                        | | x distance between turbines                 |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``y_spacing``          | | Alternative method for defining grid farm   | "grid"             | None     | m           |
+|                        | | y distance between turbines                 |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``x_shear``            | | Alternative method for defining grid farm   | | no               | None     | m           |
+|                        | | offset in the x direction between rows      | | "grid"           |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``y_shear``            | | Alternative method for defining grid farm   | | no               | None     | m           |
+|                        | | offset in the y direction between columns   | | "grid"           |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``min_sep_dist``       | | Minimum distance between any two turbines   | | no               | 2        | RD          |
+|                        | | in a random farm                            | | "random"         |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
 | ``grid_rows``          | The number of turbines in the x direction     | "grid"             | None     | \-          |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
@@ -301,6 +342,20 @@ This section will define all the parameters for the wind farm::
 | ``read_turb_data``     | | Path to .csv file with chord, lift, and     | no                 | None     | \-          |
 |                        | | drag coefficients                           |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``blade_segments``     | | number of nodes along the rotor radius      | "alm"              |"computed"| \-          |
+|                        | | use "computed" to automatically set         |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``use_local_velocity`` | | use the velocity at the rotor to compute    | "alm"              | True     | \-          |
+|                        | | alm forces (otherwise use inflow)           |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``max_chord``          | upper limit when optimizing chord             | "alm"              | 1000     | m           |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``chord_factor``       | | multiplies all the chords by a constant     | "alm"              | 1.0      | \-          |
+|                        | | factor                                      |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``gauss_factor``       | | factor that gets multiplied by the minimum  | "alm"              | 2.0      | \-          |
+|                        | | mesh spacing to set the gaussian width      |                    |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
 
 To import a wind farm, create a .txt file with this formatting::
 
@@ -329,17 +384,18 @@ ground and a low density region near the top
 The options are::
 
     refine:
-        warp_type:      <str>
-        warp_strength:  <float>
-        warp_percent:   <float>
-        warp_height:    <float>
-        farm_num:       <int>
-        farm_type:      <str>
-        farm_factor:    <float>
-        turbine_num:    <int>
-        turbine_type:   <str>
-        turbine_factor: <float>
-        refine_custom:  <list list>
+        warp_type:         <str>
+        warp_strength:     <float>
+        warp_percent:      <float>
+        warp_height:       <float>
+        farm_num:          <int>
+        farm_type:         <str>
+        farm_factor:       <float>
+        turbine_num:       <int>
+        turbine_type:      <str>
+        turbine_factor:    <float>
+        refine_custom:     <list list>
+        refine_power_calc: <bool>
 
 +------------------------+-----------------------------------------------+
 | Option                 | Description                                   |
@@ -384,6 +440,9 @@ The options are::
 | ``refine_custom``      | | This is a way to define multiple refinements|
 |                        | | in a specific order allowing for more       |
 |                        | | complex refinement options. Example below   |
++------------------------+-----------------------------------------------+
+| ``refine_power_calc``  | | bare minimum refinement around turbines to  |
+|                        | | increase power calculation accuracy         |
 +------------------------+-----------------------------------------------+
 
 To use the "refine_custom" option, define a list of lists where each element defines
@@ -474,12 +533,25 @@ velocity profile.::
     boundary_conditions:
         vel_profile:    <str>
         HH_vel:         <float>
+        vel_height:     <float, str>
         power:          <float>
         k:              <float>
         turbsim_path    <str>
         inflow_angle:   <float, list>
-        boundary_names: <dict>
-        boundary_types: <dict>
+        boundary_names:     
+            east:       <int>   
+            north:      <int>   
+            west:       <int>   
+            south:      <int>   
+            bottom:     <int>   
+            top:        <int>   
+            inflow:     <int>   
+            outflow:    <int>   
+        boundary_types:     
+            inflow:     <str list> 
+            no_slip:    <str list> 
+            free_slip:  <str list> 
+            no_stress:  <str list> 
 
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
 | Option                 | Description                                                                                   | Required     | Default    |
@@ -492,6 +564,8 @@ velocity profile.::
 |                        | |   "turbsim": use a turbsim simulation as inflow                                             |              |            |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
 | ``HH_vel``             | The velocity at hub height, :math:`u_{HH}`, in m/s.                                           | no           | 8.0        |
++------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
+| ``vel_height``         | sets the location of the reference velocity. Use "HH" for hub height                          | no           | "HH"       |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
 | ``power``              | The power used in the power flow law                                                          | no           | 0.25       |
 +------------------------+-----------------------------------------------------------------------------------------------+--------------+------------+
@@ -585,29 +659,43 @@ Problem Options
 This section describes the problem options::
 
     problem:
-        type:          <str>
-        use_25d_model: <bool>
-        viscosity:     <float>
-        lmax:          <float>
+        type:                 <str>
+        use_25d_model:        <bool>
+        viscosity:            <float>
+        lmax:                 <float>
+        turbulence_model:     <str>
+        script_iterator:      <int>             
+        use_corrective_force: <bool>    
+        stability_eps:        <float>             
 
-+------------------------+--------------------------------------------------------------+--------------+---------+
-| Option                 | Description                                                  | Required     | Default |
-|                        |                                                              |              |         |
-+========================+==============================================================+==============+=========+
-| ``type``               | | Sets the variational form use. Choices:                    | yes          | None    |
-|                        | |   "taylor_hood": Standard RANS formulation                 |              |         |
-|                        | |   "stabilized": Adds a term to stabilize P1xP1 formulations|              |         |
-+------------------------+--------------------------------------------------------------+--------------+---------+
-| ``viscosity``          | Kinematic Viscosity                                          | no           | 0.1     |
-|                        |                                                              |              |         |
-+------------------------+--------------------------------------------------------------+--------------+---------+
-| ``lmax``               | Turbulence length scale                                      | no           | 15.0    |
-|                        |                                                              |              |         |
-+------------------------+--------------------------------------------------------------+--------------+---------+
-| ``use_25d_model``      | | Option to enable a small amount of compressibility to mimic| no           | False   |
-|                        | | the effect of a 3D, out-of-plane flow solution in a 2D     | "2D only"    |         |
-|                        | | model.                                                     |              |         |
-+------------------------+--------------------------------------------------------------+--------------+---------+
++------------------------+--------------------------------------------------------------+--------------+---------------+
+| Option                 | Description                                                  | Required     | Default       |
+|                        |                                                              |              |               |
++========================+==============================================================+==============+===============+
+| ``type``               | | Sets the variational form use. Choices:                    | yes          | None          |
+|                        | |   "taylor_hood": Standard RANS formulation                 |              |               |
+|                        | |   "stabilized": Adds a term to stabilize P1xP1 formulations|              |               |
++------------------------+--------------------------------------------------------------+--------------+---------------+
+| ``viscosity``          | Kinematic Viscosity                                          | no           | 0.1           |
+|                        |                                                              |              |               |
++------------------------+--------------------------------------------------------------+--------------+---------------+
+| ``lmax``               | Turbulence length scale                                      | no           | 15.0          |
+|                        |                                                              |              |               |
++------------------------+--------------------------------------------------------------+--------------+---------------+
+| ``use_25d_model``      | | Option to enable a small amount of compressibility to mimic| | no         | False         |
+|                        | | the effect of a 3D, out-of-plane flow solution in a 2D     | | "2D only"  |               |
+|                        | | model.                                                     |              |               |
++------------------------+--------------------------------------------------------------+--------------+---------------+
+| ``turbulence_model``   | | Sets the turbulence model.                                 | no           | mixing_length |
+|                        | | Choices: mixing_length, smagorinsky, or None               |              |               |
++------------------------+--------------------------------------------------------------+--------------+---------------+
+| ``script_iterator``    | debugging tool, do not use                                   | no           | 0             |
++------------------------+--------------------------------------------------------------+--------------+---------------+
+|``use_corrective_force``| | add a force to the weak form to allow the inflow to recover| no           | False         |
++------------------------+--------------------------------------------------------------+--------------+---------------+
+| ``stability_eps``      | | stability term to help increase the well-possessedness of  | no           | 1.0           |
+|                        | | the linear mixed formulation                               |              |               |
++------------------------+--------------------------------------------------------------+--------------+---------------+
 
 
 
@@ -619,6 +707,7 @@ This section lists the solver options::
 
     solver:
         type:              <str>
+        pseudo_steady:     <bool>
         final_time:        <float>
         save_interval:     <float>
         num_wind_angles:   <int>
@@ -628,6 +717,8 @@ This section lists the solver options::
         save_power:        <bool>
         nonlinear_solver:  <str>
         newton_relaxation: <float>
+        cfl_target: 0.5    <float>
+        cl_iterator: 0     <int>
 
 +------------------------+----------------------------------------------------------------+---------------------+---------------------+
 | Option                 | Description                                                    | Required (for)      | Default             |
@@ -635,11 +726,15 @@ This section lists the solver options::
 +========================+================================================================+=====================+=====================+
 | ``type``               | | Sets the solver type. Choices:                               | yes                 | None                |
 |                        | |   "steady": solves for the steady state solution             |                     |                     |
+|                        | |   "iterative_steady": uses iterative SIMPLE solver           |                     |                     |
 |                        | |   "unsteady": solves for a time varying solution             |                     |                     |
 |                        | |   "multiangle": iterates through inflow angles               |                     |                     |
 |                        | |                 uses ``inflow_angle`` or [0, :math:`2\pi`]   |                     |                     |
 |                        | |   "imported_inflow": runs multiple steady solves with        |                     |                     |
 |                        | |                      imported list of inflow conditions      |                     |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``pseudo_steady``      | used with unsteady solver to create a iterative steady solver. | | no                | False               |
+|                        |                                                                | | "unsteady"        |                     |
 +------------------------+----------------------------------------------------------------+---------------------+---------------------+
 | ``final_time``         | The final time for an unsteady simulation                      | | no                | 1.0 s               |
 |                        |                                                                | | "unsteady"        |                     |
@@ -671,6 +766,11 @@ This section lists the solver options::
 | ``newton_relaxation``  | Set the relaxation parameter if using newton solver            | | no                | 1.0                 |
 |                        |                                                                | | "newton"          |                     |
 +------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``cfl_target``         | target cfl number for unsteady solve                           | | no                | 0.5                 |
+|                        |                                                                | | "unsteady"        |                     |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
+| ``cl_iterator``        | debugging tool, do not use                                     | | no                | 0                   |
++------------------------+----------------------------------------------------------------+---------------------+---------------------+
 
 The "multiangle" solver uses the steady solver to solve the RANS formulation.
 Currently, the "multiangle" solver does not support imported domains. 
@@ -683,15 +783,17 @@ This section lists the optimization options. If you are planning on doing
 optimization make sure to set ``dolfin_adjoint`` to True.::
 
     optimization:
+        opt_type:       <str>
         control_types:  <str list>
         layout_bounds:  <float list>
-        objective_type: <str>
+        objective_type: <str, str list, dict>
         save_objective: <bool>
+        opt_turb_id :   <int, int list, str>
         record_time:    <str, float>
-        wake_RD:        <int>
-        min_total:      <int>
-        wake_radius:    <float>
-        wake_length:    <float>
+        u_avg_time:     <float>
+        opt_routine:    <string>
+        obj_ref:        <float>
+        obj_ref0:       <float>
         taylor_test:    <bool>
         optimize:       <bool>
         gradient:       <bool>
@@ -700,43 +802,50 @@ optimization make sure to set ``dolfin_adjoint`` to True.::
 | Option                 | Description                                              | Required        | Default      |
 |                        |                                                          |                 |              |
 +========================+==========================================================+=================+==============+
+| ``opt_type``           | Type of optimization: "minimize" or "maximize"           | no              | maximize     |
++------------------------+----------------------------------------------------------+-----------------+--------------+
 | ``control_types``      | | Sets the parameters to optimize. Choose Any:           | yes             | None         |
 |                        | |   "yaw", "axial", "layout", "lift", "drag", "chord"    |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
 | ``layout_bounds``      | The bounding box for the layout optimization             | no              | wind_farm    |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
-| ``objective_type``     | | Sets the objective function for optimization           | no              | power        |
-|                        | | Choices:                                               |                 |              |
-|                        | |   "power": simple power calculation                    |                 |              |
-|                        | |   "2d_power": power calculation optimized for 2D runs  |                 |              |
-|                        | |   "alm_power": power calculation for actuator lines    |                 |              |
-|                        | |   "wake_center": centroid of wake at RD slice          |                 |              |
-|                        | |   "wake_deficit": deficit in the x direction           |                 |              |
+| ``objective_type``     | | Sets the objective function for optimization.          | no              | power        |
+|                        | | Visit :meth:`windse.objective_functions`               |                 |              |
+|                        | | to see choices and additional keywords. See below to   |                 |              |
+|                        | | an example for how to evaluate multiple objectives.    |                 |              |
+|                        | | The first objective listed will always be used in the  |                 |              |
+|                        | | optimization.                                          |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
 | ``save_objective``     | | Save the the value of the objective function           | no              | True         |
 |                        | | output/``name``/data/objective_data.txt                |                 |              |
 |                        | | Note: power objects are saved as power_data.txt        |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
-| ``record_time``        | | The amount of time to run the simulation before        | no              | computed     |
-|                        | | calculation of the objective function takes place      | unsteady        |              |
+| ``opt_turb_id``        | | Sets which turbines to optimize                        | no              | all          |
+|                        | | Choices:                                               |                 |              |
+|                        | |   int: optimize single turbine by ID                   |                 |              |
+|                        | |   list: optimize all in list by ID                     |                 |              |
+|                        | |   "all": optimize all                                  |                 |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``record_time``        | | The amount of time to run the simulation before        | | no            | computed     |
+|                        | | calculation of the objective function takes place      | | unsteady      |              |
 |                        | | Choices:                                               |                 |              |
 |                        | |   "computed": let the solver choose the best recording |                 |              |
 |                        | |   start time based on the flow speed and domain size   |                 |              |
 |                        | |   "last": only begin recording at the final_time       |                 |              |
 |                        | |   <float>: time in seconds to start recording          |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
-| ``wake_RD``            | | number of rotor diameters downstream where the wake is | no              | 5            |
-|                        | | measured                                               | wake_center     |              |
+| ``u_avg_time``         | | when to start averaging velocity for use in objective  | | no            | 5            |
+|                        | | functions                                              | | unsteady      |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
-| ``min_total``          | | number of times the average wake deflection reaches a  | no              | 0            |
-|                        | | before the unsteady simulation is stopped. use 0 to    | wake_center     |              |
-|                        | | run the full simulation                                |                 |              |
+| ``opt_routine``        | | optimization method                                    | no              | SLSQP        |
+|                        | | choices: SLSQP, L-BFGS-B, OM_SLSQP, SNOPT              |                 |              |
+|                        | | Note: SNOPT requires custom install                    |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
-| ``wake_length``        | The length of the recorded wake deficit in RD            | no              | 5 RD         |
-|                        |                                                          | wake_deficit    |              |
+| ``obj_ref``            | | objective reference: Sets the value of the objective   | | no            | 1.0          |
+|                        | | function that will be treated as 1 by the SNOPT driver | | SLSQP         |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
-| ``wake_radius``        | The length of the recorded wake deficit in RD            | no              | 1 RD         |
-|                        |                                                          | wake_deficit    |              |
+| ``obj_ref0``           | | objective reference: Sets the value of the objective   | | no            | 0.0          |
+|                        | | function that will be treated as 0 by the SNOPT driver | | SLSQP         |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
 | ``taylor_test``        | | Performs a test to check the derivatives. Good         | no              | False        |
 |                        | | results have a convergence rate around 2.0             |                 |              |
@@ -747,3 +856,32 @@ optimization make sure to set ``dolfin_adjoint`` to True.::
 | ``gradient``           | | returns the gradient values of the objective with      | no              | False        |
 |                        | | respect to the controls                                |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
+
+The ``objective_type`` can be defined in three ways. First as a single string such as::
+
+    optimization:
+        objective_type: alm_power 
+
+If the object chosen in this way has any keyword arguments, the defaults will automatically choosen. The second way is as a list of strings like::
+
+
+    optimization:
+        objective_type: ["alm_power", "KE_entrainment", "wake_center"]
+
+Again, the default keyword argument will be used with this method. The final way is as a full dictionary, which allow for setting keyword arguments::
+
+    optimization:
+        objective_type:
+            power: {}
+            point_blockage:
+                location: [0.0,0.0,240.0]
+            plane_blockage:
+                axis: 2
+                thickness: 130
+                center: 240.0
+            cyld_kernel: 
+                type: above
+            mean_point_blockage:
+                z_value: 240
+
+Notice that since the objective named "power" does not have keyword arguments, an empty dictionary must be passed. For a full list of objective function visit: :meth:`windse.objective_functions`

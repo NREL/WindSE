@@ -1,7 +1,7 @@
 '''
 The objective function live in the windse/objective_functions folder.
 These functions should be called using the dictionary
-objective_funcs[<name>](solver, *args, **kwargs), where <name> is the
+objective_funcs[<name>](solver, \*args, \*\*kwargs), where <name> is the
 function name. 
 '''
 

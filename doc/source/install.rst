@@ -27,14 +27,15 @@ You can replace the name <enviroment_name> with a different name for the environ
 
 or whatever you named your environment. Now we need to install the dependent packages using::
 
-    conda install -c conda-forge fenics=2019.1.0 dolfin-adjoint mshr matplotlib scipy pyyaml memory_profiler pytest
+    conda install -c conda-forge fenics=2019.1.0=py38_9 dolfin-adjoint matplotlib scipy=1.4.1 slepc mshr hdf5 pyyaml memory_profiler pytest pytest-cov pytest-mpi coveralls
 
 Next, we need to install the `tsfc form compilers: <https://fenics.readthedocs.io/projects/ffc/en/latest/installation.html>`_::
 
     pip install git+https://github.com/blechta/tsfc.git@2018.1.0
     pip install git+https://github.com/blechta/COFFEE.git@2018.1.0
     pip install git+https://github.com/blechta/FInAT.git@2018.1.0
-    pip install singledispatch networkx pulp
+    pip install git+https://github.com/mdolab/pyoptsparse@v1.0
+    pip install singledispatch networkx pulp openmdao
 
 Finally, download/clone the WindSE repo and run::
 
@@ -42,12 +43,12 @@ Finally, download/clone the WindSE repo and run::
 
 in the root folder. 
 
-Conda-Forge Installation (Automatic):
--------------------------------------
+.. Conda-Forge Installation (Automatic):
+.. -------------------------------------
 
-The package is available on conda-forge. To install conda check out this link: `Conda Installation. <https://conda.io/projects/conda/en/latest/user-guide/install/>`_ After conda is installed, you can automatically setup the WindSE environment using::
+.. The package is available on conda-forge. To install conda check out this link: `Conda Installation. <https://conda.io/projects/conda/en/latest/user-guide/install/>`_ After conda is installed, you can automatically setup the WindSE environment using::
 
-    conda create --name <enviroment_name>
-    conda activate <enviroment_name>
-    conda install -c conda-forge windse
+..     conda create --name <enviroment_name>
+..     conda activate <enviroment_name>
+..     conda install -c conda-forge windse
 
