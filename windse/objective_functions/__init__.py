@@ -67,7 +67,7 @@ for file in files:
         objective_kwargs[name] = default_kwargs
 
 ### Take a couple extra steps so sphinx will detect the objective functions
-if main_file == "sphinx-build":
+if main_file in ["sphinx-build", "__main__.py"]:
     for name, _func in objective_functions.items():
         vars()[name] = _func
         vars()[name].__module__ = __name__
