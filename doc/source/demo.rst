@@ -17,7 +17,7 @@ inputs, which can be downloaded :download:`here <demos/Yaml_Examples/Input_Data.
 6. :download:`Multi-Angle Optimization <demos/Yaml_Examples/4-multiangle_optimization.yaml>`
 7. :download:`Actuator Line Method Single-Turbine Simulation <demos/Yaml_Examples/6-alm_turbine.yaml>`
 
-Note: These demos are extremely coarse to lower runtime for automated testing. To get better results, play with the mesh resolution and refinements. 
+.. note:: These demos are extremely coarse to lower runtime for automated testing. To get better results, increase the mesh resolution and try different refinements. 
 
 Example Driver Files
 --------------------
