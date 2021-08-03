@@ -45,11 +45,17 @@ if not main_file in ["sphinx-build", "__main__.py"]:
 else:
     InequalityConstraint = object
     
-    
 import openmdao.api as om
 
 
 class ObjComp(om.ExplicitComponent):
+    """
+    OpenMDAO component to wrap the objective computation from dolfin.
+    
+    Specifically, we use the J and dJ (function and Jacobian) methods
+    to compute the function value and derivative values as needed by the
+    OpenMDAO optimizers.    
+    """
     def initialize(self):
         self.options.declare('initial_DVs', types=np.ndarray)
         self.options.declare('J', types=object)
@@ -75,6 +81,12 @@ class ObjComp(om.ExplicitComponent):
         
         
 class ConsComp(om.ExplicitComponent):
+    """
+    OpenMDAO component to wrap the constraint computation.
+    
+    A small wrapper used on the fenics methods for computing constraint
+    and Jacobian values using the OpenMDAO syntax.
+    """
     def initialize(self):
         self.options.declare('initial_DVs', types=np.ndarray)
         self.options.declare('J', types=object)
@@ -102,6 +114,9 @@ class ConsComp(om.ExplicitComponent):
         
 
 def gather(m):
+    """
+    Helper function to gather constraint Jacobians. Adapated from fenics.
+    """
     if isinstance(m, list):
         return list(map(gather, m))
     elif hasattr(m, "_ad_to_list"):
@@ -110,6 +125,30 @@ def gather(m):
         return m  # Assume it is gathered already
     
 def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
+    """
+    Custom optimization wrapper to use OpenMDAO optimizers with dolfin-adjoint.
+    
+    Follows the API as defined by dolfin-adjoint.
+    
+    Parameters
+    ----------
+    J : object
+        Function to compute the model analysis value at a design point.
+    initial_DVs : array
+        The initial design variables so we can get the array sizing correct
+        for the OpenMDAO implementation.
+    dJ : object
+        Function to compute the Jacobian at a design point.
+    H : object
+        Function to compute the Hessian at a design point (not used).
+    bounds : array
+        Array of lower and upper bound values for the design variables.
+        
+    Returns
+    -------
+    DVs : array
+        The optimal design variable values.
+    """
     
     # build the model
     prob = om.Problem(model=om.Group())

@@ -34,7 +34,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * Fixed mpi optimizations
-* Normalized objective function to report in m/s
+* Normalized blockage objective functions to report in m/s
 
 
 
