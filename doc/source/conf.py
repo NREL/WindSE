@@ -187,3 +187,6 @@ todo_include_todos = True
 
 autodoc_default_flags = ['members', 'show-inheritance']
 autosummary_generate = True
+
+def setup(app):
+    app.add_css_file('my_theme.css')
