@@ -4,6 +4,18 @@
 #SBATCH --nodes=1
 #SBATCH --job-name=many_small_jobs
 
+# This SBATCH file demonstrates how a single parameter file, "test.yaml",
+# can be used as a baseline for iteratively testing different simulation options.
+# Different options can be passed through the command-line specifiers,
+# e.g., -p:'general':'name':$jobname, and run in parallel using as many
+# simultaneous instances as the HPC node can manage.  This example file further
+# demonstrates how multiple batches of such parallelism can be processed using the
+# double FOR loop construction. To submit this job to the scheduler, simply call
+# 
+# sbatch many_small_jobs.sbatch 
+#
+# from your HPC connection, replacing the account name, job time, node number, 
+# conda environment name, etc., in this file as needed.
  
 # Load and activate your conda environment
 module purge
