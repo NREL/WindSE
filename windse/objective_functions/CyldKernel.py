@@ -38,6 +38,31 @@ keyword_defaults = {'type': 'above', # 'upstream'
 
 ### Define objective function
 def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
+    '''
+    This is a blockage metric that measures the velocity within a 
+    Gaussian cylinder located upstream from each turbine and aligned
+    with the rotor's rotational axis or overhead from each turbine
+    and aligned with the mast.  The cylindrical Gaussian field is
+    formed by intersecting a radial Gaussian and a streamwise Gaussian.
+
+    Keyword arguments:
+        type:      The orientation of the Gaussian cylinder, 
+                   "upstream" for Gaussians shifted to measure the velocity
+                   directly upstream from each turbine, "above" to orient the
+                   Gaussians over the top of each turbine.
+        radius:    The radius of the cylinder, expressed in units of rotor diameter (RD).
+                   The default of 0.5 sets the radius to match the turbine radius, 0.5*RD
+        length:    The length of the cylinder, expressed in units of rotor diameter (RD).
+                   The default of 3.0 means the measurement volume has an axial length of 3*RD.
+        sharpness: The sharpness value controls the severity with which the Gaussian field 
+                   drops to zero outside the volume of the Gaussian cylinder. The sharpness
+                   value *must* be an even number.  Smaller values result in smoother transitions
+                   over longer length scales, larger values result in more abrupt transitions.
+                   For very large values, the transition becomes a near step change which may
+                   not have valid values of the derivative.  The default setting of 6 is 
+                   a good starting point.
+    '''
+
     def rotate_and_shift_points(x, x0, yaw, kp):
 
         xs =  cos(yaw)*(x[0]-x0[0]) + sin(yaw)*(x[1]-x0[1])
