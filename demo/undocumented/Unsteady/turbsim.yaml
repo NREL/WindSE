@@ -1,0 +1,51 @@
+# General options
+general: 
+    name: TurbSim_Inflow      # Name of the output folder
+    preappend_datetime: false  # Place the date and time before the folder name
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    #                     # Description              | Units
+    type: imported        #                          |
+    path: Input_Data/single_turbine.txt   # location of wind farm    | -
+
+# Domain Constants for a Box Domain
+domain: 
+    #                     # Description           | Units
+    type: box             #                       |
+    x_range: [-81, 189]   # x-range of the domain | m
+    y_range: [-81, 81]    # y-range of the domain | m
+    z_range: [0.04, 200]  # z-range of the domain | m
+    nx: 48                # Number of x-nodes     | - 
+    ny: 32                # Number of y-nodes     | - 
+    nz: 32                # Number of z-nodes     | - 
+
+refine:
+    #                      # Description                  | Units
+    warp_type: split
+    warp_percent: 0.75     # percent of cells moved       | -
+    warp_height: 80        # move cell below this value   | m
+    turbine_num: 2         # number of turbine refinements| -
+    turbine_factor: 1.25    # turbine radius multiplier    | -
+
+function_space:
+    type: linear
+
+boundary_condition:
+    vel_profile: turbsim
+    turbsim_path: Input_Data/turbsim/
+    boundary_types: 
+        inflow:    ["front"]
+        no_slip:   ["bottom"]
+        free_slip: ["top","right","left"]
+        no_stress: ["back"]
+
+problem:
+    type: unsteady
+    viscosity: 0.2
+
+solver:
+    type: unsteady
+    final_time: 20
+    save_interval: 0.25

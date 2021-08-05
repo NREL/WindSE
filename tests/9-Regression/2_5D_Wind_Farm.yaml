@@ -1,0 +1,50 @@
+# General options
+general: 
+    # name: 2_5D_Wind_Farm      # Name of the output folder
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    debug_mode: True
+
+# Wind Farm Parameters: Uncomment a set to change the type of wind farm
+wind_farm: 
+
+    ####################### Imported Wind Farm #######################
+    type: imported                   #                          |
+    path: Input_Data/wind_farm.txt   # location of wind farm    | -
+    force: sine                      # radial force distribution| -
+    ###################################################################
+
+domain: 
+    
+    ####################### Rectangle Domain #########################
+    type: rectangle        #                      |
+    x_range: [-1200, 1200] # x-range of the domain | m
+    y_range: [-1200, 1200] # y-range of the domain | m
+    nx: 100                # Number of x-nodes     | -
+    ny: 100                # Number of y-nodes     | -
+    ##################################################################
+    
+refine:
+    turbine_num: 1         # number of turbine refinements| -
+    turbine_factor: 1.25   # turbine radius multiplier    | -
+    refine_custom: [
+        [box, [  [[-1000,1200],[-200,200]]]  ]
+    ]
+function_space:
+    type: taylor_hood
+
+boundary_conditions:
+    vel_profile: uniform
+    HH_vel: 8.0
+
+problem:
+    use_25d_model: True
+    type: taylor_hood
+    viscosity: 5
+    lmax: 50
+
+solver:
+    nonlinear_solver: newton
+    newton_relaxation: 0.9
+    type: steady
+    save_power: true
+    power_type: 2d_power

@@ -1,0 +1,92 @@
+# General options
+general: 
+    name: 7x7_Wind_Farm      # Name of the output folder
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+
+# Wind Farm Parameters:
+wind_farm: 
+
+    ########################## Grid Wind Farm #########################
+    type: grid            #                          |
+    grid_rows: 7          # Number of rows           | -
+    grid_cols: 7          # Number of columns        | -
+    x_spacing: 390        # m
+    y_spacing: 390        # m
+    HH: 110.0             # Hub Height               | m
+    RD: 130.0             # Turbine Diameter         | m
+    thickness: 13.0       # Effective Thickness      | m
+    yaw: 0.0           # Yaw                      | rads
+    axial: 0.33           # Axial Induction          | -
+    ###################################################################
+
+# Domain Parameters: Uncomment a set to change domain shape
+domain: 
+    
+    ########################### Box Domain ############################
+    type: box              #                       |
+    x_range: [-780,  3900] # x-range of the domain | m
+    y_range: [-1950, 1950] # y-range of the domain | m
+    z_range: [0.04, 780]   # z-range of the domain | m
+    nx: 30                 # Number of x-nodes     | -
+    ny: 30                 # Number of y-nodes     | -
+    nz: 9                 # Number of z-nodes      | -
+    ###################################################################
+
+refine:
+    warp_type: split
+    warp_percent: 0.85     # percent of cells moved       | -
+    warp_height: 250       # move cell below this value   | m
+    refine_custom: [
+        [box, [  [[0,2340],[-1170,1170],[0,240]], 1.50  ]],
+        [box, [  [[0,2340],[-1170,1170],[0,240]], 1.25  ]],
+        [box, [  [[0,2340],[-1170,1170],[0,240]], 1.00  ]],
+    ]
+
+function_space:
+    type: linear
+
+boundary_conditions:
+    vel_profile: log
+    HH_vel: 8.0
+    k: 0.4
+    ######### Uncomment to test out custom BCs for BoxDomain ##########
+    boundary_types:
+        inflow: ["west"]
+        no_stress: ["east"]
+        free_slip: ["north","south","top"]
+        no_slip: ["bottom"]
+    ###################################################################
+
+problem:
+    type: stabilized
+    viscosity: 0.000015
+    lmax: 50
+
+solver:
+    type: steady
+    save_power: true
+    power_type: power
+
+optimization:
+    objective_type: 
+        point_blockage_#01:
+            location: [-390.0,0.0,110.0]
+        point_blockage_#02:
+            location: [0.0,0.0,240.0]
+        mean_point_blockage_#01:
+            location: 240
+        mean_point_blockage_#02:
+            location: 370
+        plane_blockage_#01:
+            axis: 0
+            thickness: 130.0
+            center: -390
+        plane_blockage_#02:
+            axis: 2
+            thickness: 130.0
+            center: 240.0
+        cyld_kernel_#01:
+            type: upstream
+        cyld_kernel_#02: 
+            type: above
+    save_objective: True

@@ -1,0 +1,70 @@
+# General options
+general: 
+    name: 2_5D_Wind_Farm_Layout      # Name of the output folder
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: true
+
+# Wind Farm Parameters: Uncomment a set to change the type of wind farm
+wind_farm: 
+
+    ######################### Grid Wind Farm #########################
+    type: grid            #                          |
+    grid_rows: 3          # Number of rows           | -
+    grid_cols: 3          # Number of columns        | -
+    # ex_x: [-882, 882]     # x-extent of the farm     | m
+    # ex_y: [-882, 882]     # y-extent of the farm     | m
+    x_spacing: 882  # m
+    y_spacing: 882  # m
+    x_shear: 200    # m
+    y_shear: 300      # m
+    HH: 90                # Hub Height               | m
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 12.0       # Effective Thickness      | m
+    yaw: 0.0              # Yaw                      | rads
+    axial: 0.25           # Axial Induction          | -
+    jitter: 0            # Randomly perturb turbines| m
+    seed: 8675309         # random seed for repeats  | -
+    force: constant       # radial force distribution| -
+    turbine_method: dolfin
+
+# Domain Parameters: Uncomment a set to change domain shape
+domain: 
+    # ####################### Rectangle Domain #########################
+    type: rectangle                              
+    x_range: [-600, 3000] # x-range of the domain | m
+    y_range: [-600, 3000] # y-range of the domain | m
+    nx: 30                # Number of x-nodes     | -
+    ny: 30                # Number of y-nodes     | -
+    # ##################################################################
+
+
+
+refine:
+    turbine_num: 1         # number of turbine refinements| -
+    turbine_factor: 1.25   # turbine radius multiplier    | -
+
+function_space:
+    type: taylor_hood
+    turbine_degree: 6
+    turbine_space: Quadrature
+    
+boundary_conditions:
+    vel_profile: uniform
+    HH_vel: 8.0
+
+problem:
+    use_25d_model: True
+    type: taylor_hood
+    viscosity: 5
+    lmax: 50
+
+solver:
+    nonlinear_solver: newton
+    newton_relaxation: 0.9
+    type: steady
+    save_power: true
+
+optimization:
+    control_types: [layout]
+    # layout_bounds: [[-720, 720],[-720, 720]] 
+    gradient: False

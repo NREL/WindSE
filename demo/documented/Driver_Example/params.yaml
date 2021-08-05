@@ -1,31 +1,31 @@
 # General options
 general: 
     name: "2D"
-    preappend_datetime: false
     output: ["mesh","initial_guess","turbine_force","solution"]
     output_type: "xdmf"
 
 # Wind Farm constants for a grid farm
 wind_farm: 
-    imported: false
+    type: grid            #                          |
+    grid_rows: 6
+    grid_cols: 6
+    ex_x: [-1800,1800]
+    ex_y: [-1800,1800]
     HH: 90
     RD: 126
     thickness: 10
     yaw: 0
     axial: 0.33
-    ex_x: [-1800,1800]
-    ex_y: [-1800,1800]
-    grid_rows: 6
-    grid_cols: 6
 
 # Domain Constants for a Box Domain
 domain: 
     #                      # Description           | Units
+    type: rectangle                              |
     x_range: [-2500, 2500]        # x-range of the domain | m
     y_range: [-2500, 2500]        # y-range of the domain | m
-    nx: 200                 # Number of x-nodes     | -
-    ny: 200                 # Number of y-nodes     | -
-
+    nx: 50                        # Number of x-nodes     | -
+    ny: 50                        # Number of y-nodes     | -
+    
 problem:
     type: taylor-hood
 

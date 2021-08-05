@@ -23,13 +23,13 @@ rstprocess.process()
 # -- Project information -----------------------------------------------------
 
 project = u'WindSE'
-copyright = u'2019, Ryan King and Jeffery Allen'
-author = u'Ryan King and Jeffery Allen'
+copyright = u'2021, Ryan King, Jeffery Allen, Ethan Young, John Jasa'
+author = u'Ryan King, Jeffery Allen, Ethan Young, John Jasa'
 
 # The short X.Y version
 version = u''
 # The full version, including alpha/beta/rc tags
-release = u'2018.1'
+release = u'2021.08.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -105,7 +105,11 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
-
+html_logo = "logo_wide.png"
+html_theme_options = {
+    'logo_only': True,
+    'display_version': False,
+}
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #
@@ -148,7 +152,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'WindSE.tex', u'WindSE Documentation',
-     u'Ryan King and Jeffery Allen', 'manual'),
+     u'Ryan King, Jeffery Allen, Ethan Young', 'manual'),
 ]
 
 

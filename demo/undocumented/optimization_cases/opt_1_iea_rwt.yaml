@@ -1,0 +1,85 @@
+# General options
+general: 
+    name: "1_yaw_opt_testing"
+    preappend_datetime: false
+    output: ["mesh","turbine_force","solution"]
+    dolfin_adjoint: True
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    type: grid        #                          |
+    grid_rows: 1          # Number of rows           | -
+    grid_cols: 1          # Number of columns        | -
+    ex_x: [0, 0]     # x-extent of the farm     | m
+    # ex_x: [-65, 715]     # x-extent of the farm     | m
+    ex_y: [0, 0]     # y-extent of the farm     | m
+    HH: 110                # Hub Height               | m
+    RD: 130.0             # Turbine Diameter         | m
+    thickness: 13.0       # Effective Thickness      | m
+    axial: 0.33           # Axial Induction          | -
+    yaw: 0.0              # Yaw                      | rads
+    # yaw: -0.0520149791167009              # Yaw                      | rads
+    # yaw: 0.349              # Yaw                      | rads
+    # type: imported
+    # path: opt_1_iea_rwt.txt
+    turbine_method: "alm"
+    use_local_velocity: False
+    rpm: 11.6 # new baseline (7.5 m/s at 11.6 rpm)
+    # rpm: 10.6 # rated rotor speed for iea_rwt
+    read_turb_data: 'baseline.csv'
+    chord_factor: 1.0
+    gauss_factor: 2.0           
+
+# Domain Constants for a Box Domain
+domain: 
+    type: box
+    x_range: [-130, 390]   # [-2D, 5D between turbs + 6D outlet]  # x-range of the domain | m
+    y_range: [-130, 130]    # [-2D, 2D]  # y-range of the domain | m
+    z_range: [0.04, 260]    # [  0, 4D]  # z-range of the domain | m
+    nx: 20
+    ny: 10
+    nz: 10
+
+refine:
+    turbine_num: 1 # 2      # number of turbine refinements| -
+    turbine_factor: 1.0     # turbine radius multiplier    | -
+    turbine_type: "tear"    # turbine radius multiplier    | -
+    refine_power_calc: True
+
+function_space:
+    type: linear
+    # type: taylor_hood
+
+boundary_conditions:
+    boundary_types:
+        inflow: ["west"]
+        no_stress: ["east"]
+        free_slip: ["top","north","south"]
+        no_slip: ["bottom"]
+    vel_profile: log
+    HH_vel: 7.5 # new baseline (7.5 m/s at 11.6 rpm)
+    # HH_vel: 9.0 # rated wind speed for iea_rwt
+    k: 0.4
+
+problem:
+    type: unsteady
+    viscosity: 0.000018
+    script_iterator: 0
+ 
+solver:
+    type: unsteady
+    save_interval: 1.0
+    final_time: 2.0
+    # save_power: False
+
+optimization:
+    min_total: 0.0
+    # control_types: [lift, drag, chord]
+    control_types: [yaw]
+    objective_type: alm_power
+    alm_power_type: fake
+    opt_turb_id : all
+    record_time: 1.0
+    # gradient: True
+    # taylor_test: True
+    optimize: True

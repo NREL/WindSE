@@ -1,0 +1,33 @@
+# General options
+general: 
+    name: import_test      # Name of the output folder
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+
+wind_farm: 
+    type: imported                   #                          |
+    path: Input_Data/wind_farm.txt   # location of wind farm    | -
+    force: sine                      # radial force distribution| -
+
+domain: 
+    type: imported              #                       |
+    path: output/export_test/mesh/exported_mesh/
+    # filetype: xml.gz  # Filetype for importing or exporting
+    filetype: h5  # Filetype for importing or exporting
+    interpolated: true 
+
+function_space:
+    type: linear
+
+boundary_conditions:
+    vel_profile: log
+    HH_vel: 8.0
+    k: 0.4
+
+problem:
+    type: stabilized
+    viscosity: 5
+    lmax: 50
+
+solver:
+    type: steady
+    save_power: true

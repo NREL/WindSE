@@ -1,0 +1,82 @@
+# General options
+general: 
+    name: "entrainment_SLSQP_corrected_baseline_CFL2"
+    preappend_datetime: false
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: True
+    output_type: "xdmf"
+
+# Wind Farm constants for a grid farm
+wind_farm: 
+    type: grid        #                          |
+    grid_rows: 1          # Number of rows           | -
+    grid_cols: 1          # Number of columns        | -
+    ex_x: [0, 0]     # x-extent of the farm     | m
+    ex_y: [0, 0]     # y-extent of the farm     | m
+    HH: 110                # Hub Height               | m
+    RD: 130.0             # Turbine Diameter         | m
+    thickness: 13.0       # Effective Thickness      | m
+    axial: 0.33           # Axial Induction          | -
+    yaw: -0.349              # Yaw                      | rads
+    turbine_method: "alm"
+    rpm: 11.6 # new baseline (7.5 m/s at 11.6 rpm)
+    read_turb_data: 'baseline.csv'
+    chord_factor: 1.0
+    gauss_factor: 2.0           
+
+# Domain Constants for a Box Domain
+domain: 
+    type: box
+    x_range: [-260, 780]   # [-2D, 5D between turbs + 6D outlet]  # x-range of the domain | m
+    y_range: [-260, 260]    # [-2D, 2D]  # y-range of the domain | m
+    z_range: [0.04, 520]    # [  0, 4D]  # z-range of the domain | m
+    nx: 40
+    ny: 20
+    nz: 12
+
+refine:
+    warp_type: split
+    warp_percent: 0.8333333333333333     # percent of cells moved       | -
+    warp_height: 260       # move cell below this value   | m
+    refine_custom: [
+        [stream, [  [-80,0,110], 80, 860, 0, 0, 1.5  ]],
+        [sphere, [  80  ]],
+    ]
+
+function_space:
+    type: linear
+
+boundary_conditions:
+    boundary_types:
+        inflow: ["west"]
+        no_stress: ["east"]
+        free_slip: ["top","north","south"]
+        no_slip: ["bottom"]
+    vel_profile: log
+    HH_vel: 7.5 # new baseline (7.5 m/s at 11.6 rpm)
+    k: 0.4
+
+problem:
+    type: unsteady
+    viscosity: 0.000018
+    script_iterator: 0
+ 
+solver:
+    type: unsteady
+    save_interval: 5.0
+    final_time: 300.0
+    cfl_target: 2.
+    save_power: True
+
+
+optimization:
+    control_types: [chord]
+    objective_type: KE_entrainment
+    ke_location: rotor
+    opt_routine: SLSQP
+    u_avg_time: 250.0
+    record_time: 275.0
+    optimize: True
+    taylor_test: false
+    save_objective: True
+
