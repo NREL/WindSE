@@ -44,6 +44,29 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     # u = solver.problem.p_k
     # ud = (u(x0)-u_ref(x0))/u_ref(x0)
     # ud = u(x0)
-    J = solver.problem.up_k(x0)[0]
+    
+    # This doesn't work in parallel (point may not be inside process X's domain)
+    # J = solver.problem.up_k(x0)[0]
+
+    try:
+        vel_at_point = np.array([solver.problem.up_k(x0)[0]], dtype=np.float64)
+    except:
+        vel_at_point = np.array([np.nan], dtype=np.float64)
+
+    gathered_vel_at_point = np.zeros(solver.params.num_procs, dtype=np.float64)
+    solver.params.comm.Allgather(vel_at_point, gathered_vel_at_point)
+
+    # Find the first non-NaN value in a vector
+    def get_first_non_nan(data):
+        for val in data:
+            if not np.isnan(val):
+                return val
+
+        return val
+
+    J = get_first_non_nan(gathered_vel_at_point)
+
+    if np.isnan(J):
+        raise ValueError("Couldn't find point", x0, "anywhere inside the domain.")
 
     return J
