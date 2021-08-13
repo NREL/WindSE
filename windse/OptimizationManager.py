@@ -197,7 +197,12 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
         folder_output = kwargs["options"]["folder"]
         prob.driver.opt_settings["Summary file"] = os.path.join(folder_output, "SNOPT_summary.out")
         prob.driver.opt_settings["Print file"] = os.path.join(folder_output, "SNOPT_print.out")
-        prob.driver.opt_settings["Verify level"] = -1
+        
+        if kwargs["options"]["verify_snopt"]:
+            prob.driver.opt_settings["Verify level"] = 0
+        else:
+            prob.driver.opt_settings["Verify level"] = -1
+            
     
     prob.model.add_design_var('DVs', lower=lower_bounds, upper=upper_bounds)
     prob.model.add_objective('obj', ref=kwargs["options"]["obj_ref"], ref0=kwargs["options"]["obj_ref0"])
@@ -607,6 +612,8 @@ class Optimizer(object):
             options["obj_ref"] = self.obj_ref
         if hasattr(self, 'obj_ref0'):
             options["obj_ref0"] = self.obj_ref0
+        if hasattr(self, 'verify_snopt'):
+            options["verify_snopt"] = self.verify_snopt
         
         if self.opt_type == "minimize":
             opt_function = minimize
