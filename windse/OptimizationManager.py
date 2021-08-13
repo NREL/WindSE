@@ -197,6 +197,7 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
         folder_output = kwargs["options"]["folder"]
         prob.driver.opt_settings["Summary file"] = os.path.join(folder_output, "SNOPT_summary.out")
         prob.driver.opt_settings["Print file"] = os.path.join(folder_output, "SNOPT_print.out")
+        prob.driver.opt_settings["Verify level"] = -1
     
     prob.model.add_design_var('DVs', lower=lower_bounds, upper=upper_bounds)
     prob.model.add_objective('obj', ref=kwargs["options"]["obj_ref"], ref0=kwargs["options"]["obj_ref0"])
