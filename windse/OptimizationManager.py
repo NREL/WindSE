@@ -285,7 +285,7 @@ class Optimizer(object):
         if self.debug_mode:
 
             self.tag_output("n_controls", len(self.controls))
-            self.tag_output("obj_value0", float(self.J))
+            self.tag_output("obj_value", float(self.J))
 
             ### Output initial control values ###
             for i, val in enumerate(self.controls):
@@ -585,7 +585,7 @@ class Optimizer(object):
 
             for k, val in enumerate(m):
                 self.debug_opt_log["val%d_%s" % (self.iteration, self.names[k])] = val
-            
+
             self.debug_opt_log["obj_value%d" % (self.iteration)] = self.Jcurrent
 
         self.iteration += 1
