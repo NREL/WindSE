@@ -158,3 +158,4 @@ optimization:                   # parameters for OptimizationManager
     taylor_test:    False           # Run the taylor test
     optimize:       False           # optimize the problem
     gradient:       False           # output the gradient
+    verify_snopt:   False
