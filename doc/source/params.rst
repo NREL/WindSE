@@ -165,7 +165,7 @@ This section will define all the parameters for the domain::
 |                        | | less than ``nt``.                           | | "circle"         |             |             |
 |                        | | Note: ``res`` only works with "mshr"        |                    |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
-| ``interpolated``       | | Indicate if the topography is interpoalted  | | no               |             | \-          |
+| ``interpolated``       | | Indicate if the topography is interpolated  | | no               |             | \-          |
 |                        | | from file or function.                      | | "box"            | False       |             |
 |                        |                                               | | "cylinder"       |             |             |
 +------------------------+-----------------------------------------------+--------------------+-------------+-------------+
@@ -317,7 +317,7 @@ This section will define all the parameters for the wind farm::
 | ``thickness``          | The effective thickness of the rotor disk     | | "grid"           | None     | m           |
 |                        |                                               | | "random"         |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``yaw``                | | Determins the yaw of all turbines. Yaw is   | | "grid"           | None     | rad         |
+| ``yaw``                | | Determines the yaw of all turbines. Yaw is  | | "grid"           | None     | rad         |
 |                        | | relative to the wind inflow direction       | | "random"         |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
 | ``axial``              | The axial induction factor                    | | "grid"           | None     | \-          |
@@ -480,8 +480,7 @@ The syntax for each refinement type is::
         [ "tear",     [ radius, theta, expand_factor ]                                ]
         [ "wake",     [ radius, length, theta, expand_factor ]                        ]
 
-Notes::
-
+.. note::
     * For cylinder, the center is the base of the cylinder
     * For stream, the center is the start of the vertical base and offset indicates the rotation offset
     * For stream, wake, length is the distance center to the downstream end of the cylinder
@@ -525,10 +524,10 @@ Boundary Condition Options
 --------------------------
 
 This section describes the boundary condition options. There are three types
-of boundary condtions: inflow, no slip, no stress. By default, inflow is 
+of boundary conditions: inflow, no slip, no stress. By default, inflow is 
 prescribed on boundary facing into the wind, no slip on the ground and 
 no stress on all other faces. These options describe the inflow boundary
-velocity profile.::
+velocity profile. ::
 
     boundary_conditions:
         vel_profile:    <str>
@@ -693,7 +692,7 @@ This section describes the problem options::
 +------------------------+--------------------------------------------------------------+--------------+---------------+
 |``use_corrective_force``| | add a force to the weak form to allow the inflow to recover| no           | False         |
 +------------------------+--------------------------------------------------------------+--------------+---------------+
-| ``stability_eps``      | | stability term to help increase the well-possessedness of  | no           | 1.0           |
+| ``stability_eps``      | | stability term to help increase the well-posedness of      | no           | 1.0           |
 |                        | | the linear mixed formulation                               |              |               |
 +------------------------+--------------------------------------------------------------+--------------+---------------+
 
@@ -766,7 +765,7 @@ This section lists the solver options::
 | ``newton_relaxation``  | Set the relaxation parameter if using newton solver            | | no                | 1.0                 |
 |                        |                                                                | | "newton"          |                     |
 +------------------------+----------------------------------------------------------------+---------------------+---------------------+
-| ``cfl_target``         | target cfl number for unsteady solve                           | | no                | 0.5                 |
+| ``cfl_target``         | target CFL number for unsteady solve                           | | no                | 0.5                 |
 |                        |                                                                | | "unsteady"        |                     |
 +------------------------+----------------------------------------------------------------+---------------------+---------------------+
 | ``cl_iterator``        | debugging tool, do not use                                     | | no                | 0                   |
@@ -780,7 +779,7 @@ Optimization Options
 --------------------
 
 This section lists the optimization options. If you are planning on doing
-optimization make sure to set ``dolfin_adjoint`` to True.::
+optimization make sure to set ``dolfin_adjoint`` to True. ::
 
     optimization:
         opt_type:       <str>
@@ -816,7 +815,7 @@ optimization make sure to set ``dolfin_adjoint`` to True.::
 |                        | | The first objective listed will always be used in the  |                 |              |
 |                        | | optimization.                                          |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
-| ``save_objective``     | | Save the the value of the objective function           | no              | True         |
+| ``save_objective``     | | Save the value of the objective function               | no              | True         |
 |                        | | output/``name``/data/objective_data.txt                |                 |              |
 |                        | | Note: power objects are saved as power_data.txt        |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
@@ -862,7 +861,7 @@ The ``objective_type`` can be defined in three ways. First as a single string su
     optimization:
         objective_type: alm_power 
 
-If the object chosen in this way has any keyword arguments, the defaults will automatically choosen. The second way is as a list of strings like::
+If the object chosen in this way has any keyword arguments, the defaults will automatically chosen. The second way is as a list of strings like::
 
 
     optimization:

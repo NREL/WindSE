@@ -411,20 +411,22 @@ class ControlUpdaterBlock(Block):
     def recompute_component(self, inputs, block_variable, idx, prepared):
         return inputs[-1]
 
+    def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
+
+        name, turb_id, seg_id = block_variable.tag
+
+        if name == "J":
+            return adj_inputs[0]
+        else:
+            return 0.0
+
     def recompute(self, markings=False):
         print(f"Forward Solve Time: {self.time}")
         self.Update()
 
         # Run original recompute
-        Block.evaluate_adj(self, markings)
+        Block.recompute(self, markings)
         return
-
-    def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
-        name, turb_id, seg_id = block_variable.tag
-        if name == "J":
-            return adj_inputs[0]
-        else:
-            return 0.0
 
     @no_annotations
     def evaluate_adj(self, markings=False):
@@ -436,7 +438,6 @@ class ControlUpdaterBlock(Block):
         return
 
     def Update(self):
-
         # Get new dependency values
         deps = self.get_dependencies()
         inputs = [bv.saved_output for bv in deps]
@@ -452,15 +453,6 @@ class ControlUpdaterBlock(Block):
 
         # update farm Constants()
         self.farm.SimpleControlUpdate()
-
-
-
-
-
-
-
-
-
 
 
 # ================================================================
