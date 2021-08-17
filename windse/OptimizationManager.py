@@ -306,9 +306,10 @@ class Optimizer(object):
             if hasattr(self,"conv_rate"):
                 pass
 
-            ### TODO: Output optimized controls
+            ### Output optimized controls
             if hasattr(self,"m_opt"):
-                pass
+                for key, value in self.debug_opt_log.items():
+                    self.tag_output(key, value)
 
 
     def RecomputeReducedFunctional(self):
@@ -583,7 +584,16 @@ class Optimizer(object):
             c_lower = np.array(self.bounds[0])[self.indexes[6]] 
             c_upper = np.array(self.bounds[1])[self.indexes[6]] 
             self.problem.farm.PlotChord(filename="chord_step_"+repr(self.iteration),power=self.Jcurrent,bounds=[c_lower,c_upper])
-        
+
+        if self.debug_mode:
+            if not hasattr(self, 'debug_opt_log'):
+                self.debug_opt_log = {}
+
+            for k, val in enumerate(m):
+                self.debug_opt_log["val%d_%s" % (self.iteration, self.names[k])] = val
+
+            self.debug_opt_log["obj_value%d" % (self.iteration)] = self.Jcurrent
+
         self.iteration += 1
 
     def get_minimum_distance_constraint_func(self, m_pos, min_distance=200):
