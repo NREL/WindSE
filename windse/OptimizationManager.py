@@ -568,6 +568,15 @@ class Optimizer(object):
         np.savetxt(f,[output_data])
         f.close()
 
+    def SaveFunctions(self):
+        u, p = self.problem.up_k.split()
+        if self.iteration == 0:
+            self.velocity_file = self.params.Save(u,"velocity",subfolder="OptSeries/",val=self.iteration)
+            self.pressure_file = self.params.Save(p,"pressure",subfolder="OptSeries/",val=self.iteration)
+        else:
+            self.params.Save(u,"velocity",subfolder="OptSeries/",val=self.iteration,file=self.velocity_file)
+            self.params.Save(p,"pressure",subfolder="OptSeries/",val=self.iteration,file=self.pressure_file)
+
     def OptPrintFunction(self,m,test=None):
         if test is not None:
             print("Hey, this method actually gives us more info")
@@ -576,6 +585,7 @@ class Optimizer(object):
         # print(np.array(self.problem.farm.myaw,dtype=float))
         self.SaveControls(m)
         self.ListControls(m)
+        self.SaveFunctions()
 
         if "layout" in self.control_types or "yaw" in self.control_types:
             self.problem.farm.PlotFarm(filename="wind_farm_step_"+repr(self.iteration),power=self.Jcurrent)
