@@ -402,6 +402,7 @@ class ControlUpdaterBlock(Block):
             self.farm.ma[i].block_variable.tag = ("a",i,-1)
             self.num_dependancies += 1
 
+        ### TODO: we need to make this work with unsteady as well since unsteady doesn't use problem.up_k. possible solution just update u_k,p_k but check if len(u_k.vector()[:]) = len(inputs[i].vector()[:]) first
         self.add_dependency(self.problem.up_k)
         self.problem.up_k.block_variable.tag = ("up",-1,-1)
         self.num_dependancies += 1
