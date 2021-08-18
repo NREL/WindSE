@@ -1,8 +1,27 @@
 ChangeLog:
 ==========
 
-2021.8.0:
----------
+2021.08.01:
+----------
+
+Versions:
+~~~~~~~~~
+
+* FEniCS: 2019.1.0, build: py38_9
+* Dolfin-Adjoint: 2019.1.0
+
+New Features:
+~~~~~~~~~~~~~
+
+* Added small yaw optimization regression test
+
+Bug Fixes
+~~~~~~~~~
+
+* Fixed a bug where the forward problem was not recomputed correctly during optimization 
+
+2021.08.0:
+----------
 
 Versions:
 ~~~~~~~~~
