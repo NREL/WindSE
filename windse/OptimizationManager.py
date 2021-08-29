@@ -289,30 +289,36 @@ class Optimizer(object):
 
         self.fprint("Optimizer Setup",special="footer")
 
-    def DebugOutput(self):
+    def DebugOutput(self,iteration=0, m=[]):
         if self.debug_mode:
+            if iteration == 0:
+                self.tag_output("n_controls", len(self.controls))
+                self.tag_output("obj_value0", float(self.J))
 
-            self.tag_output("n_controls", len(self.controls))
-            self.tag_output("obj_value", float(self.J))
+                print(m)
 
-            ### Output initial control values ###
-            for i, val in enumerate(self.controls):
-                self.tag_output("val0_"+self.names[i],val.values())
+                ### Output initial control values ###
+                for i, val in enumerate(self.controls):
+                    print(val.values())
+                    self.tag_output("val0_"+self.names[i],float(val.values()))
 
-            ### Output gradient ###
-            if hasattr(self,"gradient"):
-                for i, d in enumerate(self.gradients):
-                    self.tag_output("grad_"+self.names[i],float(d))
-            
-            ### TODO: Output taylor convergence data
-            if hasattr(self,"conv_rate"):
-                pass
+                ### Output gradient ###
+                if hasattr(self,"gradients"):
+                    for i, d in enumerate(self.gradients):
+                        self.tag_output("grad_"+self.names[i],float(d))
+                
+                ### TODO: Output taylor convergence data
+                if hasattr(self,"conv_rate"):
+                    pass
 
-            ### Output optimized controls
-            if hasattr(self,"m_opt"):
-                for key, value in self.debug_opt_log.items():
-                    self.tag_output(key, value)
+            else:
 
+                ### Save the new controls ###
+                for k, val in enumerate(m):
+                    self.tag_output("val%d_%s" % (self.iteration, self.names[k]),float(val))
+
+                ### Save the objective value ###
+                self.tag_output("obj_value%d" % (self.iteration),self.Jcurrent)
 
     def RecomputeReducedFunctional(self):
         self.CreateControls()
@@ -599,14 +605,7 @@ class Optimizer(object):
             c_upper = np.array(self.bounds[1])[self.indexes[6]] 
             self.problem.farm.PlotChord(filename="chord_step_"+repr(self.iteration),power=self.Jcurrent,bounds=[c_lower,c_upper])
 
-        if self.debug_mode:
-            if not hasattr(self, 'debug_opt_log'):
-                self.debug_opt_log = {}
-
-            for k, val in enumerate(m):
-                self.debug_opt_log["val%d_%s" % (self.iteration, self.names[k])] = val
-
-            self.debug_opt_log["obj_value%d" % (self.iteration)] = self.Jcurrent
+        self.DebugOutput(self.iteration, m)
 
         self.iteration += 1
 
@@ -702,7 +701,7 @@ class Optimizer(object):
         
         # self.fprint("Solving With New Values")
         # self.solver.Solve()
-        self.DebugOutput()
+
         self.fprint("Optimization Finished",special="footer")
 
         return self.m_opt
