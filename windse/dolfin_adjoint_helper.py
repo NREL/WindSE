@@ -366,6 +366,7 @@ class ControlUpdaterBlock(Block):
                                 "y": self.farm.y,
                                 "yaw": self.farm.yaw,
                                 "a": self.farm.axial,
+                                "up": self.problem.up_k,
         }
 
         # Add dependencies on the controls
@@ -373,33 +374,42 @@ class ControlUpdaterBlock(Block):
         for i in range(self.problem.farm.numturbs):
             if self.farm.turbine_method == "alm" or self.farm.force == "chord": 
                 for j in range(self.problem.num_blade_segments):
-                    self.farm.mcl[i][j].block_variable.tag = ("c_lift", i, j)
                     self.add_dependency(self.farm.mcl[i][j])
+                    self.farm.mcl[i][j].block_variable.tag = ("c_lift", i, j)
                     self.num_dependancies += 1
 
-                    self.farm.mcd[i][j].block_variable.tag = ("c_drag", i, j)
                     self.add_dependency(self.farm.mcd[i][j])
+                    self.farm.mcd[i][j].block_variable.tag = ("c_drag", i, j)
                     self.num_dependancies += 1
 
-                    self.farm.mchord[i][j].block_variable.tag = ("chord", i, j)
                     self.add_dependency(self.farm.mchord[i][j])
+                    self.farm.mchord[i][j].block_variable.tag = ("chord", i, j)
                     self.num_dependancies += 1
 
-            self.farm.mx[i].block_variable.tag = ("x",i,-1)
             self.add_dependency(self.farm.mx[i])
+            self.farm.mx[i].block_variable.tag = ("x",i,-1)
             self.num_dependancies += 1
 
-            self.farm.my[i].block_variable.tag = ("y",i,-1)
             self.add_dependency(self.farm.my[i])
+            self.farm.my[i].block_variable.tag = ("y",i,-1)
             self.num_dependancies += 1
 
-            self.farm.myaw[i].block_variable.tag = ("yaw",i,-1)
             self.add_dependency(self.farm.myaw[i])
+            self.farm.myaw[i].block_variable.tag = ("yaw",i,-1)
             self.num_dependancies += 1
 
-            self.farm.ma[i].block_variable.tag = ("a",i,-1)
             self.add_dependency(self.farm.ma[i])
+            self.farm.ma[i].block_variable.tag = ("a",i,-1)
             self.num_dependancies += 1
+
+        ### TODO: we need to make this work with unsteady as well since unsteady doesn't use problem.up_k. possible solution just update u_k,p_k but check if len(u_k.vector()[:]) = len(inputs[i].vector()[:]) first
+        self.add_dependency(self.problem.up_k)
+        self.problem.up_k.block_variable.tag = ("up",-1,-1)
+        self.num_dependancies += 1
+
+        # self.add_dependency(self.problem.p_k)
+        # self.problem.p_k.block_variable.tag = ("p",-1,-1)
+        # self.num_dependancies += 1
 
         J.block_variable.tag = ("J",-1,-1)
         self.add_dependency(J)
@@ -448,6 +458,8 @@ class ControlUpdaterBlock(Block):
             if name != "J":
                 if name in ["c_lift","c_drag","chord"]:
                     self.control_dict[name][turb_id][seg_id] = float(inputs[i])
+                elif name in ["up"]:
+                    self.control_dict[name].assign(inputs[i])
                 else:
                     self.control_dict[name][turb_id] = float(inputs[i])
 
