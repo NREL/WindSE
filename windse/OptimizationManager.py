@@ -295,11 +295,8 @@ class Optimizer(object):
                 self.tag_output("n_controls", len(self.controls))
                 self.tag_output("obj_value0", float(self.J))
 
-                print(m)
-
                 ### Output initial control values ###
                 for i, val in enumerate(self.controls):
-                    print(val.values())
                     self.tag_output("val0_"+self.names[i],float(val.values()))
 
                 ### Output gradient ###

@@ -70,7 +70,7 @@ SolverManager:
   avg_z_vel: 7.360294800264146
 OptimizationManager:
   n_controls: 27
-  obj_value: 10621717.836366512
+  obj_value0: 10621717.836366512
   val0_x_0: -295.80877608508325
   val0_y_0: -582.0048466205284
   val0_x_1: 562.9306831248141
