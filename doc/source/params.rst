@@ -917,4 +917,10 @@ This constraint will only be used if the ``control_types`` contains "layout". Ad
                 thickness: 130
                 center: 240.0
 
-This will still enforce the layout constraint but will additionally enforce a "plane_blockage" type constraint. By default, the constrains are setup like :math:`s*\\left(c(m)-t\\right) \\geq 0` where :math:`c` is the constraint function, :math:`t` is the target, :math:`s` is the scale, and :math:`m` are the controls. In this configuration, we are enforcing that the result of the constraint function is greater than or equal to the target. However, we can set the scale to -1 to flip the inequality. Just like the ``objective_type``, multiple constraints of the same type can be use by appending "_#" followed by a number to the end of the name with the exception of the "min_dist" type. 
+This will still enforce the layout constraint but will additionally enforce a "plane_blockage" type constraint. By default, the constrains are setup like:
+
+.. math::
+
+    s * \left( c(m)-t \right) \geq 0
+
+where :math:`c` is the constraint function, :math:`t` is the target, :math:`s` is the scale, and :math:`m` are the controls. In this configuration, we are enforcing that the result of the constraint function is greater than or equal to the target. However, we can set the scale to -1 to flip the inequality. Just like the ``objective_type``, multiple constraints of the same type can be use by appending "_#" followed by a number to the end of the name with the exception of the "min_dist" type. 

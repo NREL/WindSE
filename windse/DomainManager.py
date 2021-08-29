@@ -584,7 +584,7 @@ class GenericDomain(object):
 
         .. math::
 
-            z_new = z_0 + (z_1-z_0) \\left( \\frac{z_old-z_0}{z_1-z_0} \\right)^{s}.
+            z_new = z_0 + (z_1-z_0) \\left( \\frac{z_old-z_0}{z_1-z_0} \\right)^{s},
 
         where :math:`z_0` is the ground and :math:`z_1` is the top of the domain.
 
