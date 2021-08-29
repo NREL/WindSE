@@ -749,9 +749,9 @@ class MinimumDistanceConstraint(InequalityConstraint):
 
     def function(self, m):
         ieqcons = []
-        
-        x = m[self.x_inds]
-        y = m[self.y_inds]
+        np_m = np.array(m,dtype=float)
+        x = np_m[self.x_inds]
+        y = np_m[self.y_inds]
         n = len(x)
 
         for i in range(n):
@@ -775,9 +775,9 @@ class MinimumDistanceConstraint(InequalityConstraint):
 
     def jacobian(self, m):
         ieqcons = []
-        
-        x = m[self.x_inds]
-        y = m[self.y_inds]
+        np_m = np.array(m,dtype=float)
+        x = np_m[self.x_inds]
+        y = np_m[self.y_inds]
         n = len(x)
 
         for i in range(n):
