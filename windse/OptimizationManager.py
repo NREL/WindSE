@@ -665,7 +665,7 @@ class Optimizer(object):
         if len(constraints) > 0:
             merged_constraint = MergedConstraint(constraints)
         else:
-            merged_constraint = None
+            merged_constraint = []
 
         # Problem 1: Constraint is way to big 
         #               Nevermind 2d power is so bad that 1.25e6*n is just a huge target
