@@ -85,6 +85,15 @@ class Parameters(dict):
         self.obj_names = obj_funcs.objective_functions.keys()
         self["optimization"]["objective_type"] = obj_funcs.objective_kwargs
 
+        ### Setup the defaults for the constraints based on objective functions###
+        constraint_bak_types = self["optimization"]["constraint_types"]
+        for key, value in obj_funcs.objective_kwargs.items():
+            constraint_bak_types[key] = {
+                "target": None,
+                "scale": 1.0,
+                "kwargs": value
+            }
+
         # print(dir(obj_funcs))
         # print(obj_funcs.alm_power())
         # exit()
@@ -175,6 +184,7 @@ class Parameters(dict):
         ### Setup objective functions if needed ###
         yaml_op = yaml_file.get("optimization",{})
         objective_type = yaml_op.pop("objective_type", None)
+        constraint_types = yaml_op.pop("constraint_types", None)
 
         ### Load in the defaults objective dictionaries 
         import windse.objective_functions as obj_funcs
@@ -182,6 +192,8 @@ class Parameters(dict):
         ### Replace the dictionary defaults with the real default
         if objective_type is None:
             objective_type = self.defaults["optimization"]["objective_type"]
+        if constraint_types is None:
+            constraint_types = self.defaults["optimization"]["constraint_types"]
 
         ### Process the objective keyword arguments
         if isinstance(objective_type,str):
@@ -200,9 +212,27 @@ class Parameters(dict):
                     if k not in value.keys():
                         value[k] = v
 
+        ### Process the constraints dictionary ###
+        for key, value in constraint_types.items():
+            if "target" not in value.keys():
+                raise ValueError(f"A target needs to be defined for the {key} constraint")
+            if "scale" not in value.keys():
+                value["scale"] = 1.0
+
+            ### check if the objective function keywords were supplied
+            if key != "min_dist":
+                constraints_split = key.split("_#")[0]
+                constraints_kw_default = obj_funcs.objective_kwargs[constraints_split]
+                constraints_kw = value.get('kwargs',{})
+                for k, v in constraints_kw_default.items():
+                    if k not in constraints_kw.keys():
+                        constraints_kw[k] = v
+                value["kwargs"] = constraints_kw
+
         ### Set the parameters ###
         self.update(self.NestedUpdate(yaml_file))
         self["optimization"]["objective_type"] = objective_type
+        self["optimization"]["constraint_types"] = constraint_types
 
         ### Create Instances of the general options ###
         for key, value in self["general"].items():

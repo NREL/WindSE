@@ -432,7 +432,8 @@ class ControlUpdaterBlock(Block):
 
     def recompute(self, markings=False):
         print(f"Forward Solve Time: {self.time}")
-        self.Update()
+        with stop_annotating():
+            self.Update()
 
         # Run original recompute
         Block.recompute(self, markings)
@@ -441,7 +442,8 @@ class ControlUpdaterBlock(Block):
     @no_annotations
     def evaluate_adj(self, markings=False):
         print(f"Adjoint Solve Time: {self.time}")
-        self.Update()
+        with stop_annotating():
+            self.Update()
 
         # Run original evaluate_adj
         Block.evaluate_adj(self, markings)
@@ -459,12 +461,13 @@ class ControlUpdaterBlock(Block):
                 if name in ["c_lift","c_drag","chord"]:
                     self.control_dict[name][turb_id][seg_id] = float(inputs[i])
                 elif name in ["up"]:
-                    self.control_dict[name].assign(inputs[i])
+                    self.control_dict[name].assign(inputs[i], annotate=False)
                 else:
                     self.control_dict[name][turb_id] = float(inputs[i])
 
         # update farm Constants()
-        self.farm.SimpleControlUpdate()
+        with stop_annotating():
+            self.farm.SimpleControlUpdate()
 
 
 # ================================================================

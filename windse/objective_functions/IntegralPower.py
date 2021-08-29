@@ -34,7 +34,6 @@ def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwa
 
     # if not annotate:
     #     stop_annotating()
-
     J = assemble(dot(-solver.problem.tf,solver.problem.u_k)*dx)
 
     # coords = solver.problem.fs.V.tabulate_dof_coordinates()

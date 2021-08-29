@@ -782,20 +782,21 @@ This section lists the optimization options. If you are planning on doing
 optimization make sure to set ``dolfin_adjoint`` to True. ::
 
     optimization:
-        opt_type:       <str>
-        control_types:  <str list>
-        layout_bounds:  <float list>
-        objective_type: <str, str list, dict>
-        save_objective: <bool>
-        opt_turb_id :   <int, int list, str>
-        record_time:    <str, float>
-        u_avg_time:     <float>
-        opt_routine:    <string>
-        obj_ref:        <float>
-        obj_ref0:       <float>
-        taylor_test:    <bool>
-        optimize:       <bool>
-        gradient:       <bool>
+        opt_type:         <str>
+        control_types:    <str list>
+        layout_bounds:    <float list>
+        objective_type:   <str, str list, dict>
+        save_objective:   <bool>
+        opt_turb_id :     <int, int list, str>
+        record_time:      <str, float>
+        u_avg_time:       <float>
+        opt_routine:      <string>
+        obj_ref:          <float>
+        obj_ref0:         <float>
+        taylor_test:      <bool>
+        optimize:         <bool>
+        gradient:         <bool>
+        constraint_types: <dict>
 
 +------------------------+----------------------------------------------------------+-----------------+--------------+
 | Option                 | Description                                              | Required        | Default      |
@@ -855,6 +856,12 @@ optimization make sure to set ``dolfin_adjoint`` to True. ::
 | ``gradient``           | | returns the gradient values of the objective with      | no              | False        |
 |                        | | respect to the controls                                |                 |              |
 +------------------------+----------------------------------------------------------+-----------------+--------------+
+| ``constraint_types``   | | Allows the user to define multiple constraints.        | no              | min_dist     |
+|                        | | By default, a minimum distance constraint is applied   |                 |              |
+|                        | | only when performing at least a layout optimization.   |                 |              |
+|                        | | additional constraints can be added similar to the way |                 |              |
+|                        | | ``objective_type`` is defined. Additional detail below.|                 |              |
++------------------------+----------------------------------------------------------+-----------------+--------------+
 
 The ``objective_type`` can be defined in three ways. First as a single string such as::
 
@@ -874,13 +881,40 @@ Again, the default keyword argument will be used with this method. The final way
             power: {}
             point_blockage:
                 location: [0.0,0.0,240.0]
-            plane_blockage:
+            plane_blockage_#1:
                 axis: 2
                 thickness: 130
                 center: 240.0
+            plane_blockage_#2:
+                axis: 0
+                thickness: 130
+                center: -320.0
             cyld_kernel: 
                 type: above
             mean_point_blockage:
                 z_value: 240
 
-Notice that since the objective named "power" does not have keyword arguments, an empty dictionary must be passed. For a full list of objective function visit: :meth:`windse.objective_functions`
+Notice that since the objective named "power" does not have keyword arguments, an empty dictionary must be passed. For a full list of objective function visit: :meth:`windse.objective_functions`. Notice that we can have multiple version of the same objective by appending the name with "_#" and then a number. This allows us to evaluate objectives of the same type with different keyword arguments. Regardless of the number of objective types listed, currently, only the first one will be used for an optimization. 
+
+The ``constraint_types`` option is defined in a similar way. By default the minimum distance between turbines is setup::
+
+    constraint_types:
+        min_dist:       
+            target: 2   
+            scale:  1   
+
+This constraint will only be used if the ``control_types`` contains "layout". Additional constraints can be added using the same objective functions from :meth:`windse.objective_functions` by setting::
+
+    constraint_types:
+        min_dist:       
+            target: 2   
+            scale:  1 
+        plane_blockage:
+            target: 8.0
+            scale: -1
+            kwargs:
+                axis: 2
+                thickness: 130
+                center: 240.0
+
+This will still enforce the layout constraint but will additionally enforce a "plane_blockage" type constraint. By default, the constrains are setup like :math:`s*\\left(c(m)-t\\right) \\geq 0` where :math:`c` is the constraint function, :math:`t` is the target, :math:`s` is the scale, and :math:`m` are the controls. In this configuration, we are enforcing that the result of the constraint function is greater than or equal to the target. However, we can set the scale to -1 to flip the inequality. Just like the ``objective_type``, multiple constraints of the same type can be use by appending "_#" followed by a number to the end of the name with the exception of the "min_dist" type. 
