@@ -101,7 +101,7 @@ SolverManager:
   avg_z_vel_22: 0.00024101962936762296
 OptimizationManager:
   n_controls: 4
-  obj_value: 0.1393434075475879
+  obj_value0: 0.1393434075475879
   val0_chord_0_0: 2.6
   val0_chord_0_1: 4.1403300000000005
   val0_chord_0_2: 2.225331666666667

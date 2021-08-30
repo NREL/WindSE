@@ -228,7 +228,7 @@ class GenericSolver(object):
         return out
 
 
-    def EvaluateObjective(self):
+    def EvaluateObjective(self,output_name="objective_data",opt_iter=-1):
         self.fprint("Evaluating Objective Data",special="header")
         start = time.time()
 
@@ -239,7 +239,7 @@ class GenericSolver(object):
         annotate = self.params.dolfin_adjoint 
 
         ### Iterate over objectives ###
-        obj_list = [self.simTime]
+        obj_list = [opt_iter, self.simTime]
         for objective, obj_kwargs in self.objective_type.items():
             objective_split = objective.split("_#")[0]
             objective_func = obj_funcs.objective_functions[objective_split]
@@ -248,7 +248,7 @@ class GenericSolver(object):
             kwargs.update(obj_kwargs)
             out = obj_funcs._annotated_objective(objective_func, *args, **kwargs)
             obj_list.append(out)
-        J = obj_list[1]
+        J = obj_list[2]
 
         # ### Flip the sign because the objective is minimized but these values are maximized
         # for i in range(1,len(obj_list)):
@@ -256,15 +256,15 @@ class GenericSolver(object):
 
         ### Save to csv ###
         if self.J_saved:
-            self.params.save_csv("objective_data",data=[obj_list],subfolder=self.params.folder+"data/",mode='a')
+            self.params.save_csv(output_name,data=[obj_list],subfolder=self.params.folder+"data/",mode='a')
         else:
             ### Generate the header ###
-            header = "Time, "
+            header = "Opt_iter, Time, "
             for name in self.objective_type.keys():
                 header += name + ", "
             header = header[:-2]
 
-            self.params.save_csv("objective_data",header=header,data=[obj_list],subfolder=self.params.folder+"data/",mode='w')
+            self.params.save_csv(output_name,header=header,data=[obj_list],subfolder=self.params.folder+"data/",mode='w')
             self.J_saved = True
 
         stop = time.time()
