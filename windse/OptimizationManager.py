@@ -781,10 +781,10 @@ class MinimumDistanceConstraint(InequalityConstraint):
                 if j>i:
                     prime_ieqcons = np.zeros(len(m))
 
-                    prime_ieqcons[2 * i] = 2 * (x[i] - x[j])
-                    prime_ieqcons[2 * j] = -2 * (x[i] - x[j])
-                    prime_ieqcons[2 * i + 1] = 2 * (y[i] - y[j])
-                    prime_ieqcons[2 * j + 1] = -2 * (y[i] - y[j])
+                    prime_ieqcons[2 * i] = self.scale*(2 * (x[i] - x[j]))
+                    prime_ieqcons[2 * j] = self.scale*(-2 * (x[i] - x[j]))
+                    prime_ieqcons[2 * i + 1] = self.scale*(2 * (y[i] - y[j]))
+                    prime_ieqcons[2 * j + 1] = self.scale*(-2 * (y[i] - y[j]))
 
                     ieqcons.append(prime_ieqcons)
         # print("In mimimum distance constraint Jacobian eval")
