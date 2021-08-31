@@ -60,6 +60,11 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     volume = assemble(spherical_gaussian*dx)
 
     # Use the sphereical Gaussian to measure the streamwise velocity
-    J = assemble(solver.problem.up_k[0]*spherical_gaussian/volume*dx)
+    if volume <= 1e-10:
+        J = np.nan
+        print("Warning: No area of integration for plane blockage, refine mesh or increase thickness.")
+    else:
 
+        ### Evaluate objective ###
+        J = assemble(solver.problem.up_k[0]*spherical_gaussian/volume*dx)
     return J
