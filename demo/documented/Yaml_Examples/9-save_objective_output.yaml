@@ -58,14 +58,12 @@ optimization:
             location: [-390.0,0.0,110.0]
         point_blockage_#02:
             location: [0.0,0.0,240.0]
-        plane_blockage_#01:
-            axis: 0
-            thickness: 130.0
-            center: -390
-        plane_blockage_#02:
-            axis: 2
-            thickness: 130.0
-            center: 240.0
+        box_blockage_#01:
+            p0: [-990, -430, 0]
+            p1: [-860, 430,  200]
+        box_blockage_#02:
+            p0: [-730, -430, 240]
+            p1: [730,  430,  370]
         cyld_kernel_#01:
             type: upstream
         cyld_kernel_#02: 
