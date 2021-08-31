@@ -651,7 +651,7 @@ class Optimizer(object):
             if "layout" in self.control_types:
                 x_inds = self.indexes[0]
                 y_inds = self.indexes[1] 
-                constraints.append(MinimumDistanceConstraint(x_inds, y_inds, min_dist_dict["target"]*np.mean(self.farm.RD), min_dist_dict["scale"]))
+                constraints.append(MinimumDistanceConstraint(x_inds, y_inds, min_dist_dict["target"]*np.max(self.farm.RD), min_dist_dict["scale"]))
 
         ### Iterate over remaining objective based constraints
         for key, value in self.constraint_types.items():
@@ -735,8 +735,9 @@ class MinimumDistanceConstraint(InequalityConstraint):
 
         self.x_inds = x_inds
         self.y_inds = y_inds
-        self.target = target
-        self.scale  = scale
+        self.target = float(target)
+        self.scale  = float(scale)
+        self.name   = "min_dist"
         # print("In mimimum distance constraint")
 
     def length(self):
@@ -760,6 +761,8 @@ class MinimumDistanceConstraint(InequalityConstraint):
 
         # print("In mimimum distance constraint function eval")
         # print "distances: ", arr*lengthscale
+        self.cur_val = sqrt(np.min(ieqcons)/self.scale+self.target**2)
+
         numClose = 0
         for i in range(len(arr)):
             if arr[i]<0:
@@ -781,10 +784,10 @@ class MinimumDistanceConstraint(InequalityConstraint):
                 if j>i:
                     prime_ieqcons = np.zeros(len(m))
 
-                    prime_ieqcons[2 * i] = 2 * (x[i] - x[j])
-                    prime_ieqcons[2 * j] = -2 * (x[i] - x[j])
-                    prime_ieqcons[2 * i + 1] = 2 * (y[i] - y[j])
-                    prime_ieqcons[2 * j + 1] = -2 * (y[i] - y[j])
+                    prime_ieqcons[2 * i] = self.scale*(2 * (x[i] - x[j]))
+                    prime_ieqcons[2 * j] = self.scale*(-2 * (x[i] - x[j]))
+                    prime_ieqcons[2 * i + 1] = self.scale*(2 * (y[i] - y[j]))
+                    prime_ieqcons[2 * j + 1] = self.scale*(-2 * (y[i] - y[j]))
 
                     ieqcons.append(prime_ieqcons)
         # print("In mimimum distance constraint Jacobian eval")
@@ -812,23 +815,24 @@ class ObjectiveConstraint(InequalityConstraint):
         tape._stop_annotating = 0
 
         # compute objective and subtract target
-        val = self.objective(self.solver,angle,**self.obj_kwargs)
-        self.J = self.scale*(val-self.target)
+        self.cur_val = self.objective(self.solver,angle,**self.obj_kwargs)
+        self.J = self.scale*(self.cur_val-self.target)
 
         # Return tape to normal
         tape._stop_annotating = sa_bak
 
         # check if violated
-        # print(f"evaluating {self.name}: {val} with: {(self.target,self.scale,self.obj_kwargs)}")
+        # print(f"evaluating {self.name}: {self.cur_val} with: {(self.target,self.scale,self.obj_kwargs)}")
         if self.J < 0:
-            print(f"Warning: The {self.name} constraint is violated with a value of {val} and a target of {self.target}")
+            print(f"Warning: The {self.name} constraint is violated with a value of {self.cur_val} and a target of {self.target}")
 
         return self.J
 
     def jacobian(self, m):
-        # print(f"getting gradients of {self.name}")
         Jhat = ReducedFunctional(self.J, self.controls)
         dJ = Jhat.derivative()
+        # print(f"getting gradients of {self.name}")
+        # print(np.array(dJ, dtype=float))
         return np.array(dJ, dtype=float)
 
 class MergedConstraint(InequalityConstraint):
@@ -838,7 +842,9 @@ class MergedConstraint(InequalityConstraint):
     def function(self, m):
         out = []
         for con in self.constraint_list:
-            out = np.append(out, con.function(m))
+            val = con.function(m)
+            print(f"Constraint, {con.name}, return with value: {con.cur_val} and target: {con.target}")
+            out = np.append(out, val)
 
         return out
 

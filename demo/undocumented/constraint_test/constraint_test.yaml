@@ -74,9 +74,11 @@ optimization:
     constraint_types:
         min_dist:       
             target: 2   
-            scale:  1   
+            scale:  1.0e-5   
         power:
             target: 8000000
+            scale: 1.0e-6
     control_types: [layout]
     layout_bounds: [[-600, 600],[-300, 300]] 
     optimize: True
+    opt_routine: SNOPT
