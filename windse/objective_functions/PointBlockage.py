@@ -62,7 +62,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     # Use the sphereical Gaussian to measure the streamwise velocity
     if volume <= 1e-10:
         J = np.nan
-        print("Warning: No area of integration for plane blockage, refine mesh or increase thickness.")
+        print("Warning: No area of integration for point blockage, refine mesh or increase Gaussian width.")
     else:
 
         ### Evaluate objective ###
