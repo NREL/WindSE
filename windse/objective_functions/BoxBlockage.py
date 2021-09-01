@@ -19,15 +19,13 @@ if not main_file in ["sphinx-build", "__main__.py"]:
 import numpy as np
 
 ### Declare Unique name
-name = "plane_blockage"
+name = "box_blockage"
 
 
 ### Set default keyword argument values ###
 keyword_defaults = {
-    "axis": 2,
-    "thickness": "rmax",
-    "center" : 250,
-    "offset_by_mean": False
+    "p0":   None,
+    "p1" :  None,
 }
 
 
@@ -38,32 +36,25 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     a plane in front of or above the farm.
 
     Keyword arguments:
-        axis:      the orientation of the plane, "z" for above, "x" for in front
-        thickness: how thick of a plane to integrate over
-        center:    distance along the axis where the plane is centered 
+        p0: the corner of the box with the smallest values
+        p1: the corner of the box with the largest values
     '''
 
     ### Extract keyword arguments
-    axis =      int(kwargs.pop("axis"))
-    thickness = kwargs.pop("thickness")
-    center =    kwargs.pop("center")
-
-    if thickness == "rmax":
-        thickness = solver.problem.dom.mesh.rmax()
-
-    ### Get bounds of integration ###
-    lb = center - thickness/2.0
-    ub = center + thickness/2.0
-
-    # ### Create the Mesh Function to hold the region of integration
-    # region = CompiledSubDomain("x[axis]>=lb && x[axis]<=ub", lb=lb, ub=ub, axis=axis)
-    # plane_marker = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim())
-    # plane_marker.set_all(0)
-    # region.mark(plane_marker,1)
-    # File("test_"+repr(center)+".pvd")<<plane_marker
+    p0 = list(kwargs.pop("p0"))
+    p1 = list(kwargs.pop("p1"))
 
     # ### Create measure
-    plane_marker = Expression('x[axis] < lb ? 0.0 : (x[axis] > ub ? 0.0 : 1.0)', lb=lb, ub=ub, axis=axis, degree=1)
+    plane_marker = Expression('((x[0] > xa && x[0] <= xb) && (x[1] > ya && x[1] <= yb) && (x[2] > za && x[2] <= zb)) ? 1 : 0 ', xa=p0[0],ya=p0[1],za=p0[2],xb=p1[0],yb=p1[1],zb=p1[2], degree=2)
+    # plane_marker = Expression('x[0] < lb ? 0.0 : (x[0] > ub ? 0.0 : 1.0)', lb=-300.0, ub=300.0, degree=1)
+    # plane_marker = Expression('x[0] < pl[0] ? 0.0 : 1.0 ', pl=p0, degree=2)
+
+    # Save the measure (for debugging)
+    # test = project(plane_marker,solver.problem.fs.Q)
+    # File("test.pvd")<<test
+    # exit()
+
+    ### Calculate the volume
     dx = Measure('dx', domain=solver.problem.dom.mesh)
     V = assemble(plane_marker*dx)
 
