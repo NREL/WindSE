@@ -63,7 +63,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
                    a good starting point.
     '''
 
-    def rotate_and_shift_points(x, x0, yaw, kp):
+    def rotate_and_shift_points(x, x0, yaw, kp, RD):
 
         xs =  cos(yaw)*(x[0]-x0[0]) + sin(yaw)*(x[1]-x0[1])
         ys = -sin(yaw)*(x[0]-x0[0]) + cos(yaw)*(x[1]-x0[1])
