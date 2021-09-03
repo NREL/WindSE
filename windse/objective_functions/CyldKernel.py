@@ -63,7 +63,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
                    a good starting point.
     '''
 
-    def rotate_and_shift_points(x, x0, yaw, kp):
+    def rotate_and_shift_points(x, x0, yaw, kp, RD):
 
         xs =  cos(yaw)*(x[0]-x0[0]) + sin(yaw)*(x[1]-x0[1])
         ys = -sin(yaw)*(x[0]-x0[0]) + cos(yaw)*(x[1]-x0[1])
@@ -76,7 +76,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
         if kp['type'] == 'upstream':
             xs = xs + 0.5*kp['length']
         elif kp['type'] == 'above':
-            zs = zs - 0.5*kp['length']
+            zs = zs - RD - 0.5*kp['length']
 
         return [xs, ys, zs]
 
@@ -93,12 +93,13 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
             mx = solver.problem.farm.mx[k]
             my = solver.problem.farm.my[k]
             mz = solver.problem.farm.mz[k]
+            RD = solver.problem.farm.RD[k]
             x0 = [mx, my, mz]
 
             # Get a convenience copy of turbine k's yaw
             yaw = solver.problem.farm.myaw[k]
 
-            xs = rotate_and_shift_points(x, x0, yaw, kp)
+            xs = rotate_and_shift_points(x, x0, yaw, kp, RD)
 
             if kp['type'] == 'upstream':
                 # Place the cylinders upstream from the rotor aligned with the hub axis
@@ -109,7 +110,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
 
             elif kp['type'] == 'above':
                 # Place the cylinders above the rotor aligned with the Z-direction
-                ax = xs[2]/(0.5*kp['length'])        
+                ax = (xs[2])/(0.5*kp['length'])      
                 axial_gaussian = exp(-pow(ax, kp['sharpness']))
                 rad = (xs[0]**2 + xs[1]**2)/kp['radius']**2
                 radial_gaussian = exp(-pow(rad, kp['sharpness']))

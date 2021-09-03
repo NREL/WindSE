@@ -24,7 +24,7 @@ name = "point_blockage"
 ### Set default keyword argument values ###
 keyword_defaults = {
     "location": (0,0,0),
-    "offset_by_mean": False
+    "radius": "radius"
 }
 
 
@@ -39,24 +39,22 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
 
     Keyword arguments:
         location: where the deficit is evaluated
+        radius: the radius of the sphere (default: "radius" is the radius of the rotors)
     '''
 
     # Get the location of the point measurement and symbolic coordinates for the mesh
     x0 = np.array(kwargs.pop("location"))
-    x = SpatialCoordinate(solver.problem.dom.mesh)
+    r = np.array(kwargs.pop("radius"))
 
-    # Calculate dx, dy, dz
-    delta_x = x[0] - x0[0]
-    delta_y = x[1] - x0[1]
-    delta_z = x[2] - x0[2]
+    # get default radius
+    if r == "radius":
+        r = max(solver.problem.farm.RD)/2.0
 
-    # Calculate the distance to the point, scale by hmax
-    distance = (delta_x**2 + delta_y**2 + delta_z**2)/solver.problem.dom.mesh.hmax()
-
-    # Use the distance to generate a sphereical Gaussian function
-    spherical_gaussian = exp(-pow(distance, 6.0))
+    # build expression
+    spherical_gaussian = Expression("exp(-pow(((pow((x[0] - x0),2) + pow((x[1] - y0),2) + pow((x[2] - z0),2))/r),6.0))",x0=x0[0],y0=x0[1],z0=x0[2],r=r, degree=5)
 
     # Calculate the volume for normalization (this should result in a valid m/s measurement)
+    dx = Measure('dx', domain=solver.problem.dom.mesh)
     volume = assemble(spherical_gaussian*dx)
 
     # Use the sphereical Gaussian to measure the streamwise velocity
