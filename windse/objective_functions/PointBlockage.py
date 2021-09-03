@@ -24,7 +24,8 @@ name = "point_blockage"
 ### Set default keyword argument values ###
 keyword_defaults = {
     "location": (0,0,0),
-    "radius": "radius"
+    "radius": "radius", 
+    "sharpness": 6.0
 }
 
 
@@ -40,18 +41,20 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     Keyword arguments:
         location: where the deficit is evaluated
         radius: the radius of the sphere (default: "radius" is the radius of the rotors)
+        sharpness: the power in the Gaussian larger=sharper edges
     '''
 
     # Get the location of the point measurement and symbolic coordinates for the mesh
     x0 = np.array(kwargs.pop("location"))
     r = np.array(kwargs.pop("radius"))
+    p = np.array(kwargs.pop("sharpness"))
 
     # get default radius
     if r == "radius":
         r = max(solver.problem.farm.RD)/2.0
 
     # build expression
-    spherical_gaussian = Expression("exp(-pow(((pow((x[0] - x0),2) + pow((x[1] - y0),2) + pow((x[2] - z0),2))/r),6.0))",x0=x0[0],y0=x0[1],z0=x0[2],r=r, degree=5)
+    spherical_gaussian = Expression("exp(-pow(((pow((x[0] - x0),2) + pow((x[1] - y0),2) + pow((x[2] - z0),2))/r),p))",x0=x0[0],y0=x0[1],z0=x0[2],r=r,p=p, degree=5)
 
     # Calculate the volume for normalization (this should result in a valid m/s measurement)
     dx = Measure('dx', domain=solver.problem.dom.mesh)
