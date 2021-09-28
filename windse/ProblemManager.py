@@ -499,6 +499,10 @@ class GenericProblem(object):
         self.farm.chord = self.chord
         self.farm.num_blade_segments = self.num_blade_segments
 
+    def SimpleControlUpdate(self):
+        self.u_k, self.p_k = split(self.up_k)
+        self.farm.SimpleControlUpdate()
+
 
     def ChangeWindAngle(self,inflow_angle):
         """

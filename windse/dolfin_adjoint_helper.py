@@ -467,7 +467,7 @@ class ControlUpdaterBlock(Block):
 
         # update farm Constants()
         with stop_annotating():
-            self.farm.SimpleControlUpdate()
+            self.problem.SimpleControlUpdate()
 
 
 # ================================================================
