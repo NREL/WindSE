@@ -205,7 +205,8 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
         else:
             prob.driver.opt_settings["Verify level"] = -1
             
-    
+        # prob.driver.opt_settings["Major iterations limit"] = 3
+
     prob.model.add_design_var('DVs', lower=lower_bounds, upper=upper_bounds)
     prob.model.add_objective('obj', ref=kwargs["options"]["obj_ref"], ref0=kwargs["options"]["obj_ref0"])
     
@@ -227,12 +228,11 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
 
     # Run the optimization
     prob.run_driver()
+    # prob.check_totals()
     
     # Return the optimal design variables
     return(prob['DVs'])
-    
 
-    
 class Optimizer(object):
     """
     A GenericProblem contains on the basic functions required by all problem objects.
@@ -291,7 +291,34 @@ class Optimizer(object):
         self.OptPrintFunction(self.init_vals,None)
         self.fprint("",special="footer")
 
+        self.SetupConstraints()
         self.fprint("Optimizer Setup",special="footer")
+
+    def SetupConstraints(self):
+        ### Build constraints ###
+        constraints = []
+
+        ### Pop off the layout specific constraint first ###
+        if "min_dist" in self.constraint_types.keys():
+            min_dist_dict = self.constraint_types.pop("min_dist")
+            if "layout" in self.control_types:
+                x_inds = self.indexes[0]
+                y_inds = self.indexes[1] 
+                constraints.append(MinimumDistanceConstraint(x_inds, y_inds, min_dist_dict["target"]*np.max(self.farm.RD), min_dist_dict["scale"]))
+
+        ### Iterate over remaining objective based constraints
+        for key, value in self.constraint_types.items():
+            constraints.append(ObjectiveConstraint(self.solver, self.controls, key, value["target"], value["scale"], value["kwargs"]))
+
+        ### Merge constraints into one since pyadjoint has a bug when handling more than one
+        if len(constraints) > 0:
+            self.merged_constraint = MergedConstraint(constraints,self.fprint)
+        else:
+            self.merged_constraint = []
+
+        ### Evaluate once
+        # self.merged_constraint.function(self.controls)
+        # self.merged_constraint.jacobian(self.controls)
 
     def DebugOutput(self,iteration=0, m=[]):
         if self.debug_mode:
@@ -348,14 +375,14 @@ class Optimizer(object):
                 self.names.append("x_"+repr(i))
                 self.controls.append(Control(self.farm.mx[i]))
                 self.control_pointers.append((self.farm.x,i))
-                self.init_vals.append(self.farm.mx[i])
+                self.init_vals.append(Constant(float(self.farm.mx[i])))
 
                 self.indexes[1].append(j)
                 j+=1
                 self.names.append("y_"+repr(i))
                 self.controls.append(Control(self.farm.my[i]))
                 self.control_pointers.append((self.farm.y,i))
-                self.init_vals.append(self.farm.my[i])
+                self.init_vals.append(Constant(float(self.farm.my[i])))
 
         if "yaw" in self.control_types:
             for i in self.solver.opt_turb_id:
@@ -364,7 +391,7 @@ class Optimizer(object):
                 self.names.append("yaw_"+repr(i))
                 self.controls.append(Control(self.farm.myaw[i]))
                 self.control_pointers.append((self.farm.yaw,i))
-                self.init_vals.append(self.farm.myaw[i])
+                self.init_vals.append(Constant(float(self.farm.myaw[i])))
 
         if "axial" in self.control_types:
             for i in self.solver.opt_turb_id:
@@ -373,7 +400,7 @@ class Optimizer(object):
                 self.names.append("axial_"+repr(i))
                 self.controls.append(Control(self.farm.ma[i]))
                 self.control_pointers.append((self.farm.a,i))
-                self.init_vals.append(self.farm.ma[i])
+                self.init_vals.append(Constant(float(self.farm.ma[i])))
 
         if "lift" in self.control_types:
             for i in self.solver.opt_turb_id:
@@ -383,7 +410,7 @@ class Optimizer(object):
                     j+=1
                     self.names.append("lift_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.farm.mcl[i][k]))
-                    self.init_vals.append(self.farm.mcl[i][k])
+                    self.init_vals.append(Constant(float(self.farm.mcl[i][k])))
 
         if "drag" in self.control_types:
             for i in self.solver.opt_turb_id:
@@ -393,7 +420,7 @@ class Optimizer(object):
                     j+=1
                     self.names.append("drag_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.farm.mcd[i][k]))
-                    self.init_vals.append(self.farm.mcd[i][k])
+                    self.init_vals.append(Constant(float(self.farm.mcd[i][k])))
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
@@ -403,7 +430,7 @@ class Optimizer(object):
                     j+=1
                     self.names.append("chord_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.farm.mchord[i][k]))
-                    self.init_vals.append(self.farm.mchord[i][k])
+                    self.init_vals.append(Constant(float(self.farm.mchord[i][k])))
         self.num_controls = len(self.controls)
 
     def CreateBounds(self):
@@ -513,13 +540,13 @@ class Optimizer(object):
         # if "yaw" in self.control_types:
         #     for i in range(self.farm.numturbs):
         #         self.fprint("Yaw Turbine {0:} of {1:}: {2: 4.6f}".format(i+1,self.farm.numturbs,self.farm.yaw[i]))
-        self.fprint("Previous Control Values",special="header")
-        for i, [l, ix] in enumerate(self.control_pointers):
-            if not isinstance(ix,int):
-                self.fprint(self.names[i] +": " +repr(float(l[ix[0]][ix[1]])))
-            else:
-                self.fprint(self.names[i] +": " +repr(float(l[ix])))
-        self.fprint("",special="footer")
+        # self.fprint("Previous Control Values",special="header")
+        # for i, [l, ix] in enumerate(self.control_pointers):
+        #     if not isinstance(ix,int):
+        #         self.fprint(self.names[i] +": " +repr(float(l[ix[0]][ix[1]])))
+        #     else:
+        #         self.fprint(self.names[i] +": " +repr(float(l[ix])))
+        # self.fprint("",special="footer")
 
         self.fprint("Next Control Values",special="header")
         for i, val in enumerate(m):
@@ -648,33 +675,11 @@ class Optimizer(object):
         else:
             raise ValueError(f"Unknown optimization type: {self.opt_type}")
 
-
-        ### Build constraints ###
-        constraints = []
-
-        ### Pop off the layout specific constraint first ###
-        if "min_dist" in self.constraint_types.keys():
-            min_dist_dict = self.constraint_types.pop("min_dist")
-            if "layout" in self.control_types:
-                x_inds = self.indexes[0]
-                y_inds = self.indexes[1] 
-                constraints.append(MinimumDistanceConstraint(x_inds, y_inds, min_dist_dict["target"]*np.max(self.farm.RD), min_dist_dict["scale"]))
-
-        ### Iterate over remaining objective based constraints
-        for key, value in self.constraint_types.items():
-            constraints.append(ObjectiveConstraint(self.solver, self.controls, key, value["target"], value["scale"], value["kwargs"]))
-
-        ### Merge constraints into one since pyadjoint has a bug when handling more than one
-        if len(constraints) > 0:
-            merged_constraint = MergedConstraint(constraints)
-        else:
-            merged_constraint = []
-
         ### optimize 
         if "SNOPT" in self.opt_routine or "OM_SLSQP" in self.opt_routine:
-            m_opt=opt_function(self.Jhat, method="Custom", options = options, constraints = merged_constraint, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
+            m_opt=opt_function(self.Jhat, method="Custom", options = options, constraints = self.merged_constraint, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
         else:
-            m_opt=opt_function(self.Jhat, method=self.opt_routine, options = options, constraints = merged_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+            m_opt=opt_function(self.Jhat, method=self.opt_routine, options = options, constraints = self.merged_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
 
         self.m_opt = m_opt
 
@@ -757,7 +762,7 @@ class MinimumDistanceConstraint(InequalityConstraint):
         arr = np.array(ieqcons)
 
         # print("In mimimum distance constraint function eval")
-        # print "distances: ", arr*lengthscale
+        # print("distances: ", arr)
         self.cur_val = sqrt(np.min(ieqcons)/self.scale+self.target**2)
 
         numClose = 0
@@ -765,7 +770,7 @@ class MinimumDistanceConstraint(InequalityConstraint):
             if arr[i]<0:
                 # print(arr[i]*lengthscale)
                 numClose +=1
-        if numClose > 1:
+        if numClose >= 1:
             print("Warning: Number of turbines in violation of spacing constraint: "+repr(numClose))
         return np.array(ieqcons)
 
@@ -800,6 +805,11 @@ class ObjectiveConstraint(InequalityConstraint):
         self.scale = float(scale)
         self.obj_kwargs = obj_kwargs
 
+        ### Precalculate constraint
+        angle = self.solver.iter_theta-self.solver.problem.dom.inflow_angle
+        self.J = self.scale*(self.objective(self.solver,angle,**self.obj_kwargs)-self.target)
+        self.Jhat = ReducedFunctional(self.J, self.controls)
+
     def length(self):
         return 1
 
@@ -807,42 +817,42 @@ class ObjectiveConstraint(InequalityConstraint):
         # Calculate legacy angle
         angle = self.solver.iter_theta-self.solver.problem.dom.inflow_angle
 
-        # Force tape to record this seem excessively dangerous. it's possible we will grow the tape infinitely!
-        sa_bak = int(tape._stop_annotating) 
-        tape._stop_annotating = 0
-
         # compute objective and subtract target
         self.cur_val = self.objective(self.solver,angle,**self.obj_kwargs)
-        self.J = self.scale*(self.cur_val-self.target)
-
-        # Return tape to normal
-        tape._stop_annotating = sa_bak
+        J = self.scale*(self.cur_val-self.target)
 
         # check if violated
         # print(f"evaluating {self.name}: {self.cur_val} with: {(self.target,self.scale,self.obj_kwargs)}")
-        if self.J < 0:
+        if J < 0:
             print(f"Warning: The {self.name} constraint is violated with a value of {self.cur_val} and a target of {self.target}")
 
-        return self.J
+        return J
 
     def jacobian(self, m):
-        Jhat = ReducedFunctional(self.J, self.controls)
-        dJ = Jhat.derivative()
+
+        dJ = self.Jhat.derivative()
+
         # print(f"getting gradients of {self.name}")
         # print(np.array(dJ, dtype=float))
         return np.array(dJ, dtype=float)
 
 class MergedConstraint(InequalityConstraint):
-    def __init__(self,constraint_list):
+    def __init__(self,constraint_list,fprint):
         self.constraint_list = constraint_list
+        self.fprint = fprint
 
     def function(self, m):
+        self.fprint("Evaluating Constraints",special="header")
+        start = time.time()
         out = []
         for con in self.constraint_list:
             val = con.function(m)
-            print(f"Constraint, {con.name}, return with value: {con.cur_val} and target: {con.target}")
             out = np.append(out, val)
+            self.fprint(f"Constraint, {con.name}, return with value: {con.cur_val} and target: {con.target}")
+        self.fprint("Completed",special="footer")
 
+        stop = time.time()
+        self.fprint("Complete: {:1.2f} s".format(stop-start),special="footer")
         return out
 
     def jacobian(self, m):

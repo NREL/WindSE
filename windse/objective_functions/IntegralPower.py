@@ -34,15 +34,6 @@ def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwa
 
     # if not annotate:
     #     stop_annotating()
-    spherical_gaussian = Expression("exp(-pow(((pow((x[0] - x0),2) + pow((x[1] - y0),2) + pow((x[2] - z0),2))/r),6.0))",x0=0,y0=0,z0=100,r=500, degree=5)
-
-    print("tf1: ",assemble(dot(solver.problem.tf,as_vector((1.0,0.0,0.0)))*dx))
-    print("tf2: ",assemble(dot(solver.problem.tf,as_vector((0.0,1.0,0.0)))*dx))
-    print("tf3: ",assemble(dot(solver.problem.tf,as_vector((0.0,0.0,1.0)))*dx))
-    print("uk1: ",assemble(dot(spherical_gaussian*solver.problem.u_k,as_vector((1.0,0.0,0.0)))*dx))
-    print("uk2: ",assemble(dot(spherical_gaussian*solver.problem.u_k,as_vector((0.0,1.0,0.0)))*dx))
-    print("uk3: ",assemble(dot(spherical_gaussian*solver.problem.u_k,as_vector((0.0,0.0,1.0)))*dx))
-
 
     J = assemble(dot(-solver.problem.tf,solver.problem.u_k)*dx)
     # J = assemble(dot(-solver.problem.tf,Constant((1.0,1.0,1.0)))*dx)
@@ -84,7 +75,8 @@ def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwa
                 tf = tf1*solver.problem.u_k[0]**2+tf2*solver.problem.u_k[1]**2+tf3*solver.problem.u_k[0]*solver.problem.u_k[1]
                 J_list[i+1] = assemble(dot(-tf,solver.problem.u_k)*dx,**solver.extra_kwarg)
             else:
-                print("WARNING: missing individual turbine actuator disk, only able to report full farm power")
+                pass
+                # print("WARNING: missing individual turbine actuator disk, only able to report full farm power")
 
         J_list[-1]=float(J)
 

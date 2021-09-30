@@ -351,14 +351,14 @@ class GenericWindFarm(object):
         for i in range(self.numturbs):
 
             # Update per turbine controls
-            self.mx[i] = Constant(self.x[i])
-            self.my[i] = Constant(self.y[i])
-            self.ma[i] = Constant(self.axial[i])
-            self.myaw[i] = Constant(self.yaw[i])
-            # self.mx[i].assign(self.x[i], annotate_tape=False) # this annotate_tape needs to be here because dolfin_adjoing Constant.assign doesnt use annotate=annotate_tape(kwargs) like everything else (check function for example)
-            # self.my[i].assign(self.y[i], annotate_tape=False)
-            # self.ma[i].assign(self.axial[i], annotate_tape=False)
-            # self.myaw[i].assign(self.yaw[i], annotate_tape=False)
+            # self.mx[i] = Constant(self.x[i])
+            # self.my[i] = Constant(self.y[i])
+            # self.ma[i] = Constant(self.axial[i])
+            # self.myaw[i] = Constant(self.yaw[i])
+            self.mx[i].assign(self.x[i]) # this annotate_tape needs to be here because dolfin_adjoing Constant.assign doesnt use annotate=annotate_tape(kwargs) like everything else (check function for example)
+            self.my[i].assign(self.y[i])
+            self.ma[i].assign(self.axial[i])
+            self.myaw[i].assign(self.yaw[i])
 
             # Update ground stuff
             self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
@@ -368,12 +368,12 @@ class GenericWindFarm(object):
             # Update blade level controls
             if self.turbine_method == "alm" or self.force == "chord": 
                 for k in range(self.num_blade_segments):
-                    self.mcl[i][k] = Constant(self.cl[i][k])
-                    self.mcd[i][k] = Constant(self.cd[i][k])
-                    self.mchord[i][k] = Constant(self.chord[i][k])
-                    # self.mcl[i][k].assign(self.cl[i][k], annotate_tape=False)
-                    # self.mcd[i][k].assign(self.cd[i][k], annotate_tape=False)
-                    # self.mchord[i][k].assign(self.chord[i][k], annotate_tape=False)
+                    # self.mcl[i][k] = Constant(self.cl[i][k])
+                    # self.mcd[i][k] = Constant(self.cd[i][k])
+                    # self.mchord[i][k] = Constant(self.chord[i][k])
+                    self.mcl[i][k].assign(self.cl[i][k])
+                    self.mcd[i][k].assign(self.cd[i][k])
+                    self.mchord[i][k].assign(self.chord[i][k])
 
 
 

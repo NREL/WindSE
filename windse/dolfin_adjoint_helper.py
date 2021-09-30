@@ -461,6 +461,7 @@ class ControlUpdaterBlock(Block):
                 if name in ["c_lift","c_drag","chord"]:
                     self.control_dict[name][turb_id][seg_id] = float(inputs[i])
                 elif name in ["up"]:
+                    # self.control_dict[name] = inputs[i]
                     self.control_dict[name].assign(inputs[i])
                     # self.control_dict[name].assign(inputs[i], annotate=False)
                 else:
