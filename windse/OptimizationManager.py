@@ -217,9 +217,13 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
             # Inequality means it's positive from scipy and dolfin
             prob.model.add_constraint(con_name, lower=0.)            
 
+
     prob.setup()
     
     prob.set_val('DVs', initial_DVs)
+    
+    # prob.run_model()
+    # prob.check_totals()
 
     # Run the optimization
     prob.run_driver()
@@ -576,12 +580,15 @@ class Optimizer(object):
 
     def SaveFunctions(self):
         u, p = self.problem.up_k.split()
+        # tf = project(self.problem.tf,self.problem.fs.V,solver_type='cg',preconditioner_type="hypre_amg")
         if self.iteration == 0:
             self.velocity_file = self.params.Save(u,"velocity",subfolder="OptSeries/",val=self.iteration)
             self.pressure_file = self.params.Save(p,"pressure",subfolder="OptSeries/",val=self.iteration)
+            # self.tf_file = self.params.Save(tf,"tf",subfolder="OptSeries/",val=self.iteration)
         else:
             self.params.Save(u,"velocity",subfolder="OptSeries/",val=self.iteration,file=self.velocity_file)
             self.params.Save(p,"pressure",subfolder="OptSeries/",val=self.iteration,file=self.pressure_file)
+            # self.params.Save(tf,"tf",subfolder="OptSeries/",val=self.iteration,file=self.tf_file)
 
     def OptPrintFunction(self,m,test=None):
         if test is not None:
@@ -663,17 +670,7 @@ class Optimizer(object):
         else:
             merged_constraint = []
 
-        # Problem 1: Constraint is way to big 
-        #               Nevermind 2d power is so bad that 1.25e6*n is just a huge target
-        # Problem 2: It seem like multiple constraints only cares about the lenght of the first
-        #               Well, this one is on dolfin_adjoint, by using the def jac(x) method, it evaluates the last constraint twice because of python memory storage
-        # Problem 3: J is built with different constants than the controls, breaks links
-        #               This one is going to super suck. does the fact that J depends on u and u depends on m matter? yes, tis a bit recursive
-        # Problem 4: does maximize actually minimize first?
-
-
-
-        # TODO : simplify this logic
+        ### optimize 
         if "SNOPT" in self.opt_routine or "OM_SLSQP" in self.opt_routine:
             m_opt=opt_function(self.Jhat, method="Custom", options = options, constraints = merged_constraint, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
         else:
