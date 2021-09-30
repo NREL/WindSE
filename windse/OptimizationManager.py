@@ -222,11 +222,14 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
     
     prob.set_val('DVs', initial_DVs)
     
-    # prob.run_model()
-    # prob.check_totals()
+    # Optional debugging step to check the total derivatives
+    if kwargs["options"]["check_totals"]:
+        prob.run_model()
+        prob.check_totals()
 
-    # Run the optimization
-    prob.run_driver()
+    else:
+        # Run the optimization
+        prob.run_driver()
     
     # Return the optimal design variables
     return(prob['DVs'])
@@ -640,6 +643,8 @@ class Optimizer(object):
             options["obj_ref0"] = self.obj_ref0
         if hasattr(self, 'verify_snopt'):
             options["verify_snopt"] = self.verify_snopt
+        if hasattr(self, 'check_totals'):
+            options["check_totals"] = self.check_totals
         
         if self.opt_type == "minimize":
             opt_function = minimize

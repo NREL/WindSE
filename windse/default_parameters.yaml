@@ -163,4 +163,5 @@ optimization:                   # parameters for OptimizationManager
     taylor_test:    False           # Run the taylor test
     optimize:       False           # optimize the problem
     gradient:       False           # output the gradient
-    verify_snopt:   False
+    verify_snopt:   False           # use the SNOPT FD gradient verification
+    check_totals:   False           # check the total derivatives of the problem; optimize must be true as well
