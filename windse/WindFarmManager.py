@@ -351,10 +351,14 @@ class GenericWindFarm(object):
         for i in range(self.numturbs):
 
             # Update per turbine controls
-            self.mx[i].assign(self.x[i], annotate_tape=False) # this annotate_tape needs to be here because dolfin_adjoing Constant.assign doesnt use annotate=annotate_tape(kwargs) like everything else (check function for example)
-            self.my[i].assign(self.y[i], annotate_tape=False)
-            self.ma[i].assign(self.axial[i], annotate_tape=False)
-            self.myaw[i].assign(self.yaw[i], annotate_tape=False)
+            # self.mx[i] = Constant(self.x[i])
+            # self.my[i] = Constant(self.y[i])
+            # self.ma[i] = Constant(self.axial[i])
+            # self.myaw[i] = Constant(self.yaw[i])
+            self.mx[i].assign(self.x[i]) # this annotate_tape needs to be here because dolfin_adjoing Constant.assign doesnt use annotate=annotate_tape(kwargs) like everything else (check function for example)
+            self.my[i].assign(self.y[i])
+            self.ma[i].assign(self.axial[i])
+            self.myaw[i].assign(self.yaw[i])
 
             # Update ground stuff
             self.mz[i] = BaseHeight(self.mx[i],self.my[i],self.dom.Ground)+float(self.HH[i])
@@ -364,9 +368,12 @@ class GenericWindFarm(object):
             # Update blade level controls
             if self.turbine_method == "alm" or self.force == "chord": 
                 for k in range(self.num_blade_segments):
-                    self.mcl[i][k].assign(self.cl[i][k], annotate_tape=False)
-                    self.mcd[i][k].assign(self.cd[i][k], annotate_tape=False)
-                    self.mchord[i][k].assign(self.chord[i][k], annotate_tape=False)
+                    # self.mcl[i][k] = Constant(self.cl[i][k])
+                    # self.mcd[i][k] = Constant(self.cd[i][k])
+                    # self.mchord[i][k] = Constant(self.chord[i][k])
+                    self.mcl[i][k].assign(self.cl[i][k])
+                    self.mcd[i][k].assign(self.cd[i][k])
+                    self.mchord[i][k].assign(self.chord[i][k])
 
 
 
@@ -862,7 +869,7 @@ class GenericWindFarm(object):
         self.actuator_disks = Function(fs.tf_V)
         self.actuator_disks.vector()[:] = np.sum(actuator_array,axis=1)
         self.fprint("Projecting Turbine Force")
-        self.actuator_disks = project(self.actuator_disks,fs.V,solver_type='mumps',form_compiler_parameters={'quadrature_degree': fs.turbine_degree},**self.extra_kwarg)
+        self.actuator_disks = project(self.actuator_disks,fs.V,solver_type='cg',preconditioner_type="hypre_amg",form_compiler_parameters={'quadrature_degree': fs.turbine_degree},**self.extra_kwarg)
         
         self.actuator_disks_list = []
         for i in range(self.numturbs):
@@ -1009,7 +1016,7 @@ class GenericWindFarm(object):
 
         ### Save the actuator disks for post processing ###
         self.fprint("Projecting Turbine Force")
-        self.actuator_disks = project(rd,fs.V,solver_type='cg',**self.extra_kwarg)
+        self.actuator_disks = project(rd,fs.V,solver_type='cg',preconditioner_type="hypre_amg",**self.extra_kwarg)
         # self.actuator_disks = project(rd,fs.V,solver_type='mumps',**self.extra_kwarg)
 
         tf_stop = time.time()
