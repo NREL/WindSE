@@ -83,7 +83,8 @@ optimization:
     objective_type: alm_DELs
     u_avg_time: 2.0
     record_time: 5.0
-    DEL_start_time: 5.0
+    alm_DELs:
+        DEL_start_time: 5.0
     optimize: False
     taylor_test: False
     save_objective: True
