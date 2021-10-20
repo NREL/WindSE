@@ -66,16 +66,15 @@ def objective(solver, inflow_angle=0.0, first_call=False, **kwargs):
     # get current time
     time = solver.problem.simTime_list[-1]
 
-    # check if we are past the burn-in time
-    print('ime: ', time, startTime)
-    if time < startTime:
+    # check if we are at least 10 s past the burn-in time
+    if time < startTime + 10:
        return(np.nan)
 
     # compute DEL for each turbine
     for turb_i in range(solver.problem.farm.numturbs):
 
         # use fx to compute flapwise bending
-        dat = pd.read_csv(solver.problem.force_files[turb_i][0], delim_whitespace=True)
+        dat = pd.read_csv(solver.problem.force_files[turb_i][0], sep=', ')
 
         # drop MPI duplicates
         dat = dat[~np.isnan(dat['r0_n000'])]
@@ -92,11 +91,11 @@ def objective(solver, inflow_angle=0.0, first_call=False, **kwargs):
         Radius = RD / 2.
         bladeLocs = Radius *  bladePoss
         moments = np.sum(bladeLocs * dat[cols], axis=1)
-        df = pd.DataFrame({'Time': dat.time, 'Moment': moments}).to_csv('%s_moments.dat' % sys.argv[-1][:-4], index=False)
+        df = pd.DataFrame({'Time': dat.time, 'Moment': moments})
 
-        DELS.append(DEL(df[df.Time > startTime]))
+        DELS.append(DEL(df[df.Time >= startTime]))
 
-    J = np.sum(DELS)
+    J = np.array([np.sum(DELS)])
 
     #J_list=np.zeros(solver.problem.farm.numturbs+2)
     #J_list[0]=solver.simTime
@@ -126,4 +125,4 @@ def objective(solver, inflow_angle=0.0, first_call=False, **kwargs):
     #    np.savetxt(f,[J_list])
     #    f.close()
 
-    return J
+    return(J)

@@ -73,18 +73,18 @@ problem:
 solver:
     type: unsteady
     save_interval: 5000.0
-    final_time: 12
+    final_time: 17
     cfl_target: 0.98
     save_power: True
 
 
 optimization:
     control_types: [chord]
-    objective_type: alm_DELs
+    objective_type: 
+        alm_DELs:
+            DEL_start_time: 5.0
     u_avg_time: 2.0
     record_time: 5.0
-    alm_DELs:
-        DEL_start_time: 5.0
     optimize: False
     taylor_test: False
     save_objective: True
