@@ -249,7 +249,7 @@ class GenericSolver(object):
             kwargs.update(obj_kwargs)
             out = obj_funcs._annotated_objective(objective_func, *args, **kwargs)
             obj_list.append(out)
-        J = obj_list[2]
+        J = obj_list[3] #grab first objective 
 
         # ### Flip the sign because the objective is minimized but these values are maximized
         # for i in range(1,len(obj_list)):
