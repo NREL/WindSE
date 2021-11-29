@@ -63,14 +63,9 @@ def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwa
 
     # J = -assemble(dot(fac*solver.problem.tf,zero_field)*dx)
 
-    if solver.iter_val is None:
-        iter_val = -1
-    else:
-        iter_val = solver.iter_val
-
     if solver.save_power or solver.save_objective:
         J_list=np.zeros(solver.problem.farm.numturbs+3)
-        J_list[0]=iter_val
+        J_list[0]=solver.iter_val
         J_list[1]=solver.simTime
         if getattr(solver.problem.farm,"actuator_disks_list",None) is not None:
             for i in range(solver.problem.farm.numturbs):

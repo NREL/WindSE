@@ -74,7 +74,7 @@ class GenericSolver(object):
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
         self.simTime = 0.0
-        self.iter_val = None
+        self.iter_val = 0.0
         self.pow_saved = False
 
         ### Update attributes based on params file ###
@@ -239,13 +239,8 @@ class GenericSolver(object):
 
         annotate = self.params.dolfin_adjoint 
 
-        if self.iter_val is None:
-            iter_val = -1
-        else:
-            iter_val = self.iter_val
-
         ### Iterate over objectives ###
-        obj_list = [opt_iter, iter_val, self.simTime]
+        obj_list = [opt_iter, self.iter_val, self.simTime]
         for objective, obj_kwargs in self.objective_type.items():
             objective_split = objective.split("_#")[0]
             objective_func = obj_funcs.objective_functions[objective_split]
