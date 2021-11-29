@@ -63,9 +63,15 @@ def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwa
 
     # J = -assemble(dot(fac*solver.problem.tf,zero_field)*dx)
 
+    if solver.iter_val is None:
+        iter_val = -1
+    else:
+        iter_val = solver.iter_val
+
     if solver.save_power or solver.save_objective:
-        J_list=np.zeros(solver.problem.farm.numturbs+2)
-        J_list[0]=solver.simTime
+        J_list=np.zeros(solver.problem.farm.numturbs+3)
+        J_list[0]=iter_val
+        J_list[1]=solver.simTime
         if getattr(solver.problem.farm,"actuator_disks_list",None) is not None:
             for i in range(solver.problem.farm.numturbs):
                 yaw = solver.problem.farm.myaw[i]+inflow_angle
@@ -73,7 +79,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwa
                 tf2 = solver.problem.farm.actuator_disks_list[i] * sin(yaw)**2
                 tf3 = solver.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
                 tf = tf1*solver.problem.u_k[0]**2+tf2*solver.problem.u_k[1]**2+tf3*solver.problem.u_k[0]*solver.problem.u_k[1]
-                J_list[i+1] = assemble(dot(-tf,solver.problem.u_k)*dx,**solver.extra_kwarg)
+                J_list[i+2] = assemble(dot(-tf,solver.problem.u_k)*dx,**solver.extra_kwarg)
             else:
                 pass
                 # print("WARNING: missing individual turbine actuator disk, only able to report full farm power")
@@ -85,7 +91,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwa
 
         if first_call:
             f = open(folder_string+"power_data.txt",'w')
-            header = str("Time    "+"Turbine_%d    "*solver.problem.farm.numturbs % tuple(range(solver.problem.farm.numturbs))+"Sum"+"\n")
+            header = str("Iter_val    "+"Time    "+"Turbine_%d    "*solver.problem.farm.numturbs % tuple(range(solver.problem.farm.numturbs))+"Sum"+"\n")
             f.write(header)
         else:
             f = open(folder_string+"power_data.txt",'a')
