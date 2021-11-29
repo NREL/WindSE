@@ -60,6 +60,9 @@ wind_farm:                  # parameters for WindFarmManager
     jitter:         0.0         # magnitude of random noise added to a gridded wind farm
     numturbs:       Null        # total number of turbines
     seed:           Null        # seed to fix the randomness between runs
+
+turbines:                   # parameters for the turbine objects
+    type:           Null        # type of representation (disk2D, disk, line)
     HH:             Null        # hub height in meters
     RD:             Null        # rotor diameter in meters
     thickness:      Null        # thickness of the actuator disk in meters (usually 10% of RD)

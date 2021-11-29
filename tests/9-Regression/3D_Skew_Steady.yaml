@@ -14,14 +14,15 @@ wind_farm:
     ex_x: [-600, 600]     # x-extent of the farm     | m
     ex_y: [-600, 600]     # y-extent of the farm     | m
     seed: 5555555         # random seed for repeats  | -
+    ###################################################################
+
+turbines:
+    type: disk           # Use actuator Disks       |    
     HH: 90                # Hub Height               | m
     RD: 126.0             # Turbine Diameter         | m
     thickness: 10.5       # Effective Thickness      | m
     yaw: 0.0              # Yaw                      | rads
     axial: 0.33           # Axial Induction          | -
-    turbine_method: numpy # 
-    ###################################################################
-
 
 # Domain Parameters: Uncomment a set to change domain shape
 domain: 

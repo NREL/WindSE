@@ -36,7 +36,7 @@ def initialize(loc,updated_parameters=[]):
     from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
 
     global GridWindFarm, RandomWindFarm, ImportedWindFarm, EmptyWindFarm
-    from windse.WindFarmManager import GridWindFarm, RandomWindFarm, ImportedWindFarm, EmptyWindFarm
+    from windse.wind_farm_types import GridWindFarm, RandomWindFarm, ImportedWindFarm, EmptyWindFarm
 
     global RefineMesh, WarpMesh
     from windse.RefinementManager import RefineMesh, WarpMesh
