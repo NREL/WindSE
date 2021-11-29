@@ -74,7 +74,6 @@ class GenericSolver(object):
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
         self.simTime = 0.0
-        self.iter_theta = 0.0
         self.iter_val = 0
 
         ### Update attributes based on params file ###
@@ -220,7 +219,7 @@ class GenericSolver(object):
 
         annotate = self.params.dolfin_adjoint 
 
-        args = (self, (self.iter_theta-self.problem.dom.inflow_angle))
+        args = (self, (self.problem.dom.inflow_angle))
         kwargs = {"first_call": first_call, "annotate": annotate}
         kwargs.update(self.power_func_kwargs)
         out = obj_funcs._annotated_objective(self.power_func, *args, **kwargs)
@@ -243,7 +242,7 @@ class GenericSolver(object):
         for objective, obj_kwargs in self.objective_type.items():
             objective_split = objective.split("_#")[0]
             objective_func = obj_funcs.objective_functions[objective_split]
-            args = (self, (self.iter_theta-self.problem.dom.inflow_angle))
+            args = (self, (self.problem.dom.inflow_angle))
             kwargs = {"first_call": first_call, "annotate": annotate}
             kwargs.update(obj_kwargs)
             out = obj_funcs._annotated_objective(objective_func, *args, **kwargs)
@@ -1958,8 +1957,8 @@ class MultiAngleSolver(SteadySolver):
             self.fprint("Performing Solve {:d} of {:d}".format(i+1,len(self.angles)),special="header")
             self.fprint("Wind Angle: "+repr(theta))
             if i > 0 or not near(theta,self.problem.dom.inflow_angle):
+                self.problem.dom.inflow_angle = theta
                 self.ChangeWindAngle(theta)
-            self.iter_theta = theta
             self.iter_val = theta
             self.orignal_solve()
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")

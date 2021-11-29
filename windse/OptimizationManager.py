@@ -810,7 +810,7 @@ class ObjectiveConstraint(InequalityConstraint):
         self.obj_kwargs = obj_kwargs
 
         ### Precalculate constraint
-        angle = self.solver.iter_theta-self.solver.problem.dom.inflow_angle
+        angle = self.solver.problem.dom.inflow_angle
         self.J = self.scale*(self.objective(self.solver,angle,**self.obj_kwargs)-self.target)
         self.Jhat = ReducedFunctional(self.J, self.controls)
 
@@ -819,7 +819,7 @@ class ObjectiveConstraint(InequalityConstraint):
 
     def function(self, m):
         # Calculate legacy angle
-        angle = self.solver.iter_theta-self.solver.problem.dom.inflow_angle
+        angle = self.solver.problem.dom.inflow_angle
 
         # compute objective and subtract target
         self.cur_val = self.objective(self.solver,angle,**self.obj_kwargs)
