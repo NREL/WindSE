@@ -74,8 +74,8 @@ class GenericSolver(object):
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
         self.simTime = 0.0
-        self.iter_theta = 0.0
-        self.iter_val = 0
+        self.iter_val = 0.0
+        self.pow_saved = False
 
         ### Update attributes based on params file ###
         for key, value in self.params["solver"].items():
@@ -215,12 +215,13 @@ class GenericSolver(object):
     def EvaulatePowerFunctional(self):
 
         first_call = True
-        if self.J_saved:
+        if self.pow_saved:
             first_call = False
+        self.pow_saved = True
 
         annotate = self.params.dolfin_adjoint 
 
-        args = (self, (self.iter_theta-self.problem.dom.inflow_angle))
+        args = (self, (self.problem.dom.inflow_angle))
         kwargs = {"first_call": first_call, "annotate": annotate}
         kwargs.update(self.power_func_kwargs)
         out = obj_funcs._annotated_objective(self.power_func, *args, **kwargs)
@@ -239,16 +240,16 @@ class GenericSolver(object):
         annotate = self.params.dolfin_adjoint 
 
         ### Iterate over objectives ###
-        obj_list = [opt_iter, self.simTime]
+        obj_list = [opt_iter, self.iter_val, self.simTime]
         for objective, obj_kwargs in self.objective_type.items():
             objective_split = objective.split("_#")[0]
             objective_func = obj_funcs.objective_functions[objective_split]
-            args = (self, (self.iter_theta-self.problem.dom.inflow_angle))
+            args = (self, (self.problem.dom.inflow_angle))
             kwargs = {"first_call": first_call, "annotate": annotate}
             kwargs.update(obj_kwargs)
             out = obj_funcs._annotated_objective(objective_func, *args, **kwargs)
             obj_list.append(out)
-        J = obj_list[2]
+        J = obj_list[3] #grab first objective 
 
         # ### Flip the sign because the objective is minimized but these values are maximized
         # for i in range(1,len(obj_list)):
@@ -259,7 +260,7 @@ class GenericSolver(object):
             self.params.save_csv(output_name,data=[obj_list],subfolder=self.params.folder+"data/",mode='a')
         else:
             ### Generate the header ###
-            header = "Opt_iter, Time, "
+            header = "Opt_iter, Iter_Val, Time, "
             for name in self.objective_type.keys():
                 header += name + ", "
             header = header[:-2]
@@ -1958,8 +1959,8 @@ class MultiAngleSolver(SteadySolver):
             self.fprint("Performing Solve {:d} of {:d}".format(i+1,len(self.angles)),special="header")
             self.fprint("Wind Angle: "+repr(theta))
             if i > 0 or not near(theta,self.problem.dom.inflow_angle):
+                self.problem.dom.inflow_angle = theta
                 self.ChangeWindAngle(theta)
-            self.iter_theta = theta
             self.iter_val = theta
             self.orignal_solve()
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")

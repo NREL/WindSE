@@ -95,9 +95,11 @@ class GenericProblem(object):
     def ComputeTurbineForce(self,u,inflow_angle,simTime=0.0):
 
         ### Compute the relative yaw angle ###
-        if inflow_angle is not None:
-            inflow_angle = inflow_angle-self.dom.inflow_angle
-        else:
+        # if inflow_angle is not None:
+        #     inflow_angle = inflow_angle-self.dom.inflow_angle
+        # else:
+        #     inflow_angle = self.dom.inflow_angle
+        if inflow_angle is None:
             inflow_angle = self.dom.inflow_angle
 
         self.fprint('Computing turbine forces using %s' % (self.farm.turbine_method.upper()))
