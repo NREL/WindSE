@@ -1,0 +1,98 @@
+# General options
+general: 
+    name: 3D_Wind_Farm_AIAA_withyaw      # Name of the output folder
+    # name: 3D_Wind_Farm_AIAA_noyaw      # Name of the output folder
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    output_type: pvd
+    dolfin_adjoint: true
+
+
+# Wind Farm Parameters:
+wind_farm: 
+
+    ####################### Imported Wind Farm #######################
+    type: imported                   #                          |
+    # path: Input_Data/wind_farm.txt   # location of wind farm    | -
+    path: Input_Data/wind_farm_yaw.txt   # location of wind farm    | -
+    force: sine                      # radial force distribution| -
+    ###################################################################
+
+domain: 
+    # type: imported
+    # path: exported_mesh/
+    # mesh_path: exported_mesh/mesh.xml.gz
+    # bound_path: exported_mesh/boundaries.xml.gz
+    
+    ########################### Box Domain ############################
+    type: box              #                       |
+    x_range: [-1200, 1200] # x-range of the domain | m
+    y_range: [-1200, 1200] # y-range of the domain | m
+    z_range: [0.04, 640]   # z-range of the domain | m
+
+    # #720k DOF
+    # nx: 36                 # Number of x-nodes     | -
+    # ny: 36                 # Number of y-nodes     | -
+    # nz: 18                 # Number of z-nodes     | -
+
+    # # 300k DOF
+    # nx: 25                 # Number of x-nodes     | -
+    # ny: 25                 # Number of y-nodes     | -
+    # nz: 12                 # Number of z-nodes     | -
+
+    # 100k DOF
+    nx: 16                 # Number of x-nodes     | -
+    ny: 16                 # Number of y-nodes     | -
+    nz: 8                 # Number of z-nodes      | -
+
+    # #30k DOF
+    # nx: 10                 # Number of x-nodes     | -
+    # ny: 10                 # Number of y-nodes     | -
+    # nz: 5                 # Number of z-nodes      | -
+    ###################################################################
+
+    # ######################### Cylinder Domain ########################
+    # type: cylinder          #                       |
+    # mesh_type: mshr   # elliptic, stretch mshr|
+    # radius: 1200            # x-range of the domain | m
+    # center: [0.0, 0.0]      # y-range of the domain | m
+    # z_range: [0.0, 640]    # z-range of the domain | m
+    # nt: 80                  # segments around circle| -
+    # # nz: 10                  # Number of z-nodes     | -
+    # res: 20                 # resolution for mshr   | -
+    # # res: [20, 40, 60, 75]
+    # ##################################################################
+
+refine:
+    warp_type: split
+    warp_percent: 0.7     # percent of cells moved       | -
+    warp_height: 250       # move cell below this value   | m
+    refine_custom: [
+        [box, [  [[-750,750],[-750,750],[ 0,200]]  ]]
+    ]
+    turbine_num: 1         # number of turbine refinements| -
+    turbine_factor: 1.25   # turbine radius multiplier    | -
+
+
+function_space:
+    type: linear
+
+boundary_conditions:
+    vel_profile: log
+    HH_vel: 8.0
+    k: 0.4
+    inflow_angle: 0.785
+
+problem:
+    type: stabilized
+    viscosity: .1
+    lmax: 15
+
+
+solver:
+    type: steady
+    save_power: true
+
+# optimization:
+#     control_types: [yaw]
+#     gradient: False
+    # optimize: True

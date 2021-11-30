@@ -69,17 +69,27 @@ def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwa
         J_list[1]=solver.simTime
         if getattr(solver.problem.farm,"actuator_disks_list",None) is not None:
             for i in range(solver.problem.farm.numturbs):
-                yaw = solver.problem.farm.myaw[i]+inflow_angle
-                tf1 = solver.problem.farm.actuator_disks_list[i] * cos(yaw)**2
-                tf2 = solver.problem.farm.actuator_disks_list[i] * sin(yaw)**2
-                tf3 = solver.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
-                tf = tf1*solver.problem.u_k[0]**2+tf2*solver.problem.u_k[1]**2+tf3*solver.problem.u_k[0]*solver.problem.u_k[1]
+                #ryan's edits
+                yaw = solver.problem.farm.myaw[i]
+                # https://aip.scitation.org/doi/pdf/10.1063/5.0023746 and https://www.osti.gov/pages/biblio/1238764 for yaw exponent
+                tf=solver.problem.farm.actuator_disks_list[i]*dot(solver.problem.u_k,solver.problem.u_k)*cos(yaw)**.88
                 J_list[i+2] = assemble(dot(-tf,solver.problem.u_k)*dx,**solver.extra_kwarg)
+
+
+                #original
+                # yaw = solver.problem.farm.myaw[i]+inflow_angle
+                # tf1 = solver.problem.farm.actuator_disks_list[i] * cos(yaw)**2
+                # tf2 = solver.problem.farm.actuator_disks_list[i] * sin(yaw)**2
+                # tf3 = solver.problem.farm.actuator_disks_list[i] * 2.0 * cos(yaw) * sin(yaw)
+                # tf = tf1*solver.problem.u_k[0]**2+tf2*solver.problem.u_k[1]**2+tf3*solver.problem.u_k[0]*solver.problem.u_k[1]
+                # J_list[i+2] = assemble(dot(-tf,solver.problem.u_k)*dx,**solver.extra_kwarg)
             else:
                 pass
                 # print("WARNING: missing individual turbine actuator disk, only able to report full farm power")
 
-        J_list[-1]=float(J)
+        # J_list[-1]=float(J)
+        J_list[-1]=np.sum(J_list[2:-1])
+
 
         folder_string = solver.params.folder+"data/"
         if not os.path.exists(folder_string): os.makedirs(folder_string)

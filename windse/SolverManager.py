@@ -154,17 +154,17 @@ class GenericSolver(object):
             self.u_file = self.params.Save(u,"velocity",subfolder="solutions/",val=val)
             self.p_file = self.params.Save(p,"pressure",subfolder="solutions/",val=val)
             self.nuT_file = self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val)
-            if self.problem.dom.dim == 3:
-                self.ReyStress_file = self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val)
-                self.vertKE_file = self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val)
+            # if self.problem.dom.dim == 3:
+            #     self.ReyStress_file = self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val)
+            #     self.vertKE_file = self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val)
             self.first_save = False
         else:
             self.params.Save(u,"velocity",subfolder="solutions/",val=val,file=self.u_file)
             self.params.Save(p,"pressure",subfolder="solutions/",val=val,file=self.p_file)
             self.params.Save(self.nu_T,"eddy_viscosity",subfolder="solutions/",val=val,file=self.nuT_file)
-            if self.problem.dom.dim == 3:
-                self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val,file=self.ReyStress_file)
-                self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val,file=self.vertKE_file)
+            # if self.problem.dom.dim == 3:
+            #     self.params.Save(self.ReyStress,"Reynolds_stresses",subfolder="solutions/",val=val,file=self.ReyStress_file)
+            #     self.params.Save(self.vertKE,"Vertical KE",subfolder="solutions/",val=val,file=self.vertKE_file)
         u.vector()[:]=u.vector()[:]*self.problem.dom.xscale
         self.problem.dom.mesh.coordinates()[:]=self.problem.dom.mesh.coordinates()[:]*self.problem.dom.xscale
 
@@ -414,9 +414,9 @@ class SteadySolver(GenericSolver):
         self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
         if self.problem.dom.dim == 3:
             self.fprint("")
-            self.fprint("Projecting Reynolds Stress")
-            self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
-            self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
+            # self.fprint("Projecting Reynolds Stress")
+            # self.ReyStress = project(self.problem.ReyStress,self.problem.fs.T,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
+            # self.vertKE = project(self.problem.vertKE,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
 
         # self.nu_T = None
 
