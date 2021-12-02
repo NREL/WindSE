@@ -8,7 +8,7 @@ conda create -y --name $1
 conda activate $1
 
 ### Install conda-forge dependencies 
-conda install -y -c conda-forge fenics=2019.1.0=py38_9 dolfin-adjoint matplotlib scipy=1.4.1 slepc mshr hdf5 pyyaml memory_profiler pytest pytest-cov pytest-mpi coveralls
+conda install -y -c conda-forge fenics=2019.1.0=py38_9 dolfin-adjoint matplotlib scipy=1.4.1 slepc mshr hdf5 pyyaml memory_profiler pytest pytest-cov pytest-mpi coveralls pandas
 
 ### Install the new tsfc compiler
 pip install git+https://github.com/blechta/tsfc.git@2018.1.0
