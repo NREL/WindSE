@@ -156,6 +156,8 @@ optimization:                   # parameters for OptimizationManager
     save_objective: False           # save the objective do a file in data/
     opt_turb_id :   all             # which turbines to optimize, int or list or "all" 
     record_time:    0.0             # when to start recording for unsteady objectives float or "computed"  
+    alm_DELs:
+        DEL_start_time: 0
     u_avg_time:     0               # when to start averaging velocity for use in objective functions
     opt_routine:    SLSQP           # optimization method, choices: SLSQP, L-BFGS-B, OM_SLSQP, SNOPT (requires custom install)
     obj_ref:        1.              # Sets the value of the objective function that will be treated as 1 by the SNOPT driver             
