@@ -15,7 +15,7 @@ pip install git+https://github.com/blechta/tsfc.git@2018.1.0
 pip install git+https://github.com/blechta/COFFEE.git@2018.1.0
 pip install git+https://github.com/blechta/FInAT.git@2018.1.0
 pip install git+https://github.com/mdolab/pyoptsparse@v1.0
-pip install singledispatch networkx pulp openmdao
+pip install singledispatch networkx pulp openmdao fatpack
 
 ### Install editible version of WindSE
 pip install -e .
