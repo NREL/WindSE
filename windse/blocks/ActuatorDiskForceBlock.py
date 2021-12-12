@@ -49,8 +49,7 @@ class ActuatorDiskForceBlock(Block):
     def check_turbine_location(self,x,y):
         new_x = float(x)
         new_y = float(y)
-        # moved = np.sqrt(abs(new_x-self.old_x)**2 + abs(new_y-self.old_y)**2)
-        moved = max(abs(new_x-self.old_x), abs(new_y-self.old_y))
+        moved = np.sqrt(abs(new_x-self.old_x)**2 + abs(new_y-self.old_y)**2)
         # print(moved,self.move_tol, moved > self.move_tol)
         if moved > self.move_tol:
             self.sparse_ids = self.construct_sparse_ids(self.x, self.sparse_RDs)
