@@ -1,7 +1,7 @@
 from windse import windse_parameters
 import numpy as np
 import time, os
-from . import MeshFunction, cells, project, FiniteElement, FunctionSpace, MixedElement, assemble, dx
+from . import MeshFunction, cells, project, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters
 import matplotlib.pyplot as plt
 from pyadjoint.tape import stop_annotating 
 
@@ -157,13 +157,17 @@ class GenericWindFarm(object):
         for turb in self.turbines:
             turb.calculate_heights()
 
-    def compute_turbine_force(self,u,inflow_angle,simTime=0.0):
+    def compute_turbine_force(self,u,inflow_angle,fs,simTime):
         """
         Iterates over the turbines and adds up the turbine forces
         """
+        # store the function space
+        self.fs = fs
+
+        # compute tf!!!
         tf = 0
         for turb in self.turbines:
-            tf += turb.turbine_force(u,inflow_angle,simTime)
+            tf += turb.turbine_force(u,inflow_angle,fs,simTime)
         return tf
 
     def update_controls(self):
@@ -423,21 +427,11 @@ class GenericWindFarm(object):
             # Note: this is overkill
             if not hasattr(func,"_cpp_object"):
 
-                # find the function space
-                FS = None
-                for part in func.ufl_operands:
-                    if hasattr(part,"function_space"):
-                        FS = part.function_space
-
-                        # check if this is an appropriately sized function space
-                        if FS.dim() == func.geometric_dimension():
-                            break
-
-                # if we couldn't find a function space, we will make our own
-                if FS is None:
-                    Q  = FiniteElement('Lagrange', self.dom.mesh.ufl_cell(), 1)
-                    FS = FunctionSpace(self.dom.mesh, MixedElement([Q]*func.geometric_dimension()))
-
+                # choose an appropriate function space 
+                if func.geometric_dimension() == 1:
+                    FS = self.fs.Q
+                else:
+                    FS = self.fs.V
                 # project onto the function space
                 func = project(func,FS,solver_type='cg',preconditioner_type="hypre_amg",**self.extra_kwarg)
 

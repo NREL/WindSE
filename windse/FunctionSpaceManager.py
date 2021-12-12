@@ -56,7 +56,8 @@ class GenericFunctionSpace(object):
         self.SolutionAssigner = FunctionAssigner(self.W,[self.V,self.Q])
 
         ### Create Function Spaces for numpy turbine force ###
-        if self.turbine_method == "numpy_disks":
+        if self.turbine_method == "numpy_disk":
+            print(self.turbine_degree)
             tf_V = VectorElement(self.turbine_space,self.mesh.ufl_cell(),degree=self.turbine_degree,quad_scheme="default")
             self.tf_V = FunctionSpace(self.mesh, tf_V)
             self.tf_V0 = self.tf_V.sub(0).collapse() 

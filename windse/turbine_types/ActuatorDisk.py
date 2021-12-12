@@ -84,7 +84,7 @@ class ActuatorDisk(GenericTurbine):
 
         return actuator_disks
 
-    def turbine_force(self,u,inflow_angle,simTime=0):
+    def turbine_force(self,u,inflow_angle,fs,simTime):
         """
         This function creates a turbine force by applying 
         a spacial kernel to each turbine. This kernel is 
@@ -99,8 +99,10 @@ class ActuatorDisk(GenericTurbine):
         where :math:`r` is the distance from the center of the turbine.
 
         Args:
-            V (dolfin.FunctionSpace): The function space the turbine force will use.
-            mesh (dolfin.mesh): The mesh
+            u: the velocity field
+            inflow_angle: direction the wind is blowing (0 is west to east and positive rotates clockwise)
+            fs: the function space manager object
+            simTime: the simulation time
 
         Returns:
             tf (dolfin.Function): the turbine force.

@@ -119,7 +119,7 @@ class GenericTurbine(object):
         """
         pass
 
-    def force(self):
+    def turbine_force(self,u,inflow_angle,fs,simTime):
         """
         computes the turbine force
         """

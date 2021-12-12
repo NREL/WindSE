@@ -65,6 +65,7 @@ def assemble_adjoint_value(form, **kwargs):
         rep = 'tsfc'
     else:
         rep = 'uflacs'
+    print(rep)
     result = dolfin_adjoint.backend.assemble(form,form_compiler_parameters={'representation': rep})
     for bc in bcs:
         bc.apply(result)

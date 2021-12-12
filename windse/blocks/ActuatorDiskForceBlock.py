@@ -1,67 +1,58 @@
 from pyadjoint.block import Block
+import numpy as np
 
 class ActuatorDiskForceBlock(Block):
     '''This is the Block class that will be used to calculate adjoint 
     information for optimizations. '''
-    def __init__(self, x,farm,fs,sparse_ids,**kwargs):
+    def __init__(self, x, inflow_angle, fs, sparse_ids, turb=None, construct_sparse_ids=None):
         super(ActuatorDiskForceBlock, self).__init__()
         self.x = x
-        self.farm = farm
         self.fs = fs
+        self.inflow_angle = inflow_angle
         self.sparse_ids = sparse_ids
-        self.inflow_angle = copy.copy(farm.inflow_angle)
-        self.save_actuator = kwargs.get('save_actuator',False)
-        self.sparse_RDs = kwargs.get('sparse_RDs',2.0)
-        self.dim = farm.dom.dim
+        self.turb = turb
+        self.construct_sparse_ids = construct_sparse_ids
+        self.sparse_RDs = 2.0
+        self.dim = turb.dom.dim
 
         ### Calculate how far the turbines need to move to recalculate sparse ids ###
-        self.move_tol = 0.1*farm.dom.mesh.rmin()
+        self.move_tol = 0.1*turb.dom.mesh.rmin()
 
         ### Add dependencies on the controls ###
-        for i in range(self.farm.numturbs):
-            self.farm.mx[i].block_variable.tag = ("x",i,-1)
-            self.add_dependency(self.farm.mx[i])
+        self.turb.mx.block_variable.tag = "x"
+        self.add_dependency(self.turb.mx)
 
-            self.farm.my[i].block_variable.tag = ("y",i,-1)
-            self.add_dependency(self.farm.my[i])
+        self.turb.my.block_variable.tag = "y"
+        self.add_dependency(self.turb.my)
 
-            self.farm.myaw[i].block_variable.tag = ("yaw",i,-1)
-            self.add_dependency(self.farm.myaw[i])
+        self.turb.myaw.block_variable.tag = "yaw"
+        self.add_dependency(self.turb.myaw)
 
-            self.farm.ma[i].block_variable.tag = ("a",i,-1)
-            self.add_dependency(self.farm.ma[i])
-
-        ### Tabulate which controls matter ###
-        self.control_types = []
-        if "layout" in farm.control_types:
-            self.control_types.append("x")
-            self.control_types.append("y")
-        if "yaw" in farm.control_types:
-            self.control_types.append("yaw")
-        if "axial" in farm.control_types:
-            self.control_types.append("a")
+        self.turb.maxial.block_variable.tag = "axial"
+        self.add_dependency(self.turb.maxial)
 
         ### Record the current values for x and y ###
-        self.old_x = np.array(self.farm.mx,dtype=float)
-        self.old_y = np.array(self.farm.my,dtype=float)
+        self.old_x = self.turb.x
+        self.old_y = self.turb.x
 
         ### map ids to vector ids ###
-        self.VectorSparseIDs()
+        self.vector_sparse_ids()
 
     def __str__(self):
         return "ActuatorLineForceBlock"
 
-    def CheckTurbineLocations(self,x,y):
+    def check_turbine_location(self,x,y):
         new_x = np.array(x,dtype=float)
         new_y = np.array(y,dtype=float)
         moved = max(max(abs(new_x-self.old_x)),max(abs(new_y-self.old_y)))
         # print(moved,self.move_tol, moved > self.move_tol)
         if moved > self.move_tol:
-            self.sparse_ids = None
+            self.sparse_ids = self.construct_sparse_ids(self.x, self.sparse_RDs)
+            self.vector_sparse_ids()
         self.old_x = new_x
         self.old_y = new_y
 
-    def VectorSparseIDs(self):
+    def vector_sparse_ids(self):
         self.all_ids = np.zeros(len(self.sparse_ids)*self.dim,dtype=int)
         self.all_ids[0::self.dim] = self.dim*(self.sparse_ids)+0
         self.all_ids[1::self.dim] = self.dim*(self.sparse_ids)+1
@@ -71,65 +62,60 @@ class ActuatorDiskForceBlock(Block):
 
     def prepare_recompute_component(self, inputs, relevant_outputs):
         ### update the new controls inside the windfarm ###
-        x = inputs[0::4]
-        y = inputs[1::4]
-        yaw = inputs[2::4]
-        a = inputs[3::4]
-        self.farm.inflow_angle = self.inflow_angle
-        self.farm.UpdateControls(x=x,y=y,yaw=yaw,a=a)
+        x = inputs[0]
+        y = inputs[1]
+        yaw = inputs[2]
+        a = inputs[3]
 
         ### determine if we need to recalculate sparse_ids ###
-        self.CheckTurbineLocations(x,y)
+        self.check_turbine_location(x,y)
 
-        prepared, self.sparse_ids, actuator_array = backend_CalculateDiskTurbineForces(self.x,self.farm,self.fs,sparse_ids=self.sparse_ids,sparse_RDs=self.sparse_RDs)
+        prepared = self.turb.build_actuator_disk(self.x,self.inflow_angle,self.sparse_ids)
+
+        ### Update the turbine's actuator disk ###
+        self.turb.actuator_disk = prepared
 
         return prepared
 
     def recompute_component(self, inputs, block_variable, idx, prepared):
-        return prepared[idx]
+        return prepared
 
     def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
         ### update the new controls inside the windfarm ###
-        x = inputs[0::4]
-        y = inputs[1::4]
-        yaw = inputs[2::4]
-        a = inputs[3::4]
-        self.farm.inflow_angle = self.inflow_angle
-        self.farm.UpdateControls(x=x,y=y,yaw=yaw,a=a)
+        x = inputs[0]
+        y = inputs[1]
+        yaw = inputs[2]
+        a = inputs[3]
+
+        for test in adj_inputs:
+            print(dir(test))
+            print(dir(test.block_variable))
+            print(test.block_variable.tag)
+            exit()
 
         ### determine if we need to recalculate sparse_ids ###
-        self.CheckTurbineLocations(x,y)
+        self.check_turbine_location(x,y)
 
         prepared = {}
         for name in self.control_types:
-            # pr = cProfile.Profile()
-            # pr.enable()
-            # print("calculating "+name+" derivatives")
-            prepared[name], self.sparse_ids, actuator_array = backend_CalculateDiskTurbineForces(self.x,self.farm,self.fs,dfd=name,sparse_ids=self.sparse_ids,sparse_RDs=self.sparse_RDs)
-            # pr.disable()
-            # pr.print_stats()
-
-            # exit()
-
-        ### map ids to vector ids ###
-        self.VectorSparseIDs()
+            d_actuator = self.turb.build_actuator_disk(self.x,self.inflow_angle,self.sparse_ids,dfd=name)
+            prepared[name] = d_actuator.vector().get_local()
 
         return prepared
 
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
 
         ### Get the control type and turbine index ###
-        name, turb_idx, _ = block_variable.tag
-        print("Calculating Derivative: " +name+"_"+repr(turb_idx))
-        ### Apply derivative to previous in tape ###
-        adj_output = 0
-        for i in range(3):
-            adj_output += np.inner(adj_inputs[i].get_local(self.all_ids),prepared[name][i][:,turb_idx])
+        name = block_variable.tag
+        print("Calculating Derivative: " +name+"_"+repr(self.turb.index))
 
+        ### Apply derivative to previous in tape ###
+        adj_output = np.inner(adj_inputs[0].get_local(self.all_ids),prepared[name])
+
+        ### MPI communication
         adj_output = np.float64(adj_output)
         recv_buff = np.zeros(1, dtype=np.float64)
         self.farm.params.comm.Allreduce(adj_output, recv_buff)
         adj_output = recv_buff
 
-        # adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
         return np.array(adj_output)

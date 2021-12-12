@@ -50,16 +50,14 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     except ImportError as e:
         default_representation = 'uflacs'
 
-    # set_log_level(13)
-
-    ### Improve Solver parameters ###
+    ### Improved dolfin parameters ###
     parameters["std_out_all_processes"] = False;
     parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'        
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
     parameters['form_compiler']['representation'] = default_representation
     parameters['form_compiler']['quadrature_degree'] = windse_parameters["function_space"]["quadrature_degree"]
-
+    
 class GenericSolver(object):
     """
     A GenericSolver contains on the basic functions required by all solver objects.
@@ -414,7 +412,7 @@ class SteadySolver(GenericSolver):
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
         # self.u_k,self.p_k = self.problem.up_k.split(True)
-        self.problem.u_k,self.problem.p_k = self.problem.up_k.split(True)
+        self.problem.u_k,self.problem.p_k = self.problem.up_k.split()
 
         ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
         self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)

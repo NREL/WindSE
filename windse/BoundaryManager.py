@@ -46,7 +46,7 @@ class GenericBoundary(object):
 
         ### get the height to apply the HH_vel ###
         if self.vel_height == "HH":
-            self.vel_height = np.mean(farm.get_hub_locations()[:,2])
+            self.vel_height = np.mean(90.0)#farm.get_hub_locations()[:,2])
         if np.isnan(self.vel_height):
             raise ValueError("Hub Height not defined, likely and EmptyFarm. Please set boundary_conditions:vel_height in config yaml")
 

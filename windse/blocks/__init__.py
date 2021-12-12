@@ -26,7 +26,7 @@ def blockify(function_backend, function_block, block_kwargs={}):
     
     ### Create a wrapper around the function we are blockifying
     def blockified(*args, **kwargs):
-
+        
         ### Check if we are annotating 
         annotate = annotate_tape(kwargs)
 

@@ -104,7 +104,7 @@ class GenericProblem(object):
         if self.farm.disabled or self.farm.numturbs == 0:
             tf = Function(self.fs.V)
         else:
-            tf = self.farm.compute_turbine_force(u,inflow_angle,simTime)
+            tf = self.farm.compute_turbine_force(u,inflow_angle,self.fs,simTime)
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")

@@ -16,14 +16,8 @@ class Actuator2D(GenericTurbine):
     def update_controls(self):
         pass  
 
-    def force(self):
-        pass
-
-    def force_gradient(self):
+    def turbine_force(self,u,inflow_angle,fs,simTime):
         pass
 
     def power(self):
-        pass
-
-    def power_gradient(self):
         pass

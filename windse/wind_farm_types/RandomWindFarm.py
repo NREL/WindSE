@@ -35,7 +35,8 @@ class RandomWindFarm(GenericWindFarm):
         self.seed         = self.params["wind_farm"]["seed"]
         self.ex_x         = self.params["wind_farm"]["ex_x"]
         self.ex_y         = self.params["wind_farm"]["ex_y"]
-        self.min_sep_dist = self.params["wind_farm"]["min_sep_dist"]
+        self.radius       = self.params["turbines"]["RD"]/2.0
+        self.min_sep_dist = self.params["wind_farm"]["min_sep_dist"]*self.radius*2
 
         self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0],self.ex_x[1]))
         self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0],self.ex_y[1]))
@@ -58,7 +59,7 @@ class RandomWindFarm(GenericWindFarm):
         # This assigns numbers in the range (x_range[0], x_range[1])
         rand_pt[0] = np.random.uniform(x_range[0], x_range[1])
         rand_pt[1] = np.random.uniform(y_range[0], y_range[1])
-        
+
         return rand_pt
 
     def build_random_samples(self, N, x_range, y_range, min_dist, x_padding=None, y_padding=None):
@@ -93,7 +94,7 @@ class RandomWindFarm(GenericWindFarm):
                     dx_2 = (rand_samples[0:k, :] - new_pt)**2
                     dist_2 = np.sum(dx_2, axis = 1)
                                     
-                    if np.amin(dist_2) < min_dist**2:
+                    if np.amin(dist_2) < min_dist**2: # I think this need to be converted 
                         collision = True
                     else:
                         collision = False

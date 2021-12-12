@@ -6,7 +6,7 @@ from windse.turbine_types import turbine_dict
 ### Check if we need dolfin_adjoint ###
 if windse_parameters.dolfin_adjoint:
     from dolfin_adjoint import *
-    
+
 ### import the wind farm types
 from .GenericWindFarm  import GenericWindFarm
 from .GridWindFarm     import GridWindFarm

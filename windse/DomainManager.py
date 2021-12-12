@@ -44,6 +44,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     parameters["refinement_algorithm"] = "plaza_with_parent_facets"
 
 
+
 def Elliptical_Grid(x, y, z, radius):
     #x_hat = x sqrt(1 - y^2/2)
     #y_hat = y sqrt(1 - x^2/2)
