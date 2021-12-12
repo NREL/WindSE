@@ -7,20 +7,23 @@ class Actuator2D(GenericTurbine):
 
         ### special stuff here ###
 
-    def LoadParameters():
+    def load_parameters(self):
         pass
         
-    def UpdateControls():
+    def create_controls(self):
         pass
 
-    def Force():
+    def update_controls(self):
+        pass  
+
+    def force(self):
         pass
 
-    def ForceGradient():
+    def force_gradient(self):
         pass
 
-    def Power():
+    def power(self):
         pass
 
-    def PowerGradient():
+    def power_gradient(self):
         pass

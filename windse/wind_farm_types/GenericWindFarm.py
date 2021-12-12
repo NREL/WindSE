@@ -1,4 +1,9 @@
 from windse import windse_parameters
+import numpy as np
+import time, os
+from . import MeshFunction, cells, project, FiniteElement, FunctionSpace, MixedElement, assemble, dx
+import matplotlib.pyplot as plt
+from pyadjoint.tape import stop_annotating 
 
 class GenericWindFarm(object):
     """
@@ -20,43 +25,62 @@ class GenericWindFarm(object):
         self.debug_mode = self.params.debug_mode
 
         # Load any global parameter
+        self.disabled     = self.params["wind_farm"]["disabled"]
         self.turbine_type = self.params["turbines"]["type"]
+
+        # Set any global flags
+        self.func_first_save = True
+        self.power_first_save = True
 
         # Init blank turbine list
         self.turbines = []
 
+        # Get Optimization Data for plotting
+        self.optimizing = False
+        if self.params.performing_opt_calc:
+            self.layout_bounds = self.params["optimization"]["layout_bounds"]
+            self.control_types = self.params["optimization"]["control_types"]
+            self.optimizing = True
+
+        ### extra_kwargs will reduce overhead on operations that we don't want dolfin_adjoint to track 
+        self.extra_kwarg = {}
+        if self.params.dolfin_adjoint:
+            self.extra_kwarg["annotate"] = False
+
         # Setup the wind farm (eventually this will happen outside the init)
         self.fprint(f"Generating {self.name}",special="header")
-        self.Setup()
+        self.setup()
         self.fprint(f"{self.name} Generated",special="footer")
 
-    def Setup(self):
+    def setup(self):
         """
         This function builds the wind farm as well as sets up the turbines
         """  
-        self.LoadParameters()      
-        self.initial_turbine_locations = self.InitializeTurbineLocations()
+        self.load_parameters()      
+        self.fprint("Number of Turbines: {:d}".format(self.numturbs))
+        self.fprint("Type of Turbines: {}".format(self.turbine_type))
+        self.initial_turbine_locations = self.initialize_turbine_locations()
 
-        self.fprint("Setting Up Turbines",special="header")
-        self.SetupTurbines()
+        self.fprint("Setting Up Turbines: ",special="header")
+        self.setup_turbines()
         self.fprint("Turbines Set up",special="footer")
 
-        self.DebugOutput() 
+        self.debug_output() 
 
-    def LoadParameters(self):
+    def load_parameters(self):
         """
         This function will parse the parameters from the yaml file
         """  
         raise NotImplementedError(type(self))
 
-    def InitializeTurbineLocations():
+    def initialize_turbine_locations():
         """
         This function will compute the initial locations of the turbines in the farm
         It must return an Nx2 array where N is the number of turbines
         """
         raise NotImplementedError(type(self))
 
-    def SetupTurbines(self):
+    def setup_turbines(self):
         """
         Using the parameters and initial locations this function will populate the list of turbines
         """
@@ -65,64 +89,401 @@ class GenericWindFarm(object):
         for i,(x,y) in enumerate(self.initial_turbine_locations):
             self.turbines.append(turbine_method(i,x,y,self.dom))
 
-    def ComputeTurbineForce(self):
+    def get_hub_locations(self):
+        """
+        returns a nx3 numpy array containing the x, y, and z location of the turbine hubs
+        """
+        temp = np.zeros((self.numturbs,3))
+        for i,turb in enumerate(self.turbines):
+            temp[i] = [turb.mx,turb.my,turb.mz]
+        return temp
+
+    def get_ground_heights(self):
+        """
+        returns a nx1 numpy array containing the hight of the ground directly below the turbine hub
+        """
+        temp = np.zeros(self.numturbs)
+        for i,turb in enumerate(self.turbines):
+            temp[i] = turb.ground
+        return temp
+
+    def get_rotor_diameters(self):
+        """
+        returns a nx1 numpy array containing the rotor diameter of the turbine hubs
+        """
+        temp = np.zeros(self.numturbs)
+        for i,turb in enumerate(self.turbines):
+            temp[i] = turb.RD
+        return temp
+
+    def get_yaw_angles(self):
+        """
+        returns a nx1 numpy array containing the rotor diameter of the turbine hubs
+        """
+        temp = np.zeros(self.numturbs)
+        for i,turb in enumerate(self.turbines):
+            temp[i] = turb.myaw
+        return temp
+
+    def calculate_farm_bounding_box(self):
+        """
+        This functions takes into consideration the turbine locations, diameters, 
+        and hub heights to create lists that describe the extent of the windfarm.
+        These lists are append to the parameters object.
+        """
+        x,y,z = self.get_hub_locations().T
+        RD = self.get_rotor_diameters()
+        ground = self.get_ground_heights()
+
+        ### Locate the extreme turbines ### 
+        x_min = np.argmin(x)
+        x_max = np.argmax(x)
+        y_min = np.argmin(y)
+        y_max = np.argmax(y)
+        z_min = np.argmin(z)
+        z_max = np.argmax(z)
+
+        ### Calculate the extent of the farm ###
+        self.ex_x = [x[x_min]-RD[x_min]/2.0,x[x_max]+RD[x_max]/2.0]
+        self.ex_y = [y[y_min]-RD[y_min]/2.0,y[y_max]+RD[y_max]/2.0]
+        self.ex_z = [min(ground),z[z_max]+RD[z_max]/2.0]
+        
+        return [self.ex_x,self.ex_y,self.ex_z]
+
+    def update_heights(self):
+        """
+        updates the hub height for all turbines in farm 
+        """
+        for turb in self.turbines:
+            turb.calculate_heights()
+
+    def compute_turbine_force(self,u,inflow_angle,simTime=0.0):
         """
         Iterates over the turbines and adds up the turbine forces
         """
-        pass
+        tf = 0
+        for turb in self.turbines:
+            tf += turb.turbine_force(u,inflow_angle,simTime)
+        return tf
 
-    def UpdateControls(self):
+    def update_controls(self):
         """
+        iterates over the controls list assigns self.<name> to the control, self.m<name> 
         """
-        pass
+        for turb in self.turbines:
+            for control_name in turb.controls_list:
+                val = getattr(turb,control_name)
+                mval = getattr(turb,"m"+control_name)
+                if isinstance(mval,list):
+                    for i in range(len(mval)):
+                        mval[i].assign(val[i])
+                else:
+                    mval.assign(val)
 
-    def UpdateTurbines(self):
+            turb.calculate_heights()
+
+    def update_turbines(self):
         """
         Updates the turbines
         """
         pass
 
-    def UpdateTurbineForce(self):
+    def update_turbine_force(self):
         """
         Updates the turbine force
         """
         pass
 
-    def GetTurbineLocation(self):
+    def compute_power(self, u):
         """
-        returns a nx3 numpy array containing the x, y, and z location of the turbine hubs
+        Computes the power for the full farm
         """
-        pass
 
-    def DebugOutput(self):
+        ### Build the integrand
+        val = 0
+        for turb in self.turbines:
+            val += turb.power(u)
+
+        ### Assemble
+        J = assemble(val*dx)
+
+        return J
+
+    def save_power(self, u, iter_val = 0.0, simTime = 0.0):
+        """
+        saves the power output for each turbine
+        """
+
+        J_list=np.zeros(self.numturbs+3)
+        J_list[0]=iter_val
+        J_list[1]=simTime
+        with stop_annotating():
+            for i,turb in enumerate(self.turbines):
+                J_list[i+2] = assemble(turb.power(u)*dx)
+
+        J_list[-1]=sum(J_list[2:])
+
+        folder_string = self.params.folder+"data/"
+        if not os.path.exists(folder_string): os.makedirs(folder_string)
+
+        if self.power_first_save:
+            header = str("Iter_val    "+"Time    "+"Turbine_%d    "*self.numturbs % tuple(range(self.numturbs))+"Sum")
+            self.params.save_csv("power_data",header=header,data=[J_list],subfolder=self.params.folder+"data/",mode='w')
+            self.power_first_save = False
+        else:
+            self.params.save_csv("power_data",data=[J_list],subfolder=self.params.folder+"data/",mode='a')
+
+    def debug_output(self):
         """
         This function computes and save any output needed for regression tests
         """
-        pass
+        if self.debug_mode:
 
-    def PlotFarm(self):
-        """
-        saves a plot of all the turbines current location and yaw
-        """
-        pass
+            # Get useful values
+            x, y, z = self.get_hub_locations().T
+            yaw = self.get_yaw_angles()
 
-    def PlotChord(self):
+            # tag global statistics
+            self.tag_output("min_x", np.min(x))
+            self.tag_output("max_x", np.max(x))
+            self.tag_output("avg_x", np.mean(x))
+            self.tag_output("min_y", np.min(y))
+            self.tag_output("max_y", np.max(y))
+            self.tag_output("avg_y", np.mean(y))
+            self.tag_output("min_z", np.min(z))
+            self.tag_output("max_z", np.max(z))
+            self.tag_output("avg_z", np.mean(z))
+            self.tag_output("min_yaw", np.min(yaw))
+            self.tag_output("max_yaw", np.max(yaw))
+            self.tag_output("avg_yaw", np.mean(yaw))
+
+            # iterate through all turbines
+            for turb in self.turbines:
+                turb.debug_output()
+
+    def plot_farm(self,show=False,filename="wind_farm",objective_value=None):
+        """
+        This function plots the locations of each wind turbine and
+        saves the output to output/.../plots/
+
+        :Keyword Arguments:
+            * **show** (*bool*): Default: True, Set False to suppress output but still save.
+        """
+        if self.numturbs == 0:
+            return
+
+        ### Create the path names ###
+        folder_string = self.params.folder+"/plots/"
+        file_string = self.params.folder+"/plots/"+filename+".pdf"
+
+        ### Check if folder exists ###
+        if not os.path.exists(folder_string) and self.params.rank == 0: os.makedirs(folder_string)
+
+        ### Collect turbine data
+        x, y, z = self.get_hub_locations().T
+        yaw = self.get_yaw_angles()
+        RD = self.get_rotor_diameters()
+
+        ### Create a list that outlines the extent of the farm ###
+        if self.optimizing and "layout" in self.control_types and self.layout_bounds != "wind_farm":
+            ex_list_x = [self.layout_bounds[0][0],self.layout_bounds[0][1],self.layout_bounds[0][1],self.layout_bounds[0][0],self.layout_bounds[0][0]]
+            ex_list_y = [self.layout_bounds[1][0],self.layout_bounds[1][0],self.layout_bounds[1][1],self.layout_bounds[1][1],self.layout_bounds[1][0]]
+        else:
+            ex_list_x = [self.ex_x[0],self.ex_x[1],self.ex_x[1],self.ex_x[0],self.ex_x[0]]
+            ex_list_y = [self.ex_y[0],self.ex_y[0],self.ex_y[1],self.ex_y[1],self.ex_y[0]]
+
+        ### Generate and Save Plot ###
+        fig, ax = plt.subplots()
+        if hasattr(self.dom,"boundary_line"):
+            ax.plot(*self.dom.boundary_line/self.dom.xscale,c="k")
+        ax.plot(np.array(ex_list_x)/self.dom.xscale, np.array(ex_list_y)/self.dom.xscale,c="r")
+
+        ### Plot Blades
+        for i in range(self.numturbs):
+            blade_n = [np.cos(yaw[i]),np.sin(yaw[i])]
+            rr = RD[i]/2.0
+            blade_x = np.array([x[i]+rr*blade_n[1],x[i]-rr*blade_n[1]])/self.dom.xscale
+            blade_y = np.array([y[i]-rr*blade_n[0],y[i]+rr*blade_n[0]])/self.dom.xscale
+            ax.plot(blade_x,blade_y,c='k',linewidth=2,zorder=1)
+
+        ### Choose coloring for the turbines ###
+        if isinstance(objective_value,(list,np.ndarray)):
+            coloring = objective_value
+        else:
+            coloring = np.array(z)/self.dom.xscale
+
+        ### Plot Hub Locations
+        p=ax.scatter(x/self.dom.xscale,y/self.dom.xscale,c=coloring,cmap="coolwarm",edgecolors=(0, 0, 0, 1),s=20,zorder=2)
+        # p=plt.scatter(x,y,c="k",s=70)
+        plt.xlim(self.dom.x_range[0]/self.dom.xscale,self.dom.x_range[1]/self.dom.xscale)
+        plt.ylim(self.dom.y_range[0]/self.dom.xscale,self.dom.y_range[1]/self.dom.xscale)
+        clb = plt.colorbar(p)
+        clb.ax.set_ylabel('Hub Elevation')
+
+        ### Annotate ###
+        for i in range(self.numturbs):
+            ax.annotate(i, (x[i]/self.dom.xscale,y[i]/self.dom.xscale),(5,0),textcoords='offset pixels')
+
+        if objective_value is None:
+            plt.title("Location of the Turbines")
+        elif isinstance(objective_value,(list,np.ndarray)):
+            plt.title("Objective Value: {: 5.6f}".format(sum(objective_value)))
+        else:
+            plt.title("Objective Value: {: 5.6f}".format(objective_value))
+
+        plt.savefig(file_string, transparent=True)
+
+        if show:
+            plt.show()
+
+        plt.close()
+
+    def plot_chord(self,show=False,filename="chord_profiles",objective_value=None, bounds=None):
         """
         saves a plot of the chord for each turbine?
         """
-        pass
 
-    def SaveWindFarm(self):
+        ### Create the path names ###
+        folder_string = self.params.folder+"/plots/"
+        file_string = self.params.folder+"/plots/"+filename+".pdf"
+
+        ### Check if folder exists ###
+        if not os.path.exists(folder_string) and self.params.rank == 0: os.makedirs(folder_string)
+
+        ### Calculate x values ###
+        baseline_chord = self.turbines[0].get_baseline_chord()
+        baseline_blade_segments = len(baseline_chord)
+        x = np.linspace(0,1,baseline_blade_segments)
+
+        ### Plot Chords ###
+        plt.figure()
+        plt.plot(x,baseline_chord,label="baseline",c="k")
+        if bounds is None:
+            lower=[]
+            upper=[]
+            c_avg = 0
+            for k, seg_chord in enumerate(baseline_chord):
+                    modifier = 2.0
+                    max_chord = self.turbines[0].max_chord
+                    lower.append(seg_chord/modifier)
+                    upper.append(max(min(seg_chord*modifier,max_chord),c_avg))
+                    c_avg = (c_avg*k+seg_chord)/(k+1)
+            plt.plot(x,lower,"--r",label="Optimization Boundaries")
+            plt.plot(x,upper,"--r")
+        else:
+            plt.plot(x,bounds[0][-baseline_blade_segments:],"--r",label="Optimization Boundaries")
+            plt.plot(x,bounds[1][-baseline_blade_segments:],"--r")
+
+        for turb in self.turbines:
+            x = np.linspace(0,1,turb.blade_segments)
+            y = np.array(turb.chord,dtype=float)
+            plt.plot(x,y,'.-',label=turb.index)
+
+        plt.xlim(0,1)
+        if objective_value is None:
+            plt.title("Chord along blade span")
+        elif isinstance(objective_value,(list,np.ndarray)):
+            plt.title("Objective Value: {: 5.6f}".format(sum(objective_value)))
+        else:
+            plt.title("Objective Value: {: 5.6f}".format(objective_value)) 
+        plt.xlabel("Blade Span")      
+        plt.ylabel("Chord")
+        plt.legend()      
+
+        plt.savefig(file_string, transparent=True)
+
+        if show:
+            plt.show()
+
+        plt.close()
+
+    def save_functions(self,val=0):
+        """
+        This function call the prepare_saved_functions from each turbine, combines the functions and saves them.
+        It then check to see if it can save the function out right and if not it projects. 
+        "val" can be the time, or angle, its just the iterator for saving mulitple steps
+        Note: this function is way over engineered!
+        """
+
+        # gather functions
+        func_list = None
+        for turb in self.turbines:
+            func_list = turb.prepare_saved_functions(func_list)
+
+        # prepare to store file pointer if needed
+        if self.func_first_save:
+            self.func_files = []
+
+        # save gathered
+        for i, func_to_save in enumerate(func_list):
+            func = func_to_save[0]
+            func_name = func_to_save[1]
+
+            # Check if function is in a save able form, if not, project ###
+            # Note: this is overkill
+            if not hasattr(func,"_cpp_object"):
+
+                # find the function space
+                FS = None
+                for part in func.ufl_operands:
+                    if hasattr(part,"function_space"):
+                        FS = part.function_space
+
+                        # check if this is an appropriately sized function space
+                        if FS.dim() == func.geometric_dimension():
+                            break
+
+                # if we couldn't find a function space, we will make our own
+                if FS is None:
+                    Q  = FiniteElement('Lagrange', self.dom.mesh.ufl_cell(), 1)
+                    FS = FunctionSpace(self.dom.mesh, MixedElement([Q]*func.geometric_dimension()))
+
+                # project onto the function space
+                func = project(func,FS,solver_type='cg',preconditioner_type="hypre_amg",**self.extra_kwarg)
+
+            # save, if first time, store the file location pointers
+            if self.func_first_save:
+                out_file = self.params.Save(func,func_name,subfolder="functions/",val=val)
+                self.func_files.append(out_file)
+            else:
+                self.params.Save(func, func_name,subfolder="functions/",val=val,file=self.func_files[i])
+        
+        # Flip the flag!
+        self.func_first_save = False
+
+    def save_wind_farm(self,val=None,filename="wind_farm"):
         """
         saves a text file containing the wind_farm and turbine parameters
         """
-        pass
+        folder_string = self.params.folder+"/data/"
+        if val is not None:
+            file_string = self.params.folder+"/data/"+filename+"_"+repr(val)+".txt"
+        else:
+            file_string = self.params.folder+"/data/"+filename+".txt"
 
-    def SaveTurbineForce(self):
-        """
-        save the turbine force as a paraviewable function
-        """
-        pass
+        ### Check if folder exists ###
+        if not os.path.exists(folder_string) and self.params.rank == 0: os.makedirs(folder_string)
+
+        ### Define the header string ###
+        head_str="#    x    y    HH    Yaw    Diameter    Thickness    Axial_Induction"
+
+        ### Get quantities ###
+        x, y, z = self.get_hub_locations().T
+        HH = z-self.get_ground_heights()
+        yaw = self.get_yaw_angles()
+        RD = self.get_rotor_diameters()
+
+        ### Might not need these anymore
+        thickness = np.zeros(self.numturbs)
+        axial = np.zeros(self.numturbs)
+        for i,turb in enumerate(self.turbines):
+            thickness[i] = turb.thickness
+            axial[i] = turb.axial
+
+        ### Save text file ###
+        output = np.array([x, y, HH, yaw, RD, thickness, axial])
+        np.savetxt(file_string,output.T,header=head_str)
+
 
 
 
@@ -165,11 +526,12 @@ class GenericWindFarm(object):
         d = self.dom.dim
 
         ### Get Turbine Coordinates ###
-        turb_x = np.array(self.x)
-        turb_y = np.array(self.y)
+        turb_locs = self.get_hub_locations()
+        turb_x = turb_locs[:,0]
+        turb_y = turb_locs[:,1]
         if self.dom.dim == 3:
             turb_z0 = self.dom.z_range[0]-radius
-            turb_z1 = self.z+radius
+            turb_z1 = turb_locs[:,2]+radius
 
         self.fprint("Marking Near Turbine")
         mark_start = time.time()
@@ -207,7 +569,7 @@ class GenericWindFarm(object):
         self.dom.Refine(cell_f)
 
         ### Recompute Heights with new mesh ###
-        self.CalculateHeights()
+        self.update_heights()
 
         refine_stop = time.time()
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
@@ -232,10 +594,11 @@ class GenericWindFarm(object):
         d = self.dom.dim
 
         ### Get Turbine Coordinates ###
-        turb_x = np.array(self.x)
-        turb_y = np.array(self.y)
+        turb_locs = self.get_hub_locations()
+        turb_x = turb_locs[:,0]
+        turb_y = turb_locs[:,1]
         if self.dom.dim == 3:
-            turb_z = np.array(self.z)
+            turb_z = turb_locs[:,2]
 
         self.fprint("Marking Near Turbine")
         mark_start = time.time()
@@ -292,7 +655,7 @@ class GenericWindFarm(object):
         self.dom.Refine(cell_f)
 
         ### Recompute Heights with new mesh ###
-        self.CalculateHeights()
+        self.update_heights()
 
         refine_stop = time.time()
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
@@ -315,11 +678,12 @@ class GenericWindFarm(object):
         d = self.dom.dim
 
         ### Get Turbine Coordinates ###
-        turb_x = np.array(self.x)
-        turb_y = np.array(self.y)
+        turb_locs = self.get_hub_locations()
+        turb_x = turb_locs[:,0]
+        turb_y = turb_locs[:,1]
         if self.dom.dim == 3:
             turb_z0 = self.dom.z_range[0]-radius
-            turb_z1 = self.z+radius
+            turb_z1 = turb_locs[:,2]+radius
 
         self.fprint("Marking Near Turbine")
         mark_start = time.time()
@@ -390,7 +754,7 @@ class GenericWindFarm(object):
         self.dom.Refine(cell_f)
 
         ### Recompute Heights with new mesh ###
-        self.CalculateHeights()
+        self.update_heights()
 
         refine_stop = time.time()
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
@@ -413,10 +777,11 @@ class GenericWindFarm(object):
         d = self.dom.dim
 
         ### Get Turbine Coordinates ###
-        turb_x = np.array(self.x)
-        turb_y = np.array(self.y)
+        turb_locs = self.get_hub_locations()
+        turb_x = turb_locs[:,0]
+        turb_y = turb_locs[:,1]
         if self.dom.dim == 3:
-            turb_z = np.array(self.z)
+            turb_z = turb_locs[:,2]
             
 
         self.fprint("Marking Near Turbine")
@@ -450,7 +815,7 @@ class GenericWindFarm(object):
         self.dom.Refine(cell_f)
 
         ### Recompute Heights with new mesh ###
-        self.CalculateHeights()
+        self.update_heights()
 
         refine_stop = time.time()
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")

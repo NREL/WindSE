@@ -210,9 +210,9 @@ def SetupSimulation(params_loc=None):
     problem = BuildProblem(params,dom,farm)
     solver = BuildSolver(params,problem)
 
-    farm.PlotFarm(params["wind_farm"]["display"])
-    if farm.chord is not None:
-        farm.PlotChord(params["wind_farm"]["display"])
+    farm.plot_farm(params["wind_farm"]["display"])
+    if params["turbines"]["type"] == "alm" or params["turbines"]["force"] == "chord":
+        farm.plot_chord(params["wind_farm"]["display"])
 
 
     return params, problem, solver

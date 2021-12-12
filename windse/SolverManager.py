@@ -24,6 +24,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     from mpmath import hyper
     import cProfile
     import pstats
+    from pyadjoint.tape import stop_annotating 
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -31,9 +32,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
-        from windse.dolfin_adjoint_helper import Marker, ControlUpdater
-    else:
-        from windse.helper_functions import ControlUpdater
+        from windse.blocks import blockify, MarkerBlock, ControlUpdaterBlock
 
     ### Import objective functions ###
     import windse.objective_functions as obj_funcs
@@ -105,37 +104,40 @@ class GenericSolver(object):
             elif isinstance(self.opt_turb_id, str):
                 self.opt_turb_id = [int(self.opt_turb_id)]
 
+        # blockify custom functions so dolfin adjoint can track them
+        if self.params.performing_opt_calc:
+        #     self.marker = blockify(self.marker,MarkerBlock)
+            self.control_updater = blockify(self.control_updater,ControlUpdaterBlock)
+
         #Check if we need to save the power output
         if self.save_power:
-            self.power_func = obj_funcs.objective_functions[self.power_type]
-            self.power_func_kwargs = obj_funcs.objective_kwargs[self.power_type]
             self.J = 0.0
             self.J_saved = False
 
     def DebugOutput(self,t=None,i=None):
         if self.debug_mode:
+            with stop_annotating():
+                if self.problem.dom.dim == 3:
+                    ux, uy, uz = self.problem.u_k.split(True)
+                else:
+                    ux, uy = self.problem.u_k.split(True)
 
-            if self.problem.dom.dim == 3:
-                ux, uy, uz = self.problem.u_k.split(True)
-            else:
-                ux, uy = self.problem.u_k.split(True)
+                if t is None:
+                    suffix = ""
+                else:
+                    suffix = "_"+repr(i)
+                    self.tag_output("time"+suffix,t)
 
-            if t is None:
-                suffix = ""
-            else:
-                suffix = "_"+repr(i)
-                self.tag_output("time"+suffix,t)
-
-            self.tag_output("min_x_vel"+suffix,ux.vector().min()) # probably not the fastest way to get the average velocity
-            self.tag_output("max_x_vel"+suffix,ux.vector().max()) # probably not the fastest way to get the average velocity
-            self.tag_output("avg_x_vel"+suffix,assemble(ux*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
-            self.tag_output("min_y_vel"+suffix,uy.vector().min()) # probably not the fastest way to get the average velocity
-            self.tag_output("max_y_vel"+suffix,uy.vector().max()) # probably not the fastest way to get the average velocity
-            self.tag_output("avg_y_vel"+suffix,assemble(uy*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
-            if self.problem.dom.dim == 3:
-                self.tag_output("min_z_vel"+suffix,uz.vector().min()) # probably not the fastest way to get the average velocity
-                self.tag_output("max_z_vel"+suffix,uz.vector().max()) # probably not the fastest way to get the average velocity
-                self.tag_output("avg_z_vel"+suffix,assemble(uy*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
+                self.tag_output("min_x_vel"+suffix,ux.vector().min()) # probably not the fastest way to get the average velocity
+                self.tag_output("max_x_vel"+suffix,ux.vector().max()) # probably not the fastest way to get the average velocity
+                self.tag_output("avg_x_vel"+suffix,assemble(ux*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
+                self.tag_output("min_y_vel"+suffix,uy.vector().min()) # probably not the fastest way to get the average velocity
+                self.tag_output("max_y_vel"+suffix,uy.vector().max()) # probably not the fastest way to get the average velocity
+                self.tag_output("avg_y_vel"+suffix,assemble(uy*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
+                if self.problem.dom.dim == 3:
+                    self.tag_output("min_z_vel"+suffix,uz.vector().min()) # probably not the fastest way to get the average velocity
+                    self.tag_output("max_z_vel"+suffix,uz.vector().max()) # probably not the fastest way to get the average velocity
+                    self.tag_output("avg_z_vel"+suffix,assemble(uy*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
 
 
 
@@ -214,17 +216,11 @@ class GenericSolver(object):
 
     def EvaulatePowerFunctional(self):
 
-        first_call = True
-        if self.pow_saved:
-            first_call = False
-        self.pow_saved = True
-
-        annotate = self.params.dolfin_adjoint 
-
-        args = (self, (self.problem.dom.inflow_angle))
-        kwargs = {"first_call": first_call, "annotate": annotate}
-        kwargs.update(self.power_func_kwargs)
-        out = obj_funcs._annotated_objective(self.power_func, *args, **kwargs)
+        kwargs = {
+            "iter_val": self.iter_val, 
+            "simTime": self.simTime
+        }
+        out = self.problem.farm.save_power(self.problem.u_k, **kwargs)
 
         return out
 
@@ -272,6 +268,16 @@ class GenericSolver(object):
         self.fprint("Complete: {:1.2f} s".format(stop-start),special="footer")
         return J
 
+    def marker(self, u, simTime, adj_tape_file):
+        return u
+
+    def control_updater(self, J, problem, time=None):
+        return J
+
+
+
+
+
 class SteadySolver(GenericSolver):
     """
     This solver is for solving the steady state problem
@@ -297,7 +303,7 @@ class SteadySolver(GenericSolver):
         if "height" in self.params.output and self.problem.dom.dim == 3:
             self.problem.bd.SaveHeight(val=self.iter_val)
         if "turbine_force" in self.params.output:
-            self.problem.farm.SaveActuatorDisks(val=self.iter_val)
+            self.problem.farm.save_functions(val=self.iter_val)
         self.fprint("Finished",special="footer")
 
         # exit()
@@ -438,7 +444,7 @@ class SteadySolver(GenericSolver):
         if self.optimizing or self.save_objective:
             self.J += self.EvaluateObjective()
             # self.J += self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle)) 
-            self.J = ControlUpdater(self.J, self.problem)
+            self.J = self.control_updater(self.J, self.problem)
 
         if self.save_power:
             self.EvaulatePowerFunctional()
@@ -714,7 +720,7 @@ class IterativeSteadySolver(GenericSolver):
         if self.optimizing or self.save_objective:
             self.J += self.EvaluateObjective()
             # self.J += self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle)) 
-            self.J = ControlUpdater(self.J, self.problem)
+            self.J = self.control_updater(self.J, self.problem)
 
         if self.save_power and "power":
             self.EvaulatePowerFunctional()
@@ -1059,7 +1065,7 @@ class UnsteadySolver(GenericSolver):
                 # e.g., actuator disks
                 self.problem.alm_power = np.zeros(self.problem.farm.numturbs)
                 self.problem.alm_power_dolfin = np.zeros(self.problem.farm.numturbs)
-                self.J = ControlUpdater(self.J, self.problem, time=self.simTime)
+                self.J = self.control_updater(self.J, self.problem, time=self.simTime)
 
                 # exit()
             toc = time.time()

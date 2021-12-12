@@ -7,20 +7,38 @@ class ActuatorLine(GenericTurbine):
 
         ### special stuff here ###
 
-    def LoadParameters():
+
+    def get_baseline_chord(self):
+        '''
+        This function need to return the baseline chord as a numpy array with length num_blade_segments
+        '''
+        pass
+
+
+    def load_parameters(self):
+
+        self.max_chord = self.params["turbines"]["max_chord"]
+
         pass
         
-    def UpdateControls():
+    def create_controls(self):
+        self.controls_list = ["x","y","yaw","chord","lift","drag"] # this is just part of the function as an example of the types of controls 
         pass
 
-    def Force():
+    def update_controls(self):
+        pass  
+
+    def force(self):
         pass
 
-    def ForceGradient():
+    def force_gradient(self):
         pass
 
-    def Power():
+    def power(self):
         pass
 
-    def PowerGradient():
+    def power_gradient(self):
+        pass
+
+    def prepare_saved_functions(self, func_list):
         pass

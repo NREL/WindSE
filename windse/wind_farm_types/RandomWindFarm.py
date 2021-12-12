@@ -11,11 +11,7 @@ class RandomWindFarm(GenericWindFarm):
 
             wind_farm: 
                 #                     # Description              | Units
-                HH: 90                # Hub Height               | m
-                RD: 126.0             # Turbine Diameter         | m
-                thickness: 10.5       # Effective Thickness      | m
-                yaw: 0.0              # Yaw                      | rads
-                axial: 0.33           # Axial Induction          | -
+                type: random
                 ex_x: [-1500, 1500]   # x-extent of the farm     | m
                 ex_y: [-1500, 1500]   # y-extent of the farm     | m
                 numturbs: 36          # Number of Turbines       | -
@@ -34,20 +30,18 @@ class RandomWindFarm(GenericWindFarm):
         self.name = "Random Farm"
         super(RandomWindFarm, self).__init__(dom)
 
-    def LoadParameters(self):
+    def load_parameters(self):
         self.numturbs     = self.params["wind_farm"]["numturbs"]
         self.seed         = self.params["wind_farm"]["seed"]
         self.ex_x         = self.params["wind_farm"]["ex_x"]
         self.ex_y         = self.params["wind_farm"]["ex_y"]
         self.min_sep_dist = self.params["wind_farm"]["min_sep_dist"]
 
-        self.fprint("Number of Turbines: {:d}".format(self.numturbs))
-        self.fprint("Type of Turbines: {}".format(self.turbine_type))
         self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0],self.ex_x[1]))
         self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0],self.ex_y[1]))
         self.fprint("Random Seed: " + repr(self.seed))
 
-    def InitializeTurbineLocations(self):
+    def initialize_turbine_locations(self):
         ### Check if random seed is set ###
         if self.seed is not None:
             np.random.seed(self.seed)

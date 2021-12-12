@@ -25,13 +25,10 @@ def initialize(loc,updated_parameters=[]):
 
     windse_parameters.Load(loc,updated_parameters=updated_parameters)
 
-    global BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce, Optimizer#, ReducedFunctional
-    if windse_parameters["general"].get("dolfin_adjoint", False) or main_file in ["sphinx-build", "__main__.py"]:
-        from windse.dolfin_adjoint_helper import BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce#, ReducedFunctional
-        from windse.OptimizationManager import Optimizer
-    else:
-        from windse.helper_functions import BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce
-    
+    ### Apply dolfin adjoint patches/hacks ###
+    if windse_parameters.dolfin_adjoint:
+        import windse.dolfin_adjoint_helper 
+
     global BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
     from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
 
@@ -53,3 +50,5 @@ def initialize(loc,updated_parameters=[]):
     global SteadySolver, IterativeSteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
     from windse.SolverManager import SteadySolver, IterativeSteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
 
+    global Optimizer
+    from windse.OptimizationManager import Optimizer

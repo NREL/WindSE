@@ -9,8 +9,8 @@ class ImportedWindFarm(GenericWindFarm):
 
         ### special stuff here ###
 
-    def LoadParameters():
+    def load_parameters():
         pass
 
-    def InitializeTurbineLocations():
+    def initialize_turbine_locations():
         pass

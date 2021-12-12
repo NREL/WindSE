@@ -7,8 +7,8 @@ class EmptyWindFarm(GenericWindFarm):
         self.name = "Empty Farm"
         super(EmptyWindFarm, self).__init__(dom)
 
-    def LoadParameters():
+    def load_parameters():
         pass
 
-    def InitializeTurbineLocations():
+    def initialize_turbine_locations():
         pass

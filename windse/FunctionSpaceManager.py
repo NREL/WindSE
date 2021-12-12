@@ -36,7 +36,7 @@ class GenericFunctionSpace(object):
         ### Update attributes based on params file ###
         for key, value in self.params["function_space"].items():
             setattr(self,key,value)
-        self.turbine_method = self.params["wind_farm"]["turbine_method"]
+        self.turbine_method = self.params["turbines"]["type"]
 
         if self.turbine_space == "Quadrature" and (self.turbine_degree != self.quadrature_degree):
             raise ValueError("When using the numpy representation with the 'Quadrature' space, the turbine degree and quadrature degree must be equal.")
@@ -56,7 +56,7 @@ class GenericFunctionSpace(object):
         self.SolutionAssigner = FunctionAssigner(self.W,[self.V,self.Q])
 
         ### Create Function Spaces for numpy turbine force ###
-        if self.turbine_method == "numpy":
+        if self.turbine_method == "numpy_disks":
             tf_V = VectorElement(self.turbine_space,self.mesh.ufl_cell(),degree=self.turbine_degree,quad_scheme="default")
             self.tf_V = FunctionSpace(self.mesh, tf_V)
             self.tf_V0 = self.tf_V.sub(0).collapse() 
