@@ -175,16 +175,7 @@ class GenericWindFarm(object):
         iterates over the controls list assigns self.<name> to the control, self.m<name> 
         """
         for turb in self.turbines:
-            for control_name in turb.controls_list:
-                val = getattr(turb,control_name)
-                mval = getattr(turb,"m"+control_name)
-                if isinstance(mval,list):
-                    for i in range(len(mval)):
-                        mval[i].assign(val[i])
-                else:
-                    mval.assign(val)
-
-            turb.calculate_heights()
+            turb.update_controls()
 
     def update_turbines(self):
         """

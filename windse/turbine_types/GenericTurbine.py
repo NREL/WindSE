@@ -66,7 +66,16 @@ class GenericTurbine(object):
         """
         updates the controls during optimzation so that the output functions display the correct information
         """
-        raise NotImplementedError(type(self))
+        for control_name in self.controls_list:
+            val = getattr(self,control_name)
+            mval = getattr(self,"m"+control_name)
+            if isinstance(mval,list):
+                for i in range(len(mval)):
+                    mval[i].assign(val[i])
+            else:
+                mval.assign(val)
+
+        self.calculate_heights()
 
     def base_height(self,x,y,dx=0,dy=0):
         """

@@ -20,6 +20,7 @@ class NumpyActuatorDisk(ActuatorDisk):
         if self.params.performing_opt_calc:
             block_kwargs = {
                 "construct_sparse_ids":self.construct_sparse_ids,
+                "control_types": self.params["optimization"]["control_types"],
                 "turb": self
             }
             self.build_actuator_disk = blockify(self.build_actuator_disk,ActuatorDiskForceBlock,block_kwargs=block_kwargs)
@@ -106,7 +107,7 @@ class NumpyActuatorDisk(ActuatorDisk):
 
         return [xrot,yrot,zrot]
 
-    def build_actuator_disk(self,x,inflow_angle,fs,sparse_ids,dfd=None):
+    def build_actuator_disk(self,x,inflow_angle,fs,sparse_ids,actuator_disk=None,dfd=None):
 
         ### Collect the relevant turbine data ###
         x0 = np.array([[self.mx],[self.my],[self.mz]],dtype=float)
@@ -155,6 +156,25 @@ class NumpyActuatorDisk(ActuatorDisk):
             actuators_x = disks*np.cos(yaw)
             actuators_y = disks*np.sin(yaw)
 
+            ### Create the normal ###
+            n1 = np.cos(yaw)**2
+            n2 = np.sin(yaw)**2
+            n3 = 2.0*np.cos(yaw)*np.sin(yaw)
+
+            ### Initialize the output ###
+            tf1  = Function(fs.tf_V)
+            tf2  = Function(fs.tf_V)
+            tf3  = Function(fs.tf_V)
+            tfs = [tf1,tf2,tf3]
+
+            ### Fill the output
+            n=[n1,n2,n3]
+            temp = np.zeros((N*dim))
+            for i in range(3):
+                temp[dim*(sparse_ids)+0] = np.sum(actuators_x*n[i],axis=1)
+                temp[dim*(sparse_ids)+1] = np.sum(actuators_y*n[i],axis=1)
+                tfs[i].vector()[:] = temp
+
         elif dfd in ["x","y"]:
             xrot = self.transform(x,x0,HH,yaw,self.dom.Ground)
             d_xrot = self.transform(x,x0,HH,yaw,self.dom.Ground,dfd=dfd)
@@ -177,6 +197,23 @@ class NumpyActuatorDisk(ActuatorDisk):
             d_actuators_x = d_disks*np.cos(yaw)
             d_actuators_y = d_disks*np.sin(yaw)
 
+            ### Create the normal ###
+            n1 = np.cos(yaw)**2
+            n2 = np.sin(yaw)**2
+            n3 = 2.0*np.cos(yaw)*np.sin(yaw)
+
+            ### Initialize the output ###
+            tf1  = np.zeros((len(sparse_ids)*dim,1))
+            tf2  = np.zeros((len(sparse_ids)*dim,1))
+            tf3  = np.zeros((len(sparse_ids)*dim,1))
+
+            ### Fill the output
+            tfs = [tf1,tf2,tf3]
+            n=[n1,n2,n3]
+            for i in range(3):
+                tfs[i][0::dim] = d_actuators_x*n[i]
+                tfs[i][1::dim] = d_actuators_y*n[i]
+
         elif dfd == "axial":
             xrot = self.transform(x,x0,HH,yaw,self.dom.Ground)
             r = np.sqrt(np.power(xrot[1],2.0)+np.power(xrot[2],2.0))/R
@@ -189,6 +226,23 @@ class NumpyActuatorDisk(ActuatorDisk):
 
             d_actuators_x = d_disks*np.cos(yaw)
             d_actuators_y = d_disks*np.sin(yaw)
+
+            ### Create the normal ###
+            n1 = np.cos(yaw)**2
+            n2 = np.sin(yaw)**2
+            n3 = 2.0*np.cos(yaw)*np.sin(yaw)
+
+            ### Initialize the output ###
+            tf1  = np.zeros((len(sparse_ids)*dim,1))
+            tf2  = np.zeros((len(sparse_ids)*dim,1))
+            tf3  = np.zeros((len(sparse_ids)*dim,1))
+
+            ### Fill the output
+            tfs = [tf1,tf2,tf3]
+            n=[n1,n2,n3]
+            for i in range(3):
+                tfs[i][0::dim] = d_actuators_x*n[i]
+                tfs[i][1::dim] = d_actuators_y*n[i]
 
         elif dfd == "yaw":
             xrot = self.transform(x,x0,HH,yaw,self.dom.Ground)
@@ -215,24 +269,43 @@ class NumpyActuatorDisk(ActuatorDisk):
                       np.exp(-(np.power(r,6.0)+np.power(xrot[0]/W,6.0)))/volNormalization
                       )
 
+            actuators_x = disks*np.cos(yaw)
+            actuators_y = disks*np.sin(yaw)
             d_actuators_x = d_disks*np.cos(yaw) - disks*np.sin(yaw)
             d_actuators_y = d_disks*np.sin(yaw) + disks*np.cos(yaw)
+
+            ### Create the normal ###
+            n1 = np.cos(yaw)**2
+            n2 = np.sin(yaw)**2
+            n3 = 2.0*np.cos(yaw)*np.sin(yaw)
+            d_n1 = (-2)*np.cos(yaw)*np.sin(yaw)
+            d_n2 = 2*np.sin(yaw)*np.cos(yaw)
+            d_n3 = 2.0*(np.cos(2*yaw))
+
+            ### Initialize the output ###
+            tf1  = np.zeros((len(sparse_ids)*dim,1))
+            tf2  = np.zeros((len(sparse_ids)*dim,1))
+            tf3  = np.zeros((len(sparse_ids)*dim,1))
+
+            ### Fill the output
+            tfs = [tf1,tf2,tf3]
+            n=[n1,n2,n3]
+            d_n=[d_n1,d_n2,d_n3]
+            for i in range(3):
+                tfs[i][0::dim] = (d_actuators_x*n[i]+actuators_x*d_n[i])
+                tfs[i][1::dim] = (d_actuators_y*n[i]+actuators_y*d_n[i])
 
         else:
             raise ValueError("Cannot take the derivative with respect to: "+dfd)
 
-        ### Output the actuator information if needed ###
-        actuator_array = np.zeros((N*dim,1))
-        if dfd is None:
+        ### Output the actuator information if needed ### #setting external values this way is dangerous 
+        if actuator_disk is not None:
+            actuator_array = np.zeros((N*dim,1))
             actuator_array[dim*(sparse_ids)+0] = actuators_x
             actuator_array[dim*(sparse_ids)+1] = actuators_y
-        else:
-            actuator_array[dim*(sparse_ids)+0] = d_actuators_x
-            actuator_array[dim*(sparse_ids)+1] = d_actuators_y
-        actuator_disk = Function(fs.tf_V)
-        actuator_disk.vector()[:] = actuator_array.T[0]
+            actuator_disk.vector()[:] = actuator_array.T[0]
 
-        return actuator_disk
+        return [tf1,tf2,tf3]
 
     def turbine_force(self,u,inflow_angle,fs,simTime):
         
@@ -243,13 +316,8 @@ class NumpyActuatorDisk(ActuatorDisk):
             self.sparse_ids = self.construct_sparse_ids(x,1.5)
 
             ### compute the space kernal and radial force
-            self.actuator_disk = self.build_actuator_disk(x,inflow_angle,fs,self.sparse_ids)
-
-            ### Expand the dot product
-            yaw = self.myaw+inflow_angle
-            tf1 = self.actuator_disk * cos(yaw)**2
-            tf2 = self.actuator_disk * sin(yaw)**2
-            tf3 = self.actuator_disk * 2.0 * cos(yaw) * sin(yaw)
+            self.actuator_disk = Function(fs.tf_V)
+            [tf1, tf2, tf3] = self.build_actuator_disk(x,inflow_angle,fs,self.sparse_ids,actuator_disk=self.actuator_disk)
 
             ### Compose full turbine force
             self.tf = tf1*u[0]**2+tf2*u[1]**2+tf3*u[0]*u[1]

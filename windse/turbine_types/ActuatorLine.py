@@ -25,9 +25,6 @@ class ActuatorLine(GenericTurbine):
         self.controls_list = ["x","y","yaw","chord","lift","drag"] # this is just part of the function as an example of the types of controls 
         pass
 
-    def update_controls(self):
-        pass  
-
     def turbine_force(self,u,inflow_angle,fs,simTime):
         pass
 

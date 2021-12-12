@@ -114,28 +114,28 @@ class GenericSolver(object):
 
     def DebugOutput(self,t=None,i=None):
         if self.debug_mode:
-            with stop_annotating():
-                if self.problem.dom.dim == 3:
-                    ux, uy, uz = self.problem.u_k.split(True)
-                else:
-                    ux, uy = self.problem.u_k.split(True)
+            # with stop_annotating():
+            if self.problem.dom.dim == 3:
+                ux, uy, uz = self.problem.u_k.split(True)
+            else:
+                ux, uy = self.problem.u_k.split(True)
 
-                if t is None:
-                    suffix = ""
-                else:
-                    suffix = "_"+repr(i)
-                    self.tag_output("time"+suffix,t)
+            if t is None:
+                suffix = ""
+            else:
+                suffix = "_"+repr(i)
+                self.tag_output("time"+suffix,t)
 
-                self.tag_output("min_x_vel"+suffix,ux.vector().min()) # probably not the fastest way to get the average velocity
-                self.tag_output("max_x_vel"+suffix,ux.vector().max()) # probably not the fastest way to get the average velocity
-                self.tag_output("avg_x_vel"+suffix,assemble(ux*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
-                self.tag_output("min_y_vel"+suffix,uy.vector().min()) # probably not the fastest way to get the average velocity
-                self.tag_output("max_y_vel"+suffix,uy.vector().max()) # probably not the fastest way to get the average velocity
-                self.tag_output("avg_y_vel"+suffix,assemble(uy*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
-                if self.problem.dom.dim == 3:
-                    self.tag_output("min_z_vel"+suffix,uz.vector().min()) # probably not the fastest way to get the average velocity
-                    self.tag_output("max_z_vel"+suffix,uz.vector().max()) # probably not the fastest way to get the average velocity
-                    self.tag_output("avg_z_vel"+suffix,assemble(uy*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
+            self.tag_output("min_x_vel"+suffix,ux.vector().min()) # probably not the fastest way to get the average velocity
+            self.tag_output("max_x_vel"+suffix,ux.vector().max()) # probably not the fastest way to get the average velocity
+            self.tag_output("avg_x_vel"+suffix,assemble(ux*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
+            self.tag_output("min_y_vel"+suffix,uy.vector().min()) # probably not the fastest way to get the average velocity
+            self.tag_output("max_y_vel"+suffix,uy.vector().max()) # probably not the fastest way to get the average velocity
+            self.tag_output("avg_y_vel"+suffix,assemble(uy*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
+            if self.problem.dom.dim == 3:
+                self.tag_output("min_z_vel"+suffix,uz.vector().min()) # probably not the fastest way to get the average velocity
+                self.tag_output("max_z_vel"+suffix,uz.vector().max()) # probably not the fastest way to get the average velocity
+                self.tag_output("avg_z_vel"+suffix,assemble(uy*dx)/self.problem.dom.volume) # probably not the fastest way to get the average velocity
 
 
 
