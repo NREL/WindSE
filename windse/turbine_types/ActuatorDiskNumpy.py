@@ -10,11 +10,11 @@ from . import cos, sin, exp, sqrt, dot, Function
 import numpy as np
 from scipy.special import gamma
 
-class NumpyActuatorDisk(ActuatorDisk):
+class ActuatorDiskNumpy(ActuatorDisk):
 
     def __init__(self, i,x,y,dom):
         # initialize the rest of the turbine
-        super(NumpyActuatorDisk, self).__init__(i,x,y,dom)
+        super(ActuatorDiskNumpy, self).__init__(i,x,y,dom)
 
         # blockify custom functions so dolfin adjoint can track them
         if self.params.performing_opt_calc:

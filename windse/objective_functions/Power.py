@@ -32,6 +32,6 @@ def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwa
     by computing the integral of turbine force dotted with velocity. 
     '''
 
-    J = solver.problem.farm.compute_power(solver.problem.u_k)
+    J = solver.problem.farm.compute_power(solver.problem.u_k,inflow_angle)
 
     return J

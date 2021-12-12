@@ -38,10 +38,6 @@ class RandomWindFarm(GenericWindFarm):
         self.radius       = self.params["turbines"]["RD"]/2.0
         self.min_sep_dist = self.params["wind_farm"]["min_sep_dist"]*self.radius*2
 
-        self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0],self.ex_x[1]))
-        self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0],self.ex_y[1]))
-        self.fprint("Random Seed: " + repr(self.seed))
-
     def initialize_turbine_locations(self):
         ### Check if random seed is set ###
         if self.seed is not None:
@@ -49,6 +45,10 @@ class RandomWindFarm(GenericWindFarm):
 
         ### Construct the x,y pairs using latin hypercubes
         rand_locations = self.build_random_samples(self.numturbs, self.ex_x, self.ex_y, self.min_sep_dist)
+
+        self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0],self.ex_x[1]))
+        self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0],self.ex_y[1]))
+        self.fprint("Random Seed: " + repr(self.seed))
 
         return rand_locations
 

@@ -7,15 +7,15 @@ if windse_parameters.dolfin_adjoint:
 
 ### Import the turbine types
 from .GenericTurbine       import GenericTurbine
-from .Actuator2D           import Actuator2D
 from .ActuatorDisk         import ActuatorDisk
-from .NumpyActuatorDisk    import NumpyActuatorDisk
+from .ActuatorDisk2D       import ActuatorDisk2D
+from .ActuatorDiskNumpy    import ActuatorDiskNumpy
 from .ActuatorLine         import ActuatorLine
 
 ### Create the turbine dictionary ###
 turbine_dict = {
-    "disk2D":     Actuator2D,
     "disk":       ActuatorDisk,
-    "numpy_disk": NumpyActuatorDisk,
+    "2D_disk":    ActuatorDisk2D,
+    "numpy_disk": ActuatorDiskNumpy,
     "line":       ActuatorLine,
 }

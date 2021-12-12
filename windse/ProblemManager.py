@@ -141,7 +141,7 @@ class GenericProblem(object):
                 if self.dom.dim == 3:
                     depth = self.bd.depth.vector()[:]
                 else:
-                    depth = self.farm.HH[0]
+                    depth = self.farm.turbines[0].HH
 
                 numer = vonKarman*depth
                 denom = 1.0 + vonKarman*depth/self.lmax
@@ -249,7 +249,7 @@ class StabilizedProblem(GenericProblem):
         super(StabilizedProblem, self).__init__(domain,windfarm,function_space,boundary_conditions)
         
         ### Create Functional ###
-        self.ComputeFunctional(self.bd.inflow_angle)
+        self.ComputeFunctional(self.dom.inflow_angle)
         self.DebugOutput()
 
 
@@ -356,10 +356,10 @@ class TaylorHoodProblem(GenericProblem):
         super(TaylorHoodProblem, self).__init__(domain,windfarm,function_space,boundary_conditions)
 
         ### Create Functional ###
-        self.ComputeFunctional()
+        self.ComputeFunctional(self.dom.inflow_angle)
         self.DebugOutput()
 
-    def ComputeFunctional(self,inflow_angle=None):
+    def ComputeFunctional(self,inflow_angle):
         self.fprint("Setting Up Taylor-Hood Problem",special="header")
 
         ### These constants will be moved into the params file ###
@@ -425,9 +425,9 @@ class IterativeSteady(GenericProblem):
         self.fprint("Setting Up *Iterative* Steady Problem", special="header")
 
         ### Create Functional ###
-        self.ComputeFunctional()
+        self.ComputeFunctional(self.dom.inflow_angle)
 
-    def ComputeFunctional(self,inflow_angle=None):
+    def ComputeFunctional(self,inflow_angle):
         # ================================================================
 
         # Define fluid properties
@@ -546,10 +546,10 @@ class UnsteadyProblem(GenericProblem):
         self.fprint("Setting Up Unsteady Problem", special="header")
 
         ### Create Functional ###
-        self.ComputeFunctional()
+        self.ComputeFunctional(self.dom.inflow_angle)
         self.DebugOutput()
 
-    def ComputeFunctional(self,inflow_angle=None):
+    def ComputeFunctional(self,inflow_angle):
         # ================================================================
 
         # Define fluid properties

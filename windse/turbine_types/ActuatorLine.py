@@ -2,10 +2,10 @@ from . import GenericTurbine
 
 class ActuatorLine(GenericTurbine):
 
-    def __init__(self,dom):
-        super(ActuatorLine, self).__init__(dom)
+    def __init__(self, i,x,y,dom):
+        super(ActuatorLine, self).__init__(i,x,y,dom)
 
-        ### special stuff here ###
+        ### special init stuff here ###
 
 
     def get_baseline_chord(self):
@@ -28,7 +28,7 @@ class ActuatorLine(GenericTurbine):
     def turbine_force(self,u,inflow_angle,fs,simTime):
         pass
 
-    def power(self):
+    def power(self, u, inflow_angle):
         pass
 
     def prepare_saved_functions(self, func_list):

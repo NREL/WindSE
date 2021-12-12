@@ -14,7 +14,7 @@ def CreateRefinementList(dom, farm, refine_params):
     refine_list = []
 
     RDs = farm.get_rotor_diameters()
-    zs  = farm.get_hub_locations()[2]
+    zs  = farm.get_hub_locations()[:,2]
 
     if farm_num > 0:
         bbox = farm.calculate_farm_bounding_box()

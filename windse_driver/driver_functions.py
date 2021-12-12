@@ -30,6 +30,7 @@ def BlankParameters():
     params["general"] = {}
     params["domain"] = {}
     params["wind_farm"] = {}
+    params["turbines"] = {}
     params["function_space"] = {}
     params["boundary_conditions"] = {}
     params["problem"] = {}

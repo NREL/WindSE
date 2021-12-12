@@ -218,7 +218,7 @@ class GenericSolver(object):
             "iter_val": self.iter_val, 
             "simTime": self.simTime
         }
-        out = self.problem.farm.save_power(self.problem.u_k, **kwargs)
+        out = self.problem.farm.save_power(self.problem.u_k,self.problem.dom.inflow_angle, **kwargs)
 
         return out
 

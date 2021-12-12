@@ -1,9 +1,10 @@
 from windse import windse_parameters
 import numpy as np
 import time, os
-from . import MeshFunction, cells, project, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters
+from . import MeshFunction, cells, project, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters, Form
 import matplotlib.pyplot as plt
 from pyadjoint.tape import stop_annotating 
+from pyadjoint import AdjFloat
 
 class GenericWindFarm(object):
     """
@@ -189,7 +190,7 @@ class GenericWindFarm(object):
         """
         pass
 
-    def compute_power(self, u):
+    def compute_power(self, u, inflow_angle):
         """
         Computes the power for the full farm
         """
@@ -197,14 +198,17 @@ class GenericWindFarm(object):
         ### Build the integrand
         val = 0
         for turb in self.turbines:
-            val += turb.power(u)
+            val += turb.power(u, inflow_angle)
 
-        ### Assemble
-        J = assemble(val*dx)
+        ### Assemble if needed
+        if not isinstance(val,(float,AdjFloat)):
+            J = assemble(val*dx)
+        else:
+            J = val
 
         return J
 
-    def save_power(self, u, iter_val = 0.0, simTime = 0.0):
+    def save_power(self, u, inflow_angle, iter_val = 0.0, simTime = 0.0):
         """
         saves the power output for each turbine
         """
@@ -214,7 +218,16 @@ class GenericWindFarm(object):
         J_list[1]=simTime
         with stop_annotating():
             for i,turb in enumerate(self.turbines):
-                J_list[i+2] = assemble(turb.power(u)*dx)
+
+                val = turb.power(u,inflow_angle)
+
+                ### Assemble if needed
+                if not isinstance(val,(float,AdjFloat)):
+                    J = assemble(val*dx)
+                else:
+                    J = val
+                    
+                J_list[i+2] = J
 
         J_list[-1]=sum(J_list[2:])
 

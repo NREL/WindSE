@@ -58,13 +58,6 @@ class GridWindFarm(GenericWindFarm):
             self.ex_x   = [self.ex_x[0] + self.radius, self.ex_x[1] - self.radius]
             self.ex_y   = [self.ex_y[0] + self.radius, self.ex_y[1] - self.radius]
 
-        # Output some useful data
-        self.fprint("Grid Size: {:d} x {:d}".format(self.grid_rows,self.grid_cols))
-        self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0],self.ex_x[1]))
-        self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0],self.ex_y[1]))
-        if self.jitter > 0.0:
-            self.fprint("Amount of Jitter:   {: 1.2f}".format(self.jitter))
-            self.fprint("Random Seed: " + repr(self.seed))
 
     def initialize_turbine_locations(self):
         ### Check if random seed is set ###
@@ -104,4 +97,17 @@ class GridWindFarm(GenericWindFarm):
             x += np.random.randn(self.numturbs)*self.jitter
             y += np.random.randn(self.numturbs)*self.jitter
             
+
+        # Recompute the extents based on grid manipulations
+        self.ex_x = [np.min(x), np.max(x)]
+        self.ex_y = [np.min(y), np.max(y)]
+
+        # Output some useful data
+        self.fprint("Grid Size: {:d} x {:d}".format(self.grid_rows,self.grid_cols))
+        self.fprint("X Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_x[0],self.ex_x[1]))
+        self.fprint("Y Range: [{: 1.2f}, {: 1.2f}]".format(self.ex_y[0],self.ex_y[1]))
+        if self.jitter > 0.0:
+            self.fprint("Amount of Jitter:   {: 1.2f}".format(self.jitter))
+            self.fprint("Random Seed: " + repr(self.seed))
+
         return np.array([x,y]).T

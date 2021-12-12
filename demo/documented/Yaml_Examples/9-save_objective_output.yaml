@@ -9,6 +9,9 @@ wind_farm:
     grid_cols: 4      
     ex_x: [-600, 600] 
     ex_y: [-300, 300] 
+
+turbines:
+    type: disk
     HH: 90            
     RD: 126.0         
     thickness: 20.0   

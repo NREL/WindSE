@@ -26,8 +26,10 @@ def initialize(loc,updated_parameters=[]):
     windse_parameters.Load(loc,updated_parameters=updated_parameters)
 
     ### Apply dolfin adjoint patches/hacks ###
+    global Optimizer
     if windse_parameters.dolfin_adjoint:
         import windse.dolfin_adjoint_helper 
+        from windse.OptimizationManager import Optimizer
 
     global BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
     from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
@@ -50,5 +52,3 @@ def initialize(loc,updated_parameters=[]):
     global SteadySolver, IterativeSteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
     from windse.SolverManager import SteadySolver, IterativeSteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
 
-    global Optimizer
-    from windse.OptimizationManager import Optimizer

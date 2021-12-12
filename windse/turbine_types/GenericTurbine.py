@@ -140,7 +140,7 @@ class GenericTurbine(object):
         """
         raise NotImplementedError(type(self))
 
-    def power(self):
+    def power(self, u, inflow_angle):
         """
         computes the power produced by this turbine
         """
