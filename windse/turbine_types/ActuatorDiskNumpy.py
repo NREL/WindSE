@@ -307,7 +307,7 @@ class ActuatorDiskNumpy(ActuatorDisk):
 
         return [tf1,tf2,tf3]
 
-    def turbine_force(self,u,inflow_angle,fs,simTime):
+    def turbine_force(self,u,inflow_angle,fs):
         
             ### get dof coordinates ###
             x = fs.tf_V0.tabulate_dof_coordinates().T
