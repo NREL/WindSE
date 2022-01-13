@@ -97,14 +97,14 @@ class GenericProblem(object):
                     self.tag_output("avg_cd", np.mean(self.cd))
                     self.tag_output("num_blade_segments", self.num_blade_segments)
 
-    def ComputeTurbineForce(self,u,inflow_angle,simTime=0.0):
+    def ComputeTurbineForce(self,u,inflow_angle,**kwargs):
         tf_start = time.time()
         self.fprint("Calculating Turbine Force",special="header")
 
         if self.farm.disabled or self.farm.numturbs == 0:
             tf = Function(self.fs.V)
         else:
-            tf = self.farm.compute_turbine_force(u,inflow_angle,self.fs,simTime)
+            tf = self.farm.compute_turbine_force(u,inflow_angle,self.fs,**kwargs)
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
@@ -627,7 +627,7 @@ class UnsteadyProblem(GenericProblem):
         # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
         # self.tf = Function(self.fs.V)
 
-        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
+        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle,simTime=0.0,dt=self.dt)
         self.u_k.assign(self.bd.bc_velocity)
 
         # Only the actuator lines point "upstream" against the flow

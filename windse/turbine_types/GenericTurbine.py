@@ -1,4 +1,5 @@
 # import windse data
+import numpy as np
 from windse import windse_parameters
 if windse_parameters.dolfin_adjoint:
     from windse.blocks import blockify, BaseHeightBlock
@@ -128,7 +129,7 @@ class GenericTurbine(object):
         """
         pass
 
-    def turbine_force(self,u,inflow_angle,fs,simTime):
+    def turbine_force(self,u,inflow_angle,fs):
         """
         computes the turbine force
         """
@@ -164,6 +165,27 @@ class GenericTurbine(object):
         func_list is the output file, but it is modified in place. it has the format [[func1,"func1_name"],[func2,"func2_name"],...]
         '''
         raise NotImplementedError(type(self))
+
+    def rot_x(self, theta):
+        Rx = np.array([[1, 0, 0],
+                       [0, np.cos(theta), -np.sin(theta)],
+                       [0, np.sin(theta), np.cos(theta)]])
+
+        return Rx
+
+    def rot_y(self, theta):
+        Ry = np.array([[np.cos(theta), 0, np.sin(theta)],
+                       [0, 1, 0],
+                       [-np.sin(theta), 0, np.cos(theta)]])
+        
+        return Ry
+
+    def rot_z(self, theta):
+        Rz = np.array([[np.cos(theta), -np.sin(theta), 0],
+                       [np.sin(theta), np.cos(theta), 0],
+                       [0, 0, 1]])
+        
+        return Rz
 
 # class TurbineForceBlock(Block):
 #     """

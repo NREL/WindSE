@@ -909,9 +909,9 @@ class UnsteadySolver(GenericSolver):
         # ================================================================
 
         self.fprint('Turbine Parameters', special='header')
-        self.fprint('Hub Height: %.1f' % (self.problem.farm.HH[0]))
-        self.fprint('Yaw: %.4f' % (self.problem.farm.yaw[0]))
-        self.fprint('Radius: %.1f' % (self.problem.farm.radius[0]))
+        self.fprint('Hub Height: %.1f' % (self.problem.farm.turbines[0].HH))
+        self.fprint('Yaw: %.4f' % (self.problem.farm.turbines[0].yaw))
+        self.fprint('Radius: %.1f' % (self.problem.farm.turbines[0].radius))
         self.fprint('', special='footer')
 
         self.fprint("Solving",special="header")
@@ -938,8 +938,8 @@ class UnsteadySolver(GenericSolver):
         simIter = 0
         stable = False
 
-        if self.problem.farm.turbine_method == "alm":
-            tip_speed = self.problem.rpm*2.0*np.pi*self.problem.farm.radius[0]/60.0
+        if self.problem.farm.turbines[0].type == "line":
+            tip_speed = self.problem.farm.turbines[0].rpm*2.0*np.pi*self.problem.farm.turbines[0].radius/60.0
         else:
             tip_speed = 0.0
 
@@ -1031,32 +1031,42 @@ class UnsteadySolver(GenericSolver):
 
             # Update the turbine force
             tic = time.time()
-            if self.problem.farm.turbine_method == "alm":
+            if self.problem.farm.turbines[0].type == "line":
+
+
+                self.problem.alm_power = 0.0
+                # pass
+
                 # t1 = time.time()
                 pr.enable()
-                new_tf_list = self.problem.farm.CalculateActuatorLineTurbineForces(self.problem, self.simTime)
+                new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, dt=self.problem.dt)
+                self.problem.tf.assign(new_tf)
+
+
+                # new_tf_list = self.problem.farm.CalculateActuatorLineTurbineForces(self.problem, self.simTime)
                 pr.disable()
 
-                for i in range(len(self.problem.tf_list)):
-                    self.problem.tf_list[i].assign(new_tf_list[i])
-                    # print('MPI vec norm = %.15e' % np.linalg.norm(self.problem.tf_list[i].vector()[:]))
+                # FIXME: Need to update this code to create correct values
+                # for i in range(len(self.problem.tf_list)):
+                #     self.problem.tf_list[i].assign(new_tf_list[i])
+                #     # print('MPI vec norm = %.15e' % np.linalg.norm(self.problem.tf_list[i].vector()[:]))
 
-                # t2 = time.time()
-                # print(t2-t1)
+                # # t2 = time.time()
+                # # print(t2-t1)
 
-                # Power [=] N*m*rads/s 
-                self.problem.alm_power = self.problem.rotor_torque*(2.0*np.pi*self.problem.rpm/60.0)
-                self.problem.alm_power_dolfin = self.problem.rotor_torque_dolfin*(2.0*np.pi*self.problem.rpm/60.0)
+                # # Power [=] N*m*rads/s 
+                # self.problem.alm_power = self.problem.rotor_torque*(2.0*np.pi*self.problem.rpm/60.0)
+                # self.problem.alm_power_dolfin = self.problem.rotor_torque_dolfin*(2.0*np.pi*self.problem.rpm/60.0)
                 
-                # self.problem.alm_power_sum += self.problem.alm_power*self.problem.dt
+                # # self.problem.alm_power_sum += self.problem.alm_power*self.problem.dt
 
-                # self.problem.alm_power_average = self.problem.alm_power_sum/self.simTime
+                # # self.problem.alm_power_average = self.problem.alm_power_sum/self.simTime
 
-                # self.fprint('Rotor Power: %.6f MW' % (self.problem.alm_power/1e6))
-                output_str = 'Rotor Power  (numpy): %s MW' % (np.array2string(self.problem.alm_power/1.0e6, precision=8, separator=', '))
-                self.fprint(output_str)
-                output_str = 'Rotor Power (dolfin): %s MW' % (np.array2string(self.problem.alm_power_dolfin/1.0e6, precision=8, separator=', '))
-                self.fprint(output_str)
+                # # self.fprint('Rotor Power: %.6f MW' % (self.problem.alm_power/1e6))
+                # output_str = 'Rotor Power  (numpy): %s MW' % (np.array2string(self.problem.alm_power/1.0e6, precision=8, separator=', '))
+                # self.fprint(output_str)
+                # output_str = 'Rotor Power (dolfin): %s MW' % (np.array2string(self.problem.alm_power_dolfin/1.0e6, precision=8, separator=', '))
+                # self.fprint(output_str)
 
             else:
                 # This is a hack to avoid errors when using something other than ALM
@@ -1176,7 +1186,10 @@ class UnsteadySolver(GenericSolver):
 
             average_power = average_power/(self.simTime-average_start_time)
             # self.fprint('AVERAGE Rotor Power: %.6f MW' % (average_power/1e6))
-            output_str = 'AVERAGE Rotor Power: %s MW' % (np.array2string(average_power/1.0e6, precision=9, separator=', '))
+            try:
+                output_str = 'AVERAGE Rotor Power: %s MW' % (np.array2string(average_power/1.0e6, precision=9, separator=', '))
+            except:
+                output_str = 'AVERAGE Rotor Power: %s MW' % (average_power)
             self.fprint(output_str)
 
 
@@ -1209,15 +1222,15 @@ class UnsteadySolver(GenericSolver):
         self.DebugOutput(simTime,simIter)
         ### TODO THIS NEED TO BE CLEAN TO ACCOUNT FOR DISKS
 
-        if self.problem.farm.turbine_method == "alm":
+        if self.problem.farm.turbines[0].type == "line":
             if hasattr(self.problem,"tf_save"):
                 self.problem.tf_save.vector()[:] = 0
-                for fun in self.problem.tf_list:
-                    self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.vector()[:]
+                for fun in self.problem.farm.turbines:
+                    self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.tf.vector()[:]
             else:
                 self.problem.tf_save = Function(self.problem.fs.V)
-                for fun in self.problem.tf_list:
-                    self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.vector()[:]
+                for fun in self.problem.farm.turbines:
+                    self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.tf.vector()[:]
         else:
             if hasattr(self.problem,"tf_save"):
                 self.problem.tf_save = project(self.problem.tf, self.problem.fs.V, solver_type='cg')

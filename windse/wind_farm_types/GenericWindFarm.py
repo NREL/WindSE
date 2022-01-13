@@ -158,7 +158,7 @@ class GenericWindFarm(object):
         for turb in self.turbines:
             turb.calculate_heights()
 
-    def compute_turbine_force(self,u,inflow_angle,fs,simTime):
+    def compute_turbine_force(self,u,inflow_angle,fs,**kwargs):
         """
         Iterates over the turbines and adds up the turbine forces
         """
@@ -168,7 +168,7 @@ class GenericWindFarm(object):
         # compute tf!!!
         tf = 0
         for turb in self.turbines:
-            tf += turb.turbine_force(u,inflow_angle,fs,simTime)
+            tf += turb.turbine_force(u,inflow_angle,fs,**kwargs)
         return tf
 
     def update_controls(self):
