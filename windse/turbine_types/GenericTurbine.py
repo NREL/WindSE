@@ -70,6 +70,7 @@ class GenericTurbine(object):
         for control_name in self.controls_list:
             val = getattr(self,control_name)
             mval = getattr(self,"m"+control_name)
+
             if isinstance(mval,list):
                 for i in range(len(mval)):
                     mval[i].assign(val[i])

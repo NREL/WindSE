@@ -67,8 +67,8 @@ problem:
 
 solver:
     type: unsteady               # The unsteady solver is required for ALM simulations
-    save_interval: 2.0           # Save the velocity and pressure files at intervals of "save_interval" | s
-    final_time: 10.0             # The total duration of the simulation | s
+    save_interval: 1.0           # Save the velocity and pressure files at intervals of "save_interval" | s
+    final_time: 2.0             # The total duration of the simulation | s
     save_power: true
 
 optimization:

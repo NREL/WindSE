@@ -2,6 +2,10 @@ import numpy as np
 import scipy.interpolate as interp
 import glob
 
+from windse import windse_parameters
+if windse_parameters.dolfin_adjoint:
+    from windse.blocks import blockify, ActuatorLineForceBlock
+
 from . import GenericTurbine
 
 from . import Constant, Expression, Function, Point, assemble, dot, dx
@@ -12,7 +16,14 @@ class ActuatorLine(GenericTurbine):
     def __init__(self, i,x,y,dom):
         super(ActuatorLine, self).__init__(i,x,y,dom)
 
-        ### special init stuff here ###
+        # blockify custom functions so dolfin adjoint can track them
+        if self.params.performing_opt_calc:
+            block_kwargs = {
+                # "construct_sparse_ids":self.construct_sparse_ids,
+                "control_types": self.params["optimization"]["control_types"],
+                "turb": self
+            }
+            self.build_actuator_lines = blockify(self.build_actuator_lines,ActuatorLineForceBlock,block_kwargs=block_kwargs)
 
 
     def get_baseline_chord(self):
@@ -43,7 +54,7 @@ class ActuatorLine(GenericTurbine):
 
 
     def create_controls(self):
-        self.controls_list = ["x","y","yaw","chord","lift","drag"] # this is just part of the function as an example of the types of controls 
+        self.controls_list = ["x","y","yaw","chord","cl","cd"] # this is just part of the function as an example of the types of controls 
 
         self.mx     = Constant(self.x, name="x_{:d}".format(self.index))
         self.my     = Constant(self.y, name="y_{:d}".format(self.index))
@@ -57,7 +68,7 @@ class ActuatorLine(GenericTurbine):
         #     self.mcd.append(Constant(self.cd[k]))
 
 
-    def lookup_lift_and_drag(self, u_rel, blade_unit_vec):
+    def lookup_lift_and_drag(self, u_rel, twist, blade_unit_vec):
 
         def get_angle_between_vectors(a, b, n):
             a_x_b = np.dot(np.cross(n, a), b)
@@ -114,7 +125,7 @@ class ActuatorLine(GenericTurbine):
                 tip_loss[k] = 2.0/np.pi*np.arccos(acos_arg)
 
             # Remove the portion of the angle due to twist
-            aoa -= self.twist[k]
+            aoa -= twist[k]
 
             # Store the cl and cd by interpolating this (aoa, span) pair from the tables
             real_cl[k] = self.lookup_cl(aoa, self.rdim[k])
@@ -127,14 +138,17 @@ class ActuatorLine(GenericTurbine):
         return real_cl, real_cd, tip_loss
 
 
-    def build_actuator_lines(self, inflow_angle, dfd=None):
+    def build_actuator_lines(self, fs, u_dummy, inflow_angle, dfd=None):
+
+        # Create TF each time
+        tf = Function(fs.V)
 
         # Read cl and cd from the values specified in problem manager
-        self.twist = np.array(self.mtwist, dtype = float)
-        self.chord = np.array(self.mchord, dtype = float)
+        twist = np.array(self.mtwist, dtype = float)
+        chord = np.array(self.mchord, dtype = float)
 
-        self.cl = np.array(self.mcl, dtype = float)
-        self.cd = np.array(self.mcd, dtype = float)
+        cl = np.array(self.mcl, dtype = float)
+        cd = np.array(self.mcd, dtype = float)
 
         # Initialze arrays depending on what this function will be returning
         if dfd is None:
@@ -144,22 +158,22 @@ class ActuatorLine(GenericTurbine):
             drag_force = np.zeros((np.shape(self.coords)[0], self.ndim))
 
         elif dfd == 'c_lift':
-            self.cl = np.ones(self.num_blade_segments)
-            self.dfd_c_lift = np.zeros((np.size(problem.coords), problem.num_blade_segments))
+            cl = np.ones(self.num_blade_segments)
+            dfd_c_lift = np.zeros((np.size(problem.coords), problem.num_blade_segments))
 
         elif dfd == 'c_drag':
-            self.cd = np.ones(self.num_blade_segments)
-            self.dfd_c_drag = np.zeros((np.size(self.coords), self.num_blade_segments))
+            cd = np.ones(self.num_blade_segments)
+            dfd_c_drag = np.zeros((np.size(self.coords), self.num_blade_segments))
 
         elif dfd == 'chord':
-            self.chord = np.ones(self.num_blade_segments)
-            self.dfd_chord = np.zeros((np.size(self.coords), self.num_blade_segments))
+            chord = np.ones(self.num_blade_segments)
+            dfd_chord = np.zeros((np.size(self.coords), self.num_blade_segments))
 
         # Convert the mpi_u_fluid Constant wrapper into a numpy array
         # FIXME: double check that this wrapping-unwrapping is correct
         mpi_u_fluid_buff = np.zeros(self.mpi_u_fluid_constant.value_size())
         self.mpi_u_fluid_constant.eval(mpi_u_fluid_buff, mpi_u_fluid_buff)
-        self.mpi_u_fluid = np.copy(mpi_u_fluid_buff)
+        mpi_u_fluid = np.copy(mpi_u_fluid_buff)
 
         # Treat each blade separately
         for blade_ct, theta_0 in enumerate(self.theta_vec):
@@ -195,7 +209,7 @@ class ActuatorLine(GenericTurbine):
             else:
                 start_pt = self.ndim*blade_ct*self.num_blade_segments
                 end_pt = start_pt + self.ndim*self.num_blade_segments
-                u_fluid = self.mpi_u_fluid[start_pt:end_pt]
+                u_fluid = mpi_u_fluid[start_pt:end_pt]
                 u_fluid = np.reshape(u_fluid, (self.ndim, -1), 'F')
 
             for k in range(self.num_blade_segments):
@@ -218,12 +232,12 @@ class ActuatorLine(GenericTurbine):
 
             else:
                 if self.lookup_cl is not None:
-                    self.cl, self.cd, tip_loss = self.lookup_lift_and_drag(u_rel, blade_unit_vec)
+                    cl, cd, tip_loss = self.lookup_lift_and_drag(u_rel, twist, blade_unit_vec)
 
             # Calculate the lift and drag forces using the relative velocity magnitude
             rho = 1.0
-            lift = tip_loss*(0.5*self.cl*rho*self.chord*self.w*u_rel_mag**2)
-            drag = tip_loss*(0.5*self.cd*rho*self.chord*self.w*u_rel_mag**2)
+            lift = tip_loss*(0.5*cl*rho*chord*self.w*u_rel_mag**2)
+            drag = tip_loss*(0.5*cd*rho*chord*self.w*u_rel_mag**2)
 
             # Tile the blade coordinates for every mesh point, [numGridPts*ndim x problem.num_blade_segments]
             blade_pos_full = np.tile(blade_pos, (np.shape(self.coords)[0], 1))
@@ -289,6 +303,8 @@ class ActuatorLine(GenericTurbine):
                 actuator_torque = tangential_actuator_force*self.rdim[k]
 
                 # Add to the total torque
+                # FIXME: if we ever wanted to use this as a control it should be updated
+                # so that the summation happens outside this function
                 self.rotor_torque += actuator_torque
 
         # fx.write('\n')
@@ -322,12 +338,12 @@ class ActuatorLine(GenericTurbine):
             tf_vec[np.abs(tf_vec) < 1e-12] = 0.0
 
             # Add to the cumulative turbine force
-            self.tf.vector()[:] += tf_vec
+            tf.vector()[:] += tf_vec
 
-        self.tf.vector().update_ghost_values()
+        tf.vector().update_ghost_values()
 
-        print('Max TF: ', self.tf.vector().max() - 0.026665983592878112)
-        print('Min TF: ', self.tf.vector().min() - -0.22879677484292432)
+        print('Max TF: ', tf.vector().max() - 0.026665983592878112)
+        print('Min TF: ', tf.vector().min() - -0.22879677484292432)
         print('Max Lift: ', np.amax(lift) - 1604.506078981611)
         print('Max Drag: ', np.amax(drag) - 2205.459487502247)
         print('Max Nodal Lift: ', np.amax(nodal_lift) - 0.053743827932146535)
@@ -336,7 +352,7 @@ class ActuatorLine(GenericTurbine):
 
         if dfd == None:
 
-            return self.tf
+            return tf
 
         elif dfd == 'c_lift':
             save_c_lift = False
@@ -443,8 +459,6 @@ class ActuatorLine(GenericTurbine):
         #================================================================
         # Finally, initialize important dolfin terms
         #================================================================
-
-        self.tf = Function(fs.V)
 
         # Create a Constant "wrapper" to enable dolfin to track mpi_u_fluid
         self.mpi_u_fluid_constant = Constant(np.zeros(self.ndim*self.num_blades*self.num_blade_segments), name="mpi_u_fluid")
@@ -570,6 +584,11 @@ class ActuatorLine(GenericTurbine):
         self.baseline_cl = cl
         self.baseline_cd = cd
 
+        self.chord = chord
+        self.twist = twist
+        self.cl = cl
+        self.cd = cd
+
         self.max_chord = 1.5*np.amax(chord)
 
 
@@ -578,7 +597,7 @@ class ActuatorLine(GenericTurbine):
         self.rotor_torque = np.zeros(1)
         self.rotor_torque_count = np.zeros(1, dtype=int)
         # self.rotor_torque_dolfin = 0.0
-        self.tf.vector()[:] = 0.0
+        # self.tf.vector()[:] = 0.0
 
         # The forces should be imposed at the current position/time PLUS 0.5*dt
         simTime_ahead = simTime + 0.5*dt
@@ -698,7 +717,7 @@ class ActuatorLine(GenericTurbine):
         self.get_u_fluid_at_alm_nodes(u)
 
         # Call the ALM function for this turbine
-        self.tf = self.build_actuator_lines(inflow_angle)
+        self.tf = self.build_actuator_lines(fs, u, inflow_angle)
 
         # Do some sharing of information when everything is finished
         self.compute_rotor_torque()

@@ -25,15 +25,6 @@ class ActuatorDiskNumpy(ActuatorDisk):
             }
             self.build_actuator_disk = blockify(self.build_actuator_disk,ActuatorDiskForceBlock,block_kwargs=block_kwargs)
 
-
-
-    def build_actuator_disk(self,inflow_angle):
-        raise NotImplementedError(type(self))
-        
-
-        raise NotImplementedError(type(self))
-
-
     def construct_sparse_ids(self, x, sparse_RDs):
         """ 
         Determines relevant dofs that will be nonzero
