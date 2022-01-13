@@ -407,7 +407,7 @@ class Optimizer(object):
 
         if "lift" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.farm.num_blade_segments):
+                for k in range(self.farm.turbines[0].num_blade_segments):
                     self.control_pointers.append(("lift",[i,k]))
                     self.indexes[4].append(j)
                     j+=1
@@ -417,7 +417,7 @@ class Optimizer(object):
 
         if "drag" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.farm.num_blade_segments):
+                for k in range(self.farm.turbines[0].num_blade_segments):
                     self.control_pointers.append(("drag",[i,k]))
                     self.indexes[5].append(j)
                     j+=1
@@ -427,7 +427,7 @@ class Optimizer(object):
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.farm.num_blade_segments):
+                for k in range(self.farm.turbines[0].num_blade_segments):
                     self.control_pointers.append(("chord",[i,k]))
                     self.indexes[6].append(j)
                     j+=1

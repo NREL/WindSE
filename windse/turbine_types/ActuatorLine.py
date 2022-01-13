@@ -19,7 +19,7 @@ class ActuatorLine(GenericTurbine):
         '''
         This function need to return the baseline chord as a numpy array with length num_blade_segments
         '''
-        pass
+        return self.baseline_chord
 
 
     def load_parameters(self):
@@ -563,6 +563,14 @@ class ActuatorLine(GenericTurbine):
             self.mtwist.append(Constant(twist[k]))
             self.mcl.append(Constant(cl[k]))
             self.mcd.append(Constant(cd[k]))
+
+        # Store a copy of the original values for future use
+        self.baseline_chord = chord
+        self.baseline_twist = twist
+        self.baseline_cl = cl
+        self.baseline_cd = cd
+
+        self.max_chord = 1.5*np.amax(chord)
 
 
     def init_unsteady_alm_terms(self, simTime, dt):
