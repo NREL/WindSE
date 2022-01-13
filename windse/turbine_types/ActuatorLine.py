@@ -14,11 +14,13 @@ class ActuatorLine(GenericTurbine):
 
         ### special init stuff here ###
 
+
     def get_baseline_chord(self):
         '''
         This function need to return the baseline chord as a numpy array with length num_blade_segments
         '''
         pass
+
 
     def load_parameters(self):
 
@@ -39,6 +41,7 @@ class ActuatorLine(GenericTurbine):
 
         self.DEBUGGING = False
 
+
     def create_controls(self):
         self.controls_list = ["x","y","yaw","chord","lift","drag"] # this is just part of the function as an example of the types of controls 
 
@@ -52,6 +55,7 @@ class ActuatorLine(GenericTurbine):
         #     self.mtwist.append(Constant(self.twist[k]))
         #     self.mcl.append(Constant(self.cl[k]))
         #     self.mcd.append(Constant(self.cd[k]))
+
 
     def lookup_lift_and_drag(self, u_rel, blade_unit_vec):
 
@@ -616,6 +620,7 @@ class ActuatorLine(GenericTurbine):
 
         self.theta_ahead = simTime_ahead/self.period*2.0*np.pi
         self.theta_behind = simTime_behind/self.period*2.0*np.pi
+
 
     def get_u_fluid_at_alm_nodes(self, u_k):
 
