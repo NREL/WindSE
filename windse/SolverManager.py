@@ -1041,31 +1041,19 @@ class UnsteadySolver(GenericSolver):
                 pr.enable()
                 new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, dt=self.problem.dt)
                 self.problem.tf.assign(new_tf)
-
-
-                # new_tf_list = self.problem.farm.CalculateActuatorLineTurbineForces(self.problem, self.simTime)
                 pr.disable()
-
-                # FIXME: Need to update this code to create correct values
-                # for i in range(len(self.problem.tf_list)):
-                #     self.problem.tf_list[i].assign(new_tf_list[i])
-                #     # print('MPI vec norm = %.15e' % np.linalg.norm(self.problem.tf_list[i].vector()[:]))
-
                 # # t2 = time.time()
                 # # print(t2-t1)
 
-                # # Power [=] N*m*rads/s 
+                # Power [=] N*m*rads/s 
                 # self.problem.alm_power = self.problem.rotor_torque*(2.0*np.pi*self.problem.rpm/60.0)
                 # self.problem.alm_power_dolfin = self.problem.rotor_torque_dolfin*(2.0*np.pi*self.problem.rpm/60.0)
                 
                 # # self.problem.alm_power_sum += self.problem.alm_power*self.problem.dt
-
                 # # self.problem.alm_power_average = self.problem.alm_power_sum/self.simTime
 
-                # # self.fprint('Rotor Power: %.6f MW' % (self.problem.alm_power/1e6))
-                # output_str = 'Rotor Power  (numpy): %s MW' % (np.array2string(self.problem.alm_power/1.0e6, precision=8, separator=', '))
-                # self.fprint(output_str)
-                # output_str = 'Rotor Power (dolfin): %s MW' % (np.array2string(self.problem.alm_power_dolfin/1.0e6, precision=8, separator=', '))
+                # self.problem.alm_power_dolfin = self.problem.farm.compute_power(self.problem.u_k, self.problem.bd.inflow_angle)
+                # output_str = 'Rotor Power (dolfin): %s MW' % (self.problem.alm_power_dolfin/1.0e6)
                 # self.fprint(output_str)
 
             else:
