@@ -743,7 +743,7 @@ class ActuatorLine(GenericTurbine):
         self.power_dolfin = assemble(dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
         self.power_numpy = self.rotor_torque*self.angular_velocity
 
-        # print('Error between dolfin and numpy: %e' % (float(self.power_dolfin) - self.power_numpy))
+        print('Error between dolfin and numpy: %e' % (float(self.power_dolfin) - self.power_numpy))
 
         return self.power_dolfin
 

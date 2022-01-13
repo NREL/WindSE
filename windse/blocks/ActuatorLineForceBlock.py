@@ -222,13 +222,26 @@ class ActuatorLineForceBlock(Block):
                 h = np.zeros(self.turb.mpi_u_fluid.value_size())
                 h[i::self.turb.ndim] = h_mag
 
-                mpi_u_fluid_mh = Constant(mpi_u_fluid_buff - h)
                 mpi_u_fluid_ph = Constant(mpi_u_fluid_buff + h)
+                mpi_u_fluid_mh = Constant(mpi_u_fluid_buff - h)
+
+                # self.turb.mpi_u_fluid_constant.assi = mpi_u_fluid_buff + h
+                # self.turb.update_controls()
+
 
                 # temp_umh = backend_UpdateActuatorLineForce(self.turb, u_mh, self.simTime_id, self.dt, self.turb.index, self.mpi_u_fluid)
                 # temp_uph = backend_UpdateActuatorLineForce(self.turb, u_ph, self.simTime_id, self.dt, self.turb.index, self.mpi_u_fluid)
+
+                # temp_uph = self.turb.build_actuator_lines(self.fs, mpi_u_fluid_ph, self.inflow_angle)
+                # temp_umh = self.turb.build_actuator_lines(self.fs, mpi_u_fluid_mh, self.inflow_angle)
+
+                self.mpi_u_fluid_constant.assign(mpi_u_fluid_ph)
                 temp_uph = self.turb.build_actuator_lines(self.fs, u_k, self.inflow_angle)
+
+                self.mpi_u_fluid_constant.assign(mpi_u_fluid_mh)
                 temp_umh = self.turb.build_actuator_lines(self.fs, u_k, self.inflow_angle)
+
+                self.mpi_u_fluid_constant.assign(Constant(mpi_u_fluid_buff, name="temp_u_f"))         
                 dtf_du = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
 
                 prepared["u_local"].append(dtf_du)
@@ -263,7 +276,6 @@ class ActuatorLineForceBlock(Block):
                 # adj_output.vector()[:] = 0.0
             else:
                 adj_output.vector()[:] = 0.0
-
 
             return adj_output.vector()
 
