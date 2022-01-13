@@ -36,7 +36,6 @@ class ActuatorLine(GenericTurbine):
         self.gauss_factor = self.params["turbines"]["gauss_factor"]
 
         self.first_call_to_alm = True
-        self.simTime_list = []
         self.simTime_prev = None
 
         self.DEBUGGING = False
@@ -83,16 +82,6 @@ class ActuatorLine(GenericTurbine):
             
             return aoa_1
 
-        # # If this is the first time calling the function...
-        # # if problem.first_call_to_alm: # This breaks in parallel, use the version below
-
-        # if not hasattr(problem, 'interp_lift'):
-        #     # build the lift-drag table interpolators
-        #     rdim_all = np.linspace(0, rdim[-1], np.shape(problem.lift_table)[1])
-        #     problem.interp_lift = interp.RectBivariateSpline(problem.interp_angles, rdim_all, problem.lift_table)
-        #     problem.interp_drag = interp.RectBivariateSpline(problem.interp_angles, rdim_all, problem.drag_table)
-
-
         # Initialize the real cl and cd profiles
         real_cl = np.zeros(self.num_blade_segments)
         real_cd = np.zeros(self.num_blade_segments)
@@ -137,7 +126,7 @@ class ActuatorLine(GenericTurbine):
         return real_cl, real_cd, tip_loss
 
 
-    def build_actuator_line(self, inflow_angle, dfd=None):
+    def build_actuator_lines(self, inflow_angle, dfd=None):
 
         # FIXME: initialize these values from the constants
         # Read cl and cd from the values specified in problem manager
@@ -165,15 +154,6 @@ class ActuatorLine(GenericTurbine):
         elif dfd == 'chord':
             self.chord = np.ones(self.num_blade_segments)
             self.dfd_chord = np.zeros((np.size(self.coords), self.num_blade_segments))
-
-
-        # Calculate the blade position based on current simTime and turbine RPM
-        # period = 60.0/self.rpm
-        # theta_offset = simTime/period*2.0*np.pi
-        # FIXME: get the real dt and do it right
-        # dt = 0.1
-        # theta_offset = (simTime+0.5*dt)/self.period*2.0*np.pi
-        # theta_offset = 0.0
 
         # Convert the mpi_u_fluid Constant wrapper into a numpy array
         # FIXME: get the rught mpi_u_fluid
@@ -312,9 +292,7 @@ class ActuatorLine(GenericTurbine):
                 actuator_torque = tangential_actuator_force*self.rdim[k]
 
                 # Add to the total torque
-                self.rotor_torque += actuator_torque  ### Should this be an output?
-
-
+                self.rotor_torque += actuator_torque
 
         # fx.write('\n')
         # fy.write('\n')
@@ -370,6 +348,14 @@ class ActuatorLine(GenericTurbine):
             # problem.cyld = cyld
 
         self.tf.vector().update_ghost_values()
+
+        print('Max TF: ', self.tf.vector().max() - 0.026665983592878112)
+        print('Min TF: ', self.tf.vector().min() - -0.22879677484292432)
+        print('Max Lift: ', np.amax(lift) - 1604.506078981611)
+        print('Max Drag: ', np.amax(drag) - 2205.459487502247)
+        print('Max Nodal Lift: ', np.amax(nodal_lift) - 0.053743827932146535)
+        print('Max Nodal Drag: ', np.amax(nodal_drag) - 0.07069602361087358)
+        print('Rotor torque numpy:', self.rotor_torque - 117594.90448122297)
 
         if dfd == None:
 
@@ -596,11 +582,6 @@ class ActuatorLine(GenericTurbine):
             self.mcl.append(Constant(cl[k]))
             self.mcd.append(Constant(cd[k]))
 
-        # self.fprint('Turbine #%d: Chord = %s' % (self.index, np.array2string(chord, precision=6, separator=', ')))
-        # self.fprint('Turbine #%d: Twist = %s' % (self.index, np.array2string(twist, precision=6, separator=', ')))
-        # self.fprint('Turbine #%d: C Lift = %s' % (self.index, np.array2string(cl, precision=6, separator=', ')))
-        # self.fprint('Turbine #%d: C Drag = %s' % (self.index, np.array2string(cd, precision=6, separator=', ')))
-
 
     def init_unsteady_alm_terms(self, simTime, dt):
 
@@ -627,31 +608,6 @@ class ActuatorLine(GenericTurbine):
         # Create an empty array to hold all the components of velocity
         self.mpi_u_fluid = np.zeros(3*3*self.num_blade_segments)
         self.mpi_u_fluid_count = np.zeros(3*3*self.num_blade_segments)
-
-        # Calculate the angular position of the blades at the current time
-        # period = 60.0/self.rpm
-        # theta = (simTime+0.5*problem.dt)/period*2.0*np.pi
-
-        # Current time at the end of the fluid solve
-        # simTime = self.simTime_list[-1]
-
-        # Time at the end of the previous fluid solve
-        # time_offset = 1
-
-        # try:
-        #     prevTime = problem.simTime_list[problem.simTime_id - 1]
-        # except:
-        #     prevTime = problem.simTime_list[0]
-
-        # try:
-        #     prevTime = problem.simTime_list[-2]
-        # except:
-        #     prevTime = simTime
-
-        # The velocity should be probed at the time location midway between this
-        # step and the previous step
-        # theta = 0.5*(prevTime + simTime)/self.period*2.0*np.pi
-
 
         for blade_ct, theta_0 in enumerate(self.theta_vec):
             Rx = self.rot_x(self.theta_behind + theta_0)
@@ -706,8 +662,11 @@ class ActuatorLine(GenericTurbine):
 
         self.params.comm.Bcast(self.mpi_u_fluid, root=0)
 
+        # Populate the Constant "wrapper" with the velocity values to enable dolfin to track mpi_u_fluid
+        self.mpi_u_fluid_constant.assign(Constant(self.mpi_u_fluid, name="temp_u_f"))
 
-    def finalize_mpi_alm(self):
+
+    def compute_rotor_torque(self):
 
         data_in_torque = np.zeros(self.params.num_procs)
         self.params.comm.Gather(self.rotor_torque, data_in_torque, root=0)
@@ -736,8 +695,6 @@ class ActuatorLine(GenericTurbine):
         except:
             raise ValueError('"simTime" and "dt" must be specified for the calculation of ALM force.')
 
-        # self.simTime_list.append(simTime)
-
         # If this is the first call to the function, set some things up before proceeding
         if self.first_call_to_alm:
             self.init_constant_alm_terms(fs)
@@ -749,19 +706,17 @@ class ActuatorLine(GenericTurbine):
         # Call the function to build the complete mpi_u_fluid array
         self.get_u_fluid_at_alm_nodes(u)
 
-        # Populate the Constant "wrapper" with the velocity values to enable dolfin to track mpi_u_fluid
-        self.mpi_u_fluid_constant.assign(Constant(self.mpi_u_fluid, name="temp_u_f"))
-
         # Call the ALM function for this turbine
-        self.tf = self.build_actuator_line(inflow_angle)
+        self.tf = self.build_actuator_lines(inflow_angle)
 
         # Do some sharing of information when everything is finished
-        self.finalize_mpi_alm()
+        self.compute_rotor_torque()
+
+        # Store the most recent simTime for use in the next iteration
+        self.simTime_prev = simTime
 
         if self.first_call_to_alm:
             self.first_call_to_alm = False
-
-        self.simTime_prev = simTime
 
         return self.tf
 
