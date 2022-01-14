@@ -235,13 +235,13 @@ class ActuatorLineForceBlock(Block):
                 # temp_uph = self.turb.build_actuator_lines(self.fs, mpi_u_fluid_ph, self.inflow_angle)
                 # temp_umh = self.turb.build_actuator_lines(self.fs, mpi_u_fluid_mh, self.inflow_angle)
 
-                self.mpi_u_fluid_constant.assign(mpi_u_fluid_ph)
+                self.turb.mpi_u_fluid_constant.assign(mpi_u_fluid_ph)
                 temp_uph = self.turb.build_actuator_lines(self.fs, u_k, self.inflow_angle)
 
-                self.mpi_u_fluid_constant.assign(mpi_u_fluid_mh)
+                self.turb.mpi_u_fluid_constant.assign(mpi_u_fluid_mh)
                 temp_umh = self.turb.build_actuator_lines(self.fs, u_k, self.inflow_angle)
 
-                self.mpi_u_fluid_constant.assign(Constant(mpi_u_fluid_buff, name="temp_u_f"))         
+                self.turb.mpi_u_fluid_constant.assign(Constant(mpi_u_fluid_buff, name="temp_u_f"))         
                 dtf_du = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
 
                 prepared["u_local"].append(dtf_du)
