@@ -10,17 +10,13 @@ from . import GenericTurbine
 
 from . import Constant, Expression, Function, Point, assemble, dot, dx
 
-
 '''
 FIXME After Jeff Meeting 1/13/22
 
-1. figure out how to get rid of u_k in ActuatorLineForceBlock.py
-2. take the derivatives with respect to mpi_u_fluid
-
+1. figure out how to get rid of u_k in ActuatorLineForceBlock.py (kind of done)
+2. take the derivatives with respect to mpi_u_fluid (kind of done)
 
 '''
-
-
 
 class ActuatorLine(GenericTurbine):
 

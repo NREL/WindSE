@@ -15,7 +15,7 @@ class ActuatorLineForceBlock(Block):
         self.control_types = control_types.copy()
         self.turb = turb
 
-        self.DEBUGGING = False
+        self.INCLUDE_U_K = True
 
 
         # Add dependencies on the controls
@@ -36,7 +36,7 @@ class ActuatorLineForceBlock(Block):
         self.turb.mpi_u_fluid_constant.block_variable.tag = ("mpi_u_fluid", self.turb.index, -1)
         self.add_dependency(self.turb.mpi_u_fluid_constant)
 
-        if self.DEBUGGING:
+        if self.INCLUDE_U_K:
             self.u_k.block_variable.tag = ("u_local",self.turb.index,-1)
             self.add_dependency(self.u_k)
 
@@ -47,7 +47,7 @@ class ActuatorLineForceBlock(Block):
 
 
     def prepare_recompute_component(self, inputs, relevant_outputs):
-        if self.DEBUGGING:
+        if self.INCLUDE_U_K:
             # update the new controls inside the windfarm
             self.turb.c_lift = np.array(inputs[0:-3:3], dtype=float)
             self.turb.c_drag = np.array(inputs[1:-3:3], dtype=float)
@@ -82,7 +82,7 @@ class ActuatorLineForceBlock(Block):
 
 
     def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
-        if self.DEBUGGING:
+        if self.INCLUDE_U_K:
             # update the new controls inside the windfarm
             self.turb.c_lift = np.array(inputs[0:-3:3], dtype=float)
             self.turb.c_drag = np.array(inputs[1:-3:3], dtype=float)
@@ -175,6 +175,7 @@ class ActuatorLineForceBlock(Block):
                 self.turb.mpi_u_fluid_constant.assign(mpi_u_fluid_base)         
                 dtf_du = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
 
+                # dtf_du[:] = 0.0
                 prepared["u_local"].append(dtf_du)
 
         return prepared
@@ -184,9 +185,10 @@ class ActuatorLineForceBlock(Block):
 
         ### Get the control type and turbine index ###
         name, turbine_number, segment_index = block_variable.tag
-        # print("calculating: " + name + "_" + repr(segment_index))
-        
-        print('evaluate_adj_component: %s' % (name))
+        print("calculating: " + name + "_" + repr(segment_index))
+        print("input_val: "+repr(adj_inputs[0].norm('l2')))
+
+        # print('evaluate_adj_component: %s' % (name))
 
         if name == "u_local":
 
@@ -211,9 +213,11 @@ class ActuatorLineForceBlock(Block):
             else:
                 adj_output.vector()[:] = 0.0
 
+            print("output_val: "+repr(adj_output.vector().norm('l2')))
             return adj_output.vector()
 
         elif name == "yaw":
+            print("input_val: "+repr(np.array(adj_output)))
             comp_vec = prepared[name]
             adj_vec = adj_inputs[0].get_local()
             adj_output = np.float64(np.inner(comp_vec, adj_vec))
@@ -223,6 +227,7 @@ class ActuatorLineForceBlock(Block):
             adj_output = recv_buff
 
             # adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
+            print("output_val: "+repr(float(adj_output)))
             return np.array(adj_output)
 
         else:
@@ -235,4 +240,5 @@ class ActuatorLineForceBlock(Block):
             adj_output = recv_buff
 
             # adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
+            print("output_val: "+repr(float(adj_output)))
             return np.array(adj_output)
