@@ -11,6 +11,17 @@ from . import GenericTurbine
 from . import Constant, Expression, Function, Point, assemble, dot, dx
 
 
+'''
+FIXME After Jeff Meeting 1/13/22
+
+1. figure out how to get rid of u_k in ActuatorLineForceBlock.py
+2. take the derivatives with respect to mpi_u_fluid
+
+
+'''
+
+
+
 class ActuatorLine(GenericTurbine):
 
     def __init__(self, i,x,y,dom):
@@ -53,20 +64,27 @@ class ActuatorLine(GenericTurbine):
         self.DEBUGGING = False
 
 
-    def create_controls(self):
-        self.controls_list = ["x","y","yaw","chord","cl","cd"] # this is just part of the function as an example of the types of controls 
+    def create_controls(self, initial_call_from_setup=True):
 
-        self.mx     = Constant(self.x, name="x_{:d}".format(self.index))
-        self.my     = Constant(self.y, name="y_{:d}".format(self.index))
-        self.myaw   = Constant(self.yaw, name="yaw_{:d}".format(self.index))
+        if initial_call_from_setup:
+            self.controls_list = ["x","y","cl","cd","chord","yaw"] # this is just part of the function as an example of the types of controls 
 
+            self.mx     = Constant(self.x, name="x_{:d}".format(self.index))
+            self.my     = Constant(self.y, name="y_{:d}".format(self.index))
+            self.myaw   = Constant(self.yaw, name="yaw_{:d}".format(self.index))
 
-        # for k in range(self.num_blade_segments):
-        #     self.mchord.append(Constant(self.chord[k]))
-        #     self.mtwist.append(Constant(self.twist[k]))
-        #     self.mcl.append(Constant(self.cl[k]))
-        #     self.mcd.append(Constant(self.cd[k]))
+        else:
+            # Assign the chord, twist, cl, and cd values into a list of constants
+            self.mchord = []
+            self.mtwist = []
+            self.mcl = []
+            self.mcd = []
 
+            for k in range(self.num_blade_segments):
+                self.mchord.append(Constant(self.chord[k]))
+                self.mtwist.append(Constant(self.twist[k]))
+                self.mcl.append(Constant(self.cl[k]))
+                self.mcd.append(Constant(self.cd[k]))
 
     def lookup_lift_and_drag(self, u_rel, twist, blade_unit_vec):
 
@@ -138,7 +156,7 @@ class ActuatorLine(GenericTurbine):
         return real_cl, real_cd, tip_loss
 
 
-    def build_actuator_lines(self, fs, u_dummy, inflow_angle, dfd=None):
+    def build_actuator_lines(self, u, inflow_angle, fs, dfd=None):
 
         # Create TF each time
         tf = Function(fs.V)
@@ -171,9 +189,7 @@ class ActuatorLine(GenericTurbine):
 
         # Convert the mpi_u_fluid Constant wrapper into a numpy array
         # FIXME: double check that this wrapping-unwrapping is correct
-        mpi_u_fluid_buff = np.zeros(self.mpi_u_fluid_constant.value_size())
-        self.mpi_u_fluid_constant.eval(mpi_u_fluid_buff, mpi_u_fluid_buff)
-        mpi_u_fluid = np.copy(mpi_u_fluid_buff)
+        mpi_u_fluid = np.copy(self.mpi_u_fluid_constant.values())
 
         # Treat each blade separately
         for blade_ct, theta_0 in enumerate(self.theta_vec):
@@ -566,17 +582,11 @@ class ActuatorLine(GenericTurbine):
             cl = np.ones(self.num_blade_segments)
             cd = 0.1*np.ones(self.num_blade_segments)
 
-        # Assign these values into a list of Constant(...) values
-        self.mchord = []
-        self.mtwist = []
-        self.mcl = []
-        self.mcd = []
-
-        for k in range(self.num_blade_segments):
-            self.mchord.append(Constant(chord[k]))
-            self.mtwist.append(Constant(twist[k]))
-            self.mcl.append(Constant(cl[k]))
-            self.mcd.append(Constant(cd[k]))
+        # Store the chord, twist, cl, and cd values
+        self.chord = chord
+        self.twist = twist
+        self.cl = cl
+        self.cd = cd
 
         # Store a copy of the original values for future use
         self.baseline_chord = chord
@@ -584,15 +594,10 @@ class ActuatorLine(GenericTurbine):
         self.baseline_cl = cl
         self.baseline_cd = cd
 
-        self.chord = chord
-        self.twist = twist
-        self.cl = cl
-        self.cd = cd
-
         self.max_chord = 1.5*np.amax(chord)
 
 
-    def init_unsteady_alm_terms(self, simTime, dt):
+    def init_unsteady_alm_terms(self):
 
         self.rotor_torque = np.zeros(1)
         self.rotor_torque_count = np.zeros(1, dtype=int)
@@ -600,13 +605,13 @@ class ActuatorLine(GenericTurbine):
         # self.tf.vector()[:] = 0.0
 
         # The forces should be imposed at the current position/time PLUS 0.5*dt
-        simTime_ahead = simTime + 0.5*dt
+        simTime_ahead = self.simTime + 0.5*self.dt
 
         # The fluid velocity should be probed at the current position/time MINUS 0.5*dt
         if self.simTime_prev is None:
-            simTime_behind = simTime
+            simTime_behind = self.simTime
         else:
-            simTime_behind = 0.5*(self.simTime_prev + simTime)
+            simTime_behind = 0.5*(self.simTime_prev + self.simTime)
 
         self.theta_ahead = simTime_ahead*self.angular_velocity
         self.theta_behind = simTime_behind*self.angular_velocity
@@ -615,8 +620,8 @@ class ActuatorLine(GenericTurbine):
     def get_u_fluid_at_alm_nodes(self, u_k):
 
         # Create an empty array to hold all the components of velocity
-        self.mpi_u_fluid = np.zeros(self.ndim*self.num_blades*self.num_blade_segments)
-        self.mpi_u_fluid_count = np.zeros(self.ndim*self.num_blades*self.num_blade_segments)
+        mpi_u_fluid = np.zeros(self.ndim*self.num_blades*self.num_blade_segments)
+        mpi_u_fluid_count = np.zeros(self.ndim*self.num_blades*self.num_blade_segments)
 
         for blade_ct, theta_0 in enumerate(self.theta_vec):
             Rx = self.rot_x(self.theta_behind + theta_0)
@@ -633,33 +638,33 @@ class ActuatorLine(GenericTurbine):
 
             # Need to probe the velocity point at each actuator node,
             # where actuator nodes are individual columns of blade_pos
-            for j in range(self.num_blade_segments):
+            for k in range(self.num_blade_segments):
                 # If using the local velocity, measure at the blade
                 if self.use_local_velocity:
-                    xi = blade_pos[0, j]
+                    xi = blade_pos[0, k]
                 else:
                     xi = self.dom.x_range[0]
 
-                yi = blade_pos[1, j]
-                zi = blade_pos[2, j]
+                yi = blade_pos[1, k]
+                zi = blade_pos[2, k]
 
                 # Try to access the fluid velocity at this actuator point
                 # If this rank doesn't own that point, an error will occur,
                 # in which case zeros should be reported
                 try:
                     fn_val = u_k(np.array([xi, yi, zi]))
-                    start_pt = self.ndim*blade_ct*self.num_blade_segments + self.ndim*j
+                    start_pt = self.ndim*blade_ct*self.num_blade_segments + self.ndim*k
                     end_pt = start_pt + self.ndim
-                    self.mpi_u_fluid[start_pt:end_pt] = fn_val
-                    self.mpi_u_fluid_count[start_pt:end_pt] = [1, 1, 1]
+                    mpi_u_fluid[start_pt:end_pt] = fn_val
+                    mpi_u_fluid_count[start_pt:end_pt] = [1, 1, 1]
                 except:
                     pass
 
-        data_in_fluid = np.zeros((self.params.num_procs, np.size(self.mpi_u_fluid)))
-        self.params.comm.Gather(self.mpi_u_fluid, data_in_fluid, root=0)
+        data_in_fluid = np.zeros((self.params.num_procs, np.size(mpi_u_fluid)))
+        self.params.comm.Gather(mpi_u_fluid, data_in_fluid, root=0)
 
-        data_in_count = np.zeros((self.params.num_procs, np.size(self.mpi_u_fluid_count)))
-        self.params.comm.Gather(self.mpi_u_fluid_count, data_in_count, root=0)
+        data_in_count = np.zeros((self.params.num_procs, np.size(mpi_u_fluid_count)))
+        self.params.comm.Gather(mpi_u_fluid_count, data_in_count, root=0)
 
         if self.params.rank == 0:
             mpi_u_fluid_sum = np.sum(data_in_fluid, axis=0)
@@ -667,12 +672,12 @@ class ActuatorLine(GenericTurbine):
 
             # This removes the possibility of a velocity shared between multiple nodes being reported
             # multiple times and being effectively doubled (or worse) when summing mpi_u_fluid across processes
-            self.mpi_u_fluid = mpi_u_fluid_sum/mpi_u_fluid_count_sum
+            mpi_u_fluid = mpi_u_fluid_sum/mpi_u_fluid_count_sum
 
-        self.params.comm.Bcast(self.mpi_u_fluid, root=0)
+        self.params.comm.Bcast(mpi_u_fluid, root=0)
 
         # Populate the Constant "wrapper" with the velocity values to enable dolfin to track mpi_u_fluid
-        self.mpi_u_fluid_constant.assign(Constant(self.mpi_u_fluid, name="temp_u_f"))
+        self.mpi_u_fluid_constant.assign(Constant(mpi_u_fluid, name="mpi_u_fluid"))
 
 
     def compute_rotor_torque(self):
@@ -699,8 +704,8 @@ class ActuatorLine(GenericTurbine):
         # otherwise, it returns a numpy array of derivatives [numPts*ndim x numControls]
 
         try:
-            simTime = kwargs['simTime']
-            dt = kwargs['dt']
+            self.simTime = kwargs['simTime']
+            self.dt = kwargs['dt']
         except:
             raise ValueError('"simTime" and "dt" must be specified for the calculation of ALM force.')
 
@@ -709,21 +714,22 @@ class ActuatorLine(GenericTurbine):
             self.init_constant_alm_terms(fs)
             self.init_blade_properties()
             self.init_lift_drag_lookup_tables()
+            self.create_controls(initial_call_from_setup=False)
 
         # Initialize summation, counting, etc., variables for alm solve
-        self.init_unsteady_alm_terms(simTime, dt)
+        self.init_unsteady_alm_terms()
 
         # Call the function to build the complete mpi_u_fluid array
         self.get_u_fluid_at_alm_nodes(u)
 
         # Call the ALM function for this turbine
-        self.tf = self.build_actuator_lines(fs, u, inflow_angle)
+        self.tf = self.build_actuator_lines(u, inflow_angle, fs)
 
         # Do some sharing of information when everything is finished
         self.compute_rotor_torque()
 
         # Store the most recent simTime for use in the next iteration
-        self.simTime_prev = simTime
+        self.simTime_prev = self.simTime
 
         if self.first_call_to_alm:
             self.first_call_to_alm = False
@@ -742,6 +748,8 @@ class ActuatorLine(GenericTurbine):
 
         self.power_dolfin = assemble(dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
         self.power_numpy = self.rotor_torque*self.angular_velocity
+
+        # print("in turb.poweer()",self.power_dolfin, self.power_numpy)
 
         print('Error between dolfin and numpy: %e' % (float(self.power_dolfin) - self.power_numpy))
 

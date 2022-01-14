@@ -1053,7 +1053,7 @@ class UnsteadySolver(GenericSolver):
                 # # self.problem.alm_power_average = self.problem.alm_power_sum/self.simTime
 
                 # self.problem.alm_power_dolfin = self.problem.farm.compute_power(self.problem.u_k, self.problem.bd.inflow_angle)
-                # output_str = 'Rotor Power (dolfin): %s MW' % (self.problem.alm_power_dolfin/1.0e6)
+                # output_str = 'Rotor Power (dolfin, solver): %s MW' % (self.problem.alm_power_dolfin/1.0e6)
                 # self.fprint(output_str)
 
             else:
