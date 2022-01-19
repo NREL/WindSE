@@ -7,6 +7,9 @@ if windse_parameters.dolfin_adjoint:
 # import dolfin functions
 from . import cos, sin, Constant
 
+# Other imports
+import warnings
+
 class GenericTurbine(object):
     """
     A GenericTurbine contains on the basic functions and attributes required by all turbine objects.
@@ -14,7 +17,7 @@ class GenericTurbine(object):
     Args: 
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
-    def __init__(self, i,x,y,dom):
+    def __init__(self, i,x,y,dom,imported_params):
         """
         Store anything needed prior to setup
         """
@@ -25,11 +28,13 @@ class GenericTurbine(object):
         self.fprint = self.params.fprint
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
+        self.type = self.params["turbines"]["type"]
 
         # Store turbine properties
         self.index = i
         self.x = x
         self.y = y
+        self.imported_params = imported_params
 
         # blockify custom functions so dolfin adjoint can track them
         if self.params.performing_opt_calc:
@@ -43,6 +48,7 @@ class GenericTurbine(object):
         This function takes the init data and set it up
         """  
         self.load_parameters()
+        self.update_parameters_from_file()
         self.create_controls()
         self.calculate_heights()
         self.debug_output() 
@@ -54,6 +60,37 @@ class GenericTurbine(object):
         This function will parse the parameters from the yaml file
         """  
         raise NotImplementedError(type(self))
+
+    def update_parameters_from_file(self):
+        """
+        If the farm type is imported, this function will update the parameters from a data frame 
+        """  
+
+        # this is used to maintain backwards compatibility with the old .txt version
+        legacy_name_dict = {"Yaw":"yaw", "Diameter":"RD", "Thickness":"thickness", "Axial_Induction":"axial"}
+
+        if self.imported_params is not None:
+            for column_header, val in self.imported_params.items():
+                # convert if legacy
+                if column_header in legacy_name_dict.keys():
+                    column_header = legacy_name_dict[column_header]
+
+                # check if imported value is also set in the yaml
+                if self.params.user_supplied["turbines"][column_header]:
+                    warnings.warn(f"Turbine parameter {column_header} is supplied both in the yaml and in {self.params['wind_farm']['path']}. Using value from {self.params['wind_farm']['path']}.")
+
+                # check if valid parameter for turbine type
+                if column_header not in self.yaml_inputs:
+                    raise ValueError(f"Column, {column_header}, is not a valid input for turbine type, {self.type}.")
+
+                # update the parameter
+                setattr(self,column_header,val)
+
+    def compute_parameters(self):
+        """
+        This function will compute any additional parameters
+        """  
+        pass
 
     def create_controls(self):
         """

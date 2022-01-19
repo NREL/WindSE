@@ -26,7 +26,7 @@ class GenericWindFarm(object):
         self.debug_mode = self.params.debug_mode
 
         # Load any global parameter
-        self.disabled     = self.params["wind_farm"]["disabled"]
+        self.farm_type = self.params["wind_farm"]["type"]
         self.turbine_type = self.params["turbines"]["type"]
 
         # Set any global flags
@@ -58,6 +58,7 @@ class GenericWindFarm(object):
         This function builds the wind farm as well as sets up the turbines
         """  
         self.load_parameters()      
+        self.compute_parameters()      
         self.fprint("Number of Turbines: {:d}".format(self.numturbs))
         self.fprint("Type of Turbines: {}".format(self.turbine_type))
         self.initial_turbine_locations = self.initialize_turbine_locations()
@@ -71,6 +72,12 @@ class GenericWindFarm(object):
     def load_parameters(self):
         """
         This function will parse the parameters from the yaml file
+        """  
+        raise NotImplementedError(type(self))
+
+    def compute_parameters(self):
+        """
+        This function will compute any additional parameters
         """  
         raise NotImplementedError(type(self))
 
@@ -88,7 +95,7 @@ class GenericWindFarm(object):
         from windse.turbine_types import turbine_dict
         turbine_method = turbine_dict[self.turbine_type]
         for i,(x,y) in enumerate(self.initial_turbine_locations):
-            self.turbines.append(turbine_method(i,x,y,self.dom))
+            self.turbines.append(turbine_method(i,x,y,self.dom,pa))
 
     def get_hub_locations(self):
         """

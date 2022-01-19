@@ -15,7 +15,11 @@ from .ActuatorLine         import ActuatorLine
 ### Create the turbine dictionary ###
 turbine_dict = {
     "disk":       ActuatorDisk,
+    "disks":       ActuatorDisk,
     "2D_disk":    ActuatorDisk2D,
+    "2D_disks":    ActuatorDisk2D,
     "numpy_disk": ActuatorDiskNumpy,
+    "numpy_disks": ActuatorDiskNumpy,
     "line":       ActuatorLine,
+    "lines":       ActuatorLine,
 }

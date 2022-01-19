@@ -45,7 +45,14 @@ class GridWindFarm(GenericWindFarm):
         self.y_shear   = self.params["wind_farm"]["y_shear"]
         self.jitter    = self.params["wind_farm"]["jitter"]
         self.seed      = self.params["wind_farm"]["seed"]
-        self.radius    = self.params["turbines"]["RD"]/2.0 # TODO: Should we get rid of the farm padding?
+        self.RD        = self.params["turbines"]["RD"] # TODO: Should we get rid of the farm padding?
+
+    def compute_parameters(self):
+
+        # compute turbine radius
+        self.radius = self.RD/2.0
+
+        # compute number of turbines
         self.numturbs  = self.grid_rows*self.grid_cols
 
         # Need to compute extents if only spacings are provided
@@ -57,7 +64,6 @@ class GridWindFarm(GenericWindFarm):
         else:
             self.ex_x   = [self.ex_x[0] + self.radius, self.ex_x[1] - self.radius]
             self.ex_y   = [self.ex_y[0] + self.radius, self.ex_y[1] - self.radius]
-
 
     def initialize_turbine_locations(self):
         ### Check if random seed is set ###

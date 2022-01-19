@@ -45,8 +45,7 @@ domain:                         # parameters for DomainManager
         my:        Null                 # y slope
 
 wind_farm:                  # parameters for WindFarmManager
-    type:           Null        # type of wind farm       
-    disabled:       False       # an option to create the turbines but have the actual turbine force disabled. Useful when creating mesh with turbine based refinement
+    type:           Null        # type of wind farm (grid, random, imported, empty)      
     path:           Null        # location of imported wind farm 
     display:        False       # If true, then matplotlib with show() the wind farm/chord profiles mid run
     ex_x:           Null        # extents of the farm in the x direction in meters
@@ -63,14 +62,14 @@ wind_farm:                  # parameters for WindFarmManager
     seed:           Null        # seed to fix the randomness between runs
 
 turbines:                   # parameters for the turbine objects
-    type:           Null        # type of representation (disk2D, disk, line)
+    type:           Null        # type of representation (disk2D, disk, line, disabled)
     HH:             Null        # hub height in meters
     RD:             Null        # rotor diameter in meters
     thickness:      Null        # thickness of the actuator disk in meters (usually 10% of RD)
     yaw:            Null        # yaw of the turbine relative to inflow angle
     axial:          Null        # axial induction value for actuator disks
     force:          sine        # distribution of force along the radial direction of an actuator disk. choices: constant, sine, ?chord?
-    rpm:            10.0        # rotations per minute for the alm method
+    rpm:            Null        # rotations per minute for the alm method
     read_turb_data: Null        # location of alm data
     blade_segments: computed    # number of nodes along the rotor radius 
     use_local_velocity: True    # use the velocity at the rotor to compute alm forces (otherwise use inflow)

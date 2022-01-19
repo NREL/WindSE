@@ -35,8 +35,16 @@ class RandomWindFarm(GenericWindFarm):
         self.seed         = self.params["wind_farm"]["seed"]
         self.ex_x         = self.params["wind_farm"]["ex_x"]
         self.ex_y         = self.params["wind_farm"]["ex_y"]
-        self.radius       = self.params["turbines"]["RD"]/2.0
-        self.min_sep_dist = self.params["wind_farm"]["min_sep_dist"]*self.radius*2
+        self.min_sep_dist = self.params["wind_farm"]["min_sep_dist"]
+        self.RD           = self.params["turbines"]["RD"]
+
+    def compute_parameters(self):
+
+        # compute turbine radius
+        self.radius = self.RD/2.0
+
+        # convert minimum seperation distance to meters
+        self.min_sep_dist = self.min_sep_dist*self.radius*2
 
     def initialize_turbine_locations(self):
         ### Check if random seed is set ###

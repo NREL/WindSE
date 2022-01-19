@@ -20,8 +20,12 @@ FIXME After Jeff Meeting 1/13/22
 
 class ActuatorLine(GenericTurbine):
 
-    def __init__(self, i,x,y,dom):
-        super(ActuatorLine, self).__init__(i,x,y,dom)
+    def __init__(self, i,x,y,dom,imported_params=None):
+        # Define the acceptable column of an wind_farm.csv imput file        
+        self.yaml_inputs = ["HH", "RD", "yaw", "yaw", "rpm", "read_turb_data", "blade_segments", "use_local_velocity", "chord_factor", "gauss_factor"]
+
+        # Init turbine
+        super(ActuatorLine, self).__init__(i,x,y,dom,imported_params)
 
         # blockify custom functions so dolfin adjoint can track them
         if self.params.performing_opt_calc:
@@ -32,6 +36,11 @@ class ActuatorLine(GenericTurbine):
             }
             self.build_actuator_lines = blockify(self.build_actuator_lines,ActuatorLineForceBlock,block_kwargs=block_kwargs)
 
+
+        # init some flags
+        self.first_call_to_alm = True
+        self.simTime_prev = None
+        self.DEBUGGING = False
 
     def get_baseline_chord(self):
         '''
@@ -53,12 +62,10 @@ class ActuatorLine(GenericTurbine):
         self.chord_factor = self.params["turbines"]["chord_factor"]
         self.gauss_factor = self.params["turbines"]["gauss_factor"]
 
+    def compute_parameters(self):
+
+        # compute turbine radius
         self.radius = 0.5*self.RD
-        self.first_call_to_alm = True
-        self.simTime_prev = None
-
-        self.DEBUGGING = False
-
 
     def create_controls(self, initial_call_from_setup=True):
 

@@ -7,8 +7,8 @@ import numpy as np
 
 class ActuatorDisk2D(ActuatorDisk):
 
-    def __init__(self, i,x,y,dom):
-        super(ActuatorDisk2D, self).__init__(i,x,y,dom)
+    def __init__(self, i,x,y,dom,imported_params=None):
+        super(ActuatorDisk2D, self).__init__(i,x,y,dom,imported_params)
 
     def power(self, u, inflow_angle):
         x=SpatialCoordinate(self.dom.mesh)

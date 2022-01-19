@@ -58,9 +58,9 @@ class GenericBoundary(object):
         self.zero  = Constant(0.0)
 
         ### Use custom boundary tags if provided ###
-        if self.params.default_bc_names:
+        if not self.params.user_supplied["boundary_conditions"]["boundary_names"]:
             self.boundary_names = self.dom.boundary_names
-        if self.params.default_bc_types:
+        if not self.params.user_supplied["boundary_conditions"]["boundary_types"]:
             self.boundary_types = self.dom.boundary_types
 
     def DebugOutput(self):

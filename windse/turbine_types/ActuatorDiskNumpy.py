@@ -12,9 +12,9 @@ from scipy.special import gamma
 
 class ActuatorDiskNumpy(ActuatorDisk):
 
-    def __init__(self, i,x,y,dom):
+    def __init__(self, i,x,y,dom,imported_params=None):
         # initialize the rest of the turbine
-        super(ActuatorDiskNumpy, self).__init__(i,x,y,dom)
+        super(ActuatorDiskNumpy, self).__init__(i,x,y,dom,imported_params)
 
         # blockify custom functions so dolfin adjoint can track them
         if self.params.performing_opt_calc:

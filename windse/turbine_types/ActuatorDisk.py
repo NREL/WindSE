@@ -10,16 +10,19 @@ from scipy.special import gamma
 
 class ActuatorDisk(GenericTurbine):
 
-    def __init__(self, i,x,y,dom):
-        super(ActuatorDisk, self).__init__(i,x,y,dom)
+    def __init__(self, i,x,y,dom,imported_params=None):
+        # Define the acceptable column of an wind_farm.csv imput file        
+        self.yaml_inputs = ["HH", "RD", "yaw", "thickness", "axial", "force"]
 
-        ### special stuff here ###
+        # Init turbine
+        super(ActuatorDisk, self).__init__(i,x,y,dom,imported_params)
+    
 
     def load_parameters(self):
         self.HH        = self.params["turbines"]["HH"]
         self.RD        = self.params["turbines"]["RD"]
-        self.thickness = self.params["turbines"]["thickness"]
         self.yaw       = self.params["turbines"]["yaw"]
+        self.thickness = self.params["turbines"]["thickness"]
         self.axial     = self.params["turbines"]["axial"]
         self.force     = self.params["turbines"]["force"]
     
