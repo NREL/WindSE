@@ -49,6 +49,7 @@ class GenericTurbine(object):
         """  
         self.load_parameters()
         self.update_parameters_from_file()
+        self.compute_parameters()      
         self.create_controls()
         self.calculate_heights()
         self.debug_output() 
@@ -129,7 +130,8 @@ class GenericTurbine(object):
         """
 
         # use the ground function from the domain co calculate the height of the turbine hub (this preserves dolfin_adjoint)
-        self.mz = self.base_height(self.mx,self.my)+float(self.HH)
+        self.mz = Constant(self.HH)
+        self.mz += self.base_height(self.mx,self.my)
 
         # store the float for easy access
         self.z = float(self.mz)

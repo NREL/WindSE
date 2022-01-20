@@ -40,6 +40,10 @@ turbines:
     thickness: 20.0       # Effective Thickness      | m
     axial: 0.33           # Axial Induction          | -
     force: sine           # radial force distribution| -
+
+    # These two are left off because they are supplied in the wind_farm.csv file
+    # HH: 90                # Hub Height               | m
+    # yaw: 0.0              # Yaw                      | rads
     ###################################################################
 
 # Domain Parameters: Uncomment a set to change domain shape

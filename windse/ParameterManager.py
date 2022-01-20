@@ -130,6 +130,9 @@ class Parameters(dict):
     def RecordUserSupplied(self,yaml_file,defaults):
         user_supplied = {}
 
+        if not isinstance(defaults,dict):
+            return True
+
         for key in defaults.keys():
             user_supplied[key] = False
 

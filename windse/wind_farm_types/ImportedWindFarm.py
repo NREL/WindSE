@@ -61,7 +61,7 @@ class ImportedWindFarm(GenericWindFarm):
             raise ValueError(f"Unknown imported wind farm file type: {file_type}")
 
         ### Import the data from path ###
-        self.imported_params = pandas.read_csv(f, sep=sep, names=header.split())
+        self.imported_params = pandas.read_csv(f, sep=sep, names=header.split(), dtype=float)
 
         ### Set the number of turbines ###
         self.numturbs = len(self.imported_params.index)

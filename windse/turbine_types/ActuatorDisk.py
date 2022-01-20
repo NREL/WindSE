@@ -137,7 +137,7 @@ class ActuatorDisk(GenericTurbine):
         pass
 
     def prepare_saved_functions(self, func_list):
-        if func_list is None:
+        if len(func_list) == 0:
             func_list = [
                 [self.actuator_disk,"actuator_disk"],
                 [self.tf,"turbine_force"]

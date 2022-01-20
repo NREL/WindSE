@@ -50,7 +50,6 @@ class ActuatorLine(GenericTurbine):
 
 
     def load_parameters(self):
-
         self.type = self.params["turbines"]["type"]
         self.HH = self.params["turbines"]["HH"]
         self.RD = self.params["turbines"]["RD"]
@@ -759,4 +758,11 @@ class ActuatorLine(GenericTurbine):
         return self.power_dolfin
 
     def prepare_saved_functions(self, func_list):
-        pass
+        if len(func_list) == 0:
+            func_list = [
+                [self.tf,"turbine_force"]
+            ]
+        else:
+            func_list[1][0] += self.tf
+
+        return func_list

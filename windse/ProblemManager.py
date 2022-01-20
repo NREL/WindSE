@@ -141,7 +141,10 @@ class GenericProblem(object):
                 if self.dom.dim == 3:
                     depth = self.bd.depth.vector()[:]
                 else:
-                    depth = self.farm.turbines[0].HH
+                    if self.farm.numturbs == 0:
+                        depth = self.params["boundary_conditions"]["vel_height"]
+                    else:
+                        depth = self.farm.turbines[0].HH
 
                 numer = vonKarman*depth
                 denom = 1.0 + vonKarman*depth/self.lmax

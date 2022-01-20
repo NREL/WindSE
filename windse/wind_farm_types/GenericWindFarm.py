@@ -95,7 +95,7 @@ class GenericWindFarm(object):
         from windse.turbine_types import turbine_dict
         turbine_method = turbine_dict[self.turbine_type]
         for i,(x,y) in enumerate(self.initial_turbine_locations):
-            self.turbines.append(turbine_method(i,x,y,self.dom,pa))
+            self.turbines.append(turbine_method(i,x,y,self.dom))
 
     def get_hub_locations(self):
         """
@@ -421,7 +421,7 @@ class GenericWindFarm(object):
         """
 
         # gather functions
-        func_list = None
+        func_list = []
         for turb in self.turbines:
             func_list = turb.prepare_saved_functions(func_list)
 
