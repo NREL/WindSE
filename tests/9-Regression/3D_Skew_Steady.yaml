@@ -8,33 +8,35 @@ general:
 # Wind Farm Parameters:
 wind_farm: 
 
-    ########################## Grid Wind Farm #########################
-    type: grid            #                          |
-    grid_rows: 2          # Number of rows           | -
-    grid_cols: 4          # Number of columns        | -
+    ######################### Random Wind Farm ########################
+    type: random          #                          |
+    numturbs: 9           # number of turbines       | -
     ex_x: [-600, 600]     # x-extent of the farm     | m
-    ex_y: [-300, 300]     # y-extent of the farm     | m
+    ex_y: [-600, 600]     # y-extent of the farm     | m
+    seed: 5555555         # random seed for repeats  | -
     ###################################################################
 
 turbines:
-    type: disk            # Use actuator Disks       |    
+    type: numpy_disk      # Use actuator Disks       |    
     HH: 90                # Hub Height               | m
     RD: 126.0             # Turbine Diameter         | m
-    thickness: 20.0       # Effective Thickness      | m
-    yaw: 0.349            # Yaw                      | rads
+    thickness: 10.5       # Effective Thickness      | m
+    yaw: 0.0              # Yaw                      | rads
     axial: 0.33           # Axial Induction          | -
 
-# Domain Parameters: Uncomment a set to change domain shape
+
 domain: 
     
     ########################### Box Domain ############################
     type: box              #                       |
     x_range: [-1200, 1200] # x-range of the domain | m
-    y_range: [-600, 600] # y-range of the domain | m
+    y_range: [-1200, 1200] # y-range of the domain | m
     z_range: [0.04, 640]   # z-range of the domain | m
-    nx: 16                 # Number of x-nodes     | -
-    ny: 8                  # Number of y-nodes     | -
-    nz: 8                  # Number of z-nodes      | -
+    nx: 10                 # Number of x-nodes     | -
+    ny: 10                  # Number of y-nodes     | -
+    nz: 5                  # Number of z-nodes      | -
+    interpolated: true 
+    terrain_path: Input_Data/skew_terrain.txt
     ###################################################################
 
 refine:
@@ -42,12 +44,11 @@ refine:
     warp_percent: 0.7     # percent of cells moved       | -
     warp_height: 250       # move cell below this value   | m
     refine_custom: [
-        [box, [  [[-1000,1200],[-400,400],[ 0,200]]  ]],
-        # [box, [  [[-1000,1200],[-400,400],[ 0,200]]  ]]
+        [cylinder, [[0.0,0.0,0.0], 600, 400, 1.5 ]],
+        [simple, [ 80 ]]
     ]
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.25   # turbine radius multiplier    | -
-
 
 function_space:
     type: linear
@@ -56,14 +57,7 @@ boundary_conditions:
     vel_profile: log
     HH_vel: 8.0
     k: 0.4
-    # inflow_angle: 1.13
-    ######## Uncomment to test out custom BCs for BoxDomain ##########
-    boundary_types:
-        inflow: ["west"]
-        no_stress: ["east"]
-        free_slip: ["top","north","south"]
-        no_slip: ["bottom"]
-    ##################################################################
+    inflow_angle: 1.13
 
 problem:
     type: stabilized
@@ -73,6 +67,7 @@ problem:
 solver:
     type: steady
     save_power: true
+    nonlinear_solver: newton
 
 optimization:
     control_types: [layout,yaw]

@@ -34,7 +34,7 @@ class ActuatorLine(GenericTurbine):
                 "control_types": self.params["optimization"]["control_types"],
                 "turb": self
             }
-            self.build_actuator_lines = blockify(self.build_actuator_lines,ActuatorLineForceBlock,block_kwargs=block_kwargs)
+            self.turbine_force = blockify(self.turbine_force,ActuatorLineForceBlock,block_kwargs=block_kwargs)
 
 
         # init some flags
@@ -166,6 +166,7 @@ class ActuatorLine(GenericTurbine):
         # Read cl and cd from the values specified in problem manager
         twist = np.array(self.mtwist, dtype = float)
         chord = np.array(self.mchord, dtype = float)
+        # print("chord: ", chord)
 
         cl = np.array(self.mcl, dtype = float)
         cd = np.array(self.mcd, dtype = float)
@@ -360,13 +361,13 @@ class ActuatorLine(GenericTurbine):
 
         tf.vector().update_ghost_values()
 
-        print('Max TF: ', tf.vector().max() - 0.026665983592878112)
-        print('Min TF: ', tf.vector().min() - -0.22879677484292432)
-        print('Max Lift: ', np.amax(lift) - 1604.506078981611)
-        print('Max Drag: ', np.amax(drag) - 2205.459487502247)
-        print('Max Nodal Lift: ', np.amax(nodal_lift) - 0.053743827932146535)
-        print('Max Nodal Drag: ', np.amax(nodal_drag) - 0.07069602361087358)
-        print('Rotor torque numpy:', self.rotor_torque - 117594.90448122297)
+        # print('Max TF: ', tf.vector().max() - 0.026665983592878112)
+        # print('Min TF: ', tf.vector().min() - -0.22879677484292432)
+        # print('Max Lift: ', np.amax(lift) - 1604.506078981611)
+        # print('Max Drag: ', np.amax(drag) - 2205.459487502247)
+        # print('Max Nodal Lift: ', np.amax(nodal_lift) - 0.053743827932146535)
+        # print('Max Nodal Drag: ', np.amax(nodal_drag) - 0.07069602361087358)
+        # print('Rotor torque numpy:', self.rotor_torque - 117594.90448122297)
 
         if dfd == None:
 
@@ -707,6 +708,7 @@ class ActuatorLine(GenericTurbine):
 
         try:
             self.simTime = kwargs['simTime']
+            self.simTime_prev = kwargs['simTime_prev']
             self.dt = kwargs['dt']
         except:
             raise ValueError('"simTime" and "dt" must be specified for the calculation of ALM force.')
@@ -717,6 +719,16 @@ class ActuatorLine(GenericTurbine):
             self.init_blade_properties()
             self.init_lift_drag_lookup_tables()
             self.create_controls(initial_call_from_setup=False)
+
+
+        # x0, n
+
+        # x_hat = translate(x0,xt)
+        # n_hat = rotate(n, thetas)
+
+        # n_hat_hat = calculate_realitive(n_hat,mpi_u_fluid)
+
+        # tf = turbine_force(x_hat,n_hat_hat) 
 
         # Initialize summation, counting, etc., variables for alm solve
         self.init_unsteady_alm_terms()
@@ -729,9 +741,6 @@ class ActuatorLine(GenericTurbine):
 
         # Do some sharing of information when everything is finished
         self.compute_rotor_torque()
-
-        # Store the most recent simTime for use in the next iteration
-        self.simTime_prev = self.simTime
 
         if self.first_call_to_alm:
             self.first_call_to_alm = False
@@ -748,12 +757,12 @@ class ActuatorLine(GenericTurbine):
             ys=self.my,
             zs=self.mz)
 
-        self.power_dolfin = assemble(dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
-        self.power_numpy = self.rotor_torque*self.angular_velocity
+        self.power_dolfin = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
+        self.power_numpy = 1e-6*self.rotor_torque*self.angular_velocity
 
         # print("in turb.poweer()",self.power_dolfin, self.power_numpy)
 
-        print('Error between dolfin and numpy: %e' % (float(self.power_dolfin) - self.power_numpy))
+        # print('Error between dolfin and numpy: %e' % (float(self.power_dolfin) - self.power_numpy))
 
         return self.power_dolfin
 

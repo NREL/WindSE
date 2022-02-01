@@ -35,7 +35,7 @@ wind_farm:
 turbines:
 
     ######################### Turbine Properties ########################
-    type: disk
+    type: 2D_disk
     RD: 126.0             # Turbine Diameter         | m
     thickness: 20.0       # Effective Thickness      | m
     axial: 0.33           # Axial Induction          | -

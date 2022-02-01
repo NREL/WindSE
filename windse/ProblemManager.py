@@ -65,37 +65,47 @@ class GenericProblem(object):
 
     def DebugOutput(self):
         if self.debug_mode:
-            with stop_annotating():
-                # integral of nu_t
-                int_nut = assemble(self.nu_T*dx)/self.dom.volume
-                self.tag_output("int_nu_T", int_nut)
+            # with stop_annotating():
+            # integral of nu_t
+            int_nut = assemble(self.nu_T*dx)/self.dom.volume
+            self.tag_output("int_nu_T", int_nut)
 
-                # integral of tf
-                if self.dom.dim == 3:
-                    e1 = Constant((1,0,0)); e2 = Constant((0,1,0)); e3 = Constant((0,0,1));
-                else:
-                    e1 = Constant((1,0)); e2 = Constant((0,1));
+            # integral of tf
+            if self.dom.dim == 3:
+                e1 = Constant((1,0,0)); e2 = Constant((0,1,0)); e3 = Constant((0,0,1));
+            else:
+                e1 = Constant((1,0)); e2 = Constant((0,1));
 
-                int_tf_x = assemble(inner(self.tf,e1)*dx)/self.dom.volume
-                self.tag_output("int_tf_x", int_tf_x)
-                int_tf_y = assemble(inner(self.tf,e2)*dx)/self.dom.volume
-                self.tag_output("int_tf_y", int_tf_y)
-                if self.dom.dim == 3:
-                    int_tf_z = assemble(inner(self.tf,e3)*dx)/self.dom.volume
-                    self.tag_output("int_tf_z", int_tf_z)
+            int_tf_x = assemble(inner(self.tf,e1)*dx)/self.dom.volume
+            self.tag_output("int_tf_x", int_tf_x)
+            int_tf_y = assemble(inner(self.tf,e2)*dx)/self.dom.volume
+            self.tag_output("int_tf_y", int_tf_y)
+            if self.dom.dim == 3:
+                int_tf_z = assemble(inner(self.tf,e3)*dx)/self.dom.volume
+                self.tag_output("int_tf_z", int_tf_z)
 
 
-                if self.farm.turbine_type == 'alm':
-                    self.tag_output("min_chord", np.min(self.chord))
-                    self.tag_output("max_chord", np.max(self.chord))
-                    self.tag_output("avg_chord", np.mean(self.chord))
-                    self.tag_output("min_cl", np.min(self.cl))
-                    self.tag_output("max_cl", np.max(self.cl))
-                    self.tag_output("avg_cl", np.mean(self.cl))
-                    self.tag_output("min_cd", np.min(self.cd))
-                    self.tag_output("max_cd", np.max(self.cd))
-                    self.tag_output("avg_cd", np.mean(self.cd))
-                    self.tag_output("num_blade_segments", self.num_blade_segments)
+            if self.farm.turbine_type == 'line':
+                chord = []
+                cl = []
+                cd = []
+                num_blade_segments = []
+                for i in range(self.farm.numturbs):
+                    chord.append(self.farm.turbines[i].chord)
+                    cl.append(self.farm.turbines[i].cl)
+                    cd.append(self.farm.turbines[i].cd)
+                    num_blade_segments.append(self.farm.turbines[i].num_blade_segments)
+
+                self.tag_output("min_chord", np.min(chord))
+                self.tag_output("max_chord", np.max(chord))
+                self.tag_output("avg_chord", np.mean(chord))
+                self.tag_output("min_cl", np.min(cl))
+                self.tag_output("max_cl", np.max(cl))
+                self.tag_output("avg_cl", np.mean(cl))
+                self.tag_output("min_cd", np.min(cd))
+                self.tag_output("max_cd", np.max(cd))
+                self.tag_output("avg_cd", np.mean(cd))
+                self.tag_output("num_blade_segments", np.mean(num_blade_segments))
 
     def ComputeTurbineForce(self,u,inflow_angle,**kwargs):
         tf_start = time.time()
@@ -630,7 +640,7 @@ class UnsteadyProblem(GenericProblem):
         # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
         # self.tf = Function(self.fs.V)
 
-        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle,simTime=0.0,dt=self.dt)
+        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle,simTime=0.0,simTime_prev=None, dt=self.dt)
         self.u_k.assign(self.bd.bc_velocity)
 
         # Only the actuator lines point "upstream" against the flow

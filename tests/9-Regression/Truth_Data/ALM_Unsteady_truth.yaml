@@ -1,4 +1,4 @@
-WindFarmManager:
+GenericWindFarm:
   min_x: 0.0
   max_x: 0.0
   avg_x: 0.0

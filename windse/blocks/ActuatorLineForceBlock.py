@@ -7,7 +7,7 @@ from . import Function, Constant
 class ActuatorLineForceBlock(Block):
     '''This is the Block class that will be used to calculate adjoint 
     information for optimizations. '''
-    def __init__(self, u_k, inflow_angle, fs, control_types=None, turb=None):
+    def __init__(self, u_k, inflow_angle, fs, control_types=None, turb=None, **kwargs):
         super(ActuatorLineForceBlock, self).__init__()
         self.u_k = u_k
         self.inflow_angle = inflow_angle
@@ -17,6 +17,9 @@ class ActuatorLineForceBlock(Block):
 
         self.INCLUDE_U_K = True
 
+        self.simTime = kwargs['simTime']
+        self.simTime_prev = kwargs['simTime_prev']
+        self.dt = kwargs['dt']
 
         # Add dependencies on the controls
         for j in range(self.turb.num_blade_segments):
@@ -72,7 +75,7 @@ class ActuatorLineForceBlock(Block):
         self.turb.fprint("Current Chord: "+str(np.array(self.turb.mchord,dtype=float)),tab=2)
         # self.turb.fprint("",special="footer")
 
-        prepared = self.turb.build_actuator_lines(u_k, self.inflow_angle, self.fs)
+        prepared = self.turb.turbine_force(u_k, self.inflow_angle, self.fs,simTime=self.simTime,simTime_prev=self.simTime_prev,dt=self.dt)
 
         return prepared
 
@@ -101,7 +104,7 @@ class ActuatorLineForceBlock(Block):
 
         self.turb.update_controls()
 
-        self.turb.fprint("Current Forward Time: "+repr(self.turb.simTime),tab=1)
+        self.turb.fprint("Current Adjoint Time: "+repr(self.turb.simTime),tab=1)
         self.turb.fprint("Turbine "+repr(self.turb.index),tab=2)
         self.turb.fprint("Current Yaw:   "+repr(float(self.turb.myaw)),tab=2)
         self.turb.fprint("Current Chord: "+str(np.array(self.turb.mchord,dtype=float)),tab=2)
@@ -116,11 +119,11 @@ class ActuatorLineForceBlock(Block):
 
                 self.turb.chord[i] = old_chord_value+h_mag
                 self.turb.update_controls()
-                temp_uph = self.turb.build_actuator_lines(u_k, self.inflow_angle, self.fs)
+                temp_uph = self.turb.turbine_force(u_k, self.inflow_angle, self.fs,simTime=self.simTime,simTime_prev=self.simTime_prev,dt=self.dt)
 
                 self.turb.chord[i] = old_chord_value-h_mag
                 self.turb.update_controls()
-                temp_umh = self.turb.build_actuator_lines(u_k, self.inflow_angle, self.fs)
+                temp_umh = self.turb.turbine_force(u_k, self.inflow_angle, self.fs,simTime=self.simTime,simTime_prev=self.simTime_prev,dt=self.dt)
 
                 self.turb.chord[i] = old_chord_value
                 self.turb.update_controls()
@@ -138,11 +141,11 @@ class ActuatorLineForceBlock(Block):
 
             self.turb.yaw = old_yaw_value+h_mag
             self.turb.update_controls()
-            temp_uph = build_actuator_lines(u_k, self.inflow_angle, self.fs)
+            temp_uph = turbine_force(u_k, self.inflow_angle, self.fs,simTime=self.simTime,simTime_prev=self.simTime_prev,dt=self.dt)
 
             self.turb.yaw = old_yaw_value-h_mag
             self.turb.update_controls()
-            temp_umh = build_actuator_lines(u_k, self.inflow_angle, self.fs)
+            temp_umh = turbine_force(u_k, self.inflow_angle, self.fs,simTime=self.simTime,simTime_prev=self.simTime_prev,dt=self.dt)
 
             self.turb.yaw = old_yaw_value
             self.turb.update_controls()
@@ -151,31 +154,70 @@ class ActuatorLineForceBlock(Block):
             prepared["yaw"] = dyaw_dc
 
 
-        if self.turb.use_local_velocity:
-            h_mag = 0.0001
+        # if self.turb.use_local_velocity:
+        #     h_mag = 0.0001
 
-            mpi_u_fluid_base = Constant(self.turb.mpi_u_fluid, name="mpi_u_fluid")
+        #     mpi_u_fluid_base = Constant(self.turb.mpi_u_fluid, name="mpi_u_fluid")
+
+        #     prepared["u_local"] = []
+
+        #     for i in range(self.turb.ndim):
+        #         # Perturb the mpi_u_fluid values in the x, y, and z-directions by +/- h
+        #         h = np.zeros(np.size(self.turb.mpi_u_fluid))
+        #         h[i::self.turb.ndim] = h_mag
+
+        #         mpi_u_fluid_ph = Constant(self.turb.mpi_u_fluid + h, name="mpi_u_fluid")
+        #         mpi_u_fluid_mh = Constant(self.turb.mpi_u_fluid - h, name="mpi_u_fluid")
+
+        #         self.turb.mpi_u_fluid_constant.assign(mpi_u_fluid_ph)
+        #         temp_uph = self.turb.turbine_force(u_k, self.inflow_angle, self.fs,simTime=self.simTime,simTime_prev=self.simTime_prev,dt=self.dt)
+
+        #         self.turb.mpi_u_fluid_constant.assign(mpi_u_fluid_mh)
+        #         temp_umh = self.turb.turbine_force(u_k, self.inflow_angle, self.fs,simTime=self.simTime,simTime_prev=self.simTime_prev,dt=self.dt)
+
+        #         self.turb.mpi_u_fluid_constant.assign(mpi_u_fluid_base)         
+        #         dtf_du = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
+
+        #         # dtf_du[:] = 0.0
+        #         prepared["u_local"].append(dtf_du)
+
+
+        if self.turb.use_local_velocity:
+            h_mag = 0.0001#*np.linalg.norm(u_local_vec)
+            u_local_vec = u_k.vector().get_local()
+            # print(np.linalg.norm(u_local_vec))
+
+            # mpi_u_fluid_buff = np.zeros(mpi_u_fluid.value_size())
+            # mpi_u_fluid.eval(mpi_u_fluid_buff, mpi_u_fluid_buff)
 
             prepared["u_local"] = []
 
             for i in range(self.turb.ndim):
-                # Perturb the mpi_u_fluid values in the x, y, and z-directions by +/- h
-                h = np.zeros(np.size(self.turb.mpi_u_fluid))
-                h[i::self.turb.ndim] = h_mag
+                h = np.zeros(u_local_vec.shape)
+                h[i::3] = h_mag
+            
+                u_mh = Function(u_k.function_space())
+                u_mh.vector()[:] = u_local_vec-h
 
-                mpi_u_fluid_ph = Constant(self.turb.mpi_u_fluid + h, name="mpi_u_fluid")
-                mpi_u_fluid_mh = Constant(self.turb.mpi_u_fluid - h, name="mpi_u_fluid")
 
-                self.turb.mpi_u_fluid_constant.assign(mpi_u_fluid_ph)
-                temp_uph = self.turb.build_actuator_lines(u_k, self.inflow_angle, self.fs)
+                u_ph = Function(u_k.function_space())
+                u_ph.vector()[:] = u_local_vec+h
 
-                self.turb.mpi_u_fluid_constant.assign(mpi_u_fluid_mh)
-                temp_umh = self.turb.build_actuator_lines(u_k, self.inflow_angle, self.fs)
+                # # Perturb the mpi_u_fluid values in the x, y, and z-directions by +/- h
+                # h = np.zeros(mpi_u_fluid.value_size())
+                # h[i::3] = h_mag
 
-                self.turb.mpi_u_fluid_constant.assign(mpi_u_fluid_base)         
+                # mpi_u_fluid_mh = dolfin.Constant(mpi_u_fluid_buff - h)
+                # mpi_u_fluid_ph = dolfin.Constant(mpi_u_fluid_buff + h)
+
+                # temp_umh = backend_UpdateActuatorLineForce(self.problem, u_mh, self.simTime_id, self.dt, self.turb_i, self.mpi_u_fluid)
+                # temp_uph = backend_UpdateActuatorLineForce(self.problem, u_ph, self.simTime_id, self.dt, self.turb_i, self.mpi_u_fluid)
+                temp_uph = self.turb.turbine_force(u_ph, self.inflow_angle, self.fs,simTime=self.simTime,simTime_prev=self.simTime_prev,dt=self.dt)
+                temp_umh = self.turb.turbine_force(u_mh, self.inflow_angle, self.fs,simTime=self.simTime,simTime_prev=self.simTime_prev,dt=self.dt)
+                # temp_umh = backend_UpdateActuatorLineForce(self.problem, mpi_u_fluid_mh, self.simTime_id, self.dt, self.turb_i)
+                # temp_uph = backend_UpdateActuatorLineForce(self.problem, mpi_u_fluid_ph, self.simTime_id, self.dt, self.turb_i)
                 dtf_du = (temp_uph.vector().get_local()-temp_umh.vector().get_local())/(2.0*h_mag)
 
-                # dtf_du[:] = 0.0
                 prepared["u_local"].append(dtf_du)
 
         return prepared
@@ -185,8 +227,8 @@ class ActuatorLineForceBlock(Block):
 
         ### Get the control type and turbine index ###
         name, turbine_number, segment_index = block_variable.tag
-        print("calculating: " + name + "_" + repr(segment_index))
-        print("input_val: "+repr(adj_inputs[0].norm('l2')))
+        # print("calculating: " + name + "_" + repr(segment_index))
+        # print("input_val: "+repr(adj_inputs[0].norm('l2')))
 
         # print('evaluate_adj_component: %s' % (name))
 
@@ -213,11 +255,11 @@ class ActuatorLineForceBlock(Block):
             else:
                 adj_output.vector()[:] = 0.0
 
-            print("output_val: "+repr(adj_output.vector().norm('l2')))
+            # print("output_val: "+repr(adj_output.vector().norm('l2')))
             return adj_output.vector()
 
         elif name == "yaw":
-            print("input_val: "+repr(np.array(adj_output)))
+            # print("input_val: "+repr(np.array(adj_output)))
             comp_vec = prepared[name]
             adj_vec = adj_inputs[0].get_local()
             adj_output = np.float64(np.inner(comp_vec, adj_vec))
@@ -227,7 +269,7 @@ class ActuatorLineForceBlock(Block):
             adj_output = recv_buff
 
             # adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
-            print("output_val: "+repr(float(adj_output)))
+            # print("output_val: "+repr(float(adj_output)))
             return np.array(adj_output)
 
         else:
@@ -240,5 +282,5 @@ class ActuatorLineForceBlock(Block):
             adj_output = recv_buff
 
             # adj_output = dolfin.MPI.sum(dolfin.MPI.comm_world,adj_output)
-            print("output_val: "+repr(float(adj_output)))
+            # print("output_val: "+repr(float(adj_output)))
             return np.array(adj_output)

@@ -1,4 +1,4 @@
-WindFarmManager:
+GenericWindFarm:
   min_x: -295.80877608508325
   max_x: 562.9306831248141
   avg_x: 129.49748590404013

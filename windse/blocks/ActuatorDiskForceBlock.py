@@ -12,7 +12,7 @@ class ActuatorDiskForceBlock(Block):
         self.sparse_ids = sparse_ids
         self.turb = turb
         self.construct_sparse_ids = construct_sparse_ids
-        self.sparse_RDs = 2.0
+        self.sparse_RDs = 1.5
         self.dim = turb.dom.dim
         self.control_types = control_types.copy()
 
@@ -95,7 +95,6 @@ class ActuatorDiskForceBlock(Block):
 
         ### determine if we need to recalculate sparse_ids ###
         self.check_turbine_location(self.turb.x,self.turb.y)
-
         prepared = {}
         for name in self.control_types:
             prepared[name] = self.turb.build_actuator_disk(self.x,self.inflow_angle,self.fs,self.sparse_ids,dfd=name)
@@ -106,6 +105,7 @@ class ActuatorDiskForceBlock(Block):
 
         ### Get the control type and turbine index ###
         name, turb_id, _ = block_variable.tag
+        print("Calculating Derivative: " +name+"_"+repr(turb_id))
 
         ### Apply derivative to previous in tape ###
         adj_output = 0
