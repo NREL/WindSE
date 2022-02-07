@@ -42,6 +42,11 @@ class ActuatorLine(GenericTurbine):
         self.simTime_prev = None
         self.DEBUGGING = False
 
+        self.turbine_motion_freq = None#0.1
+        self.turbine_motion_amp = np.radians(20.0)
+
+        self.coords_refactor = False
+
     def get_baseline_chord(self):
         '''
         This function need to return the baseline chord as a numpy array with length num_blade_segments
@@ -61,10 +66,11 @@ class ActuatorLine(GenericTurbine):
         self.chord_factor = self.params["turbines"]["chord_factor"]
         self.gauss_factor = self.params["turbines"]["gauss_factor"]
 
-    def compute_parameters(self):
 
+    def compute_parameters(self):
         # compute turbine radius
         self.radius = 0.5*self.RD
+
 
     def create_controls(self, initial_call_from_setup=True):
 
@@ -173,10 +179,10 @@ class ActuatorLine(GenericTurbine):
 
         # Initialze arrays depending on what this function will be returning
         if dfd is None:
-            tf_vec = np.zeros(np.size(self.coords))
-            tf_vec_for_power = np.zeros(np.size(self.coords))
-            lift_force = np.zeros((np.shape(self.coords)[0], self.ndim))
-            drag_force = np.zeros((np.shape(self.coords)[0], self.ndim))
+            tf_vec = np.zeros(np.size(self.coords_base))
+            tf_vec_for_power = np.zeros(np.size(self.coords_base))
+            lift_force = np.zeros((np.shape(self.coords_base)[0], self.ndim))
+            drag_force = np.zeros((np.shape(self.coords_base)[0], self.ndim))
 
         elif dfd == 'c_lift':
             cl = np.ones(self.num_blade_segments)
@@ -184,11 +190,11 @@ class ActuatorLine(GenericTurbine):
 
         elif dfd == 'c_drag':
             cd = np.ones(self.num_blade_segments)
-            dfd_c_drag = np.zeros((np.size(self.coords), self.num_blade_segments))
+            dfd_c_drag = np.zeros((np.size(self.coords_base), self.num_blade_segments))
 
         elif dfd == 'chord':
             chord = np.ones(self.num_blade_segments)
-            dfd_chord = np.zeros((np.size(self.coords), self.num_blade_segments))
+            dfd_chord = np.zeros((np.size(self.coords_base), self.num_blade_segments))
 
         # Convert the mpi_u_fluid Constant wrapper into a numpy array
         # FIXME: double check that this wrapping-unwrapping is correct
@@ -201,23 +207,63 @@ class ActuatorLine(GenericTurbine):
             if self.min_dist > 2.0*self.RD:
                 break
 
-            # Generate a rotation matrix for this turbine blade
-            Rx = self.rot_x(self.theta_ahead + theta_0)
-            Rz = self.rot_z(float(self.myaw))
 
-            # Rotate the blade velocity in the global x, y, z, coordinate system
-            # Note: blade_vel_base is negative since we seek the velocity of the fluid relative to a stationary blade
-            # and blade_vel_base is defined based on the movement of the blade
-            blade_vel = np.dot(Rz, np.dot(Rx, -self.blade_vel_base))
+            if self.coords_refactor:
+                self.coords = np.copy(self.coords_base)
 
-            # Rotate the blade unit vectors to be pointing in the rotated positions
-            blade_unit_vec = np.dot(Rz, np.dot(Rx, self.blade_unit_vec_base))
+                self.coords[:, 0] -= self.x
+                self.coords[:, 1] -= self.y
+                self.coords[:, 2] -= self.z
 
-            # Rotate the entire [x; y; z] matrix using this matrix, then shift to the hub location
-            blade_pos = np.dot(Rz, np.dot(Rx, self.blade_pos_base))
-            blade_pos[0, :] += self.x
-            blade_pos[1, :] += self.y
-            blade_pos[2, :] += self.z
+                Rx = self.rotation_mat_about_axis(-self.theta_ahead + theta_0, [1, 0, 0])
+                Rx_alt = self.rotation_mat_about_axis(self.theta_ahead + theta_0, [1, 0, 0])
+                Rz = self.rotation_mat_about_axis(float(self.myaw), [0, 0, 1])
+                self.coords = np.dot(Rz, np.dot(Rx, self.coords.T)).T
+
+                # Resape a linear copy of the coordinates for every mesh point
+                self.coordsLinear = np.copy(self.coords.reshape(-1, 1))
+
+                blade_vel = np.copy(-self.blade_vel_base)
+                blade_unit_vec = np.copy(self.blade_unit_vec_base)
+                blade_pos = np.copy(self.blade_pos_base)
+
+            else:
+                # Generate a rotation matrix for this turbine blade
+                # Rx = self.rot_x(self.theta_ahead + theta_0)
+                Rx = self.rotation_mat_about_axis(self.theta_ahead + theta_0, [1, 0, 0])
+                # Rz = self.rot_z(float(self.myaw))
+                Rz = self.rotation_mat_about_axis(float(self.myaw), [0, 0, 1])
+
+                # Rotate the blade velocity in the global x, y, z, coordinate system
+                # Note: blade_vel_base is negative since we seek the velocity of the fluid relative to a stationary blade
+                # and blade_vel_base is defined based on the movement of the blade
+                blade_vel = np.dot(Rz, np.dot(Rx, -self.blade_vel_base))
+
+                # Rotate the blade unit vectors to be pointing in the rotated positions
+                blade_unit_vec = np.dot(Rz, np.dot(Rx, self.blade_unit_vec_base))
+
+                # Rotate the entire [x; y; z] matrix using this matrix, then shift to the hub location
+                blade_pos = np.dot(Rz, np.dot(Rx, self.blade_pos_base))
+                blade_pos[0, :] += self.x
+                blade_pos[1, :] += self.y
+                blade_pos[2, :] += self.z
+
+            if self.turbine_motion_freq is not None:
+                motion_theta = self.turbine_motion_amp*np.sin(self.turbine_motion_freq*self.simTime_ahead*np.pi*2.0)
+                Ry = self.rotation_mat_about_axis(motion_theta, [0, 1, 0])
+                blade_vel = np.dot(Ry, blade_vel)
+                blade_unit_vec = np.dot(Ry, blade_unit_vec)
+                blade_pos = np.dot(Ry, blade_pos)
+
+                turbine_motion_vel = (blade_pos - self.blade_pos_behind[blade_ct])/(self.simTime_ahead - self.simTime_behind)
+
+                if blade_ct == 0:
+                    print('Hub Location:', blade_pos[:, 0])
+                    print('Theta:', motion_theta)
+
+            else:
+                turbine_motion_vel = 0.0
+
 
             # Get the velocity of the fluid at each actuator node
             # Read values from mpi_u_fluid (a [num_turbs x 3_dim*3_rotors*num_blade_segments] numpy array)
@@ -230,6 +276,9 @@ class ActuatorLine(GenericTurbine):
                 end_pt = start_pt + self.ndim*self.num_blade_segments
                 u_fluid = mpi_u_fluid[start_pt:end_pt]
                 u_fluid = np.reshape(u_fluid, (self.ndim, -1), 'F')
+                if self.coords_refactor:
+                    u_fluid = np.dot(-Rz, np.dot(-Rx, u_fluid))
+                # print(u_fluid)
 
             for k in range(self.num_blade_segments):
                 u_fluid[:, k] -= np.dot(u_fluid[:, k], blade_unit_vec[:, 1])*blade_unit_vec[:, 1]
@@ -238,7 +287,9 @@ class ActuatorLine(GenericTurbine):
             # print('MPI sim time = %.15e' % (simTime))
                             
             # Form the total relative velocity vector (including velocity from rotating blade)
-            u_rel = u_fluid + blade_vel
+            u_rel = u_fluid + blade_vel #+ turbine_motion_vel
+            # u_rel = blade_vel
+            # print(u_rel)
 
             u_rel_mag = np.linalg.norm(u_rel, axis=0)
             u_rel_mag[u_rel_mag < 1e-6] = 1e-6
@@ -266,6 +317,8 @@ class ActuatorLine(GenericTurbine):
 
             # Add together to get |x^2 + y^2 + z^2|^2
             dist2 = dx_full[0::self.ndim] + dx_full[1::self.ndim] + dx_full[2::self.ndim]
+
+            # print(np.sqrt(np.amin(dist2)))
 
             # Calculate the force magnitude at every mesh point due to every node [numGridPts x NumActuators]
             nodal_lift = lift*np.exp(-dist2/self.gaussian_width**2)/(self.gaussian_width**3 * np.pi**1.5)
@@ -347,6 +400,9 @@ class ActuatorLine(GenericTurbine):
 
             # print('MPI vec norm = %.15e' % np.linalg.norm(vector_nodal_lift))
             # print('MPI vec norm = %.15e' % np.linalg.norm(turbine_force))
+            # if self.coords_refactor:
+            #     turbine_force = np.dot(Rz, np.dot(Rx, turbine_force.T)).T
+                # print(np.shape(turbine_force))
 
             # Riffle-shuffle the x-, y-, and z-column force components
             for k in range(self.ndim):
@@ -361,13 +417,17 @@ class ActuatorLine(GenericTurbine):
 
         tf.vector().update_ghost_values()
 
-        print('Max TF: ', tf.vector().max())
-        print('Min TF: ', tf.vector().min())
-        print('Max Lift: ', np.amax(lift))
-        print('Max Drag: ', np.amax(drag))
-        print('Max Nodal Lift: ', np.amax(nodal_lift))
-        print('Max Nodal Drag: ', np.amax(nodal_drag))
-        print('Rotor torque numpy:', self.rotor_torque)
+        if np.abs(self.simTime - 10.0) < 1e-3:
+            try:
+                print('Max TF: %.6e' % (float(tf.vector().max() - 0.026665983592878112)/tf.vector().max())) 
+            except:
+                print('Max TF: %.6e' % (np.nan)) 
+            print('Min TF: %.6e' % (float(tf.vector().min() - -0.22879677484292432)/tf.vector().min()))
+            print('Max Lift: %.6e' % ((np.amax(lift) - 1604.506078981611)/np.amax(lift)))
+            print('Max Drag: %.6e' % ((np.amax(drag) - 2205.459487502247)/np.amax(drag)))
+            print('Max Nodal Lift: %.6e' % ((np.amax(nodal_lift) - 0.053743827932146535)/np.amax(nodal_lift)))
+            print('Max Nodal Drag: %.6e' % ((np.amax(nodal_drag) - 0.07069602361087358)/np.amax(nodal_drag)))
+            print('Rotor torque numpy: %.6e' % ((self.rotor_torque - 117594.90448122297)/self.rotor_torque))
 
         if dfd == None:
 
@@ -407,11 +467,13 @@ class ActuatorLine(GenericTurbine):
         self.ndim = self.dom.dim
 
         # Get the coordinates of the vector function space
-        self.coords = fs.V.tabulate_dof_coordinates()
-        self.coords = np.copy(self.coords[0::self.ndim, :])
+        self.coords_base = fs.V.tabulate_dof_coordinates()
+        self.coords_base = np.copy(self.coords_base[0::self.ndim, :])
 
         # Resape a linear copy of the coordinates for every mesh point
-        self.coordsLinear = np.copy(self.coords.reshape(-1, 1))
+        if not self.coords_refactor:
+            self.coords = np.copy(self.coords_base)
+            self.coordsLinear = np.copy(self.coords.reshape(-1, 1))
 
         bbox = self.dom.mesh.bounding_box_tree()
         turbine_loc_point = Point(self.x, self.y, self.z)
@@ -608,17 +670,21 @@ class ActuatorLine(GenericTurbine):
         # self.tf.vector()[:] = 0.0
 
         # The forces should be imposed at the current position/time PLUS 0.5*dt
-        simTime_ahead = self.simTime + 0.5*self.dt
+        self.simTime_ahead = self.simTime + 0.5*self.dt
 
         # The fluid velocity should be probed at the current position/time MINUS 0.5*dt
         if self.simTime_prev is None:
-            simTime_behind = self.simTime
+            self.simTime_behind = self.simTime
         else:
-            simTime_behind = 0.5*(self.simTime_prev + self.simTime)
+            self.simTime_behind = 0.5*(self.simTime_prev + self.simTime)
 
-        self.theta_ahead = simTime_ahead*self.angular_velocity
-        self.theta_behind = simTime_behind*self.angular_velocity
+        self.theta_ahead = self.simTime_ahead*self.angular_velocity
+        self.theta_behind = self.simTime_behind*self.angular_velocity
 
+
+    def update_turbine_motion(self):
+
+        pass
 
     def get_u_fluid_at_alm_nodes(self, u_k):
 
@@ -626,9 +692,13 @@ class ActuatorLine(GenericTurbine):
         mpi_u_fluid = np.zeros(self.ndim*self.num_blades*self.num_blade_segments)
         mpi_u_fluid_count = np.zeros(self.ndim*self.num_blades*self.num_blade_segments)
 
+        self.blade_pos_behind = []
+
         for blade_ct, theta_0 in enumerate(self.theta_vec):
-            Rx = self.rot_x(self.theta_behind + theta_0)
-            Rz = self.rot_z(float(self.myaw))
+            # Rx = self.rot_x(self.theta_behind + theta_0)
+            Rx = self.rotation_mat_about_axis(self.theta_behind + theta_0, [1, 0, 0])
+            # Rz = self.rot_z(float(self.myaw))
+            Rz = self.rotation_mat_about_axis(float(self.myaw), [0, 0, 1])
 
             # Rotate the blades into the correct angular position around the x-axis
             # and yaw this turbine around the z-axis
@@ -638,6 +708,12 @@ class ActuatorLine(GenericTurbine):
             blade_pos[0, :] += float(self.mx)
             blade_pos[1, :] += float(self.my)
             blade_pos[2, :] += float(self.mz)
+
+            if self.turbine_motion_freq is not None:
+                motion_theta = self.turbine_motion_amp*np.sin(self.turbine_motion_freq*self.simTime_behind*np.pi*2.0)
+                Ry = self.rotation_mat_about_axis(motion_theta, [0, 1, 0])
+                blade_pos = np.dot(Ry, blade_pos)
+                self.blade_pos_behind.append(np.copy(blade_pos))
 
             # Need to probe the velocity point at each actuator node,
             # where actuator nodes are individual columns of blade_pos
@@ -732,6 +808,11 @@ class ActuatorLine(GenericTurbine):
 
         # Initialize summation, counting, etc., variables for alm solve
         self.init_unsteady_alm_terms()
+
+        if self.turbine_motion_freq:
+            self.update_turbine_motion()
+
+        # self.global_to_local_coord_transform()
 
         # Call the function to build the complete mpi_u_fluid array
         self.get_u_fluid_at_alm_nodes(u)

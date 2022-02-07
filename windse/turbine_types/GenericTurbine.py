@@ -227,6 +227,35 @@ class GenericTurbine(object):
         
         return Rz
 
+    def rotation_mat_about_axis(self, theta, ax):
+
+        assert len(ax) == 3
+        
+        # Force the rotation axis to be a unit vector
+        ax = ax/np.linalg.norm(ax)
+                
+        sin_t = sin(theta)
+        cos_t = cos(theta)
+
+        r11 = ax[0]*ax[0]*(1.0 - cos_t) + cos_t
+        r12 = ax[0]*ax[1]*(1.0 - cos_t) - ax[2]*sin_t
+        r13 = ax[0]*ax[2]*(1.0 - cos_t) + ax[1]*sin_t
+
+        r21 = ax[1]*ax[0]*(1.0 - cos_t) + ax[2]*sin_t
+        r22 = ax[1]*ax[1]*(1.0 - cos_t) + cos_t
+        r23 = ax[1]*ax[2]*(1.0 - cos_t) - ax[0]*sin_t
+
+        r31 = ax[2]*ax[0]*(1.0 - cos_t) - ax[1]*sin_t
+        r32 = ax[2]*ax[1]*(1.0 - cos_t) + ax[0]*sin_t
+        r33 = ax[2]*ax[2]*(1.0 - cos_t) + cos_t
+
+        R = np.array([[r11, r12, r13],
+                      [r21, r22, r23],
+                      [r31, r32, r33]])
+
+        return R
+
+
 # class TurbineForceBlock(Block):
 #     """
 #     A pyadjoint block that help dolfin-adjoint compute derivatives with respect to the turbine force

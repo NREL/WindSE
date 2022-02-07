@@ -242,6 +242,7 @@ class ActuatorLineForceBlock(Block):
 
                 for i in range(3):
                     for j in range(3):
+                        print('partial_val_norm (%d, %d): %e' % (i, j, np.linalg.norm(prepared[name][j][i::3])))
                         comp_vec[i::3] += prepared[name][j][i::3]*adj_vec[j::3]
                         # comp_vec[j::3] += prepared[name][j][i::3]*adj_vec[j::3]
                         # comp_vec[i::3] += np.inner(prepared[name][j][i::3],adj_vec[j::3])
@@ -261,6 +262,8 @@ class ActuatorLineForceBlock(Block):
         elif name == "yaw":
             # print("input_val: "+repr(np.array(adj_output)))
             comp_vec = prepared[name]
+            print('yaw_comp_vec_norm: %e' % (np.linalg.norm(comp_vec)))
+
             adj_vec = adj_inputs[0].get_local()
             adj_output = np.float64(np.inner(comp_vec, adj_vec))
 
@@ -274,6 +277,7 @@ class ActuatorLineForceBlock(Block):
 
         else:
             comp_vec = prepared[name][:, segment_index]
+            print('else_comp_vec_norm: %e' % (np.linalg.norm(comp_vec)))
             adj_vec = adj_inputs[0].get_local()
             adj_output = np.float64(np.inner(comp_vec, adj_vec))
 
