@@ -833,10 +833,10 @@ class ActuatorLine(GenericTurbine):
         # Create a cylindrical expression aligned with the position of this turbine
         self.cyld_expr = Expression(('sin(yaw)*(x[2]-zs)', '-cos(yaw)*(x[2]-zs)', '(x[1]-ys)*cos(yaw)-(x[0]-xs)*sin(yaw)'),
             degree=1,
-            yaw=self.myaw,
-            xs=self.mx,
-            ys=self.my,
-            zs=self.mz)
+            yaw=float(self.myaw),
+            xs=float(self.mx),
+            ys=float(self.my),
+            zs=float(self.mz))
 
         self.power_dolfin = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
         self.power_numpy = 1e-6*self.rotor_torque*self.angular_velocity
