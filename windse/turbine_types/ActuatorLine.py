@@ -383,7 +383,6 @@ class ActuatorLine(GenericTurbine):
             self.blade_unit_vec.append(unit_vec)
             self.blade_vel.append(vel)
 
-<<<<<<< HEAD
             # Build the initial position if no previous timestep is available
             pos_behind = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
             pos_behind = self.rotate_points(pos_behind, float(self.myaw), [0, 0, 1])
@@ -393,18 +392,6 @@ class ActuatorLine(GenericTurbine):
             pos_behind[2, :] += self.z
 
             self.blade_pos_behind.append(pos_behind)
-=======
-            if self.simTime_prev is None:
-                # Build the initial position if no previous timestep is available
-                pos_prev = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
-                pos_prev = self.rotate_points(pos_prev, float(self.myaw), [0, 0, 1])
-
-                pos_prev[0, :] += self.x
-                pos_prev[1, :] += self.y
-                pos_prev[2, :] += self.z
-
-                self.blade_pos_prev.append(pos_prev)
->>>>>>> 54a5325e020faac0e91e2fde25edd67f161c8d6c
 
     def get_u_fluid_at_alm_nodes(self, u_k):
 
@@ -826,10 +813,10 @@ class ActuatorLine(GenericTurbine):
         # Create a cylindrical expression aligned with the position of this turbine
         self.cyld_expr = Expression(('sin(yaw)*(x[2]-zs)', '-cos(yaw)*(x[2]-zs)', '(x[1]-ys)*cos(yaw)-(x[0]-xs)*sin(yaw)'),
             degree=1,
-            yaw=self.myaw,
-            xs=self.mx,
-            ys=self.my,
-            zs=self.mz)
+            yaw=float(self.myaw),
+            xs=float(self.mx),
+            ys=float(self.my),
+            zs=float(self.mz))
 
         self.power_dolfin = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
         self.power_numpy = 1e-6*self.rotor_torque*self.angular_velocity
