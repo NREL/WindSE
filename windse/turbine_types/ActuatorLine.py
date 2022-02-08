@@ -326,37 +326,21 @@ class ActuatorLine(GenericTurbine):
 
         self.rotor_torque = np.zeros(1)
         self.rotor_torque_count = np.zeros(1, dtype=int)
-        # self.rotor_torque_dolfin = 0.0
-        # self.tf.vector()[:] = 0.0
 
-        if self.simTime_prev is None:
-            self.theta_prev = 0.0
-
-        else:
-            self.theta_prev = self.theta
-
-        # The forces should be imposed at the current position/time PLUS 0.5*dt
-        self.theta = (self.simTime + 0.5*self.dt)*self.angular_velocity
-        
         # The fluid velocity should be probed at the current position/time MINUS 0.5*dt
-        # if self.simTime_prev is None:
-        #     self.simTime_behind = self.simTime
-        # else:
-        #     self.simTime_behind = 0.5*(self.simTime_prev + self.simTime)
+        if self.simTime_prev is None:
+            self.theta_prev = self.simTime*self.angular_velocity
+        else:
+            self.theta_prev = 0.5*(self.simTime_prev + self.simTime)*self.angular_velocity
 
-        # self.theta = simTime_ahead*self.angular_velocity
+        self.theta = (self.simTime + 0.5*self.dt)*self.angular_velocity
 
-        # self.theta_prev = self.simTime_behind*self.angular_velocity
+
 
 
     def update_alm_node_positions(self):
 
-        if self.simTime_prev is None:
-            self.blade_pos_behind = []
-
-        else:
-            self.blade_pos_behind = self.blade_pos_ahead.copy()
-
+        self.blade_pos_behind = []
         self.blade_pos_ahead = []
         self.blade_unit_vec = []
         self.blade_vel = []
@@ -398,16 +382,15 @@ class ActuatorLine(GenericTurbine):
             self.blade_unit_vec.append(unit_vec)
             self.blade_vel.append(vel)
 
-            if self.simTime_prev is None:
-                # Build the initial position if no previous timestep is available
-                pos_behind = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
-                pos_behind = self.rotate_points(pos_behind, float(self.myaw), [0, 0, 1])
+            # Build the initial position if no previous timestep is available
+            pos_behind = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
+            pos_behind = self.rotate_points(pos_behind, float(self.myaw), [0, 0, 1])
 
-                pos_behind[0, :] += self.x
-                pos_behind[1, :] += self.y
-                pos_behind[2, :] += self.z
+            pos_behind[0, :] += self.x
+            pos_behind[1, :] += self.y
+            pos_behind[2, :] += self.z
 
-                self.blade_pos_behind.append(pos_behind)
+            self.blade_pos_behind.append(pos_behind)
 
     def get_u_fluid_at_alm_nodes(self, u_k):
 
@@ -565,6 +548,7 @@ class ActuatorLine(GenericTurbine):
         # Convert the mpi_u_fluid Constant wrapper into a numpy array
         # FIXME: double check that this wrapping-unwrapping is correct
         mpi_u_fluid = np.copy(self.mpi_u_fluid_constant.values())
+
 
         # Treat each blade separately
         for blade_id in range(self.num_blades):
@@ -828,10 +812,10 @@ class ActuatorLine(GenericTurbine):
         # Create a cylindrical expression aligned with the position of this turbine
         self.cyld_expr = Expression(('sin(yaw)*(x[2]-zs)', '-cos(yaw)*(x[2]-zs)', '(x[1]-ys)*cos(yaw)-(x[0]-xs)*sin(yaw)'),
             degree=1,
-            yaw=float(self.myaw),
-            xs=float(self.mx),
-            ys=float(self.my),
-            zs=float(self.mz))
+            yaw=self.myaw,
+            xs=self.mx,
+            ys=self.my,
+            zs=self.mz)
 
         self.power_dolfin = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
         self.power_numpy = 1e-6*self.rotor_torque*self.angular_velocity
