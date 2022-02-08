@@ -352,12 +352,12 @@ class ActuatorLine(GenericTurbine):
     def update_alm_node_positions(self):
 
         if self.simTime_prev is None:
-            self.blade_pos_behind = []
+            self.blade_pos_prev = []
 
         else:
-            self.blade_pos_behind = self.blade_pos_ahead.copy()
+            self.blade_pos_prev = self.blade_pos.copy()
 
-        self.blade_pos_ahead = []
+        self.blade_pos = []
         self.blade_unit_vec = []
         self.blade_vel = []
 
@@ -365,49 +365,49 @@ class ActuatorLine(GenericTurbine):
 
         for blade_id, theta_0 in enumerate(self.theta_0_vec):
             # Rotate the blade into the correct position around the x-axis (due to rotor spin)
-            pos_ahead, unit_vec, vel = self.rotate_points([self.blade_pos_base, self.blade_unit_vec_base, self.blade_vel_base], 
+            pos, unit_vec, vel = self.rotate_points([self.blade_pos_base, self.blade_unit_vec_base, self.blade_vel_base], 
                                                      self.theta + theta_0, [1, 0, 0])
 
             # Rotate the blade into the correct position around the z-axis (due to yaw)
-            pos_ahead, unit_vec, vel = self.rotate_points([pos_ahead, unit_vec, vel], float(self.myaw), [0, 0, 1])
+            pos, unit_vec, vel = self.rotate_points([pos, unit_vec, vel], float(self.myaw), [0, 0, 1])
 
-            pos_ahead[0, :] += self.x
-            pos_ahead[1, :] += self.y
-            pos_ahead[2, :] += self.z
+            pos[0, :] += self.x
+            pos[1, :] += self.y
+            pos[2, :] += self.z
 
             # if self.turbine_motion_freq is not None:
             #     motion_theta = self.turbine_motion_amp*np.sin(self.turbine_motion_freq*self.simTime_ahead*np.pi*2.0)
             #     motion_theta = self.turbine_motion_amp*np.sin(self.turbine_motion_freq*self.simTime_behind*np.pi*2.0)
             #     Ry = self.rotation_mat_about_axis(motion_theta, [0, 1, 0])
             #     blade_pos = np.dot(Ry, blade_pos)
-            #     self.blade_pos_behind.append(np.copy(blade_pos))
+            #     self.blade_pos_prev.append(np.copy(blade_pos))
             # if self.turbine_motion_freq is not None:
             #     motion_theta = self.turbine_motion_amp*np.sin(self.turbine_motion_freq*self.simTime_ahead*np.pi*2.0)
             #     Ry = self.rotation_mat_about_axis(motion_theta, [0, 1, 0])
             #     self.blade_vel[blade_id] = np.dot(Ry, self.blade_vel[blade_id])
             #     self.blade_unit_vec[blade_id] = np.dot(Ry, self.blade_unit_vec[blade_id])
-            #     self.blade_pos_ahead[blade_id] = np.dot(Ry, self.blade_pos_ahead[blade_id])
+            #     self.blade_pos[blade_id] = np.dot(Ry, self.blade_pos[blade_id])
 
-            #     turbine_motion_vel = (self.blade_pos_ahead[blade_id] - self.blade_pos_behind[blade_id])/(self.simTime_ahead - self.simTime_behind)
+            #     turbine_motion_vel = (self.blade_pos[blade_id] - self.blade_pos_prev[blade_id])/(self.simTime_ahead - self.simTime_behind)
 
             #     if blade_id == 0:
             #         print('Hub Location:', blade_pos[:, 0])
             #         print('Theta:', motion_theta)
 
-            self.blade_pos_ahead.append(pos_ahead)
+            self.blade_pos.append(pos)
             self.blade_unit_vec.append(unit_vec)
             self.blade_vel.append(vel)
 
             if self.simTime_prev is None:
                 # Build the initial position if no previous timestep is available
-                pos_behind = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
-                pos_behind = self.rotate_points(pos_behind, float(self.myaw), [0, 0, 1])
+                pos_prev = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
+                pos_prev = self.rotate_points(pos_prev, float(self.myaw), [0, 0, 1])
 
-                pos_behind[0, :] += self.x
-                pos_behind[1, :] += self.y
-                pos_behind[2, :] += self.z
+                pos_prev[0, :] += self.x
+                pos_prev[1, :] += self.y
+                pos_prev[2, :] += self.z
 
-                self.blade_pos_behind.append(pos_behind)
+                self.blade_pos_prev.append(pos_prev)
 
     def get_u_fluid_at_alm_nodes(self, u_k):
 
@@ -421,12 +421,12 @@ class ActuatorLine(GenericTurbine):
             for k in range(self.num_blade_segments):
                 # If using the local velocity, measure at the blade
                 if self.use_local_velocity:
-                    xi = self.blade_pos_behind[blade_id][0, k]
+                    xi = self.blade_pos_prev[blade_id][0, k]
                 else:
                     xi = self.dom.x_range[0]
 
-                yi = self.blade_pos_behind[blade_id][1, k]
-                zi = self.blade_pos_behind[blade_id][2, k]
+                yi = self.blade_pos_prev[blade_id][1, k]
+                zi = self.blade_pos_prev[blade_id][2, k]
 
                 # Try to access the fluid velocity at this actuator point
                 # If this rank doesn't own that point, an error will occur,
@@ -621,7 +621,7 @@ class ActuatorLine(GenericTurbine):
             drag = tip_loss*(0.5*cd*rho*chord*self.w*u_rel_mag**2)
 
             # Tile the blade coordinates for every mesh point, [numGridPts*ndim x problem.num_blade_segments]
-            blade_pos_full = np.tile(self.blade_pos_ahead[blade_id], (np.shape(self.coords)[0], 1))
+            blade_pos_full = np.tile(self.blade_pos[blade_id], (np.shape(self.coords)[0], 1))
 
             # Subtract and square to get the dx^2 values in the x, y, and z directions
             dx_full = (self.coordsLinear - blade_pos_full)**2
