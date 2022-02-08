@@ -255,6 +255,40 @@ class GenericTurbine(object):
 
         return R
 
+    def rotate_points(self, points, theta, ax):
+
+        # Check the type of points and make a list if necessary
+        if not isinstance(points, list):
+            undo_list = True
+            points = [points]
+
+        else:
+            undo_list = False
+
+        # Make sure theta is a floating point value
+        assert isinstance(theta, (float, np.floating))
+
+        points_out = []
+
+        for p in points:
+            R = self.rotation_mat_about_axis(theta, ax)
+
+            try:
+                # Points is size [ndim, num_points], where ndim is 2 or 3
+                points_out.append(np.dot(R, p))
+
+            except:
+                # Points is size [num_points, ndim], where ndim is 2 or 3
+                points_out.append(np.dot(R, p.T).T)
+
+        # Return a value of the same type as the input points
+        # i.e., a list or a single numpy array, where the latter is obtained
+        # by removing the only element from the list 
+        if undo_list:
+            points_out = points_out[0]
+
+        return points_out
+
 
 # class TurbineForceBlock(Block):
 #     """
