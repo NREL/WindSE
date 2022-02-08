@@ -301,6 +301,7 @@ class ActuatorLine(GenericTurbine):
     def init_unsteady_alm_terms(self):
 
         '''
+        
         This function does the resetting of summation-like terms for
         calculating the rotor and handles the time stepping for where the 
         actuator forces are applied and where the fluid velocity is probed.
@@ -340,9 +341,8 @@ class ActuatorLine(GenericTurbine):
 
     def update_alm_node_positions(self):
 
-        self.blade_pos_behind = []
-        self.blade_pos_ahead = []
         self.blade_pos = []
+        self.blade_pos_prev = []
         self.blade_unit_vec = []
         self.blade_vel = []
 
@@ -383,28 +383,15 @@ class ActuatorLine(GenericTurbine):
             self.blade_unit_vec.append(unit_vec)
             self.blade_vel.append(vel)
 
-<<<<<<< HEAD
             # Build the initial position if no previous timestep is available
-            pos_behind = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
-            pos_behind = self.rotate_points(pos_behind, float(self.myaw), [0, 0, 1])
+            pos_prev = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
+            pos_prev = self.rotate_points(pos_prev, float(self.myaw), [0, 0, 1])
 
-            pos_behind[0, :] += self.x
-            pos_behind[1, :] += self.y
-            pos_behind[2, :] += self.z
+            pos_prev[0, :] += self.x
+            pos_prev[1, :] += self.y
+            pos_prev[2, :] += self.z
 
-            self.blade_pos_behind.append(pos_behind)
-=======
-            if self.simTime_prev is None:
-                # Build the initial position if no previous timestep is available
-                pos_prev = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
-                pos_prev = self.rotate_points(pos_prev, float(self.myaw), [0, 0, 1])
-
-                pos_prev[0, :] += self.x
-                pos_prev[1, :] += self.y
-                pos_prev[2, :] += self.z
-
-                self.blade_pos_prev.append(pos_prev)
->>>>>>> 54a5325e020faac0e91e2fde25edd67f161c8d6c
+            self.blade_pos_prev.append(pos_prev)
 
     def get_u_fluid_at_alm_nodes(self, u_k):
 
