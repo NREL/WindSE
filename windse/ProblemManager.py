@@ -72,11 +72,15 @@ class GenericProblem(object):
             self.tag_output("int_nu_T", int_nut)
 
             # integral of tf
+            print(1)
             if self.dom.dim == 3:
-                e1 = Constant((1,0,0)); e2 = Constant((0,1,0)); e3 = Constant((0,0,1));
+                print(2)
+                e1 = as_vector((1,0,0)); e2 = as_vector((0,1,0)); e3 = as_vector((0,0,1));
             else:
-                e1 = Constant((1,0)); e2 = Constant((0,1));
+                print(3)
+                e1 = as_vector((1,0)); e2 = as_vector((0,1));
 
+            print(4)
             int_tf_x = assemble(inner(self.tf,e1)*dx)/self.dom.volume
             self.tag_output("int_tf_x", int_tf_x)
             int_tf_y = assemble(inner(self.tf,e2)*dx)/self.dom.volume
