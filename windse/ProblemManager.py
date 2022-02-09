@@ -81,7 +81,12 @@ class GenericProblem(object):
                 e1 = as_vector((1,0)); e2 = as_vector((0,1));
 
             print(4)
+            int_tf_x = assemble(inner(self.u_k,e1)*dx)/self.dom.volume
+            print(5)
             int_tf_x = assemble(inner(self.tf,e1)*dx)/self.dom.volume
+            print(6)
+
+
             self.tag_output("int_tf_x", int_tf_x)
             int_tf_y = assemble(inner(self.tf,e2)*dx)/self.dom.volume
             self.tag_output("int_tf_y", int_tf_y)
