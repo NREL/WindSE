@@ -105,10 +105,10 @@ class GenericProblem(object):
 
             print(0)
             if self.dom.dim == 3:
-            print(1)
+                print(1)
                 e1 = Constant((1,0,0)); e2 = Constant((0,1,0)); e3 = Constant((0,0,1));
             else:
-            print(2)
+                print(2)
                 e1 = Constant((1,0)); e2 = Constant((0,1));
 
             print(3)
