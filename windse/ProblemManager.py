@@ -66,59 +66,60 @@ class GenericProblem(object):
     def DebugOutput(self):
         if self.debug_mode:
             self.fprint("Saving Debug Values", special="header")
-            # with stop_annotating():
-            # integral of nu_t
-            int_nut = assemble(self.nu_T*dx)/self.dom.volume
-            self.tag_output("int_nu_T", int_nut)
+            with stop_annotating():
+                # integral of nu_t
+                int_nut = assemble(self.nu_T*dx)/self.dom.volume
+                self.tag_output("int_nu_T", int_nut)
 
-            # integral of tf
-            # temp_tf = project(self.tf,self.fs.V)
-            temp_tf = project(self.tf,self.fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
-            print(1)
-            if self.dom.dim == 3:
-                print(2)
-                e1 = as_vector((1,0,0)); e2 = as_vector((0,1,0)); e3 = as_vector((0,0,1));
-            else:
-                print(3)
-                e1 = as_vector((1,0)); e2 = as_vector((0,1));
+                # integral of tf
+                # temp_tf = project(self.tf,self.fs.V)
+                print(0)
+                temp_tf = project(self.tf,self.fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
+                print(1)
+                if self.dom.dim == 3:
+                    print(2)
+                    e1 = as_vector((1,0,0)); e2 = as_vector((0,1,0)); e3 = as_vector((0,0,1));
+                else:
+                    print(3)
+                    e1 = as_vector((1,0)); e2 = as_vector((0,1));
 
-            print(4)
-            int_tf_x = assemble(inner(self.u_k,e1)*dx)/self.dom.volume
-            print(5)
-            int_tf_x = assemble(temp_tf[0]*dx)/self.dom.volume
-            print(6)
-
-
-            self.tag_output("int_tf_x", int_tf_x)
-            int_tf_y = assemble(temp_tf[1]*dx)/self.dom.volume
-            self.tag_output("int_tf_y", int_tf_y)
-            if self.dom.dim == 3:
-                int_tf_z = assemble(temp_tf[2]*dx)/self.dom.volume
-                self.tag_output("int_tf_z", int_tf_z)
+                print(4)
+                int_tf_x = assemble(inner(self.u_k,e1)*dx)/self.dom.volume
+                print(5)
+                int_tf_x = assemble(temp_tf[0]*dx)/self.dom.volume
+                print(6)
 
 
-            if self.farm.turbine_type == 'line':
-                chord = []
-                cl = []
-                cd = []
-                num_blade_segments = []
-                for i in range(self.farm.numturbs):
-                    chord.append(self.farm.turbines[i].chord)
-                    cl.append(self.farm.turbines[i].cl)
-                    cd.append(self.farm.turbines[i].cd)
-                    num_blade_segments.append(self.farm.turbines[i].num_blade_segments)
+                self.tag_output("int_tf_x", int_tf_x)
+                int_tf_y = assemble(temp_tf[1]*dx)/self.dom.volume
+                self.tag_output("int_tf_y", int_tf_y)
+                if self.dom.dim == 3:
+                    int_tf_z = assemble(temp_tf[2]*dx)/self.dom.volume
+                    self.tag_output("int_tf_z", int_tf_z)
 
-                self.tag_output("min_chord", np.min(chord))
-                self.tag_output("max_chord", np.max(chord))
-                self.tag_output("avg_chord", np.mean(chord))
-                self.tag_output("min_cl", np.min(cl))
-                self.tag_output("max_cl", np.max(cl))
-                self.tag_output("avg_cl", np.mean(cl))
-                self.tag_output("min_cd", np.min(cd))
-                self.tag_output("max_cd", np.max(cd))
-                self.tag_output("avg_cd", np.mean(cd))
-                self.tag_output("num_blade_segments", np.mean(num_blade_segments))
-            
+
+                if self.farm.turbine_type == 'line':
+                    chord = []
+                    cl = []
+                    cd = []
+                    num_blade_segments = []
+                    for i in range(self.farm.numturbs):
+                        chord.append(self.farm.turbines[i].chord)
+                        cl.append(self.farm.turbines[i].cl)
+                        cd.append(self.farm.turbines[i].cd)
+                        num_blade_segments.append(self.farm.turbines[i].num_blade_segments)
+
+                    self.tag_output("min_chord", np.min(chord))
+                    self.tag_output("max_chord", np.max(chord))
+                    self.tag_output("avg_chord", np.mean(chord))
+                    self.tag_output("min_cl", np.min(cl))
+                    self.tag_output("max_cl", np.max(cl))
+                    self.tag_output("avg_cl", np.mean(cl))
+                    self.tag_output("min_cd", np.min(cd))
+                    self.tag_output("max_cd", np.max(cd))
+                    self.tag_output("avg_cd", np.mean(cd))
+                    self.tag_output("num_blade_segments", np.mean(num_blade_segments))
+                
             self.fprint("Debug Output Complete", special="header")
 
     def ComputeTurbineForce(self,u,inflow_angle,**kwargs):
