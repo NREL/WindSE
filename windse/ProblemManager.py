@@ -65,6 +65,7 @@ class GenericProblem(object):
 
     def DebugOutput(self):
         if self.debug_mode:
+            self.fprint("Saving Debug Values", special="header")
             # with stop_annotating():
             # integral of nu_t
             int_nut = assemble(self.nu_T*dx)/self.dom.volume
@@ -106,6 +107,8 @@ class GenericProblem(object):
                 self.tag_output("max_cd", np.max(cd))
                 self.tag_output("avg_cd", np.mean(cd))
                 self.tag_output("num_blade_segments", np.mean(num_blade_segments))
+            
+            self.fprint("Debug Output Complete", special="header")
 
     def ComputeTurbineForce(self,u,inflow_angle,**kwargs):
         tf_start = time.time()
