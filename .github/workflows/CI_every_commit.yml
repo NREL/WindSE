@@ -26,6 +26,7 @@ jobs:
         run: |
           bash ./install.sh test-environment
           conda activate test-environment
+          conda list
 
       # Run all tests within WindSE, but not computationally expensive examples
       - name: Run tests within WindSE
