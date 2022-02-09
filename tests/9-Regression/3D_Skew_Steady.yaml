@@ -2,7 +2,7 @@
 general: 
     # name: 3D_Box_Steady_Reference      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution"]
-    # dolfin_adjoint: True
+    dolfin_adjoint: True
     debug_mode: True
 
 # Wind Farm Parameters:
@@ -69,7 +69,7 @@ solver:
     save_power: true
     nonlinear_solver: newton
 
-# optimization:
-#     control_types: [layout,yaw]
-#     layout_bounds: [[-720, 720],[-450, 450]] 
-#     gradient: True
+optimization:
+    control_types: [layout,yaw]
+    layout_bounds: [[-720, 720],[-450, 450]] 
+    gradient: True
