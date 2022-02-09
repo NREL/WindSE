@@ -61,10 +61,10 @@ def assemble_adjoint_value(form, **kwargs):
     """Wrapper that assembles a matrix with boundary conditions"""
     bcs = kwargs.pop("bcs", ())
     # print(form)
-    if windse_parameters["turbines"]["type"] == "numpy_disk":
-        rep = 'tsfc'
-    else:
-        rep = 'uflacs'
+    # if windse_parameters["turbines"]["type"] == "numpy_disk":
+    #     rep = 'tsfc'
+    # else:
+    rep = 'uflacs'
     result = dolfin_adjoint.backend.assemble(form,form_compiler_parameters={'representation': rep})
     for bc in bcs:
         bc.apply(result)
