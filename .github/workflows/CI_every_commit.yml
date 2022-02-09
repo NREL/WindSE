@@ -26,13 +26,14 @@ jobs:
         run: |
           bash ./install.sh test-environment
           conda activate test-environment
+          conda list
 
       # Run all tests within WindSE, but not computationally expensive examples
       - name: Run tests within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -v --cov=windse tests/test_regression.py
+          pytest -sv --cov=windse tests/test_regression.py
       
       # Run coveralls
       - name: Run coveralls
