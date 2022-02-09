@@ -83,7 +83,7 @@ class GenericProblem(object):
             print(4)
             int_tf_x = assemble(inner(self.u_k,e1)*dx)/self.dom.volume
             print(5)
-            int_tf_x = assemble(inner(self.tf,e1)*dx)/self.dom.volume
+            int_tf_x = assemble(inner(self.tf,self.tf)*dx)/self.dom.volume
             print(6)
 
 
