@@ -52,7 +52,9 @@ refine:
 
 function_space:
     type: linear
-
+    turbine_space:  CG
+    turbine_degree: 1
+    
 boundary_conditions:
     vel_profile: log
     HH_vel: 8.0
