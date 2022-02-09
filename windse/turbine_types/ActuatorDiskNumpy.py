@@ -17,13 +17,13 @@ class ActuatorDiskNumpy(ActuatorDisk):
         super(ActuatorDiskNumpy, self).__init__(i,x,y,dom,imported_params)
 
         # blockify custom functions so dolfin adjoint can track them
-        # if self.params.performing_opt_calc:
-        #     block_kwargs = {
-        #         "construct_sparse_ids":self.construct_sparse_ids,
-        #         "control_types": self.params["optimization"]["control_types"],
-        #         "turb": self
-        #     }
-        #     self.build_actuator_disk = blockify(self.build_actuator_disk,ActuatorDiskForceBlock,block_kwargs=block_kwargs)
+        if self.params.performing_opt_calc:
+            block_kwargs = {
+                "construct_sparse_ids":self.construct_sparse_ids,
+                "control_types": self.params["optimization"]["control_types"],
+                "turb": self
+            }
+            self.build_actuator_disk = blockify(self.build_actuator_disk,ActuatorDiskForceBlock,block_kwargs=block_kwargs)
 
     def construct_sparse_ids(self, x, sparse_RDs):
         """ 

@@ -17,7 +17,7 @@ wind_farm:
     ###################################################################
 
 turbines:
-    type: numpy_disk      # Use actuator Disks       |    
+    type: disk      # Use actuator Disks       |    
     HH: 90                # Hub Height               | m
     RD: 126.0             # Turbine Diameter         | m
     thickness: 10.5       # Effective Thickness      | m
