@@ -27,6 +27,7 @@ jobs:
           bash ./install.sh test-environment
           conda activate test-environment
           conda list
+          conda init
 
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
