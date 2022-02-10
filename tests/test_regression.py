@@ -102,11 +102,6 @@ def test_yaml_execution(yaml_file):
                 elif isinstance(check_value,int):
                     tol_value = [0,"absolute"]
 
-                ### Get tolerance parameters ###
-                tol = float(tol_value[0])
-                check_type = tol_value[1]
-
-
                 if check_value is None:
                     errors += f"Missing Key - {module_name}: {key} \n"
                 else:
@@ -114,6 +109,10 @@ def test_yaml_execution(yaml_file):
                     abs_error = abs(check_value-truth_value)
                     if truth_value != 0:
                         rel_error = abs(check_value-truth_value)/truth_value
+
+                ### Get tolerance parameters ###
+                tol = float(tol_value[0])
+                check_type = tol_value[1]
 
                 if check_type == "absolute" and abs_error > tol:
                     errors += f"Value Error - {module_name}: {key} (abs error: {abs_error}, tol: {tol} truth: {truth_value}, check: {check_value})\n"

@@ -71,60 +71,18 @@ class GenericProblem(object):
             int_nut = assemble(self.nu_T*dx)/self.dom.volume
             self.tag_output("int_nu_T", int_nut)
 
-            # integral of tf
-            # temp_tf = project(self.tf,self.fs.V)
-            # print(0)
-            # temp_tf = project(self.tf,self.fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
-            # print(1)
-            # if self.dom.dim == 3:
-            #     print(2)
-            #     e1 = as_vector((1,0,0)); e2 = as_vector((0,1,0)); e3 = as_vector((0,0,1));
-            # else:
-            #     print(3)
-            #     e1 = as_vector((1,0)); e2 = as_vector((0,1));
-
-            # print(4)
-            # int_tf_x = assemble(inner(self.u_k,e1)*dx)/self.dom.volume
-            # print(5)
-            # int_tf_x = assemble(temp_tf[0]*dx)/self.dom.volume
-            # print(6)
-
-
-            # self.tag_output("int_tf_x", int_tf_x)
-            # int_tf_y = assemble(temp_tf[1]*dx)/self.dom.volume
-            # self.tag_output("int_tf_y", int_tf_y)
-            # if self.dom.dim == 3:
-            #     int_tf_z = assemble(temp_tf[2]*dx)/self.dom.volume
-            #     self.tag_output("int_tf_z", int_tf_z)
-
-
-
-
-
-
-
-            print(0)
             if self.dom.dim == 3:
-                print(1)
                 e1 = Constant((1,0,0)); e2 = Constant((0,1,0)); e3 = Constant((0,0,1));
             else:
-                print(2)
                 e1 = Constant((1,0)); e2 = Constant((0,1));
 
-            print(3)
             int_tf_x = assemble(inner(self.tf,e1)*dx)/self.dom.volume
-            print(4)
             self.tag_output("int_tf_x", int_tf_x)
-            print(5)
             int_tf_y = assemble(inner(self.tf,e2)*dx)/self.dom.volume
-            print(6)
             self.tag_output("int_tf_y", int_tf_y)
-            print(7)
             if self.dom.dim == 3:
                 int_tf_z = assemble(inner(self.tf,e3)*dx)/self.dom.volume
                 self.tag_output("int_tf_z", int_tf_z)
-
-
 
                 if self.farm.turbine_type == 'line':
                     chord = []
