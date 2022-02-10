@@ -45,7 +45,7 @@ refine:
     warp_height: 250       # move cell below this value   | m
     refine_custom: [
         [cylinder, [[0.0,0.0,0.0], 600, 400, 1.5 ]],
-        [simple, [ 80 ]]
+        # [simple, [ 80 ]]
     ]
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.25   # turbine radius multiplier    | -
