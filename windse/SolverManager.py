@@ -51,13 +51,13 @@ if not main_file in ["sphinx-build", "__main__.py"]:
         default_representation = 'uflacs'
         # raise e
 
-    print()
-    print()
-    print()
+    print("")
+    print("")
+    print("")
     print(default_representation)
-    print()
-    print()
-    print()
+    print("")
+    print("")
+    print("")
 
     ### Improved dolfin parameters ###
     parameters["std_out_all_processes"] = False;
