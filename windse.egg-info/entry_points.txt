@@ -1,0 +1,3 @@
+[console_scripts]
+windse = windse_driver.driver:main
+
