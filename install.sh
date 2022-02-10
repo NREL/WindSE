@@ -20,4 +20,5 @@ source $(conda info --base)/etc/profile.d/conda.sh
 # ### Install editible version of WindSE
 # pip install -e .
 
-conda env create --name ${1} --file my_env.yaml
+conda env create --name ${1} --file environment.yaml
+conda list

@@ -19,7 +19,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     import time
     import scipy.interpolate as interp
     import glob
-    from pyadjoint.tape import stop_annotating 
+    from pyadjoint.tape import no_annotations
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -63,10 +63,10 @@ class GenericProblem(object):
         if self.params.dolfin_adjoint:
             self.extra_kwarg["annotate"] = False
 
+    @no_annotations
     def DebugOutput(self):
         if self.debug_mode:
             self.fprint("Saving Debug Values", special="header")
-            # with stop_annotating():
             # integral of nu_t
             int_nut = assemble(self.nu_T*dx)/self.dom.volume
             self.tag_output("int_nu_T", int_nut)

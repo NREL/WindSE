@@ -24,7 +24,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     from mpmath import hyper
     import cProfile
     import pstats
-    from pyadjoint.tape import stop_annotating 
+    from pyadjoint.tape import no_annotations 
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -113,9 +113,9 @@ class GenericSolver(object):
             self.J = 0.0
             self.J_saved = False
 
+    @no_annotations
     def DebugOutput(self,t=None,i=None):
         if self.debug_mode:
-            # with stop_annotating():
             if self.problem.dom.dim == 3:
                 ux, uy, uz = self.problem.u_k.split(True)
             else:
@@ -1094,7 +1094,7 @@ class UnsteadySolver(GenericSolver):
                     average_vel_1.vector()[:] = average_vel_sum.vector()[:]/(self.simTime-average_start_time)
 
                     norm_diff = norm(average_vel_2.vector() - average_vel_1.vector(), 'linf')
-                    print('Change Between Steps (norm)', norm_diff)
+                    self.fprint('Change Between Steps (norm)'+ repr(norm_diff))
 
 
                     if norm_diff < 1e-4:
@@ -1141,8 +1141,8 @@ class UnsteadySolver(GenericSolver):
                 # if abs(J_diff) <= 0.001:
                 #     stable = True
 
-                print("Current Objective Value: "+repr(float(self.J/dt_sum)))
-                print("Change in Objective    : "+repr(float(J_diff)))
+                self.fprint("Current Objective Value: "+repr(float(self.J/dt_sum)))
+                self.fprint("Change in Objective    : "+repr(float(J_diff)))
 
             # to only call the power functional once, check if a) the objective is the power, b) that we are before record time
             if self.save_power:

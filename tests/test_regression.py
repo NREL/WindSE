@@ -110,15 +110,15 @@ def test_yaml_execution(yaml_file):
                     if truth_value != 0:
                         rel_error = abs(check_value-truth_value)/truth_value
 
-                ### Get tolerance parameters ###
-                tol = float(tol_value[0])
-                check_type = tol_value[1]
+                    ### Get tolerance parameters ###
+                    tol = float(tol_value[0])
+                    check_type = tol_value[1]
 
-                if check_type == "absolute" and abs_error > tol:
-                    errors += f"Value Error - {module_name}: {key} (abs error: {abs_error}, tol: {tol} truth: {truth_value}, check: {check_value})\n"
+                    if check_type == "absolute" and abs_error > tol:
+                        errors += f"Value Error - {module_name}: {key} (abs error: {abs_error}, tol: {tol} truth: {truth_value}, check: {check_value})\n"
 
-                elif check_type == "relative" and rel_error > tol:
-                    errors += f"Value Error - {module_name}: {key} (rel error: {rel_error}, tol: {tol}, truth: {truth_value}, check: {check_value})\n"
+                    elif check_type == "relative" and rel_error > tol:
+                        errors += f"Value Error - {module_name}: {key} (rel error: {rel_error}, tol: {tol}, truth: {truth_value}, check: {check_value})\n"
 
     if len(errors)>0:
         errors = yaml_name + "\n" + errors

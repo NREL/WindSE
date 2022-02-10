@@ -25,7 +25,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     import numpy as np
     from scipy.interpolate import interp2d, interp1d,RectBivariateSpline
     import shutil
-    from pyadjoint import stop_annotating
+    from pyadjoint.tape import no_annotations
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -128,6 +128,7 @@ class GenericDomain(object):
         self.initial_inflow_angle = self.inflow_angle
 
 
+    @no_annotations
     def DebugOutput(self):
         if self.debug_mode:
             self.tag_output("dim", self.dim)

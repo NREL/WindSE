@@ -33,7 +33,7 @@ class ActuatorDiskNumpy(ActuatorDisk):
         ### Create the bounding box for each turbine ###
         dim = x.shape[0]
         x0 = np.array([[self.mx],[self.my],[self.mz]],dtype=float)
-        bounding_limit = [sparse_RDs*self.RD/2.0]*3
+        bounding_limit = [sparse_RDs*self.RD]*3
         bl = x0-bounding_limit
         bu = x0+bounding_limit
 

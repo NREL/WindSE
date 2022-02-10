@@ -29,6 +29,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     from sys import platform
     import time
     from memory_profiler import memory_usage
+    from pyadjoint.tape import no_annotations
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -323,6 +324,7 @@ class Optimizer(object):
         # self.merged_constraint.function(self.controls)
         # self.merged_constraint.jacobian(self.controls)
 
+    @no_annotations
     def DebugOutput(self,iteration=0, m=[]):
         if self.debug_mode:
             if iteration == 0:

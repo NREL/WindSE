@@ -26,7 +26,6 @@ jobs:
         run: |
           bash ./install.sh test-environment
           conda activate test-environment
-          conda list
         
       - name: Run all documented demos within WindSE
         shell: pwsh

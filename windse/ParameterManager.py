@@ -474,7 +474,7 @@ class Parameters(dict):
 
     def tag_output(self, key, value, collective_output=None):
 
-        self.fprint("Tagging Debug item: "+key)
+        # self.fprint("Tagging Debug item: "+key)
         ### Process value ###
         if not isinstance(value,int):
             value = float(value)

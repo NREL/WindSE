@@ -16,6 +16,7 @@ else:
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
     import time
+    from pyadjoint.tape import no_annotations
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -62,6 +63,7 @@ class GenericFunctionSpace(object):
             self.tf_V0 = self.tf_V.sub(0).collapse() 
             self.fprint("Quadrature DOFS: {:d}".format(self.tf_V.dim()))
 
+    @no_annotations
     def DebugOutput(self):
         if self.debug_mode:
             self.tag_output("velocity_dofs",self.V.dim())
