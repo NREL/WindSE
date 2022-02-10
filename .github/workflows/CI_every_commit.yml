@@ -28,6 +28,9 @@ jobs:
           conda activate test-environment
           conda list
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+
       # Run all tests within WindSE, but not computationally expensive examples
       - name: Run tests within WindSE
         shell: pwsh
