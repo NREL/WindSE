@@ -16,7 +16,7 @@ dependencies:
   - pytest-cov
   - pytest-mpi
   - pyyaml
-  - scipy=1.8.0
+  - scipy=1.7.0
   - slepc
   - pip
   - pandas
