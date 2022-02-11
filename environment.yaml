@@ -10,8 +10,6 @@ dependencies:
   - matplotlib
   - memory_profiler
   - mshr=2019.1.0
-  - openmdao
-  - pyoptsparse
   - pytest
   - pytest-cov
   - pytest-mpi
@@ -30,4 +28,6 @@ dependencies:
     - networkx
     - pulp
     - fatpack
+    - openmdao
+    - pyoptsparse
     - -e .
