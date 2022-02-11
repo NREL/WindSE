@@ -21,4 +21,3 @@ source $(conda info --base)/etc/profile.d/conda.sh
 # pip install -e .
 
 conda env create --name ${1} --file environment.yaml
-# conda list
