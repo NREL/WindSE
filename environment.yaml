@@ -4,8 +4,8 @@ channels:
   - defaults
 dependencies:
   - coveralls
+  - fenics=2019.1.0=py38_9
   - dolfin-adjoint=2019.1.0
-  - fenics=2019.1.0
   - hdf5
   - matplotlib
   - memory_profiler
@@ -16,7 +16,7 @@ dependencies:
   - pytest-cov
   - pytest-mpi
   - pyyaml
-  - scipy=1.7.0
+  - scipy=1.4.1
   - slepc
   - pip
   - pip:
