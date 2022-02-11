@@ -20,19 +20,24 @@ jobs:
           python-version: 3.8
       #     environment-file: environment.yml
       
+      # can be used to ssh into the github actions node
+      # - name: Setup tmate session
+      #   uses: mxschmitt/action-tmate@v3
+      
       - name: Install test environment
         shell: pwsh # putting in a shell command makes for compile linking problems later
         # (if you use the shell here, cannot use 'compiler' package, but mpi only seems to work with it)
         run: |
           bash ./install.sh test-environment
           conda activate test-environment
+          conda list
 
       # Run all tests within WindSE, but not computationally expensive examples
       - name: Run tests within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -v --cov=windse tests/test_regression.py
+          pytest -sv --cov=windse tests/test_regression.py
       
       # Run coveralls
       - name: Run coveralls

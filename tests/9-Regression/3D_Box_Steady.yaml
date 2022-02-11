@@ -14,14 +14,16 @@ wind_farm:
     grid_cols: 4          # Number of columns        | -
     ex_x: [-600, 600]     # x-extent of the farm     | m
     ex_y: [-300, 300]     # y-extent of the farm     | m
+    ###################################################################
+
+turbines:
+    type: disk            # Use actuator Disks       |    
     HH: 90                # Hub Height               | m
     RD: 126.0             # Turbine Diameter         | m
     thickness: 20.0       # Effective Thickness      | m
     yaw: 0.349            # Yaw                      | rads
     axial: 0.33           # Axial Induction          | -
-    ###################################################################
 
-# Domain Parameters: Uncomment a set to change domain shape
 domain: 
     
     ########################### Box Domain ############################
@@ -44,7 +46,6 @@ refine:
     ]
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.25   # turbine radius multiplier    | -
-
 
 function_space:
     type: linear

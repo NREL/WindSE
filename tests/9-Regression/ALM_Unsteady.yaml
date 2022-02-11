@@ -6,12 +6,14 @@ general:
 
 wind_farm:
     type: imported               # Wind farm will be specified via input file
-    path: Input_Data/iea_rwt.txt # Path to the wind farm description
-    turbine_method: alm          # Actuator Line Method (ALM)
+    path: Input_Data/iea_rwt.csv # Path to the wind farm description
+
+turbines:
+    type: line                   # Actuator Line Method (ALM)
     read_turb_data: Input_Data/baseline.csv
     rpm: 4.0                     # Rotor revolutions per minute (RPM) | rev/min
     chord_factor: 1.0
-    gauss_factor: 2.0    
+    gauss_factor: 2.0
 
 domain:
     type: box                    # A box domain, specified by x, y, and z dimensions
@@ -57,11 +59,10 @@ solver:
     save_interval: 5.0           # Save the velocity and pressure files at intervals of "save_interval" | s
     final_time: 10.0             # The total duration of the simulation | s
     save_power: true
-    power_type: alm_power
 
 optimization:
     control_types: [chord]
-    objective_type: alm_power
+    objective_type: power
     record_time: 0.0
     # optimize: False
     gradient: True

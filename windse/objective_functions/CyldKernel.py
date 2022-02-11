@@ -90,14 +90,14 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
         for k in range(solver.problem.farm.numturbs):
 
             # Get a convenience copy of turbine k's location
-            mx = solver.problem.farm.mx[k]
-            my = solver.problem.farm.my[k]
-            mz = solver.problem.farm.mz[k]
-            RD = solver.problem.farm.RD[k]
+            mx = solver.problem.farm.turbines[k].mx
+            my = solver.problem.farm.turbines[k].my
+            mz = solver.problem.farm.turbines[k].mz
+            RD = solver.problem.farm.turbines[k].RD
             x0 = [mx, my, mz]
 
             # Get a convenience copy of turbine k's yaw
-            yaw = solver.problem.farm.myaw[k]
+            yaw = solver.problem.farm.turbines[k].myaw
 
             xs = rotate_and_shift_points(x, x0, yaw, kp, RD)
 
@@ -124,8 +124,8 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     # ================================================================
 
     # Modify some of the properties of the kernel
-    kwargs['radius'] *= solver.problem.farm.RD[0]
-    kwargs['length'] *= solver.problem.farm.RD[0]
+    kwargs['radius'] *= solver.problem.farm.turbines[0].RD
+    kwargs['length'] *= solver.problem.farm.turbines[0].RD
 
     kernel_exp, kernel_exp_list = build_cylindrical_kernels(solver, kwargs)
 
@@ -164,10 +164,10 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
             # J_ind = -assemble(sqrt(inner(solver.problem.u_k, solver.problem.u_k))*kernel_exp_list[k]*dx)
             J_ind = assemble(solver.problem.u_k[0]*kernel_exp_list[k]/vol/solver.problem.farm.numturbs*dx)
 
-            mx = solver.problem.farm.mx[k]
-            my = solver.problem.farm.my[k]
-            mz = solver.problem.farm.mz[k]
-            yaw = solver.problem.farm.myaw[k]
+            mx =  solver.problem.farm.turbines[k].mx
+            my =  solver.problem.farm.turbines[k].my
+            mz =  solver.problem.farm.turbines[k].mz
+            yaw = solver.problem.farm.turbines[k].myaw
 
             blockage_array.append([k, mx, my, mz, yaw, J_ind])
 

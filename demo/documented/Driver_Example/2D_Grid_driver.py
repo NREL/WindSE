@@ -26,11 +26,14 @@ params["wind_farm"]["grid_rows"] = 6
 params["wind_farm"]["grid_cols"] = 6
 params["wind_farm"]["ex_x"]      = [-1800,1800]
 params["wind_farm"]["ex_y"]      = [-1800,1800]
-params["wind_farm"]["HH"]        = 90
-params["wind_farm"]["RD"]        = 126
-params["wind_farm"]["thickness"] = 10
-params["wind_farm"]["yaw"]       = 0
-params["wind_farm"]["axial"]     = 0.33
+
+### Edit the turbine settings
+params["turbines"]["type"]      = "2D_disk"
+params["turbines"]["HH"]        = 90
+params["turbines"]["RD"]        = 126
+params["turbines"]["thickness"] = 10
+params["turbines"]["yaw"]       = 0
+params["turbines"]["axial"]     = 0.33
 
 ### Edit the domain settings ###
 params["domain"]["type"]    = "rectangle"
@@ -49,10 +52,6 @@ params["solver"]["type"]         = "steady"
 
 ### Initialize the parameters object ###
 params = df.Initialize(params)
-
-
-
-
 
 ### Build the domain and wind-farm ###
 dom, farm = df.BuildDomain(params)

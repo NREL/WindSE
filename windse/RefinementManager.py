@@ -13,20 +13,23 @@ def CreateRefinementList(dom, farm, refine_params):
 
     refine_list = []
 
+    RDs = farm.get_rotor_diameters()
+    zs  = farm.get_hub_locations()[:,2]
+
     if farm_num > 0:
-        bbox = farm.CalculateFarmBoundingBox()
+        bbox = farm.calculate_farm_bounding_box()
 
         for i in range(farm_num,0,-1):
             # expand_factor = 1+(farm_factor-1)*(i)
             expand_factor = (farm_factor)**(i)
 
             if farm_type == 'box':
-                RD = max(farm.RD)
+                RD = max(RDs)
                 bbox[2] = [bbox[2][0]-RD,bbox[2][1]+RD]
                 refine_list.append(["box",[bbox,expand_factor]])
 
             elif farm_type == 'cylinder':
-                RD = max(farm.RD)
+                RD = max(RDs)
                 x0 = (bbox[0][1]+bbox[0][0])/2.0
                 y0 = (bbox[1][1]+bbox[1][0])/2.0
                 if dom.dim == 3:
@@ -40,11 +43,11 @@ def CreateRefinementList(dom, farm, refine_params):
                 refine_list.append(["cylinder",[center,radius,height,expand_factor]])
 
             elif farm_type == 'stream':
-                RD = max(farm.RD)
+                RD = max(RDs)
                 x0 = bbox[0][0]-RD
                 y0 = (bbox[1][1]+bbox[1][0])/2.0
                 if dom.dim == 3:
-                    z0 = (min(farm.z)+max(farm.z))/2.0
+                    z0 = (min(zs)+max(zs))/2.0
                     center = [x0,y0,z0]
                     radius = np.sqrt((bbox[1][1]-bbox[1][0])**2+(bbox[2][1]-bbox[2][0])**2)/2.0
                 else:
@@ -52,7 +55,7 @@ def CreateRefinementList(dom, farm, refine_params):
                     radius = (bbox[1][1]-bbox[1][0])/2.0
                 length = bbox[0][1]-bbox[0][0]+6*RD
                 theta = dom.inflow_angle
-                pivot_offset = 3*max(farm.RD)/2.0
+                pivot_offset = 3*max(RDs)/2.0
                 refine_list.append(["stream",[center,radius,length,theta,pivot_offset,expand_factor]])
 
     if turbine_num > 0 and farm.numturbs > 0:
@@ -60,26 +63,26 @@ def CreateRefinementList(dom, farm, refine_params):
             expand_factor = (turbine_factor)**(i)
 
             if turbine_type == 'simple':
-                radius = max(farm.RD)
+                radius = max(RDs)
                 refine_list.append(["simple",[radius,expand_factor]])
 
             elif turbine_type == 'sphere':
-                radius = max(farm.RD)
+                radius = max(RDs)
                 refine_list.append(["sphere",[radius,expand_factor]])
 
             elif turbine_type == 'wake':
-                radius = max(farm.RD)
+                radius = max(RDs)
                 length = 5*radius
                 theta = dom.inflow_angle
                 refine_list.append(["wake",[radius,length,theta,expand_factor]])
 
             elif turbine_type == 'tear':
-                radius = max(farm.RD)
+                radius = max(RDs)
                 theta = dom.inflow_angle
                 refine_list.append(["tear",[radius,theta,expand_factor]])
 
         if refine_power_calc:
-            radius = max(farm.RD)
+            radius = max(RDs)
             length = radius/5.0
             theta = dom.inflow_angle
             centered = True

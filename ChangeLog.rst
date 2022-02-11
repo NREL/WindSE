@@ -1,6 +1,30 @@
 ChangeLog:
 ==========
 
+Next Release:
+-------------
+
+Versions:
+~~~~~~~~~
+
+* FEniCS: 2019.1.0
+* Dolfin-Adjoint: 2019.1.0
+
+New Features:
+~~~~~~~~~~~~~
+
+* Refactored how wind farms and turbines work
+* Added DELs for the actuator line
+
+
+Bug Fixes
+~~~~~~~~~
+
+* Change boundary velocity reference height to be based on mean(turbines.z)
+* Reduced the size of 3D_Skew_Steady.yaml problem
+* No longer annotate debug functions
+
+
 2021.8.0:
 ---------
 

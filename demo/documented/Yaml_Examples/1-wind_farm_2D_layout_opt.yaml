@@ -20,17 +20,8 @@ wind_farm:
     grid_cols: 3          # Number of columns        | -
     ex_x: [-882, 882]     # x-extent of the farm     | m
     ex_y: [-882, 882]     # y-extent of the farm     | m
-    HH: 90                # Hub Height               | m
-    RD: 126.0             # Turbine Diameter         | m
-    thickness: 12.0       # Effective Thickness      | m
-    yaw: 0.0              # Yaw                      | rads
-    axial: 0.25           # Axial Induction          | -
     jitter: 0            # Randomly perturb turbines| m
     seed: 8675309         # random seed for repeats  | -
-    force: constant       # radial force distribution| -
-    turbine_method: dolfin
-
-
     ##################################################################
 
 
@@ -40,15 +31,17 @@ wind_farm:
     # ex_x: [-600, 600]     # x-extent of the farm     | m
     # ex_y: [-600, 600]     # y-extent of the farm     | m
     # seed: 5555555         # random seed for repeats  | -
-    # HH: 90                # Hub Height               | m
-    # RD: 126.0             # Turbine Diameter         | m
-    # thickness: 10.5       # Effective Thickness      | m
-    # yaw: 0.0              # Yaw                      | rads
-    # axial: 0.33           # Axial Induction          | -
-    # force: sine           # radial force distribution| -
     ###################################################################
 
-
+# Turbine properties
+turbines:
+    type: 2D_disk
+    force: constant       # radial force distribution| -
+    HH: 90                # Hub Height               | m
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 12.0       # Effective Thickness      | m
+    yaw: 0.0              # Yaw                      | rads
+    axial: 0.25           # Axial Induction          | -
 
 # Domain Parameters: Uncomment a set to change domain shape
 domain: 

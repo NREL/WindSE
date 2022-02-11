@@ -24,6 +24,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     from mpmath import hyper
     import cProfile
     import pstats
+    from pyadjoint.tape import no_annotations 
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -31,9 +32,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
-        from windse.dolfin_adjoint_helper import Marker, ControlUpdater
-    else:
-        from windse.helper_functions import ControlUpdater
+        from windse.blocks import blockify, MarkerBlock, ControlUpdaterBlock
 
     ### Import objective functions ###
     import windse.objective_functions as obj_funcs
@@ -51,16 +50,14 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     except ImportError as e:
         default_representation = 'uflacs'
 
-    # set_log_level(13)
-
-    ### Improve Solver parameters ###
+    ### Improved dolfin parameters ###
     parameters["std_out_all_processes"] = False;
     parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'        
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
     parameters['form_compiler']['representation'] = default_representation
     parameters['form_compiler']['quadrature_degree'] = windse_parameters["function_space"]["quadrature_degree"]
-
+    
 class GenericSolver(object):
     """
     A GenericSolver contains on the basic functions required by all solver objects.
@@ -74,6 +71,7 @@ class GenericSolver(object):
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
         self.simTime = 0.0
+        self.simTime_prev = None
         self.iter_val = 0.0
         self.pow_saved = False
 
@@ -105,16 +103,19 @@ class GenericSolver(object):
             elif isinstance(self.opt_turb_id, str):
                 self.opt_turb_id = [int(self.opt_turb_id)]
 
+        # blockify custom functions so dolfin adjoint can track them
+        if self.params.performing_opt_calc:
+        #     self.marker = blockify(self.marker,MarkerBlock)
+            self.control_updater = blockify(self.control_updater,ControlUpdaterBlock)
+
         #Check if we need to save the power output
         if self.save_power:
-            self.power_func = obj_funcs.objective_functions[self.power_type]
-            self.power_func_kwargs = obj_funcs.objective_kwargs[self.power_type]
             self.J = 0.0
             self.J_saved = False
 
+    @no_annotations
     def DebugOutput(self,t=None,i=None):
         if self.debug_mode:
-
             if self.problem.dom.dim == 3:
                 ux, uy, uz = self.problem.u_k.split(True)
             else:
@@ -214,17 +215,11 @@ class GenericSolver(object):
 
     def EvaulatePowerFunctional(self):
 
-        first_call = True
-        if self.pow_saved:
-            first_call = False
-        self.pow_saved = True
-
-        annotate = self.params.dolfin_adjoint 
-
-        args = (self, (self.problem.dom.inflow_angle))
-        kwargs = {"first_call": first_call, "annotate": annotate}
-        kwargs.update(self.power_func_kwargs)
-        out = obj_funcs._annotated_objective(self.power_func, *args, **kwargs)
+        kwargs = {
+            "iter_val": self.iter_val, 
+            "simTime": self.simTime
+        }
+        out = self.problem.farm.save_power(self.problem.u_k,self.problem.dom.inflow_angle, **kwargs)
 
         return out
 
@@ -272,6 +267,16 @@ class GenericSolver(object):
         self.fprint("Complete: {:1.2f} s".format(stop-start),special="footer")
         return J
 
+    def marker(self, u, simTime, adj_tape_file):
+        return u
+
+    def control_updater(self, J, problem, time=None):
+        return J
+
+
+
+
+
 class SteadySolver(GenericSolver):
     """
     This solver is for solving the steady state problem
@@ -297,7 +302,7 @@ class SteadySolver(GenericSolver):
         if "height" in self.params.output and self.problem.dom.dim == 3:
             self.problem.bd.SaveHeight(val=self.iter_val)
         if "turbine_force" in self.params.output:
-            self.problem.farm.SaveActuatorDisks(val=self.iter_val)
+            self.problem.farm.save_functions(val=self.iter_val)
         self.fprint("Finished",special="footer")
 
         # exit()
@@ -408,7 +413,7 @@ class SteadySolver(GenericSolver):
         self.fprint("Solve Complete: {:1.2f} s".format(stop-start),special="footer")
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
         # self.u_k,self.p_k = self.problem.up_k.split(True)
-        self.problem.u_k,self.problem.p_k = self.problem.up_k.split(True)
+        self.problem.u_k,self.problem.p_k = self.problem.up_k.split()
 
         ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
         self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
@@ -438,7 +443,7 @@ class SteadySolver(GenericSolver):
         if self.optimizing or self.save_objective:
             self.J += self.EvaluateObjective()
             # self.J += self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle)) 
-            self.J = ControlUpdater(self.J, self.problem)
+            self.J = self.control_updater(self.J, self.problem)
 
         if self.save_power:
             self.EvaulatePowerFunctional()
@@ -714,7 +719,7 @@ class IterativeSteadySolver(GenericSolver):
         if self.optimizing or self.save_objective:
             self.J += self.EvaluateObjective()
             # self.J += self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle)) 
-            self.J = ControlUpdater(self.J, self.problem)
+            self.J = self.control_updater(self.J, self.problem)
 
         if self.save_power and "power":
             self.EvaulatePowerFunctional()
@@ -905,9 +910,9 @@ class UnsteadySolver(GenericSolver):
         # ================================================================
 
         self.fprint('Turbine Parameters', special='header')
-        self.fprint('Hub Height: %.1f' % (self.problem.farm.HH[0]))
-        self.fprint('Yaw: %.4f' % (self.problem.farm.yaw[0]))
-        self.fprint('Radius: %.1f' % (self.problem.farm.radius[0]))
+        self.fprint('Hub Height: %.1f' % (self.problem.farm.turbines[0].HH))
+        self.fprint('Yaw: %.4f' % (self.problem.farm.turbines[0].yaw))
+        self.fprint('Radius: %.1f' % (self.problem.farm.turbines[0].radius))
         self.fprint('', special='footer')
 
         self.fprint("Solving",special="header")
@@ -934,8 +939,8 @@ class UnsteadySolver(GenericSolver):
         simIter = 0
         stable = False
 
-        if self.problem.farm.turbine_method == "alm":
-            tip_speed = self.problem.rpm*2.0*np.pi*self.problem.farm.radius[0]/60.0
+        if self.problem.farm.turbines[0].type == "line":
+            tip_speed = self.problem.farm.turbines[0].rpm*2.0*np.pi*self.problem.farm.turbines[0].radius/60.0
         else:
             tip_speed = 0.0
 
@@ -999,6 +1004,7 @@ class UnsteadySolver(GenericSolver):
             u_max = max(tip_speed, self.problem.u_k.vector().max())
 
             # Update the simulation time
+            self.simTime_prev = self.simTime
             self.simTime += self.problem.dt
 
             # Compute Reynolds Stress
@@ -1027,39 +1033,39 @@ class UnsteadySolver(GenericSolver):
 
             # Update the turbine force
             tic = time.time()
-            if self.problem.farm.turbine_method == "alm":
+            if self.problem.farm.turbines[0].type == "line":
+
+
+                self.problem.alm_power = 0.0
+                # pass
+
                 # t1 = time.time()
                 pr.enable()
-                new_tf_list = self.problem.farm.CalculateActuatorLineTurbineForces(self.problem, self.simTime)
+                new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                self.problem.tf.assign(new_tf)
                 pr.disable()
 
-                for i in range(len(self.problem.tf_list)):
-                    self.problem.tf_list[i].assign(new_tf_list[i])
-                    # print('MPI vec norm = %.15e' % np.linalg.norm(self.problem.tf_list[i].vector()[:]))
 
-                # t2 = time.time()
-                # print(t2-t1)
+                # # t2 = time.time()
+                # # print(t2-t1)
 
                 # Power [=] N*m*rads/s 
-                self.problem.alm_power = self.problem.rotor_torque*(2.0*np.pi*self.problem.rpm/60.0)
-                self.problem.alm_power_dolfin = self.problem.rotor_torque_dolfin*(2.0*np.pi*self.problem.rpm/60.0)
+                # self.problem.alm_power = self.problem.rotor_torque*(2.0*np.pi*self.problem.rpm/60.0)
+                # self.problem.alm_power_dolfin = self.problem.rotor_torque_dolfin*(2.0*np.pi*self.problem.rpm/60.0)
                 
-                # self.problem.alm_power_sum += self.problem.alm_power*self.problem.dt
+                # # self.problem.alm_power_sum += self.problem.alm_power*self.problem.dt
+                # # self.problem.alm_power_average = self.problem.alm_power_sum/self.simTime
 
-                # self.problem.alm_power_average = self.problem.alm_power_sum/self.simTime
-
-                # self.fprint('Rotor Power: %.6f MW' % (self.problem.alm_power/1e6))
-                output_str = 'Rotor Power  (numpy): %s MW' % (np.array2string(self.problem.alm_power/1.0e6, precision=8, separator=', '))
-                self.fprint(output_str)
-                output_str = 'Rotor Power (dolfin): %s MW' % (np.array2string(self.problem.alm_power_dolfin/1.0e6, precision=8, separator=', '))
-                self.fprint(output_str)
+                # self.problem.alm_power_dolfin = self.problem.farm.compute_power(self.problem.u_k, self.problem.bd.inflow_angle)
+                # output_str = 'Rotor Power (dolfin, solver): %s MW' % (self.problem.alm_power_dolfin/1.0e6)
+                # self.fprint(output_str)
 
             else:
                 # This is a hack to avoid errors when using something other than ALM
                 # e.g., actuator disks
                 self.problem.alm_power = np.zeros(self.problem.farm.numturbs)
                 self.problem.alm_power_dolfin = np.zeros(self.problem.farm.numturbs)
-                self.J = ControlUpdater(self.J, self.problem, time=self.simTime)
+                self.J = self.control_updater(self.J, self.problem, time=self.simTime)
 
                 # exit()
             toc = time.time()
@@ -1088,7 +1094,7 @@ class UnsteadySolver(GenericSolver):
                     average_vel_1.vector()[:] = average_vel_sum.vector()[:]/(self.simTime-average_start_time)
 
                     norm_diff = norm(average_vel_2.vector() - average_vel_1.vector(), 'linf')
-                    print('Change Between Steps (norm)', norm_diff)
+                    self.fprint('Change Between Steps (norm)'+ repr(norm_diff))
 
 
                     if norm_diff < 1e-4:
@@ -1135,8 +1141,8 @@ class UnsteadySolver(GenericSolver):
                 # if abs(J_diff) <= 0.001:
                 #     stable = True
 
-                print("Current Objective Value: "+repr(float(self.J/dt_sum)))
-                print("Change in Objective    : "+repr(float(J_diff)))
+                self.fprint("Current Objective Value: "+repr(float(self.J/dt_sum)))
+                self.fprint("Change in Objective    : "+repr(float(J_diff)))
 
             # to only call the power functional once, check if a) the objective is the power, b) that we are before record time
             if self.save_power:
@@ -1172,7 +1178,10 @@ class UnsteadySolver(GenericSolver):
 
             average_power = average_power/(self.simTime-average_start_time)
             # self.fprint('AVERAGE Rotor Power: %.6f MW' % (average_power/1e6))
-            output_str = 'AVERAGE Rotor Power: %s MW' % (np.array2string(average_power/1.0e6, precision=9, separator=', '))
+            try:
+                output_str = 'AVERAGE Rotor Power: %s MW' % (np.array2string(average_power/1.0e6, precision=9, separator=', '))
+            except:
+                output_str = 'AVERAGE Rotor Power: %s MW' % (average_power)
             self.fprint(output_str)
 
 
@@ -1205,15 +1214,15 @@ class UnsteadySolver(GenericSolver):
         self.DebugOutput(simTime,simIter)
         ### TODO THIS NEED TO BE CLEAN TO ACCOUNT FOR DISKS
 
-        if self.problem.farm.turbine_method == "alm":
+        if self.problem.farm.turbines[0].type == "line":
             if hasattr(self.problem,"tf_save"):
                 self.problem.tf_save.vector()[:] = 0
-                for fun in self.problem.tf_list:
-                    self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.vector()[:]
+                for fun in self.problem.farm.turbines:
+                    self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.tf.vector()[:]
             else:
                 self.problem.tf_save = Function(self.problem.fs.V)
-                for fun in self.problem.tf_list:
-                    self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.vector()[:]
+                for fun in self.problem.farm.turbines:
+                    self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.tf.vector()[:]
         else:
             if hasattr(self.problem,"tf_save"):
                 self.problem.tf_save = project(self.problem.tf, self.problem.fs.V, solver_type='cg')
