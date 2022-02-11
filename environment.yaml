@@ -4,8 +4,8 @@ channels:
   - defaults
 dependencies:
   - coveralls
-  - fenics=2019.1.0=py38_9
   - dolfin-adjoint=2019.1.0
+  - fenics=2019.1.0
   - hdf5
   - matplotlib
   - memory_profiler
@@ -16,9 +16,10 @@ dependencies:
   - pytest-cov
   - pytest-mpi
   - pyyaml
-  - scipy=1.4.1
+  - scipy=1.8.0
   - slepc
   - pip
+  - pandas
   - pip:
     - git+https://github.com/blechta/tsfc.git@2018.1.0
     - git+https://github.com/blechta/COFFEE.git@2018.1.0
