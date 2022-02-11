@@ -11,6 +11,7 @@ dependencies:
   - memory_profiler
   - mshr=2019.1.0
   - openmdao
+  - pandas
   - pyoptsparse
   - pytest
   - pytest-cov
@@ -19,7 +20,6 @@ dependencies:
   - scipy=1.7.0
   - slepc
   - pip
-  - pandas
   - pip:
     - git+https://github.com/blechta/tsfc.git@2018.1.0
     - git+https://github.com/blechta/COFFEE.git@2018.1.0
