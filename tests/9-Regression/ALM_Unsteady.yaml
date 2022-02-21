@@ -23,7 +23,7 @@ domain:
     y_range: [-260, 260]         # y-range of the domain, [-2D, 2D] | m
     z_range: [0.04, 520]         # z-range of the domain, [ ~0, 4D] | m
     
-    #  Coarse values recommended for testing, comments show more refined suggestions
+    # Coarse values recommended for testing, comments show more refined suggestions
     nx: 30 # 60                  # Number of x-nodes | -
     ny: 15 # 30                  # Number of y-nodes | -
     nz: 15 # 30                  # Number of z-nodes | -
