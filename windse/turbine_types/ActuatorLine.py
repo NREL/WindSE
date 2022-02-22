@@ -353,12 +353,15 @@ class ActuatorLine(GenericTurbine):
             pos, unit_vec, vel = self.rotate_points([self.blade_pos_base, self.blade_unit_vec_base, self.blade_vel_base], 
                                                      self.theta + theta_0, [1, 0, 0])
 
-            # Rotate the blade into the correct position around the z-axis (due to yaw)
-            pos, unit_vec, vel = self.rotate_points([pos, unit_vec, vel], float(self.myaw), [0, 0, 1])
+            pos_prev = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
 
-            pos[0, :] += self.x
-            pos[1, :] += self.y
-            pos[2, :] += self.z
+
+            # Rotate the blade into the correct position around the z-axis (due to yaw)
+            pos, pos_prev, unit_vec, vel = self.rotate_points([pos, pos_prev, unit_vec, vel], float(self.myaw), [0, 0, 1])
+
+
+            # Translate the positions into the correct location
+            pos, pos_prev = self.translate_points([pos, pos_prev], [self.x, self.y, self.z])
 
             # if self.turbine_motion_freq is not None:
             #     motion_theta = self.turbine_motion_amp*np.sin(self.turbine_motion_freq*self.simTime_ahead*np.pi*2.0)
@@ -382,15 +385,6 @@ class ActuatorLine(GenericTurbine):
             self.blade_pos.append(pos)
             self.blade_unit_vec.append(unit_vec)
             self.blade_vel.append(vel)
-
-            # Build the initial position if no previous timestep is available
-            pos_prev = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
-            pos_prev = self.rotate_points(pos_prev, float(self.myaw), [0, 0, 1])
-
-            pos_prev[0, :] += self.x
-            pos_prev[1, :] += self.y
-            pos_prev[2, :] += self.z
-
             self.blade_pos_prev.append(pos_prev)
 
     def get_u_fluid_at_alm_nodes(self, u_k):
@@ -710,17 +704,17 @@ class ActuatorLine(GenericTurbine):
 
         tf.vector().update_ghost_values()
 
-        # if np.abs(self.simTime - 10.0) < 1e-3:
-        #     try:
-        #         print('Max TF: %.6e' % (float(tf.vector().max() - 0.026665983592878112)/tf.vector().max())) 
-        #     except:
-        #         print('Max TF: %.6e' % (np.nan)) 
-        #     print('Min TF: %.6e' % (float(tf.vector().min() - -0.22879677484292432)/tf.vector().min()))
-        #     print('Max Lift: %.6e' % ((np.amax(lift) - 1604.506078981611)/np.amax(lift)))
-        #     print('Max Drag: %.6e' % ((np.amax(drag) - 2205.459487502247)/np.amax(drag)))
-        #     print('Max Nodal Lift: %.6e' % ((np.amax(nodal_lift) - 0.053743827932146535)/np.amax(nodal_lift)))
-        #     print('Max Nodal Drag: %.6e' % ((np.amax(nodal_drag) - 0.07069602361087358)/np.amax(nodal_drag)))
-        #     print('Rotor torque numpy: %.6e' % ((self.rotor_torque - 117594.90448122297)/self.rotor_torque))
+        if np.abs(self.simTime - 10.0) < 1e-3:
+            try:
+                print('Max TF: %.6e' % (float(tf.vector().max() - 0.026665983592878112)/tf.vector().max())) 
+            except:
+                print('Max TF: %.6e' % (np.nan)) 
+            print('Min TF: %.6e' % (float(tf.vector().min() - -0.22879677484292432)/tf.vector().min()))
+            print('Max Lift: %.6e' % ((np.amax(lift) - 1604.506078981611)/np.amax(lift)))
+            print('Max Drag: %.6e' % ((np.amax(drag) - 2205.459487502247)/np.amax(drag)))
+            print('Max Nodal Lift: %.6e' % ((np.amax(nodal_lift) - 0.053743827932146535)/np.amax(nodal_lift)))
+            print('Max Nodal Drag: %.6e' % ((np.amax(nodal_drag) - 0.07069602361087358)/np.amax(nodal_drag)))
+            print('Rotor torque numpy: %.6e' % ((self.rotor_torque - 117594.90448122297)/self.rotor_torque))
 
         if dfd == None:
 

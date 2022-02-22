@@ -208,26 +208,27 @@ class GenericTurbine(object):
         '''
         raise NotImplementedError(type(self))
 
-    def rot_x(self, theta):
-        Rx = np.array([[1, 0, 0],
-                       [0, np.cos(theta), -np.sin(theta)],
-                       [0, np.sin(theta), np.cos(theta)]])
+    # def rot_x(self, theta):
+    #     Rx = np.array([[1, 0, 0],
+    #                    [0, np.cos(theta), -np.sin(theta)],
+    #                    [0, np.sin(theta), np.cos(theta)]])
 
-        return Rx
+    #     return Rx
 
-    def rot_y(self, theta):
-        Ry = np.array([[np.cos(theta), 0, np.sin(theta)],
-                       [0, 1, 0],
-                       [-np.sin(theta), 0, np.cos(theta)]])
+    # def rot_y(self, theta):
+    #     Ry = np.array([[np.cos(theta), 0, np.sin(theta)],
+    #                    [0, 1, 0],
+    #                    [-np.sin(theta), 0, np.cos(theta)]])
         
-        return Ry
+    #     return Ry
 
-    def rot_z(self, theta):
-        Rz = np.array([[np.cos(theta), -np.sin(theta), 0],
-                       [np.sin(theta), np.cos(theta), 0],
-                       [0, 0, 1]])
+    # def rot_z(self, theta):
+    #     Rz = np.array([[np.cos(theta), -np.sin(theta), 0],
+    #                    [np.sin(theta), np.cos(theta), 0],
+    #                    [0, 0, 1]])
         
-        return Rz
+    #     return Rz
+
 
     def rotation_mat_about_axis(self, theta, ax):
 
@@ -257,15 +258,16 @@ class GenericTurbine(object):
 
         return R
 
+
     def rotate_points(self, points, theta, ax):
 
         # Check the type of points and make a list if necessary
         if not isinstance(points, list):
-            undo_list = True
             points = [points]
+            input_is_list = False
 
         else:
-            undo_list = False
+            input_is_list = True
 
         # Make sure theta is a floating point value
         assert isinstance(theta, (float, np.floating))
@@ -286,10 +288,41 @@ class GenericTurbine(object):
         # Return a value of the same type as the input points
         # i.e., a list or a single numpy array, where the latter is obtained
         # by removing the only element from the list 
-        if undo_list:
+        if not input_is_list:
             points_out = points_out[0]
 
         return points_out
+
+
+    def translate_points(self, points, displacement):
+        # Check the type of points and make a list if necessary
+        if not isinstance(points, list):
+            points = [points]
+            input_is_list = False
+
+        else:
+            input_is_list = True
+
+        points_out = []
+
+        for p in points:
+
+            try:
+                # Points is size [num_points, ndim], where ndim is 2 or 3
+                points_out.append(p + displacement)
+
+            except:
+                # Points is size [ndim, num_points], where ndim is 2 or 3
+                points_out.append((p.T + displacement).T)
+
+        # Return a value of the same type as the input points
+        # i.e., a list or a single numpy array, where the latter is obtained
+        # by removing the only element from the list 
+        if not input_is_list:
+            points_out = points_out[0]
+
+        return points_out
+
 
 
 # class TurbineForceBlock(Block):
