@@ -553,9 +553,6 @@ class ActuatorLine(GenericTurbine):
                 break
 
 
-            else:
-                turbine_motion_vel = 0.0
-
 
             # Get the velocity of the fluid at each actuator node
             # Read values from mpi_u_fluid (a [num_turbs x 3_dim*3_rotors*num_blade_segments] numpy array)
