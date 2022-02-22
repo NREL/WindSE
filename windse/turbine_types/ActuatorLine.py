@@ -341,6 +341,19 @@ class ActuatorLine(GenericTurbine):
 
     def update_alm_node_positions(self):
 
+        def wave_motion(tt):
+
+            # Peak-to-peak duration of one heave cycle (seconds)
+            w = 10.0
+
+            # Maximum amplitude of a heave cycle (degrees)
+            a = 45.0
+
+            wave_theta = np.sin(2.0*np.pi*tt/w)
+            wave_theta *= np.radians(a)
+
+            return wave_theta
+
         self.blade_pos = []
         self.blade_pos_prev = []
         self.blade_unit_vec = []
@@ -362,6 +375,15 @@ class ActuatorLine(GenericTurbine):
 
             # Translate the positions into the correct location
             pos, pos_prev = self.translate_points([pos, pos_prev], [self.x, self.y, self.z])
+
+
+            # Rotate the points due to the waves
+            theta_tt = self.theta/self.angular_velocity
+            theta_prev_tt = self.theta_prev/self.angular_velocity
+
+            pos, unit_vec, vel = self.rotate_points([pos, unit_vec, vel], wave_motion(theta_tt), [0, 1, 0])
+
+            pos_prev = self.rotate_points(pos_prev, wave_motion(theta_prev_tt), [0, 1, 0])
 
             # if self.turbine_motion_freq is not None:
             #     motion_theta = self.turbine_motion_amp*np.sin(self.turbine_motion_freq*self.simTime_ahead*np.pi*2.0)
