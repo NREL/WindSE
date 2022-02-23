@@ -84,6 +84,8 @@ def run_action(params_loc=None):
     ### run the solver ###
     solver.Solve()
 
+    problem.farm.finalize_farm()
+
     ### Perform Optimization ###
     if params.performing_opt_calc:
         opt=windse.Optimizer(solver)

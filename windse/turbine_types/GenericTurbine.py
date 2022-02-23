@@ -323,6 +323,12 @@ class GenericTurbine(object):
 
         return points_out
 
+    def finalize_turbine(self):
+        # This must be implemented on a turbine-type basis, e.g., a 
+        # finalize_turbine method in ActuatorLine.py specific to 
+        # the quantities and methods of that turbine.
+
+        pass
 
 
 # class TurbineForceBlock(Block):

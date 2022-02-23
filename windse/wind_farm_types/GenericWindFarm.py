@@ -493,6 +493,9 @@ class GenericWindFarm(object):
         output = np.array([x, y, HH, yaw, RD, thickness, axial])
         np.savetxt(file_string,output.T,header=head_str)
 
+    def finalize_farm(self):
+        for k, turb in enumerate(self.turbines):
+            turb.finalize_turbine()
 
 
 
