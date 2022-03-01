@@ -351,7 +351,8 @@ class ActuatorLine(GenericTurbine):
             w = 10.0
 
             # Maximum amplitude of a heave cycle (degrees)
-            a = 20.0
+            # a = 20.0
+            a = 0.0
 
             wave_theta = np.sin(2.0*np.pi*tt/w)
             wave_theta *= np.radians(a)
