@@ -127,6 +127,26 @@ class Parameters(dict):
                 in_string =out_string + key + ":"
                 self.CheckParameters(updates[key],defaults[split_key],out_string=in_string)
 
+    def RecordUserSupplied(self,yaml_file,defaults):
+        user_supplied = {}
+
+        if not isinstance(defaults,dict):
+            return True
+
+        for key in defaults.keys():
+            user_supplied[key] = False
+
+
+        for key in yaml_file.keys():
+            split_key = key.split("_#")[0]
+            if isinstance(yaml_file[key],dict):
+                sub_supplied = self.RecordUserSupplied(yaml_file[key],defaults[split_key])
+                user_supplied[split_key] = sub_supplied
+            else:
+                user_supplied[split_key] = True
+    
+        return user_supplied
+
     def NestedUpdate(self,dic,subdic=None):
         if subdic is None:
             target_dic = self
@@ -172,14 +192,8 @@ class Parameters(dict):
         self.CheckParameters(yaml_file,self)
         self.fprint("Parameter Check Passed")
 
-        ### Check is specific parameters were provided ###
-        yaml_bc = yaml_file.get("boundary_conditions",{})
-        self.default_bc_names = True
-        if yaml_bc.get("boundary_names",{}):
-            self.default_bc_names = False
-        self.default_bc_types = True
-        if yaml_bc.get("boundary_types",{}):
-            self.default_bc_types = False
+        ### record which parameters were set by the user ###
+        self.user_supplied = self.RecordUserSupplied(yaml_file,self.defaults)
 
         ### Setup objective functions if needed ###
         yaml_op = yaml_file.get("optimization",{})
@@ -321,20 +335,6 @@ class Parameters(dict):
                 self.fprint("{:d}: {:}".format(i,p),offset=1)
         self.fprint("Parameters Setup", special="footer")
 
-    def Read(self):
-        """
-        This function reads the current state of the parameters object 
-        and prints it in a easy to read way.
-        """
-        for group in self:
-            print(group)
-            max_length = 0
-            for key in self[group]:
-                max_length = max(max_length,len(key))
-            max_length = max_length
-            for key in self[group]:
-                print("    "+key+":  "+" "*(max_length-len(key))+repr(self[group][key]))
-
     def Save(self, func, filename, subfolder="",val=0,file=None,filetype="default"):
         """
         This function is used to save the various dolfin.Functions created
@@ -461,8 +461,20 @@ class Parameters(dict):
             if special=="header":
                 self.fprint("",tab=tab+1)
 
+    def pprint(self):
+        '''
+        This function print the contents of the params dict in a more readable format
+        '''
+        dummy = {}
+        for key, value in self.items():
+            dummy[key] = value
+
+        if self.rank == 0:
+            print(yaml.dump(dummy))
+
     def tag_output(self, key, value, collective_output=None):
 
+        # self.fprint("Tagging Debug item: "+key)
         ### Process value ###
         if not isinstance(value,int):
             value = float(value)

@@ -1,4 +1,4 @@
-WindFarmManager:
+GenericWindFarm:
   min_x: -882.0
   max_x: 882.0
   avg_x: 0.0
@@ -49,9 +49,9 @@ ProblemManager:
   int_tf_x: -0.0027187801116942056
   int_tf_y: 0.0
 SolverManager:
-  min_x_vel: 3.3930493907099284
+  min_x_vel: 3.3930493907099293
   max_x_vel: 8.597708944018562
-  avg_x_vel: 8.000000000001911
-  min_y_vel: -0.957785869949327
-  max_y_vel: 0.9575791647336435
-  avg_y_vel: -2.3033547953228162e-08
+  avg_x_vel: 8.00000000000191
+  min_y_vel: -0.9577858699493271
+  max_y_vel: 0.9575791647336432
+  avg_y_vel: -2.303354794708674e-08

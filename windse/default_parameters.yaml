@@ -45,9 +45,9 @@ domain:                         # parameters for DomainManager
         my:        Null                 # y slope
 
 wind_farm:                  # parameters for WindFarmManager
-    type:           Null        # type of wind farm       
+    type:           Null        # type of wind farm (grid, random, imported, empty)      
     path:           Null        # location of imported wind farm 
-    display:        False       # Does nothing
+    display:        False       # If true, then matplotlib with show() the wind farm/chord profiles mid run
     ex_x:           Null        # extents of the farm in the x direction in meters
     ex_y:           Null        # extents of the farm in the y direction in meters
     x_spacing:      Null        # x spacing between turbines in meters
@@ -60,14 +60,16 @@ wind_farm:                  # parameters for WindFarmManager
     jitter:         0.0         # magnitude of random noise added to a gridded wind farm
     numturbs:       Null        # total number of turbines
     seed:           Null        # seed to fix the randomness between runs
+
+turbines:                   # parameters for the turbine objects
+    type:           Null        # type of representation (disk2D, disk, line, disabled)
     HH:             Null        # hub height in meters
     RD:             Null        # rotor diameter in meters
     thickness:      Null        # thickness of the actuator disk in meters (usually 10% of RD)
     yaw:            Null        # yaw of the turbine relative to inflow angle
     axial:          Null        # axial induction value for actuator disks
     force:          sine        # distribution of force along the radial direction of an actuator disk. choices: constant, sine, ?chord?
-    turbine_method: dolfin      # how the turbine force is constructed. choices: dolfin, numpy, alm, disabled
-    rpm:            10.0        # rotations per minute for the alm method
+    rpm:            Null        # rotations per minute for the alm method
     read_turb_data: Null        # location of alm data
     blade_segments: computed    # number of nodes along the rotor radius 
     use_local_velocity: True    # use the velocity at the rotor to compute alm forces (otherwise use inflow)
@@ -102,7 +104,7 @@ boundary_conditions:    # parameters for the BoundaryManager
     power:          0.25    # exponent for the power inflow
     k:              0.4     # The constant used in the log layer flow
     turbsim_path:   Null    # location for the turbsim inflow data
-    inflow_angle:   Null    # angle of the inflow velocity
+    inflow_angle:   0.0     # angle of the inflow velocity
     boundary_names:         # used for renaming the boundries
         east:    Null           # positive x
         north:   Null           # positive y
@@ -136,7 +138,6 @@ solver:                         # parameters for the SolverManager
     num_wind_angles:   1            # number of wind angle to sweep through for multiangle solve
     endpoint:          False        # include the final wind angle in the sweep
     velocity_path:     Null         # location of inflow velocities for multivelocity
-    power_type:        power        # type of power calculation. choices: 2d_power, power, alm_powe
     save_power:        True         # save the power data to the data folder
     nonlinear_solver:  snes         # type of nonlinear solver. choices: snes, newton
     newton_relaxation: 1.0          # relaxation parameter (0,1] for newton

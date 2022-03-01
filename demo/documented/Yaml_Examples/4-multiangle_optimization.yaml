@@ -14,14 +14,15 @@ wind_farm:
     ex_y: [-520, 520]     # y-extent of the farm     | m
     grid_rows: 3          # Number of rows           | -
     grid_cols: 3          # Number of columns        | -
+    ###################################################################
+
+turbines:
+    type: disk
     HH: 80                # Hub Height               | m
     RD: 80.0              # Turbine Diameter         | m
     thickness: 20         # Effective Thickness      | m
     yaw: 0.0              # Yaw                      | rads
     axial: 0.33           # Axial Induction          | -
-    ###################################################################
-
-
 
 # Domain Constants for a Box Domain
 domain: 

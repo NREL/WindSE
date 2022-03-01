@@ -1,6 +1,6 @@
 # General options
 general: 
-    name: 2_5D_Wind_Farm_Layout      # Name of the output folder
+    # name: 2_5D_Wind_Farm_Layout      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: true
 
@@ -13,26 +13,28 @@ wind_farm:
     grid_cols: 3          # Number of columns        | -
     # ex_x: [-882, 882]     # x-extent of the farm     | m
     # ex_y: [-882, 882]     # y-extent of the farm     | m
-    x_spacing: 882  # m
-    y_spacing: 882  # m
-    x_shear: 200    # m
-    y_shear: 300      # m
+    x_spacing: 882        # m
+    y_spacing: 882        # m
+    x_shear: 200          # m
+    y_shear: 300          # m
+    jitter: 0             # Randomly perturb turbines| m
+    seed: 8675309         # random seed for repeats  | -
+
+turbines:
+    type: 2D_disk
+    force: constant       # radial force distribution| -
     HH: 90                # Hub Height               | m
     RD: 126.0             # Turbine Diameter         | m
     thickness: 12.0       # Effective Thickness      | m
     yaw: 0.0              # Yaw                      | rads
     axial: 0.25           # Axial Induction          | -
-    jitter: 0            # Randomly perturb turbines| m
-    seed: 8675309         # random seed for repeats  | -
-    force: constant       # radial force distribution| -
-    turbine_method: dolfin
 
 # Domain Parameters: Uncomment a set to change domain shape
 domain: 
     # ####################### Rectangle Domain #########################
     type: rectangle                              
     x_range: [-600, 3000] # x-range of the domain | m
-    y_range: [-600, 3000] # y-range of the domain | m
+    y_range: [-1482, 2118] # y-range of the domain | m
     nx: 30                # Number of x-nodes     | -
     ny: 30                # Number of y-nodes     | -
     # ##################################################################

@@ -16,6 +16,7 @@ else:
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
     import time
+    from pyadjoint.tape import no_annotations
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -36,7 +37,7 @@ class GenericFunctionSpace(object):
         ### Update attributes based on params file ###
         for key, value in self.params["function_space"].items():
             setattr(self,key,value)
-        self.turbine_method = self.params["wind_farm"]["turbine_method"]
+        self.turbine_method = self.params["turbines"]["type"]
 
         if self.turbine_space == "Quadrature" and (self.turbine_degree != self.quadrature_degree):
             raise ValueError("When using the numpy representation with the 'Quadrature' space, the turbine degree and quadrature degree must be equal.")
@@ -56,12 +57,13 @@ class GenericFunctionSpace(object):
         self.SolutionAssigner = FunctionAssigner(self.W,[self.V,self.Q])
 
         ### Create Function Spaces for numpy turbine force ###
-        if self.turbine_method == "numpy":
+        if self.turbine_method == "numpy_disk":
             tf_V = VectorElement(self.turbine_space,self.mesh.ufl_cell(),degree=self.turbine_degree,quad_scheme="default")
             self.tf_V = FunctionSpace(self.mesh, tf_V)
             self.tf_V0 = self.tf_V.sub(0).collapse() 
             self.fprint("Quadrature DOFS: {:d}".format(self.tf_V.dim()))
 
+    @no_annotations
     def DebugOutput(self):
         if self.debug_mode:
             self.tag_output("velocity_dofs",self.V.dim())

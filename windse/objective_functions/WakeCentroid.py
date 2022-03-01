@@ -51,14 +51,14 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     turb_id = solver.opt_turb_id[0]
 
     ### Get the maximum number of Roter Diameters down stream ###
-    nRD = math.ceil((solver.problem.dom.x_range[1]-solver.problem.farm.x[turb_id])/(solver.problem.farm.RD[turb_id]))
+    nRD = math.ceil((solver.problem.dom.x_range[1]-solver.problem.farm.turbines[turb_id].x)/(solver.problem.farm.turbines[turb_id].RD))
     record_RD = min(nRD,int(wake_RD))
 
     ### Get the mesh nodes that are closest to each Rotor Diameter ###
     xunique = np.unique(solver.problem.dom.mesh.coordinates()[:,0])
     x0 = []
     for i in range(nRD):
-        xtarget = solver.problem.farm.x[turb_id]+(i+1)*solver.problem.farm.RD[turb_id]
+        xtarget = solver.problem.farm.turbines[turb_id].x+(i+1)*solver.problem.farm.turbines[turb_id].RD
         x0.append(xunique[np.argmin(np.abs(xunique-xtarget))])
 
     ### If we haven't made the markers yet, do it ###
@@ -67,13 +67,13 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
         ### Get some parameters ###
         y_factor = 2.0
         z_factor = 1.2
-        HH = solver.problem.farm.HH[turb_id]
-        y0 = solver.problem.farm.y[turb_id]
-        R = solver.problem.farm.RD[turb_id]/2.0
+        z = solver.problem.farm.turbines[turb_id].z
+        y0 = solver.problem.farm.turbines[turb_id].y
+        R = solver.problem.farm.turbines[turb_id].RD/2.0
         ly=y0-y_factor*R
         uy=y0+y_factor*R
-        lz=HH-z_factor*R
-        uz=HH+z_factor*R
+        lz=z-z_factor*R
+        uz=z+z_factor*R
 
         ### Create the Facet Function ###
         solver.WC_objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim() - 1)

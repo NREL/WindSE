@@ -8,11 +8,23 @@ wind_farm:
 
     ####################### Imported Wind Farm #######################
     type: imported                   #                          |
-    path: Input_Data/nrel_5mw/wind_farm.txt   # location of wind farm    | -
-    force: sine                      # radial force distribution| -
+    path: Input_Data/nrel_5mw/wind_farm.csv   # location of wind farm    | -
     ###################################################################
 
+# The Turbine properties can be overwritten in the wind_farm.csv file
+turbines:
 
+    ######################### Turbine Properties ########################
+    type: disk
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 20.0       # Effective Thickness      | m
+    axial: 0.33           # Axial Induction          | -
+    force: sine           # radial force distribution| -
+
+    # These two are left off because they are supplied in the wind_farm.csv file
+    # HH: 90                # Hub Height               | m
+    # yaw: 0.0              # Yaw                      | rads
+    ###################################################################
 
 # Domain Parameters: Uncomment a set to change domain shape
 domain: 
