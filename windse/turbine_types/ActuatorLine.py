@@ -131,6 +131,10 @@ class ActuatorLine(GenericTurbine):
         # Recommendation from Churchfield et al.
         # self.gaussian_width = 2.0*0.035*2.0*self.radius
         hmin = self.dom.mesh.hmin()/np.sqrt(3)
+        hmin_global = np.zeros(self.params.num_procs)
+        self.params.comm.Allgather(hmin, hmin_global)
+        hmin = np.amin(hmin_global)
+
         self.gaussian_width = float(self.gauss_factor)*hmin
 
         if self.blade_segments == "computed":
@@ -347,8 +351,7 @@ class ActuatorLine(GenericTurbine):
             w = 10.0
 
             # Maximum amplitude of a heave cycle (degrees)
-            a = 45.0
-            a = 0.0
+            a = 20.0
 
             wave_theta = np.sin(2.0*np.pi*tt/w)
             wave_theta *= np.radians(a)
