@@ -12,15 +12,19 @@ wind_farm:
     grid_cols: 2          # Number of columns        | -
     ex_x: [-400, 400]     # x-extent of the farm     | m
     ex_y: [-400, 400]     # y-extent of the farm     | m
+    jitter: 50            # Randomly perturb turbines| m
+    seed: 8675309         # random seed for repeats  | -
+    ###################################################################
+
+turbines:
+    type: disk
+    force: constant       # radial force distribution| -
+    # force: sine         # radial force distribution| -
     HH: 90                # Hub Height               | m
     RD: 126.0             # Turbine Diameter         | m
     thickness: 20.0       # Effective Thickness      | m
     yaw: 0.0              # Yaw                      | rads
     axial: 0.33           # Axial Induction          | -
-    jitter: 50            # Randomly perturb turbines| m
-    seed: 8675309         # random seed for repeats  | -
-    force: constant       # radial force distribution| -
-    ###################################################################
 
 # Domain Parameters: Uncomment a set to change domain shape
 domain: 

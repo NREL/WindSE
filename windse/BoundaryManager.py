@@ -16,6 +16,7 @@ else:
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
     import numpy as np
+    from pyadjoint.tape import no_annotations
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -46,7 +47,7 @@ class GenericBoundary(object):
 
         ### get the height to apply the HH_vel ###
         if self.vel_height == "HH":
-            self.vel_height = np.mean(farm.HH)
+            self.vel_height = np.mean(farm.get_hub_locations()[:,2])
         if np.isnan(self.vel_height):
             raise ValueError("Hub Height not defined, likely and EmptyFarm. Please set boundary_conditions:vel_height in config yaml")
 
@@ -58,11 +59,12 @@ class GenericBoundary(object):
         self.zero  = Constant(0.0)
 
         ### Use custom boundary tags if provided ###
-        if self.params.default_bc_names:
+        if not self.params.user_supplied["boundary_conditions"]["boundary_names"]:
             self.boundary_names = self.dom.boundary_names
-        if self.params.default_bc_types:
+        if not self.params.user_supplied["boundary_conditions"]["boundary_types"]:
             self.boundary_types = self.dom.boundary_types
 
+    @no_annotations
     def DebugOutput(self):
         if self.debug_mode:
             # Average of the x and y-velocities

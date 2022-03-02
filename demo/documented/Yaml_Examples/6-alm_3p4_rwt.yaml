@@ -4,12 +4,19 @@ general:
 
 wind_farm:
     type: imported               # Wind farm will be specified via input file
-    path: Input_Data/iea_3p4/wind_farm.txt # Path to the wind farm description
-    turbine_method: alm          # Actuator Line Method (ALM)
+    path: Input_Data/iea_3p4/wind_farm.csv # Path to the wind farm description
+
+turbines:
+    type: line                   # Actuator Line Method (ALM)
     read_turb_data: Input_Data/iea_3p4/blade_data.csv
     rpm: 4.0                     # Rotor revolutions per minute (RPM) | rev/min
     chord_factor: 1.0
-    gauss_factor: 2.0    
+    gauss_factor: 2.0
+
+    # These are included in the iea_rwt.csv input file
+    # HH: 110
+    # RD: 130
+    # yaw: 0
 
 domain:
     type: box                    # A box domain, specified by x, y, and z dimensions

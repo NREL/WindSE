@@ -249,29 +249,15 @@ This section will define all the parameters for the wind farm::
         jitter:             <float>
         numturbs:           <int>
         seed:               <int>
-        HH:                 <float>
-        RD:                 <float>
-        thickness:          <float>
-        yaw:                <float>
-        axial:              <float>
-        force:              <str>
-        turbine_method:     <str>
-        rpm:                <float>
-        read_turb_data:     <str>
-        blade_segments:     <int or str>
-        use_local_velocity: <bool>  
-        max_chord:          <float>     
-        chord_factor:       <float>     
-        gauss_factor:       <float>     
 
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
 | Option                 | Description                                   | Required (for)     | Default  | Units       |
 |                        |                                               |                    |          |             |
 +========================+===============================================+====================+==========+=============+
 | ``type``               | | Sets the type of farm. Choices:             | yes                | None     | \-          |
-|                        | |   "grid", "random", "imported"              |                    |          |             |
+|                        | |   "grid", "random", "imported", "empty"     |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``path``               | Location of the wind farm text file           | "imported"         | None     | \-          |
+| ``path``               | Location of the wind farm csv file            | "imported"         | None     | \-          |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
 | ``display``            | | Displays a plot of the wind farm            | no                 | False    | \-          |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
@@ -308,62 +294,105 @@ This section will define all the parameters for the wind farm::
 | ``seed``               | | The random seed used to generate/jitter the | | no               | None     | \-          |
 |                        | | farm. Useful for repeating random runs      | | "random"         |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``HH``                 | The hub height of the turbine from ground     | | "grid"           | None     | m           |
-|                        |                                               | | "random"         |          |             |
+
+To import a wind farm, set the path to a .csv file containing the per 
+turbine information. In the .csv file, each column specifies a turbine
+property and each row is a unique turbine. At minimum, the locations for
+each turbine must be specified. Here is a small two turbine example::
+
+         x,      y
+    200.00, 0.0000
+    800.00, 0.0000
+
+Additional turbine properties can be set by adding a column with a header
+equal to the yaml parameter found in the "Turbine Options" section. Here
+is an example of a two turbine farm with additional properties set::
+
+      x,       y,      HH,      yaw,      RD, thickness,   axial
+    0.0,  -325.0,   110.0,   0.5236,   130.0,      13.0,    0.33
+    0.0,   325.0,   110.0,  -0.5236,   130.0,      13.0,    0.33
+
+The columns can be in any order and white space is ignored. If a property
+is set in both the yaml and the imported .csv, the value in the .csv will
+be used and a warning will be displayed.
+
+
+
+Turbine Options
+-----------------
+
+This section will define all the parameters for the wind farm::
+
+    turbines: 
+        type:               <str>
+        HH:                 <float>
+        RD:                 <float>
+        thickness:          <float>
+        yaw:                <float>
+        axial:              <float>
+        force:              <str>
+        rpm:                <float>
+        read_turb_data:     <str>
+        blade_segments:     <int or str>
+        use_local_velocity: <bool>  
+        max_chord:          <float>     
+        chord_factor:       <float>     
+        gauss_factor:       <float>     
+
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``RD``                 | The rotor diameter                            | | "grid"           | None     | m           |
-|                        |                                               | | "random"         |          |             |
+| Option                 | Description                                   | Required (for)     | Default  | Units       |
+|                        |                                               |                    |          |             |
++========================+===============================================+====================+==========+=============+
+| ``type``               | | Sets the type of farm. Choices:             | yes                | None     | \-          |
+|                        | | "disk" - actuator disk representation using |                    |          |             |
+|                        | |          the FEniCS backend                 |                    |          |             |
+|                        | | "2D_disk" - actuator disk representation    |                    |          |             |
+|                        | |             optimized for 2D simulations    |                    |          |             |
+|                        | | "numpy_disk" - actuator disk representation |                    |          |             |
+|                        | |                that uses numpy arrays       |                    |          |             |
+|                        | | "line" - actuator line representation best  |                    |          |             |
+|                        | |          used with the unsteady solver      |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``thickness``          | The effective thickness of the rotor disk     | | "grid"           | None     | m           |
-|                        |                                               | | "random"         |          |             |
+| ``HH``                 | The hub height of the turbine from ground     | all                | None     | m           |
+|                        |                                               |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``yaw``                | | Determines the yaw of all turbines. Yaw is  | | "grid"           | None     | rad         |
-|                        | | relative to the wind inflow direction       | | "random"         |          |             |
+| ``RD``                 | The rotor diameter                            | all                | None     | m           |
+|                        |                                               |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``axial``              | The axial induction factor                    | | "grid"           | None     | \-          |
-|                        |                                               | | "random"         |          |             |
+| ``yaw``                | | Determines the yaw of all turbines. Yaw is  | all                | None     | rad         |
+|                        | | relative to the wind inflow direction       |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``force``              | | the radial distribution of force            | no                 | "sine"   | \-          |
-|                        | | Choices: "sine", "constant"                 |                    |          |             |
+| ``thickness``          | The effective thickness of the rotor disk     | | "disk" or disk   | None     | m           |
+|                        |                                               | | variant          |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``turbine_method``     | | determines how the turbine force is built   | no                 | "dolfin" | \-          |
-|                        | | Choices: "numpy", "dolfin" , "alm"          |                    |          |             |
-|                        | | "numpy"  - builds entirely using arrays,    |                    |          |             |
-|                        | |            works best for small farms       |                    |          |             |
-|                        | | "dolfin" - uses the FEniCS backend,         |                    |          |             |
-|                        | |            robust but potentially slow      |                    |          |             |
-|                        | | "alm" - an actuator line method using       |                    |          |             |
-|                        | |         numpy array, currently only         |                    |          |             |
-|                        | |         support single turbine farms        |                    |          |             |
+| ``axial``              | The axial induction factor                    | | "disk" or disk   | None     | \-          |
+|                        |                                               | | variant          |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``rpm``                | | sets the revolutions per minute if using    | "alm"              | 10.0     | rev/min     | 
+| ``force``              | | the radial distribution of force            | | no               | "sine"   | \-          |
+|                        | | Choices: "sine", "constant"                 | | "disk"           |          |             |
++------------------------+-----------------------------------------------+--------------------+----------+-------------+
+| ``rpm``                | | sets the revolutions per minute if using    | "line"             | 10.0     | rev/min     | 
 |                        | | the alm turbine method                      |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``read_turb_data``     | | Path to .csv file with chord, lift, and     | no                 | None     | \-          |
-|                        | | drag coefficients                           |                    |          |             |
+| ``read_turb_data``     | | Path to .csv file with chord, lift, and     | | no               | None     | \-          |
+|                        | | drag coefficients                           | | "line"           |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``blade_segments``     | | number of nodes along the rotor radius      | "alm"              |"computed"| \-          |
+| ``blade_segments``     | | number of nodes along the rotor radius      | "line"             |"computed"| \-          |
 |                        | | use "computed" to automatically set         |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``use_local_velocity`` | | use the velocity at the rotor to compute    | "alm"              | True     | \-          |
+| ``use_local_velocity`` | | use the velocity at the rotor to compute    | "line"             | True     | \-          |
 |                        | | alm forces (otherwise use inflow)           |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``max_chord``          | upper limit when optimizing chord             | "alm"              | 1000     | m           |
+| ``max_chord``          | upper limit when optimizing chord             | "line"             | 1000     | m           |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``chord_factor``       | | multiplies all the chords by a constant     | "alm"              | 1.0      | \-          |
+| ``chord_factor``       | | multiplies all the chords by a constant     | "line"             | 1.0      | \-          |
 |                        | | factor                                      |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``gauss_factor``       | | factor that gets multiplied by the minimum  | "alm"              | 2.0      | \-          |
+| ``gauss_factor``       | | factor that gets multiplied by the minimum  | "line"             | 2.0      | \-          |
 |                        | | mesh spacing to set the gaussian width      |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
 
-To import a wind farm, create a .txt file with this formatting::
-
-    #    x      y     HH    Yaw   Diameter Thickness Axial_Induction
-    200.00 0.0000 80.000  0.000      126.0      10.5            0.33
-    800.00 0.0000 80.000  0.000      126.0      10.5            0.33
-
-The first row isn't necessary. Each row defines a different turbine.
+See "Wind Farm Options" for how to specify turbine properties individually for each turbine.
 
 
 

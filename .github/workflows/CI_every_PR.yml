@@ -6,7 +6,7 @@ on: [pull_request]
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   build:
-    name: CI_every_commit
+    name: CI_every_PR
     runs-on: ubuntu-latest
         
     steps:
@@ -26,12 +26,13 @@ jobs:
         run: |
           bash ./install.sh test-environment
           conda activate test-environment
+          conda list
         
-      - name: Run all documented demos within WindSE
+      - name: Run parallel regression tests within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -sv --cov=windse tests/test_demos.py
+          pytest -sv --cov=windse tests/test_regression_parallel.py
 
       - name: Run all regression tests within WindSE
         shell: pwsh
@@ -39,11 +40,11 @@ jobs:
           conda activate test-environment
           pytest -sv --cov=windse --cov-append tests/test_regression.py
         
-      - name: Run parallel regression tests within WindSE
+      - name: Run all documented demos within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -sv --cov=windse --cov-append tests/test_regression_parallel.py
+          pytest -sv --cov=windse --cov-append tests/test_demos.py
       
       # Run coveralls
       - name: Run coveralls

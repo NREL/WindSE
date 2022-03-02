@@ -8,8 +8,7 @@ wind_farm:
 
     ####################### Imported Wind Farm #######################
     type: imported                   #                          |
-    path: Input_Data/nrel_5mw/wind_farm.txt   # location of wind farm    | -
-    force: sine                      # radial force distribution| -
+    path: Input_Data/nrel_5mw/wind_farm.csv   # location of wind farm    | -
     ###################################################################
 
 
@@ -19,14 +18,8 @@ wind_farm:
     # grid_cols: 4          # Number of columns        | -
     # ex_x: [-600, 600]     # x-extent of the farm     | m
     # ex_y: [-600, 600]     # y-extent of the farm     | m
-    # HH: 90                # Hub Height               | m
-    # RD: 126.0             # Turbine Diameter         | m
-    # thickness: 20.0       # Effective Thickness      | m
-    # yaw: 0.0              # Yaw                      | rads
-    # axial: 0.33           # Axial Induction          | -
     # jitter: 50            # Randomly perturb turbines| m
     # seed: 8675309         # random seed for repeats  | -
-    # force: constant       # radial force distribution| -
     ###################################################################
 
 
@@ -36,15 +29,22 @@ wind_farm:
     # ex_x: [-600, 600]     # x-extent of the farm     | m
     # ex_y: [-600, 600]     # y-extent of the farm     | m
     # seed: 5555555         # random seed for repeats  | -
-    # HH: 90                # Hub Height               | m
-    # RD: 126.0             # Turbine Diameter         | m
-    # thickness: 10.5       # Effective Thickness      | m
-    # yaw: 0.0              # Yaw                      | rads
-    # axial: 0.33           # Axial Induction          | -
-    # force: sine           # radial force distribution| -
     ###################################################################
 
+# The Turbine properties can be overwritten in the wind_farm.csv file
+turbines:
 
+    ######################### Turbine Properties ########################
+    type: 2D_disk
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 20.0       # Effective Thickness      | m
+    axial: 0.33           # Axial Induction          | -
+    force: sine           # radial force distribution| -
+
+    # These two are left off because they are supplied in the wind_farm.csv file
+    # HH: 90                # Hub Height               | m
+    # yaw: 0.0              # Yaw                      | rads
+    ###################################################################
 
 # Domain Parameters: Uncomment a set to change domain shape
 domain: 

@@ -87,7 +87,7 @@ def objective(solver, inflow_angle=0.0, first_call=False, **kwargs):
         bladePoss = np.linspace(0, 1, len(cols))
 
         # create moment nodes
-        RD = solver.problem.farm.RD[turb_i]
+        RD = solver.problem.farm.turbines[turb_i].RD
         Radius = RD / 2.
         bladeLocs = Radius *  bladePoss
         moments = np.sum(bladeLocs * dat[cols], axis=1)
