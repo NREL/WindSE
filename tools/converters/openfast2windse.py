@@ -2,8 +2,8 @@ import numpy as np
 import os
 
 # Path to openfast AD15 file of the OpenFAST model to be imported into WindSE
-path2ad15 = '/Users/pbortolo/work/3_projects/5_IEAtask37/IEA-15-240-RWT/OpenFAST/IEA-15-240-RWT/IEA-15-240-RWT_AeroDyn15.dat'
-destination_folder = '/Users/pbortolo/work/5_windse/WindSE/demo/documented/Yaml_Examples/Input_Data/iea_15'
+path2ad15 = '/Users/pbortolo/work/2_openfast/r-test/glue-codes/openfast/5MW_Land_BD_DLL_WTurb/NRELOffshrBsline5MW_Onshore_AeroDyn15.dat'
+destination_folder = '/Users/pbortolo/work/5_windse/WindSE/demo/documented/Yaml_Examples/Input_Data/nrel_5mw'
 
 if os.path.isfile(path2ad15):
     f = open(path2ad15)
@@ -41,11 +41,12 @@ np.savetxt(os.path.join(destination_folder, 'blade_data.csv'), windse_blade_data
     header='Blade n.d. span [-], 	 Chord [m], 	 Twist [deg], 	 Lift coeff [-], 	 Drag coeff [-], 	 Induction [-], 	 Angle of attack [deg], 	 Lift force [N/m], 	 Drag force [N/m]')
 
 # Load and write airfoil polars
+af_index = np.array(ad15_blade_data[:,-1], dtype=int)
 windse_path2af = os.path.join(destination_folder, 'airfoil_polars')
 if not os.path.isdir(windse_path2af):
     os.makedirs(windse_path2af)
-for i in range(NumAFfiles):
-    f = open(path2af[i])
+for i in range(len(af_index)):
+    f = open(path2af[af_index[i]-1])
     while 1:
         string = f.readline()
         if len(string.split()) > 1:
