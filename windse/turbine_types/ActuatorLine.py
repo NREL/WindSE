@@ -708,7 +708,8 @@ class ActuatorLine(GenericTurbine):
             if save_val != 'force':
                 data = data.reshape(-1, self.num_blades*self.num_blade_segments)
             else:
-                data = data.T.reshape(3, 1, self.num_blades*self.num_blade_segments)
+                pass
+                #data = data.T.reshape(3, 1, self.num_blades*self.num_blade_segments)
 
             if self.along_blade_quantities[save_val] is None:
                 self.along_blade_quantities[save_val] = data

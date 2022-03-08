@@ -110,6 +110,8 @@ class GenericBoundary(object):
             self.bcs = []
 
             for bc_type, bc_loc_list in self.boundary_types.items():
+                if bc_loc_list is None:
+                    bc_loc_list = []
                 for bc_loc in bc_loc_list:
 
                     # Translate the boundary name, a string, into an integer index:
@@ -330,8 +332,9 @@ class UniformInflow(GenericBoundary):
         self.fprint("Type: Uniform Inflow")
         for key, values in self.boundary_types.items():
             self.fprint("Boundary Type: {0}, Applied to:".format(key))
-            for value in values:
-                self.fprint(value,offset=1)
+            if values is not None:
+                for value in values:
+                    self.fprint(value,offset=1)
         ### Create the Velocity Function ###
         self.ux = Function(fs.V0)
         self.uy = Function(fs.V1)
