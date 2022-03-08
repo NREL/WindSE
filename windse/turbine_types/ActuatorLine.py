@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.interpolate as interp
 import glob
+import os
 
 from windse import windse_parameters
 if windse_parameters.dolfin_adjoint:
@@ -265,7 +266,7 @@ class ActuatorLine(GenericTurbine):
 
         if self.read_turb_data:
 
-            airfoil_data_path = 'airfoil_polars'
+            airfoil_data_path = os.path.dirname(self.read_turb_data)+'/airfoil_polars'
 
             # Determine the number of files in airfoil_data_path
             num_files = len(glob.glob('%s/*.txt' % (airfoil_data_path)))

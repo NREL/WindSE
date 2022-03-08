@@ -9,7 +9,7 @@ wind_farm:
 
     # ####################### Imported Wind Farm #######################
     # type: imported                   #                          |
-    # path: Input_Data/wind_farm.txt   # location of wind farm    | -
+    # path: Input_Data/nrel_5mw/wind_farm.csv   # location of wind farm    | -
     # force: constant                      # radial force distribution| -
     # ###################################################################
 

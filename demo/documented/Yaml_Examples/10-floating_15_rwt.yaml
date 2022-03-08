@@ -1,30 +1,25 @@
 general:
-    name: "iea_rwt"
+    name: "iea_15_rwt"
     output: ["mesh","initial_guess","height","turbine_force","solution"]
 
 wind_farm:
     type: imported               # Wind farm will be specified via input file
-    path: Input_Data/iea_rwt.csv # Path to the wind farm description
+    path: Input_Data/iea_15/wind_farm.csv # Path to the wind farm description
 
 turbines:
     type: line                   # Actuator Line Method (ALM)
-    read_turb_data: Input_Data/baseline.csv
+    read_turb_data: Input_Data/iea_15/blade_data.csv
     rpm: 4.0                     # Rotor revolutions per minute (RPM) | rev/min
     chord_factor: 1.0
     gauss_factor: 2.0
-
-    # These are included in the iea_rwt.csv input file
-    # HH: 110
-    # RD: 130
-    # yaw: 0
 
 domain:
     type: box                    # A box domain, specified by x, y, and z dimensions
     
     # Diameter for IEA RWT = 130 m, relevant for domain sizing
-    x_range: [-260, 780]         # x-range of the domain, [-2D, 6D] | m
-    y_range: [-260, 260]         # y-range of the domain, [-2D, 2D] | m
-    z_range: [0.04, 520]         # z-range of the domain, [ ~0, 4D] | m
+    x_range: [-484, 1452]         # x-range of the domain, [-2D, 6D] | m
+    y_range: [-484, 484]         # y-range of the domain, [-2D, 2D] | m
+    z_range: [0.04, 968]         # z-range of the domain, [ ~0, 4D] | m
     
     # Coarse values recommended for testing, comments show more refined suggestions
     nx: 40 # 60                  # Number of x-nodes | -

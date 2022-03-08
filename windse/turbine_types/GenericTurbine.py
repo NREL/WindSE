@@ -82,7 +82,7 @@ class GenericTurbine(object):
 
                 # check if valid parameter for turbine type
                 if column_header not in self.yaml_inputs:
-                    raise ValueError(f"Column, {column_header}, is not a valid input for turbine type, {self.type}.")
+                    warnings.warn(f"Column, {column_header}, is not a valid input for turbine type, {self.type}.")
 
                 # update the parameter
                 setattr(self,column_header,val)
