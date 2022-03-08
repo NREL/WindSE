@@ -573,7 +573,7 @@ class UnsteadyProblem(GenericProblem):
 
         # Define time step size (this value is used only for step 1 if adaptive timestepping is used)
         # FIXME: change variable name to avoid confusion within dolfin adjoint
-        self.dt = 0.1*self.dom.hmin_global/self.bd.HH_vel
+        self.dt = 0.1*self.dom.global_hmin/self.bd.HH_vel
         # self.dt = 0.05
         self.dt_c  = Constant(self.dt)
 
