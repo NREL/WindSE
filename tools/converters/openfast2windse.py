@@ -37,7 +37,7 @@ windse_blade_data[:,0] = ad15_blade_data[:,0] / ad15_blade_data[-1,0]
 windse_blade_data[:,1] = ad15_blade_data[:,5]
 # Twist (deg)
 windse_blade_data[:,2] = ad15_blade_data[:,4]
-np.savetxt(os.path.join(destination_folder, 'blade_data.csv'), windse_blade_data, 
+np.savetxt(os.path.join(destination_folder, 'blade_data.csv'), windse_blade_data, delimiter=",",
     header='Blade n.d. span [-], 	 Chord [m], 	 Twist [deg], 	 Lift coeff [-], 	 Drag coeff [-], 	 Induction [-], 	 Angle of attack [deg], 	 Lift force [N/m], 	 Drag force [N/m]')
 
 # Load and write airfoil polars
