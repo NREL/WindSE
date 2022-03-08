@@ -1294,7 +1294,7 @@ class UnsteadySolver(GenericSolver):
         u_max_projected = u_max + dudt
 
         # Calculate the ideal timestep size (ignore file output considerations for now)
-        dt_new = cfl_target * self.problem.dom.mesh.hmin() / u_max_projected
+        dt_new = cfl_target * self.problem.dom.global_hmin / u_max_projected
 
         # Move to larger dt slowly (smaller dt happens instantly)
         if dt_new > self.problem.dt:

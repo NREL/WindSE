@@ -130,12 +130,7 @@ class ActuatorLine(GenericTurbine):
 
         # Recommendation from Churchfield et al.
         # self.gaussian_width = 2.0*0.035*2.0*self.radius
-        hmin = self.dom.mesh.hmin()/np.sqrt(3)
-        hmin_global = np.zeros(self.params.num_procs)
-        self.params.comm.Allgather(hmin, hmin_global)
-        hmin = np.amin(hmin_global)
-
-        self.gaussian_width = float(self.gauss_factor)*hmin
+        self.gaussian_width = float(self.gauss_factor)*self.dom.global_hmin
 
         if self.blade_segments == "computed":
             self.num_blade_segments = int(2.0*self.radius/self.gaussian_width)
