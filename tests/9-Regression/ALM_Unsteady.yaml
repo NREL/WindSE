@@ -59,6 +59,8 @@ solver:
     save_interval: 5.0           # Save the velocity and pressure files at intervals of "save_interval" | s
     final_time: 10.0             # The total duration of the simulation | s
     save_power: true
+    cfl_target: 0.8660254037844386
+    # cfl_target: 0.5
 
 optimization:
     control_types: [chord]
