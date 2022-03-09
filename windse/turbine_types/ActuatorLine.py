@@ -755,17 +755,17 @@ class ActuatorLine(GenericTurbine):
 
         tf.vector().update_ghost_values()
 
-        if np.abs(self.simTime - 10.0) < 1e-3:
-            try:
-                print('Max TF: %.6e' % (float(tf.vector().max() - 0.026665983592878112)/tf.vector().max())) 
-            except:
-                print('Max TF: %.6e' % (np.nan)) 
-            print('Min TF: %.6e' % (float(tf.vector().min() - -0.22879677484292432)/tf.vector().min()))
-            print('Max Lift: %.6e' % ((np.amax(lift) - 1604.506078981611)/np.amax(lift)))
-            print('Max Drag: %.6e' % ((np.amax(drag) - 2205.459487502247)/np.amax(drag)))
-            print('Max Nodal Lift: %.6e' % ((np.amax(nodal_lift) - 0.053743827932146535)/np.amax(nodal_lift)))
-            print('Max Nodal Drag: %.6e' % ((np.amax(nodal_drag) - 0.07069602361087358)/np.amax(nodal_drag)))
-            print('Rotor torque numpy: %.6e' % ((self.rotor_torque - 117594.90448122297)/self.rotor_torque))
+        # if np.abs(self.simTime - 10.0) < 1e-3:
+        #     try:
+        #         print('Max TF: %.6e' % (float(tf.vector().max() - 0.026665983592878112)/tf.vector().max())) 
+        #     except:
+        #         print('Max TF: %.6e' % (np.nan)) 
+        #     print('Min TF: %.6e' % (float(tf.vector().min() - -0.22879677484292432)/tf.vector().min()))
+        #     print('Max Lift: %.6e' % ((np.amax(lift) - 1604.506078981611)/np.amax(lift)))
+        #     print('Max Drag: %.6e' % ((np.amax(drag) - 2205.459487502247)/np.amax(drag)))
+        #     print('Max Nodal Lift: %.6e' % ((np.amax(nodal_lift) - 0.053743827932146535)/np.amax(nodal_lift)))
+        #     print('Max Nodal Drag: %.6e' % ((np.amax(nodal_drag) - 0.07069602361087358)/np.amax(nodal_drag)))
+        #     print('Rotor torque numpy: %.6e' % ((self.rotor_torque - 117594.90448122297)/self.rotor_torque))
 
         if dfd == None:
 
