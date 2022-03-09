@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.interpolate as interp
 import glob
+import os
 
 from windse import windse_parameters
 if windse_parameters.dolfin_adjoint:
@@ -42,8 +43,16 @@ class ActuatorLine(GenericTurbine):
         self.simTime_prev = None
         self.DEBUGGING = False
 
-        self.turbine_motion_freq = None#0.1
-        self.turbine_motion_amp = np.radians(20.0)
+        # self.turbine_motion_freq = None#0.1
+        # self.turbine_motion_amp = np.radians(20.0)
+
+        self.along_blade_quantities = {}
+        self.along_blade_quantities['lift'] = []
+        self.along_blade_quantities['drag'] = []
+        self.along_blade_quantities['aoa'] = []
+        self.along_blade_quantities['force_x'] = []
+        self.along_blade_quantities['force_y'] = []
+        self.along_blade_quantities['force_z'] = []
 
     def get_baseline_chord(self):
         '''
@@ -572,7 +581,11 @@ class ActuatorLine(GenericTurbine):
         # FIXME: double check that this wrapping-unwrapping is correct
         mpi_u_fluid = np.copy(self.mpi_u_fluid_constant.values())
 
-        along_blade_quantities = {'lift': [], 'drag': [], 'aoa': [], 'force': []}
+
+        along_blade_quantities = {}
+
+        for key in self.along_blade_quantities.keys():
+            along_blade_quantities[key] = []
 
         # Treat each blade separately
         for blade_id in range(self.num_blades):
@@ -687,7 +700,9 @@ class ActuatorLine(GenericTurbine):
                 # fy.write('%.5f, ' % (rotor_plane_force[1]))
                 # fz.write('%.5f, ' % (rotor_plane_force[2]))
 
-                along_blade_quantities['force'].append(rotor_plane_force)
+                along_blade_quantities['force_x'].append(rotor_plane_force[0])
+                along_blade_quantities['force_y'].append(rotor_plane_force[1])
+                along_blade_quantities['force_z'].append(rotor_plane_force[2])
 
                 # Multiply by the distance away from the hub to get a torque
                 actuator_torque = tangential_actuator_force*self.rdim[k]
@@ -701,19 +716,24 @@ class ActuatorLine(GenericTurbine):
             along_blade_quantities['drag'].append(drag)
             along_blade_quantities['aoa'].append(aoa)
 
-        for save_val in ['lift', 'drag', 'aoa', 'force']:
+        for save_val in along_blade_quantities.keys():
 
             data = np.array(along_blade_quantities[save_val])
 
-            if save_val != 'force':
-                data = data.reshape(-1, self.num_blades*self.num_blade_segments)
+            nn = self.num_blades*self.num_blade_segments
+
+            if np.size(data) == nn:
+                data = data.reshape(1, nn)
             else:
-                pass
-                #data = data.T.reshape(3, 1, self.num_blades*self.num_blade_segments)
+                data = np.zeros(nn)
+                data[:] = np.nan
 
-            if self.along_blade_quantities[save_val] is None:
+            global_save_data = np.zeros((self.params.num_procs, nn))
+            self.params.comm.Allgather(data, global_save_data)
+            data = np.nanmean(data, axis=0)
+
+            if self.first_call_to_alm:
                 self.along_blade_quantities[save_val] = data
-
             else:
                 self.along_blade_quantities[save_val] = np.vstack((self.along_blade_quantities[save_val], data))
 
@@ -828,7 +848,6 @@ class ActuatorLine(GenericTurbine):
 
         # If this is the first call to the function, set some things up before proceeding
         if self.first_call_to_alm:
-            self.along_blade_quantities = {'lift': None, 'drag': None, 'aoa': None, 'force': None}
             self.init_constant_alm_terms(fs)
             self.init_blade_properties()
             self.init_lift_drag_lookup_tables()
@@ -884,6 +903,8 @@ class ActuatorLine(GenericTurbine):
         return func_list
 
     def finalize_turbine(self):
-        for val in ['lift', 'drag', 'aoa', 'force']:
-            data = self.along_blade_quantities[val]
-            np.save(f'{val}_{self.index}.npy', data)
+        if self.params.rank == 0:
+            for key in self.along_blade_quantities.keys():
+                data = self.along_blade_quantities[key]
+                filename = os.path.join(self.params.folder, f'data/alm/{key}_{self.index}.npy')
+                np.save(filename, data)
