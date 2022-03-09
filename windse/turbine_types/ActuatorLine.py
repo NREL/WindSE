@@ -43,8 +43,16 @@ class ActuatorLine(GenericTurbine):
         self.simTime_prev = None
         self.DEBUGGING = False
 
-        self.turbine_motion_freq = None#0.1
-        self.turbine_motion_amp = np.radians(20.0)
+        # self.turbine_motion_freq = None#0.1
+        # self.turbine_motion_amp = np.radians(20.0)
+
+        self.along_blade_quantities = {}
+        self.along_blade_quantities['lift'] = []
+        self.along_blade_quantities['drag'] = []
+        self.along_blade_quantities['aoa'] = []
+        self.along_blade_quantities['force_x'] = []
+        self.along_blade_quantities['force_y'] = []
+        self.along_blade_quantities['force_z'] = []
 
     def get_baseline_chord(self):
         '''
@@ -131,8 +139,7 @@ class ActuatorLine(GenericTurbine):
 
         # Recommendation from Churchfield et al.
         # self.gaussian_width = 2.0*0.035*2.0*self.radius
-        hmin = self.dom.mesh.hmin()/np.sqrt(3)
-        self.gaussian_width = float(self.gauss_factor)*hmin
+        self.gaussian_width = float(self.gauss_factor)*self.dom.global_hmin
 
         if self.blade_segments == "computed":
             self.num_blade_segments = int(2.0*self.radius/self.gaussian_width)
@@ -342,6 +349,20 @@ class ActuatorLine(GenericTurbine):
 
     def update_alm_node_positions(self):
 
+        def wave_motion(tt):
+
+            # Peak-to-peak duration of one heave cycle (seconds)
+            w = 10.0
+
+            # Maximum amplitude of a heave cycle (degrees)
+            # a = 20.0
+            a = 0.0
+
+            wave_theta = np.sin(2.0*np.pi*tt/w)
+            wave_theta *= np.radians(a)
+
+            return wave_theta
+
         self.blade_pos = []
         self.blade_pos_prev = []
         self.blade_unit_vec = []
@@ -354,12 +375,24 @@ class ActuatorLine(GenericTurbine):
             pos, unit_vec, vel = self.rotate_points([self.blade_pos_base, self.blade_unit_vec_base, self.blade_vel_base], 
                                                      self.theta + theta_0, [1, 0, 0])
 
-            # Rotate the blade into the correct position around the z-axis (due to yaw)
-            pos, unit_vec, vel = self.rotate_points([pos, unit_vec, vel], float(self.myaw), [0, 0, 1])
+            pos_prev = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
 
-            pos[0, :] += self.x
-            pos[1, :] += self.y
-            pos[2, :] += self.z
+
+            # Rotate the blade into the correct position around the z-axis (due to yaw)
+            pos, pos_prev, unit_vec, vel = self.rotate_points([pos, pos_prev, unit_vec, vel], float(self.myaw), [0, 0, 1])
+
+
+            # Translate the positions into the correct location
+            pos, pos_prev = self.translate_points([pos, pos_prev], [self.x, self.y, self.z])
+
+
+            # Rotate the points due to the waves
+            theta_tt = self.theta/self.angular_velocity
+            theta_prev_tt = self.theta_prev/self.angular_velocity
+
+            pos, unit_vec, vel = self.rotate_points([pos, unit_vec, vel], wave_motion(theta_tt), [0, 1, 0])
+
+            pos_prev = self.rotate_points(pos_prev, wave_motion(theta_prev_tt), [0, 1, 0])
 
             # if self.turbine_motion_freq is not None:
             #     motion_theta = self.turbine_motion_amp*np.sin(self.turbine_motion_freq*self.simTime_ahead*np.pi*2.0)
@@ -383,15 +416,6 @@ class ActuatorLine(GenericTurbine):
             self.blade_pos.append(pos)
             self.blade_unit_vec.append(unit_vec)
             self.blade_vel.append(vel)
-
-            # Build the initial position if no previous timestep is available
-            pos_prev = self.rotate_points(self.blade_pos_base, self.theta_prev + theta_0, [1, 0, 0])
-            pos_prev = self.rotate_points(pos_prev, float(self.myaw), [0, 0, 1])
-
-            pos_prev[0, :] += self.x
-            pos_prev[1, :] += self.y
-            pos_prev[2, :] += self.z
-
             self.blade_pos_prev.append(pos_prev)
 
     def get_u_fluid_at_alm_nodes(self, u_k):
@@ -479,6 +503,8 @@ class ActuatorLine(GenericTurbine):
 
         tip_loss = np.zeros(self.num_blade_segments)
 
+        aoa_list = []
+
         for k in range(self.num_blade_segments):
             # Get the relative wind velocity at this node
             wind_vec = u_rel[:, k]
@@ -508,11 +534,15 @@ class ActuatorLine(GenericTurbine):
             real_cl[k] = self.lookup_cl(aoa, self.rdim[k])
             real_cd[k] = self.lookup_cd(aoa, self.rdim[k])
 
+            aoa_list.append(aoa)
+
             # Write the aoa to a file for future reference
             # fa.write('%.5f, ' % (aoa/np.pi*180.0))
 
+        aoa_list = np.array(aoa_list)
+
         # fp.close()
-        return real_cl, real_cd, tip_loss
+        return real_cl, real_cd, tip_loss, aoa_list
 
 
     def build_actuator_lines(self, u, inflow_angle, fs, dfd=None):
@@ -552,6 +582,11 @@ class ActuatorLine(GenericTurbine):
         mpi_u_fluid = np.copy(self.mpi_u_fluid_constant.values())
 
 
+        along_blade_quantities = {}
+
+        for key in self.along_blade_quantities.keys():
+            along_blade_quantities[key] = []
+
         # Treat each blade separately
         for blade_id in range(self.num_blades):
             # If the minimum distance between this mesh and the turbine is >2*RD,
@@ -559,9 +594,6 @@ class ActuatorLine(GenericTurbine):
             if self.min_dist > 2.0*self.RD:
                 break
 
-
-            else:
-                turbine_motion_vel = 0.0
 
 
             # Get the velocity of the fluid at each actuator node
@@ -599,7 +631,7 @@ class ActuatorLine(GenericTurbine):
 
             else:
                 if self.lookup_cl is not None:
-                    cl, cd, tip_loss = self.lookup_lift_and_drag(u_rel, twist, self.blade_unit_vec[blade_id])
+                    cl, cd, tip_loss, aoa = self.lookup_lift_and_drag(u_rel, twist, self.blade_unit_vec[blade_id])
 
             # Calculate the lift and drag forces using the relative velocity magnitude
             rho = 1.0
@@ -668,6 +700,10 @@ class ActuatorLine(GenericTurbine):
                 # fy.write('%.5f, ' % (rotor_plane_force[1]))
                 # fz.write('%.5f, ' % (rotor_plane_force[2]))
 
+                along_blade_quantities['force_x'].append(rotor_plane_force[0])
+                along_blade_quantities['force_y'].append(rotor_plane_force[1])
+                along_blade_quantities['force_z'].append(rotor_plane_force[2])
+
                 # Multiply by the distance away from the hub to get a torque
                 actuator_torque = tangential_actuator_force*self.rdim[k]
 
@@ -675,6 +711,34 @@ class ActuatorLine(GenericTurbine):
                 # FIXME: if we ever wanted to use this as a control it should be updated
                 # so that the summation happens outside this function
                 self.rotor_torque += actuator_torque
+
+            along_blade_quantities['lift'].append(lift)
+            along_blade_quantities['drag'].append(drag)
+            along_blade_quantities['aoa'].append(aoa)
+
+        for save_val in along_blade_quantities.keys():
+
+            data = np.array(along_blade_quantities[save_val])
+
+            nn = self.num_blades*self.num_blade_segments
+
+            if np.size(data) == nn:
+                data = data.reshape(1, nn)
+            else:
+                data = np.zeros(nn)
+                data[:] = np.nan
+
+            global_save_data = np.zeros((self.params.num_procs, nn))
+            self.params.comm.Allgather(data, global_save_data)
+            data = np.nanmean(data, axis=0)
+
+            if self.first_call_to_alm:
+                self.along_blade_quantities[save_val] = data
+            else:
+                self.along_blade_quantities[save_val] = np.vstack((self.along_blade_quantities[save_val], data))
+
+            # else:
+            #     print(data)
 
         # fx.write('\n')
         # fy.write('\n')
@@ -837,3 +901,10 @@ class ActuatorLine(GenericTurbine):
             func_list[1][0] += self.tf
 
         return func_list
+
+    def finalize_turbine(self):
+        if self.params.rank == 0:
+            for key in self.along_blade_quantities.keys():
+                data = self.along_blade_quantities[key]
+                filename = os.path.join(self.params.folder, f'data/alm/{key}_{self.index}.npy')
+                np.save(filename, data)

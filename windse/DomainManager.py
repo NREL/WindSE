@@ -644,8 +644,22 @@ class GenericDomain(object):
         move_stop = time.time()
         self.fprint("Mesh Moved: {:1.2f} s".format(move_stop-move_start),special="footer")
 
+    def ComputeGlobalHmin(self):
+        '''
+        This function computes the global hmin() value, since the hmin method
+        isn't parallel/global by default. Note that this assumes uniform spacing
+        in the x-, y-, and z- directions
+        '''
+
+        hmin = self.mesh.hmin()/np.sqrt(self.mesh.topology().dim())
+        hmin_global = np.zeros(self.params.num_procs)
+        self.params.comm.Allgather(hmin, hmin_global)
+        self.global_hmin = np.amin(hmin_global)
+
+
     def Finalize(self):
         # self.ComputeCellRadius()
+        self.ComputeGlobalHmin()
         self.finalized = True
         self.DebugOutput()
 
@@ -1503,6 +1517,7 @@ class InterpolatedCylinderDomain(CylinderDomain):
 
     def Finalize(self):
         self.Move(self.ground_function)
+        self.ComputeGlobalHmin()
         self.finalized = True
         self.DebugOutput()
         self.fprint("")
@@ -1537,6 +1552,7 @@ class InterpolatedBoxDomain(BoxDomain):
 
     def Finalize(self):
         self.Move(self.ground_function)
+        self.ComputeGlobalHmin()
         self.finalized = True
         self.DebugOutput()
         self.fprint("")

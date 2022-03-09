@@ -111,11 +111,6 @@ def test_yaml_execution(yaml_file):
                 elif isinstance(check_value,int):
                     tol_value = [0,"absolute"]
 
-                ### Get tolerance parameters ###
-                tol = float(tol_value[0])
-                check_type = tol_value[1]
-
-
                 if check_value is None:
                     errors += f"Missing Key - {module_name}: {key} \n"
                 else:
@@ -124,11 +119,15 @@ def test_yaml_execution(yaml_file):
                     if truth_value != 0:
                         rel_error = abs(check_value-truth_value)/truth_value
 
-                if check_type == "absolute" and abs_error > tol:
-                    errors += f"Value Error - {module_name}: {key} (abs error: {abs_error}, tol: {tol} truth: {truth_value}, check: {check_value})\n"
+                    ### Get tolerance parameters ###
+                    tol = float(tol_value[0])
+                    check_type = tol_value[1]
 
-                elif check_type == "relative" and rel_error > tol:
-                    errors += f"Value Error - {module_name}: {key} (rel error: {rel_error}, tol: {tol}, truth: {truth_value}, check: {check_value})\n"
+                    if check_type == "absolute" and abs_error > tol:
+                        errors += f"Value Error - {module_name}: {key} (abs error: {abs_error}, tol: {tol} truth: {truth_value}, check: {check_value})\n"
+
+                    elif check_type == "relative" and rel_error > tol:
+                        errors += f"Value Error - {module_name}: {key} (rel error: {rel_error}, tol: {tol}, truth: {truth_value}, check: {check_value})\n"
 
     if len(errors)>0:
         errors = parallel_yaml_name + "\n" + errors

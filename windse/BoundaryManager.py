@@ -110,43 +110,44 @@ class GenericBoundary(object):
             self.bcs = []
 
             for bc_type, bc_loc_list in self.boundary_types.items():
-                for bc_loc in bc_loc_list:
+                if bc_loc_list is not None:
+                    for bc_loc in bc_loc_list:
 
-                    # Translate the boundary name, a string, into an integer index:
-                    # East = 0, North = 1, West = 2, South = 3, Bottom = 4, Top = 5
-                    bc_loc_id = self.boundary_names[bc_loc] - 1
+                        # Translate the boundary name, a string, into an integer index:
+                        # East = 0, North = 1, West = 2, South = 3, Bottom = 4, Top = 5
+                        bc_loc_id = self.boundary_names[bc_loc] - 1
 
-                    # Get the correct compiled subdomain based off the location id
-                    bc_domain = self.dom.boundary_subdomains[bc_loc_id]
+                        # Get the correct compiled subdomain based off the location id
+                        bc_domain = self.dom.boundary_subdomains[bc_loc_id]
 
-                    # Append the right type of Dirichlet BC to the list
-                    if bc_type == 'inflow':
-                        self.bcu.append(DirichletBC(self.fs.V, self.bc_velocity, bc_domain))
-                        self.bcs.append(DirichletBC(self.fs.W.sub(0), self.bc_velocity, bc_domain))
+                        # Append the right type of Dirichlet BC to the list
+                        if bc_type == 'inflow':
+                            self.bcu.append(DirichletBC(self.fs.V, self.bc_velocity, bc_domain))
+                            self.bcs.append(DirichletBC(self.fs.W.sub(0), self.bc_velocity, bc_domain))
 
-                    elif bc_type == 'no_slip':
-                        if self.dom.mesh.topology().dim() == 3:
-                            zeros = Constant((0.0, 0.0, 0.0))
-                        elif self.dom.mesh.topology().dim() == 2:
-                            zeros = Constant((0.0, 0.0))
+                        elif bc_type == 'no_slip':
+                            if self.dom.mesh.topology().dim() == 3:
+                                zeros = Constant((0.0, 0.0, 0.0))
+                            elif self.dom.mesh.topology().dim() == 2:
+                                zeros = Constant((0.0, 0.0))
 
-                        self.bcu.append(DirichletBC(self.fs.V, zeros, bc_domain))
-                        self.bcs.append(DirichletBC(self.fs.W.sub(0), zeros, bc_domain))
+                            self.bcu.append(DirichletBC(self.fs.V, zeros, bc_domain))
+                            self.bcs.append(DirichletBC(self.fs.W.sub(0), zeros, bc_domain))
 
-                    elif bc_type == 'free_slip':
-                        # Identify the component/direction normal to this wall
-                        if bc_loc == 'east' or bc_loc == 'west':
-                            norm_comp = 0
-                        elif bc_loc == 'south' or bc_loc == 'north':
-                            norm_comp = 1
-                        elif bc_loc == 'bottom' or bc_loc == 'top':
-                            norm_comp = 2
+                        elif bc_type == 'free_slip':
+                            # Identify the component/direction normal to this wall
+                            if bc_loc == 'east' or bc_loc == 'west':
+                                norm_comp = 0
+                            elif bc_loc == 'south' or bc_loc == 'north':
+                                norm_comp = 1
+                            elif bc_loc == 'bottom' or bc_loc == 'top':
+                                norm_comp = 2
 
-                        self.bcu.append(DirichletBC(self.fs.V.sub(norm_comp), Constant(0.0), bc_domain))
-                        self.bcs.append(DirichletBC(self.fs.W.sub(0).sub(norm_comp), Constant(0.0), bc_domain))
+                            self.bcu.append(DirichletBC(self.fs.V.sub(norm_comp), Constant(0.0), bc_domain))
+                            self.bcs.append(DirichletBC(self.fs.W.sub(0).sub(norm_comp), Constant(0.0), bc_domain))
 
-                    elif bc_type == 'no_stress':
-                        self.bcp.append(DirichletBC(self.fs.Q, Constant(0.0), bc_domain))
+                        elif bc_type == 'no_stress':
+                            self.bcp.append(DirichletBC(self.fs.Q, Constant(0.0), bc_domain))
 
         else:
 
@@ -330,8 +331,9 @@ class UniformInflow(GenericBoundary):
         self.fprint("Type: Uniform Inflow")
         for key, values in self.boundary_types.items():
             self.fprint("Boundary Type: {0}, Applied to:".format(key))
-            for value in values:
-                self.fprint(value,offset=1)
+            if values is not None:
+                for value in values:
+                    self.fprint(value,offset=1)
         ### Create the Velocity Function ###
         self.ux = Function(fs.V0)
         self.uy = Function(fs.V1)
