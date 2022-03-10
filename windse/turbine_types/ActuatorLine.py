@@ -50,6 +50,7 @@ class ActuatorLine(GenericTurbine):
         self.along_blade_quantities['lift'] = []
         self.along_blade_quantities['drag'] = []
         self.along_blade_quantities['aoa'] = []
+        self.along_blade_quantities['axial'] = []
         self.along_blade_quantities['force_x'] = []
         self.along_blade_quantities['force_y'] = []
         self.along_blade_quantities['force_z'] = []
@@ -717,6 +718,8 @@ class ActuatorLine(GenericTurbine):
             along_blade_quantities['lift'].append(lift)
             along_blade_quantities['drag'].append(drag)
             along_blade_quantities['aoa'].append(aoa)
+            axial_velocity = np.dot(u_rel.T, self.blade_unit_vec[blade_id][:, 0])
+            along_blade_quantities['axial'].append(axial_velocity)
 
         for save_val in along_blade_quantities.keys():
 
