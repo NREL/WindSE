@@ -73,6 +73,7 @@ class ActuatorLine(GenericTurbine):
         self.use_local_velocity = self.params["turbines"]["use_local_velocity"]
         self.chord_factor = self.params["turbines"]["chord_factor"]
         self.gauss_factor = self.params["turbines"]["gauss_factor"]
+        self.tip_loss = self.params["turbines"]["tip_loss"]
 
 
     def compute_parameters(self):
@@ -504,7 +505,7 @@ class ActuatorLine(GenericTurbine):
 
         # fp = open(problem.aoa_file, 'a')
 
-        tip_loss = np.zeros(self.num_blade_segments)
+        tip_loss_fac = np.zeros(self.num_blade_segments)
 
         aoa_list = []
 
@@ -522,13 +523,18 @@ class ActuatorLine(GenericTurbine):
             aoa = get_angle_between_vectors(-unit_vec[:, 2], wind_vec, -unit_vec[:, 1])
 
             # Compute tip-loss factor
-            if self.rdim[k] < 1e-12:
-                tip_loss[k] = 1.0
+            if self.tip_loss:
+                if self.rdim[k] < 1e-12:
+                    tip_loss_fac[k] = 1.0
+
+                else:
+                    loss_exponent = 3.0/2.0*(self.radius-self.rdim[k])/(self.rdim[k]*np.sin(aoa))
+                    acos_arg = np.exp(-loss_exponent)
+                    acos_arg = np.clip(acos_arg, -1.0, 1.0)
+                    tip_loss_fac[k] = 2.0/np.pi*np.arccos(acos_arg)
+
             else:
-                loss_exponent = 3.0/2.0*(self.radius-self.rdim[k])/(self.rdim[k]*np.sin(aoa))
-                acos_arg = np.exp(-loss_exponent)
-                acos_arg = np.clip(acos_arg, -1.0, 1.0)
-                tip_loss[k] = 2.0/np.pi*np.arccos(acos_arg)
+                tip_loss_fac[k] = 1.0
 
             # Remove the portion of the angle due to twist
             aoa -= twist[k]
@@ -545,7 +551,7 @@ class ActuatorLine(GenericTurbine):
         aoa_list = np.array(aoa_list)
 
         # fp.close()
-        return real_cl, real_cd, tip_loss, aoa_list
+        return real_cl, real_cd, tip_loss_fac, aoa_list
 
 
     def build_actuator_lines(self, u, inflow_angle, fs, dfd=None):
@@ -630,16 +636,16 @@ class ActuatorLine(GenericTurbine):
             if self.DEBUGGING:
                 cl = 1*np.ones(self.num_blade_segments)
                 cd = 1*np.ones(self.num_blade_segments)
-                tip_loss = 1.0
+                tip_loss_fac = 1.0
 
             else:
                 if self.lookup_cl is not None:
-                    cl, cd, tip_loss, aoa = self.lookup_lift_and_drag(u_rel, twist, self.blade_unit_vec[blade_id])
+                    cl, cd, tip_loss_fac, aoa = self.lookup_lift_and_drag(u_rel, twist, self.blade_unit_vec[blade_id])
 
             # Calculate the lift and drag forces using the relative velocity magnitude
             rho = 1.0
-            lift = tip_loss*(0.5*cl*rho*chord*self.w*u_rel_mag**2)
-            drag = tip_loss*(0.5*cd*rho*chord*self.w*u_rel_mag**2)
+            lift = tip_loss_fac*(0.5*cl*rho*chord*self.w*u_rel_mag**2)
+            drag = tip_loss_fac*(0.5*cd*rho*chord*self.w*u_rel_mag**2)
 
             # Tile the blade coordinates for every mesh point, [numGridPts*ndim x problem.num_blade_segments]
             blade_pos_full = np.tile(self.blade_pos[blade_id], (np.shape(self.coords)[0], 1))
@@ -857,6 +863,10 @@ class ActuatorLine(GenericTurbine):
             self.init_blade_properties()
             self.init_lift_drag_lookup_tables()
             self.create_controls(initial_call_from_setup=False)
+
+            self.fprint(f'Gaussian Width: {self.gaussian_width}')
+            self.fprint(f'Minimum Mesh Spacing: {self.dom.global_hmin}')
+            self.fprint(f'Number of Actuators per Blade: {self.num_blade_segments}')
 
         # Initialize summation, counting, etc., variables for alm solve
         self.init_unsteady_alm_terms()
