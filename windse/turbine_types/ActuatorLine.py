@@ -276,30 +276,32 @@ class ActuatorLine(GenericTurbine):
             airfoil_data_path = os.path.dirname(self.read_turb_data)+'/airfoil_polars'
 
             # Determine the number of files in airfoil_data_path
-            num_files = len(glob.glob('%s/*.txt' % (airfoil_data_path)))
+            num_stations = len(glob.glob('%s/*.txt' % (airfoil_data_path)))
 
-            interp_radii = np.linspace(0.0, self.radius, num_files)
+            station_radii = np.linspace(0.0, self.radius, num_stations)
 
-            for file_id in range(num_files):
-                # print('Reading Airfoil Data #%d' % (file_id))
-                data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, file_id), skip_header=1, delimiter=' ')
+            for station_id in range(num_stations):
+                # print('Reading Airfoil Data #%d' % (station_id))
+                data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, station_id), skip_header=1, delimiter=' ')
 
-                if file_id == 0:
-                    # If this is the first file, store the angle data
-                    interp_angles = data[:, 0]
-                    num_angles = np.size(interp_angles)
-                    
-                    # If this is the first file, allocate space for the tables        
-                    lift_table = np.zeros((num_angles, num_files))
-                    drag_table = np.zeros((num_angles, num_files))
-                    
-                # Store all the lift and drag data in the file_id column
-                lift_table[:, file_id] = data[:, 1]
-                drag_table[:, file_id] = data[:, 2]
+                s = station_radii[station_id]*np.ones(np.shape(data)[0])
+
+                if station_id == 0:
+                    station = s
+                    angles = data[:, 0]
+                    c_lift = data[:, 1]
+                    c_drag = data[:, 2]
+                else:
+                    station = np.hstack((station, s))
+                    angles = np.hstack((angles, data[:, 0]))
+                    c_lift = np.hstack((c_lift, data[:, 1]))
+                    c_drag = np.hstack((c_drag, data[:, 2]))
+
+            nodes = np.vstack((station, angles)).T
 
             # Create interpolation functions for lift and drag based on angle of attack and location along blade
-            self.lookup_cl = interp.RectBivariateSpline(interp_angles, interp_radii, lift_table)
-            self.lookup_cd = interp.RectBivariateSpline(interp_angles, interp_radii, drag_table)
+            self.lookup_cl = interp.LinearNDInterpolator(nodes, c_lift)
+            self.lookup_cd = interp.LinearNDInterpolator(nodes, c_drag)
 
         else:
             self.lookup_cl = None
@@ -531,8 +533,8 @@ class ActuatorLine(GenericTurbine):
             aoa -= twist[k]
 
             # Store the cl and cd by interpolating this (aoa, span) pair from the tables
-            real_cl[k] = self.lookup_cl(aoa, self.rdim[k])
-            real_cd[k] = self.lookup_cd(aoa, self.rdim[k])
+            real_cl[k] = self.lookup_cl(self.rdim[k], aoa)
+            real_cd[k] = self.lookup_cd(self.rdim[k], aoa)
 
             aoa_list.append(aoa)
 
