@@ -319,8 +319,6 @@ class ActuatorLine(GenericTurbine):
                 c_lift_i = c_lift_interp(angles_i)
                 c_drag_i = c_drag_interp(angles_i)
 
-                print(np.shape(c_lift_i))
-
                 if station_id == 0:
                     station = s_i
                     angles = angles_i
