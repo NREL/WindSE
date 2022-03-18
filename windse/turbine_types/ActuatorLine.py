@@ -298,6 +298,9 @@ class ActuatorLine(GenericTurbine):
             min_angle = np.amin(test_min_angle)
             max_angle = np.amax(test_max_angle)
 
+            if min_d_theta < np.radians(0.5):
+                min_d_theta = np.radians(0.5)
+
             ni = int((max_angle - min_angle)/(0.5*min_d_theta))
             angles_i = np.linspace(min_angle, max_angle, ni)
 
