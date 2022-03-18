@@ -282,22 +282,55 @@ class ActuatorLine(GenericTurbine):
 
             station_radii = np.linspace(0.0, self.radius, num_stations)
 
+            test_min_d_theta = np.zeros(num_stations)
+            test_min_angle = np.zeros(num_stations)
+            test_max_angle = np.zeros(num_stations)
+
+            for station_id in range(num_stations):
+                data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, station_id), skip_header=1, delimiter=' ')
+                angles = data[:, 0]
+
+                test_min_d_theta[station_id] = np.amin(angles[1:] - angles[:-1])
+                test_min_angle[station_id] = np.amin(angles)
+                test_max_angle[station_id] = np.amax(angles)
+
+            min_d_theta = np.amin(test_min_d_theta)
+            min_angle = np.amin(test_min_angle)
+            max_angle = np.amax(test_max_angle)
+
+            ni = int((max_angle - min_angle)/(0.5*min_d_theta))
+            angles_i = np.linspace(min_angle, max_angle, ni)
+
             for station_id in range(num_stations):
                 # print('Reading Airfoil Data #%d' % (station_id))
                 data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, station_id), skip_header=1, delimiter=' ')
 
-                s = station_radii[station_id]*np.ones(np.shape(data)[0])
+                s_0 = station_radii[station_id]*np.ones(np.shape(data)[0])
+
+                angles_0 = data[:, 0]
+                c_lift_0 = data[:, 1]
+                c_drag_0 = data[:, 2]
+
+                s_i = station_radii[station_id]*np.ones(np.size(angles_i))
+
+                c_lift_interp = interp.interp1d(angles_0, c_lift_0, kind='linear')
+                c_drag_interp = interp.interp1d(angles_0, c_drag_0, kind='linear')
+
+                c_lift_i = c_lift_interp(angles_i)
+                c_drag_i = c_drag_interp(angles_i)
+
+                print(np.shape(c_lift_i))
 
                 if station_id == 0:
-                    station = s
-                    angles = data[:, 0]
-                    c_lift = data[:, 1]
-                    c_drag = data[:, 2]
+                    station = s_i
+                    angles = angles_i
+                    c_lift = c_lift_i
+                    c_drag = c_drag_i
                 else:
-                    station = np.hstack((station, s))
-                    angles = np.hstack((angles, data[:, 0]))
-                    c_lift = np.hstack((c_lift, data[:, 1]))
-                    c_drag = np.hstack((c_drag, data[:, 2]))
+                    station = np.hstack((station, s_i))
+                    angles = np.hstack((angles, angles_i))
+                    c_lift = np.hstack((c_lift, c_lift_i))
+                    c_drag = np.hstack((c_drag, c_drag_i))
 
             nodes = np.vstack((station, angles)).T
 
