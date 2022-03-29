@@ -29,6 +29,8 @@ def mpi_eval(u, x, comm=MPI.comm_world):
             The interpolated value of function ``u`` at point ``x`` as a dolfin Constant. 
 
     '''
+    
+    assert len(x) == u.geometric_dimension()
 
     rank = comm.Get_rank()
     num_procs = comm.Get_size()
