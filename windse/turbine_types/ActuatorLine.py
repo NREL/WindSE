@@ -449,6 +449,12 @@ class ActuatorLine(GenericTurbine):
                 except:
                     pass
 
+        # mpi_u_fluid = []
+        # for stuff
+        #     mpi_u_fluid.append(mpi_eval(u,x,comm))
+
+
+
         data_in_fluid = np.zeros((self.params.num_procs, np.size(mpi_u_fluid)))
         self.params.comm.Gather(mpi_u_fluid, data_in_fluid, root=0)
 

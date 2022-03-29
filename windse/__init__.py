@@ -31,6 +31,9 @@ def initialize(loc,updated_parameters=[]):
         import windse.dolfin_adjoint_helper 
         from windse.OptimizationManager import Optimizer
 
+    global mpi_eval
+    from windse.helper_functions import mpi_eval
+
     global BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
     from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
 
