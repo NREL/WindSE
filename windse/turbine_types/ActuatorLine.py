@@ -74,7 +74,7 @@ class ActuatorLine(GenericTurbine):
         self.chord_factor = self.params["turbines"]["chord_factor"]
         self.gauss_factor = self.params["turbines"]["gauss_factor"]
         self.tip_loss = self.params["turbines"]["tip_loss"]
-        self.nacelle_rad = self.params["turbines"]["nacelle_rad"]
+        self.hub_rad = self.params["turbines"]["hub_rad"]
 
 
     def compute_parameters(self):
@@ -574,11 +574,11 @@ class ActuatorLine(GenericTurbine):
             # Remove the portion of the angle due to twist
             aoa -= twist[k]
 
-            if self.nacelle_rad > 0.0:
-                if self.rdim[k] - self.nacelle_rad < 0:
+            if self.hub_rad > 0.0:
+                if self.rdim[k] - self.hub_rad < 0:
                     lookup_rdim = 0.0
                 else:
-                    lookup_rdim = self.radius*(self.rdim[k] - self.nacelle_rad)/(self.radius - self.nacelle_rad)
+                    lookup_rdim = self.radius*(self.rdim[k] - self.hub_rad)/(self.radius - self.hub_rad)
 
             else:
                 lookup_rdim = self.rdim[k]
