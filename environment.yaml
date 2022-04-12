@@ -5,12 +5,12 @@ channels:
 dependencies:
   - coveralls
   - dolfin-adjoint=2019.1.0
-  - fenics=2019.1.0
+  - fenics=2019.1.0=py39hf3d152e_26
   - hdf5
   - matplotlib
   - memory_profiler
   - mshr=2019.1.0
-  - openmdao
+  - openmdao==3.16.0
   - pandas
   - pyoptsparse
   - pytest
