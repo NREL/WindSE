@@ -11,6 +11,8 @@ from . import GenericTurbine
 
 from . import Constant, Expression, Function, Point, assemble, dot, dx
 
+from windse.helper_functions import mpi_eval
+
 '''
 FIXME After Jeff Meeting 1/13/22
 
@@ -186,7 +188,7 @@ class ActuatorLine(GenericTurbine):
         #================================================================
 
         # Create a Constant "wrapper" to enable dolfin to track mpi_u_fluid
-        self.mpi_u_fluid_constant = Constant(np.zeros(self.ndim*self.num_blades*self.num_blade_segments), name="mpi_u_fluid")
+        # self.mpi_u_fluid_constant = Constant(np.zeros(self.ndim*self.num_blades*self.num_blade_segments), name="mpi_u_fluid")
 
 
         # self.mchord.append(turb_i_chord)
@@ -420,59 +422,36 @@ class ActuatorLine(GenericTurbine):
 
     def get_u_fluid_at_alm_nodes(self, u_k):
 
-        # Create an empty array to hold all the components of velocity
-        mpi_u_fluid = np.zeros(self.ndim*self.num_blades*self.num_blade_segments)
-        mpi_u_fluid_count = np.zeros(self.ndim*self.num_blades*self.num_blade_segments)
+        # Create an empty list to hold all the components of velocity
+        mpi_u_fluid = []
 
         for blade_id in range(self.num_blades):
             # Need to probe the velocity point at each actuator node,
             # where actuator nodes are individual columns of blade_pos
+
+            blade_mpi_u_fluid = []
+
             for k in range(self.num_blade_segments):
+                pos_i = np.array([0.0, 0.0, 0.0])
+
                 # If using the local velocity, measure at the blade
                 if self.use_local_velocity:
-                    xi = self.blade_pos_prev[blade_id][0, k]
+                    pos_i[0] = self.blade_pos_prev[blade_id][0, k]
                 else:
-                    xi = self.dom.x_range[0]
+                    pos_i[0] = self.dom.x_range[0]
 
-                yi = self.blade_pos_prev[blade_id][1, k]
-                zi = self.blade_pos_prev[blade_id][2, k]
+                pos_i[1] = self.blade_pos_prev[blade_id][1, k]
+                pos_i[2] = self.blade_pos_prev[blade_id][2, k]
 
                 # Try to access the fluid velocity at this actuator point
                 # If this rank doesn't own that point, an error will occur,
                 # in which case zeros should be reported
-                try:
-                    fn_val = u_k(np.array([xi, yi, zi]))
-                    start_pt = self.ndim*blade_id*self.num_blade_segments + self.ndim*k
-                    end_pt = start_pt + self.ndim
-                    mpi_u_fluid[start_pt:end_pt] = fn_val
-                    mpi_u_fluid_count[start_pt:end_pt] = [1, 1, 1]
-                except:
-                    pass
+                blade_mpi_u_fluid.append(mpi_eval(u_k, pos_i))
 
-        # mpi_u_fluid = []
-        # for stuff
-        #     mpi_u_fluid.append(mpi_eval(u,x,comm))
+            mpi_u_fluid.append(blade_mpi_u_fluid)
 
-
-
-        data_in_fluid = np.zeros((self.params.num_procs, np.size(mpi_u_fluid)))
-        self.params.comm.Gather(mpi_u_fluid, data_in_fluid, root=0)
-
-        data_in_count = np.zeros((self.params.num_procs, np.size(mpi_u_fluid_count)))
-        self.params.comm.Gather(mpi_u_fluid_count, data_in_count, root=0)
-
-        if self.params.rank == 0:
-            mpi_u_fluid_sum = np.sum(data_in_fluid, axis=0)
-            mpi_u_fluid_count_sum = np.sum(data_in_count, axis=0)
-
-            # This removes the possibility of a velocity shared between multiple nodes being reported
-            # multiple times and being effectively doubled (or worse) when summing mpi_u_fluid across processes
-            mpi_u_fluid = mpi_u_fluid_sum/mpi_u_fluid_count_sum
-
-        self.params.comm.Bcast(mpi_u_fluid, root=0)
-
-        # Populate the Constant "wrapper" with the velocity values to enable dolfin to track mpi_u_fluid
-        self.mpi_u_fluid_constant.assign(Constant(mpi_u_fluid, name="mpi_u_fluid"))
+        # Store the finished list of Constants
+        self.mpi_u_fluid = mpi_u_fluid
 
 
     def lookup_lift_and_drag(self, u_rel, twist, unit_vec):
@@ -585,7 +564,7 @@ class ActuatorLine(GenericTurbine):
 
         # Convert the mpi_u_fluid Constant wrapper into a numpy array
         # FIXME: double check that this wrapping-unwrapping is correct
-        mpi_u_fluid = np.copy(self.mpi_u_fluid_constant.values())
+        # mpi_u_fluid = np.copy(self.mpi_u_fluid_constant.values())
 
 
         along_blade_quantities = {}
@@ -609,11 +588,10 @@ class ActuatorLine(GenericTurbine):
                 u_fluid[0, :] = 10.0
 
             else:
-                start_pt = self.ndim*blade_id*self.num_blade_segments
-                end_pt = start_pt + self.ndim*self.num_blade_segments
-                u_fluid = mpi_u_fluid[start_pt:end_pt]
-                u_fluid = np.reshape(u_fluid, (self.ndim, -1), 'F')
-                # print(u_fluid)
+                u_fluid_constant = self.mpi_u_fluid[blade_id]
+                u_fluid = [const.values() for const in u_fluid_constant]
+                u_fluid = np.array(u_fluid).T
+
 
             for k in range(self.num_blade_segments):
                 u_fluid[:, k] -= np.dot(u_fluid[:, k], self.blade_unit_vec[blade_id][:, 1])*self.blade_unit_vec[blade_id][:, 1]
