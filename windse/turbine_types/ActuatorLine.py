@@ -50,6 +50,7 @@ class ActuatorLine(GenericTurbine):
         self.along_blade_quantities['lift'] = []
         self.along_blade_quantities['drag'] = []
         self.along_blade_quantities['aoa'] = []
+        self.along_blade_quantities['axial'] = []
         self.along_blade_quantities['force_x'] = []
         self.along_blade_quantities['force_y'] = []
         self.along_blade_quantities['force_z'] = []
@@ -72,6 +73,8 @@ class ActuatorLine(GenericTurbine):
         self.use_local_velocity = self.params["turbines"]["use_local_velocity"]
         self.chord_factor = self.params["turbines"]["chord_factor"]
         self.gauss_factor = self.params["turbines"]["gauss_factor"]
+        self.tip_loss = self.params["turbines"]["tip_loss"]
+        self.hub_rad = self.params["turbines"]["hub_rad"]
 
 
     def compute_parameters(self):
@@ -276,30 +279,66 @@ class ActuatorLine(GenericTurbine):
             airfoil_data_path = os.path.dirname(self.read_turb_data)+'/airfoil_polars'
 
             # Determine the number of files in airfoil_data_path
-            num_files = len(glob.glob('%s/*.txt' % (airfoil_data_path)))
+            num_stations = len(glob.glob('%s/*.txt' % (airfoil_data_path)))
 
-            interp_radii = np.linspace(0.0, self.radius, num_files)
+            station_radii = np.linspace(0.0, self.radius, num_stations)
 
-            for file_id in range(num_files):
-                # print('Reading Airfoil Data #%d' % (file_id))
-                data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, file_id), skip_header=1, delimiter=' ')
+            test_min_d_theta = np.zeros(num_stations)
+            test_min_angle = np.zeros(num_stations)
+            test_max_angle = np.zeros(num_stations)
 
-                if file_id == 0:
-                    # If this is the first file, store the angle data
-                    interp_angles = data[:, 0]
-                    num_angles = np.size(interp_angles)
-                    
-                    # If this is the first file, allocate space for the tables        
-                    lift_table = np.zeros((num_angles, num_files))
-                    drag_table = np.zeros((num_angles, num_files))
-                    
-                # Store all the lift and drag data in the file_id column
-                lift_table[:, file_id] = data[:, 1]
-                drag_table[:, file_id] = data[:, 2]
+            for station_id in range(num_stations):
+                data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, station_id), skip_header=1, delimiter=' ')
+                angles = data[:, 0]
+
+                test_min_d_theta[station_id] = np.amin(angles[1:] - angles[:-1])
+                test_min_angle[station_id] = np.amin(angles)
+                test_max_angle[station_id] = np.amax(angles)
+
+            min_d_theta = np.amin(test_min_d_theta)
+            min_angle = np.amin(test_min_angle)
+            max_angle = np.amax(test_max_angle)
+
+            if min_d_theta < np.radians(0.5):
+                min_d_theta = np.radians(0.5)
+
+            ni = int((max_angle - min_angle)/(0.5*min_d_theta))
+            angles_i = np.linspace(min_angle, max_angle, ni)
+
+            for station_id in range(num_stations):
+                # print('Reading Airfoil Data #%d' % (station_id))
+                data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, station_id), skip_header=1, delimiter=' ')
+
+                s_0 = station_radii[station_id]*np.ones(np.shape(data)[0])
+
+                angles_0 = data[:, 0]
+                c_lift_0 = data[:, 1]
+                c_drag_0 = data[:, 2]
+
+                s_i = station_radii[station_id]*np.ones(np.size(angles_i))
+
+                c_lift_interp = interp.interp1d(angles_0, c_lift_0, kind='linear')
+                c_drag_interp = interp.interp1d(angles_0, c_drag_0, kind='linear')
+
+                c_lift_i = c_lift_interp(angles_i)
+                c_drag_i = c_drag_interp(angles_i)
+
+                if station_id == 0:
+                    station = s_i
+                    angles = angles_i
+                    c_lift = c_lift_i
+                    c_drag = c_drag_i
+                else:
+                    station = np.hstack((station, s_i))
+                    angles = np.hstack((angles, angles_i))
+                    c_lift = np.hstack((c_lift, c_lift_i))
+                    c_drag = np.hstack((c_drag, c_drag_i))
+
+            nodes = np.vstack((station, angles)).T
 
             # Create interpolation functions for lift and drag based on angle of attack and location along blade
-            self.lookup_cl = interp.RectBivariateSpline(interp_angles, interp_radii, lift_table)
-            self.lookup_cd = interp.RectBivariateSpline(interp_angles, interp_radii, drag_table)
+            self.lookup_cl = interp.LinearNDInterpolator(nodes, c_lift)
+            self.lookup_cd = interp.LinearNDInterpolator(nodes, c_drag)
 
         else:
             self.lookup_cl = None
@@ -501,7 +540,7 @@ class ActuatorLine(GenericTurbine):
 
         # fp = open(problem.aoa_file, 'a')
 
-        tip_loss = np.zeros(self.num_blade_segments)
+        tip_loss_fac = np.zeros(self.num_blade_segments)
 
         aoa_list = []
 
@@ -519,20 +558,34 @@ class ActuatorLine(GenericTurbine):
             aoa = get_angle_between_vectors(-unit_vec[:, 2], wind_vec, -unit_vec[:, 1])
 
             # Compute tip-loss factor
-            if self.rdim[k] < 1e-12:
-                tip_loss[k] = 1.0
+            if self.tip_loss:
+                if self.rdim[k] < 1e-12:
+                    tip_loss_fac[k] = 1.0
+
+                else:
+                    loss_exponent = 3.0/2.0*(self.radius-self.rdim[k])/(self.rdim[k]*np.sin(aoa))
+                    acos_arg = np.exp(-loss_exponent)
+                    acos_arg = np.clip(acos_arg, -1.0, 1.0)
+                    tip_loss_fac[k] = 2.0/np.pi*np.arccos(acos_arg)
+
             else:
-                loss_exponent = 3.0/2.0*(self.radius-self.rdim[k])/(self.rdim[k]*np.sin(aoa))
-                acos_arg = np.exp(-loss_exponent)
-                acos_arg = np.clip(acos_arg, -1.0, 1.0)
-                tip_loss[k] = 2.0/np.pi*np.arccos(acos_arg)
+                tip_loss_fac[k] = 1.0
 
             # Remove the portion of the angle due to twist
             aoa -= twist[k]
 
+            if self.hub_rad > 0.0:
+                if self.rdim[k] - self.hub_rad < 0:
+                    lookup_rdim = 0.0
+                else:
+                    lookup_rdim = self.radius*(self.rdim[k] - self.hub_rad)/(self.radius - self.hub_rad)
+
+            else:
+                lookup_rdim = self.rdim[k]
+
             # Store the cl and cd by interpolating this (aoa, span) pair from the tables
-            real_cl[k] = self.lookup_cl(aoa, self.rdim[k])
-            real_cd[k] = self.lookup_cd(aoa, self.rdim[k])
+            real_cl[k] = self.lookup_cl(lookup_rdim, aoa)
+            real_cd[k] = self.lookup_cd(lookup_rdim, aoa)
 
             aoa_list.append(aoa)
 
@@ -542,7 +595,7 @@ class ActuatorLine(GenericTurbine):
         aoa_list = np.array(aoa_list)
 
         # fp.close()
-        return real_cl, real_cd, tip_loss, aoa_list
+        return real_cl, real_cd, tip_loss_fac, aoa_list
 
 
     def build_actuator_lines(self, u, inflow_angle, fs, dfd=None):
@@ -627,16 +680,16 @@ class ActuatorLine(GenericTurbine):
             if self.DEBUGGING:
                 cl = 1*np.ones(self.num_blade_segments)
                 cd = 1*np.ones(self.num_blade_segments)
-                tip_loss = 1.0
+                tip_loss_fac = 1.0
 
             else:
                 if self.lookup_cl is not None:
-                    cl, cd, tip_loss, aoa = self.lookup_lift_and_drag(u_rel, twist, self.blade_unit_vec[blade_id])
+                    cl, cd, tip_loss_fac, aoa = self.lookup_lift_and_drag(u_rel, twist, self.blade_unit_vec[blade_id])
 
             # Calculate the lift and drag forces using the relative velocity magnitude
             rho = 1.0
-            lift = tip_loss*(0.5*cl*rho*chord*self.w*u_rel_mag**2)
-            drag = tip_loss*(0.5*cd*rho*chord*self.w*u_rel_mag**2)
+            lift = tip_loss_fac*(0.5*cl*rho*chord*self.w*u_rel_mag**2)
+            drag = tip_loss_fac*(0.5*cd*rho*chord*self.w*u_rel_mag**2)
 
             # Tile the blade coordinates for every mesh point, [numGridPts*ndim x problem.num_blade_segments]
             blade_pos_full = np.tile(self.blade_pos[blade_id], (np.shape(self.coords)[0], 1))
@@ -715,6 +768,8 @@ class ActuatorLine(GenericTurbine):
             along_blade_quantities['lift'].append(lift)
             along_blade_quantities['drag'].append(drag)
             along_blade_quantities['aoa'].append(aoa)
+            axial_velocity = np.dot(u_rel.T, self.blade_unit_vec[blade_id][:, 0])
+            along_blade_quantities['axial'].append(axial_velocity)
 
         for save_val in along_blade_quantities.keys():
 
@@ -852,6 +907,10 @@ class ActuatorLine(GenericTurbine):
             self.init_blade_properties()
             self.init_lift_drag_lookup_tables()
             self.create_controls(initial_call_from_setup=False)
+
+            self.fprint(f'Gaussian Width: {self.gaussian_width}')
+            self.fprint(f'Minimum Mesh Spacing: {self.dom.global_hmin}')
+            self.fprint(f'Number of Actuators per Blade: {self.num_blade_segments}')
 
         # Initialize summation, counting, etc., variables for alm solve
         self.init_unsteady_alm_terms()
