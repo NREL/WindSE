@@ -76,6 +76,8 @@ turbines:                   # parameters for the turbine objects
     max_chord:      1000        # upper limit when optimizing chord
     chord_factor:   1.0         # This multiplies all the chords by a constant factor, e.g., 2.0 makes a chord that's twice as thick everywhere 
     gauss_factor:   2.0         # This is the factor that gets multiplied by the minimum mesh spacing to set the gaussian width, e.g., gaussian_width = 2.0*dx_min
+    tip_loss:       True        # Determines whether or not a tip-loss model is used in the calculation of the ALM force (False means no tip loss is modeled)
+    hub_rad:        0.0         # The radius of the hub. If non-zero, actuator nodes will still be placed in the range [0, rotor_radius], but the lift/drag properties in the range [0, hub_rad] will be modified to reflect the blade root
 
 refine:                     # parameters for RefinementManager
     warp_type:      Null        # warping will shift the nodes along the z direction concentrating them near the ground. choices: "smooth", "split"
