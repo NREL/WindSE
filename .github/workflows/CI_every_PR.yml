@@ -28,11 +28,18 @@ jobs:
           conda activate test-environment
           conda list
         
+      # - name: Run parallel regression tests within WindSE
+      #   shell: pwsh
+      #   run: |
+      #     conda activate test-environment
+      #     pytest -sv --cov=windse tests/test_regression_parallel.py
+
       - name: Run parallel regression tests within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -sv --cov=windse tests/test_regression_parallel.py
+          cd tests/9-Regression
+          mpirun -n 2 windse run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
 
       - name: Run all regression tests within WindSE
         shell: pwsh
