@@ -23,24 +23,26 @@ class ActuatorLineForceBlock(Block):
 
         # Add dependencies on the controls
         for j in range(self.turb.num_blade_segments):
-            self.turb.mcl[j].block_variable.tag = ("c_lift", self.turb.index, j)
+            self.turb.mcl[j].block_variable.tag = ("c_lift", self.turb.index, j, -1)
             self.add_dependency(self.turb.mcl[j])
 
-            self.turb.mcd[j].block_variable.tag = ("c_drag", self.turb.index, j)
+            self.turb.mcd[j].block_variable.tag = ("c_drag", self.turb.index, j, -1)
             self.add_dependency(self.turb.mcd[j])
 
-            self.turb.mchord[j].block_variable.tag = ("chord", self.turb.index, j)
+            self.turb.mchord[j].block_variable.tag = ("chord", self.turb.index, j, -1)
             self.add_dependency(self.turb.mchord[j])
 
 
-        self.turb.myaw.block_variable.tag = ("yaw", self.turb.index, -1)
+            for i in range(3):
+                self.turb.mpi_u_fluid[i][j].block_variable.tag = ("mpi_u_fluid", self.turb.index, j, i)
+                self.add_dependency(self.turb.mpi_u_fluid[i][j])
+
+        self.turb.myaw.block_variable.tag = ("yaw", self.turb.index, -1, -1)
         self.add_dependency(self.turb.myaw)
 
-        self.turb.mpi_u_fluid_constant.block_variable.tag = ("mpi_u_fluid", self.turb.index, -1)
-        self.add_dependency(self.turb.mpi_u_fluid_constant)
 
         if self.INCLUDE_U_K:
-            self.u_k.block_variable.tag = ("u_local",self.turb.index,-1)
+            self.u_k.block_variable.tag = ("u_local",self.turb.index,-1, -1)
             self.add_dependency(self.u_k)
 
 
@@ -52,19 +54,23 @@ class ActuatorLineForceBlock(Block):
     def prepare_recompute_component(self, inputs, relevant_outputs):
         if self.INCLUDE_U_K:
             # update the new controls inside the windfarm
-            self.turb.c_lift = np.array(inputs[0:-3:3], dtype=float)
-            self.turb.c_drag = np.array(inputs[1:-3:3], dtype=float)
-            self.turb.chord =  np.array(inputs[2:-3:3], dtype=float)
-            self.turb.yaw  = float(inputs[-3])
-            self.turb.mpi_u_fluid = np.array(inputs[-2].values(), dtype=float)
+            self.turb.c_lift = np.array(inputs[0:-2:6], dtype=float)
+            self.turb.c_drag = np.array(inputs[1:-2:6], dtype=float)
+            self.turb.chord =  np.array(inputs[2:-2:6], dtype=float)
+            self.turb.mpi_u_fluid[0] = inputs[3:-2:6]
+            self.turb.mpi_u_fluid[1] = inputs[4:-2:6]
+            self.turb.mpi_u_fluid[2] = inputs[5:-2:6]
+            self.turb.yaw  = float(inputs[-2])
             u_k = inputs[-1]
 
         else:
-            self.turb.c_lift = np.array(inputs[0:-2:3], dtype=float)
-            self.turb.c_drag = np.array(inputs[1:-2:3], dtype=float)
-            self.turb.chord =  np.array(inputs[2:-2:3], dtype=float)
-            self.turb.yaw  = float(inputs[-2])
-            self.turb.mpi_u_fluid = np.array(inputs[-1].values(), dtype=float)
+            self.turb.c_lift = np.array(inputs[0:-1:6], dtype=float)
+            self.turb.c_drag = np.array(inputs[1:-1:6], dtype=float)
+            self.turb.chord =  np.array(inputs[2:-1:6], dtype=float)
+            self.turb.mpi_u_fluid[0] = inputs[3:-2:6]
+            self.turb.mpi_u_fluid[1] = inputs[4:-2:6]
+            self.turb.mpi_u_fluid[2] = inputs[5:-2:6]
+            self.turb.yaw  = float(inputs[-1])
             u_k = None
 
         self.turb.update_controls()
@@ -87,19 +93,23 @@ class ActuatorLineForceBlock(Block):
     def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
         if self.INCLUDE_U_K:
             # update the new controls inside the windfarm
-            self.turb.c_lift = np.array(inputs[0:-3:3], dtype=float)
-            self.turb.c_drag = np.array(inputs[1:-3:3], dtype=float)
-            self.turb.chord =  np.array(inputs[2:-3:3], dtype=float)
-            self.turb.yaw  = float(inputs[-3])
-            self.turb.mpi_u_fluid = np.array(inputs[-2].values(), dtype=float)
+            self.turb.c_lift = np.array(inputs[0:-2:6], dtype=float)
+            self.turb.c_drag = np.array(inputs[1:-2:6], dtype=float)
+            self.turb.chord =  np.array(inputs[2:-2:6], dtype=float)
+            self.turb.mpi_u_fluid[0] = inputs[3:-2:6]
+            self.turb.mpi_u_fluid[1] = inputs[4:-2:6]
+            self.turb.mpi_u_fluid[2] = inputs[5:-2:6]
+            self.turb.yaw  = float(inputs[-2])
             u_k = inputs[-1]
 
         else:
-            self.turb.c_lift = np.array(inputs[0:-2:3], dtype=float)
-            self.turb.c_drag = np.array(inputs[1:-2:3], dtype=float)
-            self.turb.chord =  np.array(inputs[2:-2:3], dtype=float)
-            self.turb.yaw  = float(inputs[-2])
-            self.turb.mpi_u_fluid = np.array(inputs[-1].values(), dtype=float)
+            self.turb.c_lift = np.array(inputs[0:-1:6], dtype=float)
+            self.turb.c_drag = np.array(inputs[1:-1:6], dtype=float)
+            self.turb.chord =  np.array(inputs[2:-1:6], dtype=float)
+            self.turb.mpi_u_fluid[0] = inputs[3:-2:6]
+            self.turb.mpi_u_fluid[1] = inputs[4:-2:6]
+            self.turb.mpi_u_fluid[2] = inputs[5:-2:6]
+            self.turb.yaw  = float(inputs[-1])
             u_k = None
 
         self.turb.update_controls()
@@ -226,7 +236,7 @@ class ActuatorLineForceBlock(Block):
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
 
         ### Get the control type and turbine index ###
-        name, turbine_number, segment_index = block_variable.tag
+        name, turbine_number, segment_index, blade_id = block_variable.tag
         # print("calculating: " + name + "_" + repr(segment_index))
         # print("input_val: "+repr(adj_inputs[0].norm('l2')))
 
