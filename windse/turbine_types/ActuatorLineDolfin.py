@@ -750,7 +750,6 @@ class ActuatorLine(GenericTurbine):
 
 
 
-
 from dolfin import *
 import numpy as np
 import matplotlib.pyplot as plt
@@ -760,10 +759,12 @@ import matplotlib.pyplot as plt
 def fake_scipy_lift(rdim, aoa):
     
     return 1.0
-    
+
+
 def fake_scipy_drag(rdim, aoa):
     
     return 0.1
+
 
 def mpi_eval(u_k, x_0):
     a = Constant(u_k(x_0))
@@ -778,26 +779,31 @@ def rot_x(theta):
     
     return Rx
 
+
 def calculate_relative_fluid_velocity(u_k, x_0, n_0, rdim):
 
-    u_fluid = mpi_eval(u_k, x_0)
+    # Evaluate the fluid velocity u_k at the point x_0 
+    vel_fluid = mpi_eval(u_k, x_0)
     
-    u_fluid -= dot(u_fluid, n_0[:, 1])*n_0[:, 1]
+    # Remove the component of the fluid velocity oriented along the blade's axis
+    vel_fluid -= dot(vel_fluid, n_0[:, 1])*n_0[:, 1]
 
     # TODO : replace with angular velocity calc
     angular_velocity = 9.0
-    u_blade = rdim*angular_velocity*n_0[:, 2]
-    u_rel = u_fluid + u_blade
+    vel_blade = rdim*angular_velocity*n_0[:, 2]
+
+    # The relative velocity is the sum of the fluid and blade velocity
+    vel_rel = vel_fluid + vel_blade
     
-    u_rel_mag = sqrt(u_rel[0]**2.0 + u_rel[1]**2.0 + u_rel[2]**2.0)
-    u_rel_unit = u_rel/u_rel_mag
+    # Calculate the magnitude of the relative velocity
+    vel_rel_mag = sqrt(vel_rel[0]**2.0 + vel_rel[1]**2.0 + vel_rel[2]**2.0)
+    vel_rel_unit = vel_rel/vel_rel_mag
 
-    return u_rel, u_rel_mag, u_rel_unit
+    return vel_rel, vel_rel_mag, vel_rel_unit
 
 
-def calcuate_aoa(u_rel, n_0):
+def calcuate_aoa(vel_rel, n_0):
         
-    
     def get_angle_between_vectors(a, b, n):
         
         DEBUGGING = False
@@ -842,25 +848,26 @@ def calcuate_aoa(u_rel, n_0):
 
         return aoa_1
 
-#     wind_vec = u_rel
+#     wind_vec = vel_rel
 
 #     # Remove the component in the radial direction (along the blade span)
-#     wind_vec -= np.dot(u_rel, n_0[:, 1])*n_0[:, 1]
+#     wind_vec -= np.dot(vel_rel, n_0[:, 1])*n_0[:, 1]
 
-#     u_fluid -= dot(u_fluid, n_0[:, 1])*n_0[:, 1]
+#     vel_fluid -= dot(vel_fluid, n_0[:, 1])*n_0[:, 1]
     # aoa = get_angle_between_vectors(arg1, arg2, arg3)
     # arg1 = in-plane vector pointing opposite rotation (blade sweep direction)
     # arg2 = relative wind vector at node k, including blade rotation effects (wind direction)
     # arg3 = unit vector normal to plane of rotation, in this case, radially along span
     
     # TODO : verify if this is necessary or not
-#     print(u_rel.values())
-#     u_rel = u_rel - dot(u_rel, n_0[:, 1]) * n_0[:, 1]
-#     print(u_rel.values())
+#     print(vel_rel.values())
+#     vel_rel = vel_rel - dot(vel_rel, n_0[:, 1]) * n_0[:, 1]
+#     print(vel_rel.values())
 
-    aoa = get_angle_between_vectors(-n_0[:, 2], u_rel, -n_0[:, 1])
+    aoa = get_angle_between_vectors(-n_0[:, 2], vel_rel, -n_0[:, 1])
 
     return aoa
+
 
 def lookup_lift_coeff(rdim, aoa):
     
@@ -880,76 +887,110 @@ def lookup_drag_coeff(rdim, aoa):
     cd = fake_scipy_drag(rdim, aoa)
     
     return Constant(cd)
-    
 
 
-def build_lift_drag_vec(u_rel_unit, n_0):
-    # Build 
-    drag_unit = -u_rel_unit
+def build_lift_drag_vec(vel_rel_unit, n_0):
+    # The drag unit vector is oriented opposite of the relative fluid velocity
+    drag_unit = -vel_rel_unit
     
+    # The lift unit vector is perpendicular to the drag unit vector and the blade axis
     lift_unit = cross(drag_unit, n_0[:, 1])
     
     return lift_unit, drag_unit
 
 
+def build_gauss_kernel_at_point(u_k, x_0, eps):
+
+    # Get the coordinates of the mesh points as UFL term
+    x_mesh = SpatialCoordinate(u_k.function_space().mesh())
+    
+    # Calculate distance from actuator node, x_0, in 3 directions
+    delta_x = x_mesh[0] - x_0[0]
+    delta_y = x_mesh[1] - x_0[1]
+    delta_z = x_mesh[2] - x_0[2]
+    
+    # Calculate the distance squared, i.e., (|x_mesh-x|)^2
+    r2 = delta_x**2.0 + delta_y**2.0 + delta_z**2.0
+    
+    # Compute the Gaussian kernel
+    gauss_kernel = exp(-r2/(eps**2.0))/(eps**3.0*np.pi**1.5)
+
+    return gauss_kernel
+
+
+def calculate_tip_loss(rdim, aoa):
+
+    tip_loss_fac = 1.0
+
+    return tip_loss_fac
+
 
 def build_actuator_node(u_k, x_0, n_0, rdim):
+    """
+    Build the force function for a single actuator node.
 
-
+    This function takes as an input the fluid velocity, location, orientation (n_0),
+    and radial dimension of an actuator node along a turbine blade. It returns
+    a vector function representing the force as projected onto the computational
+    grid. The projection/smoothing step is handled by the spherical Gaussian kernel
+    and the magnitude is set by a lift and drag calculation.
     
-    u_rel, u_rel_mag, u_rel_unit = calculate_relative_fluid_velocity(u_k, x_0, n_0, rdim)
+    Args:
+        u_k (FEniCS function):
+            A FEniCS/dolfin function representing the current fluid velocity.
+        x_0 (``as_vector(1x3 array)``):
+            The 3D coordinates specifying the location of the kernel. Note that this
+            must reflect the updated location capturing any and all rotation/movement 
+            effects.
+        n_0 (``as_tensor(3x3 array)``):
+            The orientation of the blade at this actuator point.
+            n_0[:, 0] = points along the rotor shaft in the +x direction (normal to rotor plane)
+            n_0[:, 1] = points along the blade span/axis in the +y direction (along the blade)
+            n_0[:, 2] = points tangential to the blade axis (generates a torque about rotor shaft)
+        rdim (float):
+            The radial dimension in the range [0, blade_radius], with units of meters.
 
-    # This builds the gaussian sphere around point (x0, y0, z0)
-    # Calculate the angle of attach for this node
-    aoa = calcuate_aoa(u_rel, n_0)
+    Returns:
+        actuator_force (FEniCS form):
+            A vector-valued UFL representation of the turbine force including both
+            lift and drag effects for a single actutor point.
+    """
+
+    # Calculate the relative fluid velocity, a function of fluid and blade velocity    
+    vel_rel, vel_rel_mag, vel_rel_unit = calculate_relative_fluid_velocity(u_k, x_0, n_0, rdim)
+
+    # Calculate the angle of attack for this actuator node node
+    aoa = calcuate_aoa(vel_rel, n_0)
     
-    # Lookup the lift and drag calcs
+    # Lookup the lift and drag coefficients
     cl = lookup_lift_coeff(rdim, aoa)
     cd = lookup_drag_coeff(rdim, aoa)
-    
-#     u_fluid = u_k(x_0) # mpi_eval(x_0)
 
-#     rdim[1:] - rdim[:-1]
+    # Calculate the tip loss factor
+    tip_loss_fac = calculate_tip_loss(rdim, aoa)
+            
+    # Calculate the magnitude (a scalar quantity) of the lift and drag forces
+    lift_mag = tip_loss_fac*(0.5*cl*rho*chord*w*vel_rel_mag**2.0)
+    drag_mag = tip_loss_fac*(0.5*cd*rho*chord*w*vel_rel_mag**2.0)
 
-        
-    # Magnitude (non vector) of the lift force
-    # TODO : make this tip loss a correct dolfin function
-    lift = tip_loss_fac*(0.5*cl*rho*chord*w*u_rel_mag**2)
-    drag = tip_loss_fac*(0.5*cd*rho*chord*w*u_rel_mag**2)
+    # Build a spherical Gaussian with width eps about point x_0
+    gauss_kernel = build_gauss_kernel_at_point(u_k, x_0, eps)
     
+    # Smear the lift and drag forces onto the grid using the Gaussian kernel
+    # The result is a scalar function at each point on the grid
+    projected_lift_mag = lift_mag*gauss_kernel
+    projected_drag_mag = drag_mag*gauss_kernel
     
+    # Compute the orientation of the lift and drag unit vectors
+    lift_unit, drag_unit = build_lift_drag_vec(vel_rel_unit, n_0)
     
-    x = SpatialCoordinate(u_k.function_space().mesh())
-    
-    delta_x = x[0] - x_0[0]
-    delta_y = x[1] - x_0[1]
-    delta_z = x[2] - x_0[2]
-    
-    r = delta_x**2.0 + delta_y**2.0 + delta_z**2.0
-    
-    # This is a constant, e.g., self.params.eps
-    eps = 0.2
-    gauss_kernel = exp(-r/(eps**2.0))/(eps**3.0*np.pi**1.5)
-    
-    
-    
-    # smear this force using gauss_kernel (this is a scalar function)
-    projected_lift = lift*gauss_kernel
-    projected_drag = drag*gauss_kernel
-    
-    
-    
-    lift_unit, drag_unit = build_lift_drag_vec(u_rel_unit, n_0)
-    
-    
-    # This is a vector function with force oriented correctly
-    lift_force = projected_lift*lift_unit
-    drag_force = projected_drag*drag_unit
+    # The smeared scalar force magnitude is oriented along the lift and drag directions
+    lift_force = projected_lift_mag*lift_unit
+    drag_force = projected_drag_mag*drag_unit
 
+    # The final force of this actuator is the sum of lift and drag effects
     actuator_force = lift_force + drag_force
-    
-    print('finished')
-    
+        
     return actuator_force
 
 
@@ -973,26 +1014,19 @@ n_0 = as_tensor([[1, 0, 0],
                  [0, 1, 0],
                  [0, 0, 1]])
 
-# print(np.array(n_0[:, 2], dtype=float))
-
-
 # # Orient this by dotting with lift direction
 # rx = rot_x(np.radians(90))
 
-# lift_unit_vec = dot(lift_unit_vec_base, rx)
-# drag_unit_vec = dot(drag_unit_vec_base, rx)
-
-tip_loss_fac = 1.0
 chord = 1.0
-cl = 1.0
-cd = 1.0
 rho = 1.0
 w = 1.0
-u_rel_mag = 10.0
+eps = 0.2
 
 rdim = 0.5
 
 # for all actuator nodes:
+print('starting actuator node')
 g = build_actuator_node(u_k, x_0, n_0, rdim)
+print('finished')
 
 
