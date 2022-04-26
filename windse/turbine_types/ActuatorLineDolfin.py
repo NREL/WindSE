@@ -61,7 +61,7 @@ class ActuatorLineDolfin(GenericTurbine):
 
     def get_baseline_chord(self):
         '''
-        This function need to return the baseline chord as a numpy array with length num_blade_segments
+        This function need to return the baseline chord as a numpy array with length num_actuator_nodes
         '''
         return self.baseline_chord
 
@@ -83,9 +83,10 @@ class ActuatorLineDolfin(GenericTurbine):
 
     def compute_parameters(self):
         # compute turbine radius
+        self.rho = 1.0
+        self.num_blades = 3
         self.radius = 0.5*self.RD
         self.angular_velocity = 2.0*pi*self.rpm/60.0
-        self.rho = 1.0
 
 
     def create_controls(self, initial_call_from_setup=True):
@@ -104,11 +105,86 @@ class ActuatorLineDolfin(GenericTurbine):
             self.mcl = []
             self.mcd = []
 
-            for k in range(self.num_blade_segments):
+            for k in range(self.num_actuator_nodes):
                 self.mchord.append(Constant(self.chord[k]))
                 self.mtwist.append(Constant(self.twist[k]))
                 self.mcl.append(Constant(self.cl[k]))
                 self.mcd.append(Constant(self.cd[k]))
+
+
+    def init_alm_calc_terms(self):
+
+        self.simTime = Constant(0.0)
+        self.simTime_prev = Constant(0.0)
+        self.dt = Constant(0.0)
+
+        self.eps = self.gauss_factor*self.dom.global_hmin
+
+        if self.blade_segments == "computed":
+            self.num_actuator_nodes = int(2.0*self.radius/self.eps)
+        else:
+            self.num_actuator_nodes = self.blade_segments
+
+
+    def init_blade_properties(self):
+        if self.read_turb_data:
+
+            self.fprint('Setting chord, lift, and drag from file \'%s\'' % (self.read_turb_data))
+
+            actual_turbine_data = np.genfromtxt(self.read_turb_data, delimiter = ',', skip_header = 1)
+
+            actual_x = actual_turbine_data[:, 0]
+
+            actual_chord = self.chord_factor*actual_turbine_data[:, 1]
+
+            # Baseline twist is expressed in degrees, convert to radians
+            actual_twist = actual_turbine_data[:, 2]/180.0*np.pi
+
+            actual_cl = actual_turbine_data[:, 3]
+            actual_cd = actual_turbine_data[:, 4]
+
+            # Create interpolators for chord, lift, and drag
+            inter_chord = interp.interp1d(actual_x, actual_chord)
+            interp_twist = interp.interp1d(actual_x, actual_twist)
+            interp_cl = interp.interp1d(actual_x, actual_cl)
+            interp_cd = interp.interp1d(actual_x, actual_cd)
+
+            # Construct the points at which to generate interpolated values
+            interp_points = np.linspace(0.0, 1.0, self.num_actuator_nodes)
+
+            # Generate the interpolated values
+            chord = inter_chord(interp_points)
+            twist = interp_twist(interp_points)
+
+            # Note that this is not the lookup table for cl and cd based on AoA and radial
+            # location along the blade, rather, it is the initialization based on a
+            # 1D interpolation where AoA is assumed to be a few degrees set back from stall.
+            # If using a lookup table which include AoA, these values will be overwritten 
+            # during the course of the solve.
+            cl = interp_cl(interp_points)
+            cd = interp_cd(interp_points)
+
+        else:
+            # If not reading from a file, prescribe dummy values
+            chord = self.radius/20.0*np.ones(self.num_actuator_nodes)
+            twist = np.zeros(self.num_actuator_nodes)
+            cl = np.ones(self.num_actuator_nodes)
+            cd = 0.1*np.ones(self.num_actuator_nodes)
+
+        # Store the chord, twist, cl, and cd values
+        self.chord = chord
+        self.twist = twist
+        self.cl = cl
+        self.cd = cd
+
+        # Store a copy of the original values for future use
+        self.baseline_chord = chord
+        self.baseline_twist = twist
+        self.baseline_cl = cl
+        self.baseline_cd = cd
+
+        self.max_chord = 1.5*np.amax(chord)
+
 
 
     def fake_scipy_lift(self, rdim, aoa):
@@ -366,73 +442,59 @@ class ActuatorLineDolfin(GenericTurbine):
         # if dfd is None, alm_output is a dolfin function (tf) [1 x numPts*ndim]
         # otherwise, it returns a numpy array of derivatives [numPts*ndim x numControls]
 
-        try:
-            self.simTime = kwargs['simTime']
-            self.simTime_prev = kwargs['simTime_prev']
-            self.dt = kwargs['dt']
-        except:
-            raise ValueError('"simTime" and "dt" must be specified for the calculation of ALM force.')
+        if self.first_call_to_alm:
+            self.init_alm_calc_terms()
+            self.init_blade_properties()
+            # self.init_lift_drag_lookup_tables()
+            self.create_controls(initial_call_from_setup=False)
+
+            self.fprint(f'Gaussian Width: {self.eps}')
+            self.fprint(f'Minimum Mesh Spacing: {self.dom.global_hmin}')
+            self.fprint(f'Number of Actuators per Blade: {self.num_actuator_nodes}')
 
 
+            tf = 0
 
-        self.eps = self.gauss_factor*self.dom.global_hmin
-
-
-        tf = 0
-        num_blades = 3
-        num_actuator_nodes = 10
-
-        # simTime = Constant(0.0) # simulation time in seconds
-
-        # rpm = 10.0
-        # diameter = 130.0
-        # radius = 0.5*diameter
-        # hub_height = 90
-
-
-        # hmin = mesh.hmin()/sqrt(3)
-        # print(f'hmin = {float(hmin)}')
-        # eps = 2.0*hmin
-
-        for blade_id in range(num_blades):
-            # This can be built on a blade-by-blade basis
-            n_0 = as_tensor([[1, 0, 0],
-                             [0, 1, 0],
-                             [0, 0, 1]])
-            
-            theta_0 = 2.0*pi*(blade_id/num_blades)
-            theta_0 += self.simTime*self.angular_velocity
-            
-            rx = self.rot_x(theta_0)
-            
-            # Why does this need to be transposed to work correctly?
-            n_0 = dot(rx, n_0).T
-            
-            for actuator_id in range(num_actuator_nodes):
-                # These quantities may vary on a node-by-node basis
-                rdim = self.radius*actuator_id/(num_actuator_nodes-1)
-                w = self.radius/(num_actuator_nodes-1)
+            for blade_id in range(self.num_blades):
+                # This can be built on a blade-by-blade basis
+                n_0 = as_tensor([[1, 0, 0],
+                                 [0, 1, 0],
+                                 [0, 0, 1]])
                 
-                if rdim < 1e-6 or rdim > self.radius - 1e-6:
-                    w = 0.5*w
+                theta_0 = 2.0*pi*(blade_id/self.num_blades)
+                theta_0 += self.simTime*self.angular_velocity
+                
+                rx = self.rot_x(theta_0)
+                
+                # Why does this need to be transposed to work correctly?
+                n_0 = dot(rx, n_0).T
+                
+                for actuator_id in range(self.num_actuator_nodes):
+                    # These quantities may vary on a node-by-node basis
+                    rdim = self.radius*actuator_id/(self.num_actuator_nodes-1)
+                    w = self.radius/(self.num_actuator_nodes-1)
                     
-                chord = Constant(4.0)
+                    if rdim < 1e-6 or rdim > self.radius - 1e-6:
+                        w = 0.5*w
+                        
+                    chord = Constant(4.0)
 
-                x_0 = as_tensor([0.0, rdim, 0.0])
-                x_0 = dot(x_0, rx)
-                x_0 += as_tensor([0.0, 0.0, self.z])
-                                
-                tf += self.build_actuator_node(u, x_0, n_0, rdim, chord, w)
+                    x_0 = as_tensor([0.0, rdim, 0.0])
+                    x_0 = dot(x_0, rx)
+                    x_0 += as_tensor([0.0, 0.0, self.z])
+                                    
+                    tf += self.build_actuator_node(u, x_0, n_0, rdim, chord, w)
 
-        self.tf = tf
+            self.tf = tf
 
-        return tf
+            self.first_call_to_alm = False
+
+        else:
+            self.simTime.assign(kwargs['simTime'])
+            
+
+        return self.tf
         
-
-
-
-
-
 
 
     def power(self, u, inflow_angle):

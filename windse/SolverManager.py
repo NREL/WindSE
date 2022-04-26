@@ -1033,7 +1033,7 @@ class UnsteadySolver(GenericSolver):
 
             # Update the turbine force
             tic = time.time()
-            if self.problem.farm.turbines[0].type == "line":
+            if 'line' in self.problem.farm.turbines[0].type:
 
 
                 self.problem.alm_power = 0.0
@@ -1041,8 +1041,9 @@ class UnsteadySolver(GenericSolver):
 
                 # t1 = time.time()
                 pr.enable()
-                new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
-                self.problem.tf.assign(new_tf)
+                # new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                # self.problem.tf.assign(new_tf)
                 pr.disable()
 
 
