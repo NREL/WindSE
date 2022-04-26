@@ -9,7 +9,8 @@ if windse_parameters.dolfin_adjoint:
 
 from . import GenericTurbine
 
-from . import Constant, Expression, Function, Point, assemble, dot, dx
+from . import (Constant, Expression, Function, Point, assemble, dot, dx,
+pi, cos, acos, asin, sin, sqrt, exp, cross, as_tensor, SpatialCoordinate)
 
 from windse.helper_functions import mpi_eval
 
@@ -21,15 +22,16 @@ FIXME After Jeff Meeting 1/13/22
 
 '''
 
-class ActuatorLine(GenericTurbine):
+class ActuatorLineDolfin(GenericTurbine):
 
     def __init__(self, i,x,y,dom,imported_params=None):
         # Define the acceptable column of an wind_farm.csv imput file        
         self.yaml_inputs = ["HH", "RD", "yaw", "yaw", "rpm", "read_turb_data", "blade_segments", "use_local_velocity", "chord_factor", "gauss_factor"]
 
         # Init turbine
-        super(ActuatorLine, self).__init__(i,x,y,dom,imported_params)
+        super(ActuatorLineDolfin, self).__init__(i,x,y,dom,imported_params)
 
+        # TODO : CREATE A BLOCK FOR THIS FUNCTION
         # blockify custom functions so dolfin adjoint can track them
         if self.params.performing_opt_calc:
             block_kwargs = {
@@ -83,7 +85,7 @@ class ActuatorLine(GenericTurbine):
         # compute turbine radius
         self.radius = 0.5*self.RD
         self.angular_velocity = 2.0*pi*self.rpm/60.0
-        self.eps = self.gauss_factor*self.dom.global_hmin
+        self.rho = 1.0
 
 
     def create_controls(self, initial_call_from_setup=True):
@@ -291,7 +293,7 @@ class ActuatorLine(GenericTurbine):
         return tip_loss_fac
 
 
-    def build_actuator_node(self, u_k, x_0, n_0, rdim):
+    def build_actuator_node(self, u_k, x_0, n_0, rdim, chord, w):
         """
         Build the force function for a single actuator node.
 
@@ -336,8 +338,8 @@ class ActuatorLine(GenericTurbine):
         tip_loss_fac = self.calculate_tip_loss(rdim, aoa)
                 
         # Calculate the magnitude (a scalar quantity) of the lift and drag forces
-        lift_mag = tip_loss_fac*(0.5*cl*rho*chord*w*vel_rel_mag**2.0)
-        drag_mag = tip_loss_fac*(0.5*cd*rho*chord*w*vel_rel_mag**2.0)
+        lift_mag = tip_loss_fac*(0.5*cl*self.rho*chord*w*vel_rel_mag**2.0)
+        drag_mag = tip_loss_fac*(0.5*cd*self.rho*chord*w*vel_rel_mag**2.0)
         
         # Build a spherical Gaussian with width eps about point x_0
         gauss_kernel = self.build_gauss_kernel_at_point(u_k, x_0)
@@ -372,13 +374,12 @@ class ActuatorLine(GenericTurbine):
             raise ValueError('"simTime" and "dt" must be specified for the calculation of ALM force.')
 
 
-        rho = 1.0
 
-        # for all actuator nodes:
-        print('starting actuator node')
+        self.eps = self.gauss_factor*self.dom.global_hmin
+
 
         tf = 0
-        num_blades = 5
+        num_blades = 3
         num_actuator_nodes = 10
 
         # simTime = Constant(0.0) # simulation time in seconds
@@ -417,14 +418,13 @@ class ActuatorLine(GenericTurbine):
                     
                 chord = Constant(4.0)
 
-                x_0 = as_vector([0.0, rdim, 0.0])
+                x_0 = as_tensor([0.0, rdim, 0.0])
                 x_0 = dot(x_0, rx)
-                x_0 += as_tensor([0.0, 0.0, hub_height])
-                
-                x_0_np = np.array(x_0, dtype=float)
-                plt.plot(x_0_np[1], x_0_np[2], 'o', color=f'C{blade_id}')
-                
-                tf += self.build_actuator_node(u_k, x_0, n_0, rdim)
+                x_0 += as_tensor([0.0, 0.0, self.z])
+                                
+                tf += self.build_actuator_node(u, x_0, n_0, rdim, chord, w)
+
+        self.tf = tf
 
         return tf
         
@@ -445,7 +445,7 @@ class ActuatorLine(GenericTurbine):
             zs=self.mz)
 
         self.power_dolfin = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
-        self.power_numpy = 1e-6*self.rotor_torque*self.angular_velocity
+        # self.power_numpy = 1e-6*self.rotor_torque*self.angular_velocity
 
         # print("in turb.poweer()",self.power_dolfin, self.power_numpy)
 
