@@ -939,7 +939,7 @@ class UnsteadySolver(GenericSolver):
         simIter = 0
         stable = False
 
-        if self.problem.farm.turbines[0].type == "line":
+        if self.problem.farm.turbines[0].type == "line" or self.problem.farm.turbines[0].type == "dolfin_line":
             tip_speed = self.problem.farm.turbines[0].rpm*2.0*np.pi*self.problem.farm.turbines[0].radius/60.0
         else:
             tip_speed = 0.0
@@ -1033,8 +1033,7 @@ class UnsteadySolver(GenericSolver):
 
             # Update the turbine force
             tic = time.time()
-            if 'line' in self.problem.farm.turbines[0].type:
-
+            if self.problem.farm.turbines[0].type == "line" or self.problem.farm.turbines[0].type == "dolfin_line":
 
                 self.problem.alm_power = 0.0
                 # pass

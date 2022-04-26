@@ -186,15 +186,93 @@ class ActuatorLineDolfin(GenericTurbine):
         self.max_chord = 1.5*np.amax(chord)
 
 
+    def init_lift_drag_lookup_tables(self):
+
+        if self.read_turb_data:
+
+            airfoil_data_path = os.path.dirname(self.read_turb_data)+'/airfoil_polars'
+
+            # Determine the number of files in airfoil_data_path
+            num_stations = len(glob.glob('%s/*.txt' % (airfoil_data_path)))
+
+            station_radii = np.linspace(0.0, self.radius, num_stations)
+
+            test_min_d_theta = np.zeros(num_stations)
+            test_min_angle = np.zeros(num_stations)
+            test_max_angle = np.zeros(num_stations)
+
+            for station_id in range(num_stations):
+                data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, station_id), skip_header=1, delimiter=' ')
+                angles = data[:, 0]
+
+                test_min_d_theta[station_id] = np.amin(angles[1:] - angles[:-1])
+                test_min_angle[station_id] = np.amin(angles)
+                test_max_angle[station_id] = np.amax(angles)
+
+            min_d_theta = np.amin(test_min_d_theta)
+            min_angle = np.amin(test_min_angle)
+            max_angle = np.amax(test_max_angle)
+
+            if min_d_theta < np.radians(0.5):
+                min_d_theta = np.radians(0.5)
+
+            ni = int((max_angle - min_angle)/(0.5*min_d_theta))
+            angles_i = np.linspace(min_angle, max_angle, ni)
+
+            for station_id in range(num_stations):
+                # print('Reading Airfoil Data #%d' % (station_id))
+                data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, station_id), skip_header=1, delimiter=' ')
+
+                s_0 = station_radii[station_id]*np.ones(np.shape(data)[0])
+
+                angles_0 = data[:, 0]
+                c_lift_0 = data[:, 1]
+                c_drag_0 = data[:, 2]
+
+                s_i = station_radii[station_id]*np.ones(np.size(angles_i))
+
+                c_lift_interp = interp.interp1d(angles_0, c_lift_0, kind='linear')
+                c_drag_interp = interp.interp1d(angles_0, c_drag_0, kind='linear')
+
+                c_lift_i = c_lift_interp(angles_i)
+                c_drag_i = c_drag_interp(angles_i)
+
+                if station_id == 0:
+                    station = s_i
+                    angles = angles_i
+                    c_lift = c_lift_i
+                    c_drag = c_drag_i
+                else:
+                    station = np.hstack((station, s_i))
+                    angles = np.hstack((angles, angles_i))
+                    c_lift = np.hstack((c_lift, c_lift_i))
+                    c_drag = np.hstack((c_drag, c_drag_i))
+
+            nodes = np.vstack((station, angles)).T
+
+            # Create interpolation functions for lift and drag based on angle of attack and location along blade
+            self.lookup_cl = interp.LinearNDInterpolator(nodes, c_lift)
+            self.lookup_cd = interp.LinearNDInterpolator(nodes, c_drag)
+
+        else:
+            self.lookup_cl = None
+            self.lookup_cd = None
+
 
     def fake_scipy_lift(self, rdim, aoa):
+
+        cl = self.lookup_cl(rdim, aoa)
+        # cl = 1.0
         
-        return 1.0
+        return cl
 
 
     def fake_scipy_drag(self, rdim, aoa):
         
-        return 0.1
+        cd = self.lookup_cd(rdim, aoa)
+        # cd = 0.1
+        
+        return cd
 
 
     # def mpi_eval(self, u_k, x_0):
@@ -445,7 +523,7 @@ class ActuatorLineDolfin(GenericTurbine):
         if self.first_call_to_alm:
             self.init_alm_calc_terms()
             self.init_blade_properties()
-            # self.init_lift_drag_lookup_tables()
+            self.init_lift_drag_lookup_tables()
             self.create_controls(initial_call_from_setup=False)
 
             self.fprint(f'Gaussian Width: {self.eps}')
@@ -507,11 +585,6 @@ class ActuatorLineDolfin(GenericTurbine):
             zs=self.mz)
 
         self.power_dolfin = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
-        # self.power_numpy = 1e-6*self.rotor_torque*self.angular_velocity
-
-        # print("in turb.poweer()",self.power_dolfin, self.power_numpy)
-
-        # print('Error between dolfin and numpy: %e' % (float(self.power_dolfin) - self.power_numpy))
 
         return self.power_dolfin
 
