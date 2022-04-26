@@ -22,4 +22,5 @@ turbine_dict = {
     "numpy_disks": ActuatorDiskNumpy,
     "line":       ActuatorLine,
     "lines":       ActuatorLine,
+    "dolfin_line":       ActuatorLineDolfin,
 }
