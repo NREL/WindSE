@@ -13,7 +13,6 @@ from . import (Constant, Expression, Function, Point, assemble, dot, dx,
 pi, cos, acos, asin, sin, sqrt, exp, cross, as_tensor, SpatialCoordinate,
 VectorFunctionSpace, ReducedFunctional, Control, Measure, taylor_test,
 UnitCubeMesh,)
-
 from windse.helper_functions import mpi_eval, ufl_eval
 
 '''
@@ -297,7 +296,7 @@ class ActuatorLineDolfin(GenericTurbine):
         return vel_rel, vel_rel_mag, vel_rel_unit
 
 
-    def calcuate_aoa(self, vel_rel, n_0):
+    def calcuate_aoa(self, vel_rel, n_0, twist):
             
         def get_angle_between_vectors(a, b, n):
             a_x_b = dot(cross(n, a), b)
@@ -319,7 +318,7 @@ class ActuatorLineDolfin(GenericTurbine):
                 else:
                     aoa_1 = pi - aoa_1
 
-            return aoa_1
+            return aoa_1, aoa_1_np
 
         # wind_vec = vel_rel
 
@@ -336,9 +335,12 @@ class ActuatorLineDolfin(GenericTurbine):
         # vel_rel = vel_rel - dot(vel_rel, n_0[:, 1]) * n_0[:, 1]
         # print(vel_rel.values())
 
-        aoa = get_angle_between_vectors(-n_0[:, 2], vel_rel, -n_0[:, 1])
+        aoa, aoa_1_np = get_angle_between_vectors(-n_0[:, 2], vel_rel, -n_0[:, 1])
 
-        return aoa
+        aoa -= twist
+        aoa_1_np -= twist
+
+        return aoa, aoa_1_np
 
     def build_lift_drag_vec(self, vel_rel_unit, n_0):
         # The drag unit vector is oriented opposite of the relative fluid velocity
@@ -389,7 +391,7 @@ class ActuatorLineDolfin(GenericTurbine):
         return tip_loss_fac
 
 
-    def build_actuator_node(self, u_k, x_0, n_0, rdim, chord, w):
+    def build_actuator_node(self, u_k, x_0, x_0_prev, n_0, rdim, w, chord, twist):
         """
         Build the force function for a single actuator node.
 
@@ -519,18 +521,25 @@ class ActuatorLineDolfin(GenericTurbine):
 
             for blade_id in range(self.num_blades):
                 # This can be built on a blade-by-blade basis
-                n_0 = as_tensor([[1, 0, 0],
+                n_0_base = as_tensor([[1, 0, 0],
                                  [0, 1, 0],
                                  [0, 0, 1]])
                 
                 theta_0 = 2.0*pi*(blade_id/self.num_blades)
-                theta_0 += self.simTime*self.angular_velocity
+                theta = theta_0 + self.simTime*self.angular_velocity
                 
-                rx = self.rot_x(theta_0)
+                rx = self.rot_x(theta)
                 
                 # Why does this need to be transposed to work correctly?
-                n_0 = dot(rx, n_0).T
+                n_0 = dot(rx, n_0_base).T
+
+                theta_prev = theta_0 + self.simTime_prev*self.angular_velocity
                 
+                rx_prev = self.rot_x(theta_prev)
+
+                # Why does this need to be transposed to work correctly?
+                n_0_prev = dot(rx_prev, n_0_base).T
+
                 for actuator_id in range(self.num_actuator_nodes):
                     # These quantities may vary on a node-by-node basis
                     rdim = Constant(self.radius*actuator_id/(self.num_actuator_nodes-1))
@@ -539,14 +548,18 @@ class ActuatorLineDolfin(GenericTurbine):
                     if float(rdim) < 1e-6 or float(rdim) > self.radius - 1e-6:
                         w = 0.5*w
                         
-                    # TODO: read in from self.mchord
-                    chord = Constant(4.0)
+                    chord = self.chord[actuator_id]
+                    twist = self.twist[actuator_id]
 
-                    x_0 = as_tensor([0.0, rdim, 0.0])
-                    x_0 = dot(x_0, rx)
+                    x_0_base = as_tensor([0.0, rdim, 0.0])
+
+                    x_0 = dot(x_0_base, rx)
                     x_0 += as_tensor([0.0, 0.0, self.z])
+
+                    x_0_prev = dot(x_0_base, rx_prev)
+                    x_0_prev += as_tensor([0.0, 0.0, self.z])
                                     
-                    tf += self.build_actuator_node(u, x_0, n_0, rdim, chord, w)
+                    tf += self.build_actuator_node(u, x_0, x_0_prev, n_0, rdim, w, chord, twist)
 
             self.tf = tf
 
