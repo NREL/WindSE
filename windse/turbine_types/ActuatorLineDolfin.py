@@ -5,14 +5,14 @@ import os
 
 from windse import windse_parameters
 if windse_parameters.dolfin_adjoint:
-    from windse.blocks import blockify, ActuatorLineForceBlock
+    from windse.blocks import blockify, InterpBlock
 
 from . import GenericTurbine
 
 from . import (Constant, Expression, Function, Point, assemble, dot, dx,
 pi, cos, acos, asin, sin, sqrt, exp, cross, as_tensor, SpatialCoordinate)
 
-from windse.helper_functions import mpi_eval
+from windse.helper_functions import mpi_eval, ufl_eval
 
 '''
 FIXME After Jeff Meeting 1/13/22
@@ -35,11 +35,13 @@ class ActuatorLineDolfin(GenericTurbine):
         # blockify custom functions so dolfin adjoint can track them
         if self.params.performing_opt_calc:
             block_kwargs = {
-                # "construct_sparse_ids":self.construct_sparse_ids,
-                "control_types": self.params["optimization"]["control_types"],
-                "turb": self
+                "func": self.lookup_lift_coeff
             }
-            self.turbine_force = blockify(self.turbine_force,ActuatorLineForceBlock,block_kwargs=block_kwargs)
+            self.lookup_lift_coeff = blockify(self.lookup_lift_coeff,InterpBlock,block_kwargs=block_kwargs)
+            block_kwargs = {
+                "func": self.lookup_drag_coeff
+            }
+            self.lookup_drag_coeff = blockify(self.lookup_drag_coeff,InterpBlock,block_kwargs=block_kwargs)
 
 
         # init some flags
@@ -223,13 +225,9 @@ class ActuatorLineDolfin(GenericTurbine):
                 # print('Reading Airfoil Data #%d' % (station_id))
                 data = np.genfromtxt('%s/af_station_%d.txt' % (airfoil_data_path, station_id), skip_header=1, delimiter=' ')
 
-                s_0 = station_radii[station_id]*np.ones(np.shape(data)[0])
-
                 angles_0 = data[:, 0]
                 c_lift_0 = data[:, 1]
                 c_drag_0 = data[:, 2]
-
-                s_i = station_radii[station_id]*np.ones(np.size(angles_i))
 
                 c_lift_interp = interp.interp1d(angles_0, c_lift_0, kind='linear')
                 c_drag_interp = interp.interp1d(angles_0, c_drag_0, kind='linear')
@@ -238,48 +236,33 @@ class ActuatorLineDolfin(GenericTurbine):
                 c_drag_i = c_drag_interp(angles_i)
 
                 if station_id == 0:
-                    station = s_i
-                    angles = angles_i
                     c_lift = c_lift_i
                     c_drag = c_drag_i
                 else:
-                    station = np.hstack((station, s_i))
-                    angles = np.hstack((angles, angles_i))
-                    c_lift = np.hstack((c_lift, c_lift_i))
-                    c_drag = np.hstack((c_drag, c_drag_i))
-
-            nodes = np.vstack((station, angles)).T
+                    c_lift = np.vstack((c_lift, c_lift_i))
+                    c_drag = np.vstack((c_drag, c_drag_i))
 
             # Create interpolation functions for lift and drag based on angle of attack and location along blade
-            self.lookup_cl = interp.LinearNDInterpolator(nodes, c_lift)
-            self.lookup_cd = interp.LinearNDInterpolator(nodes, c_drag)
+            self.lookup_cl = interp.RectBivariateSpline(station_radii, angles_i, c_lift)
+            self.lookup_cd = interp.RectBivariateSpline(station_radii, angles_i, c_drag)
 
         else:
-            self.lookup_cl = None
+            self.lookup_cl = None # TODO: We probably need to handle this case
             self.lookup_cd = None
 
 
-    def fake_scipy_lift(self, rdim, aoa):
+    def lookup_lift_coeff(self, rdim, aoa, dx=0, dy=0):
 
-        cl = self.lookup_cl(rdim, aoa)
-        # cl = 1.0
+        cl = self.lookup_cl(rdim, aoa, dx=dx, dy=dy)[0][0]
         
         return cl
 
 
-    def fake_scipy_drag(self, rdim, aoa):
+    def lookup_drag_coeff(self, rdim, aoa, dx=0, dy=0):
         
-        cd = self.lookup_cd(rdim, aoa)
-        # cd = 0.1
-        
+        cd = self.lookup_cd(rdim, aoa, dx=dx, dy=dy)[0][0]
+
         return cd
-
-
-    # def mpi_eval(self, u_k, x_0):
-    #     a = Constant(u_k(x_0))
-        
-    #     return a
-
 
     def rot_x(self, theta):
         Rx = as_tensor([[1, 0, 0],
@@ -315,89 +298,45 @@ class ActuatorLineDolfin(GenericTurbine):
     def calcuate_aoa(self, vel_rel, n_0):
             
         def get_angle_between_vectors(a, b, n):
-            
-            DEBUGGING = False
-            
-            if DEBUGGING:
-                a_x_b = np.dot(np.cross(n, a), b)
+            a_x_b = dot(cross(n, a), b)
 
-                norm_a = np.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2])
-                norm_b = np.sqrt(b[0]*b[0] + b[1]*b[1] + b[2]*b[2])
+            norm_a = sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2])
+            norm_b = sqrt(b[0]*b[0] + b[1]*b[1] + b[2]*b[2])
 
-                c1 = a_x_b/(norm_a*norm_b)
-                c1 = np.clip(c1, -1.0, 1.0)
-                aoa_1_np= np.arcsin(c1)
+            c1 = a_x_b/(norm_a*norm_b)
+            # c1 = np.clip(c1, -1.0, 1.0)
+            aoa_1 = asin(c1)
 
-                c2 = np.dot(a, b)/(norm_a*norm_b)
-                c2 = np.clip(c2, -1.0, 1.0)
-                aoa_2_np = np.arccos(c2)
+            c2 = dot(a, b)/(norm_a*norm_b)
+            # c2 = np.clip(c2, -1.0, 1.0)
+            aoa_2 = acos(c2)
 
-
-
-
-                a_x_b = dot(cross(n, a), b)
-
-                norm_a = sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2])
-                norm_b = sqrt(b[0]*b[0] + b[1]*b[1] + b[2]*b[2])
-
-                c1 = a_x_b/(norm_a*norm_b)
-        #         c1 = np.clip(c1, -1.0, 1.0)
-                aoa_1 = asin(c1)
-
-                c2 = dot(a, b)/(norm_a*norm_b)
-        #         c2 = np.clip(c2, -1.0, 1.0)
-                aoa_2 = acos(c2)
-
-                if aoa_2_np > pi/2.0:
-                    if aoa_1_np < 0:
-                        aoa_1 = -pi - aoa_1
-                    else:
-                        aoa_1 = pi - aoa_1
-            else:
-                aoa_1 = 1.0
+            if ufl_eval(aoa_2) > pi/2.0:
+                if ufl_eval(aoa_1) < 0:
+                    aoa_1 = -pi - aoa_1
+                else:
+                    aoa_1 = pi - aoa_1
 
             return aoa_1
 
-    #     wind_vec = vel_rel
+        # wind_vec = vel_rel
 
-    #     # Remove the component in the radial direction (along the blade span)
-    #     wind_vec -= np.dot(vel_rel, n_0[:, 1])*n_0[:, 1]
+        # # Remove the component in the radial direction (along the blade span)
+        # wind_vec -= np.dot(vel_rel, n_0[:, 1])*n_0[:, 1]
 
-    #     vel_fluid -= dot(vel_fluid, n_0[:, 1])*n_0[:, 1]
-        # aoa = get_angle_between_vectors(arg1, arg2, arg3)
-        # arg1 = in-plane vector pointing opposite rotation (blade sweep direction)
-        # arg2 = relative wind vector at node k, including blade rotation effects (wind direction)
-        # arg3 = unit vector normal to plane of rotation, in this case, radially along span
+        # # aoa = get_angle_between_vectors(arg1, arg2, arg3)
+        # # arg1 = in-plane vector pointing opposite rotation (blade sweep direction)
+        # # arg2 = relative wind vector at node k, including blade rotation effects (wind direction)
+        # # arg3 = unit vector normal to plane of rotation, in this case, radially along span
         
-        # TODO : verify if this is necessary or not
-    #     print(vel_rel.values())
-    #     vel_rel = vel_rel - dot(vel_rel, n_0[:, 1]) * n_0[:, 1]
-    #     print(vel_rel.values())
+        # # TODO : verify if this is necessary or not
+        # print(vel_rel.values())
+        # vel_rel = vel_rel - dot(vel_rel, n_0[:, 1]) * n_0[:, 1]
+        # print(vel_rel.values())
 
         aoa = get_angle_between_vectors(-n_0[:, 2], vel_rel, -n_0[:, 1])
 
         return aoa
-
-
-    def lookup_lift_coeff(self, rdim, aoa):
-        
-    #     TODO: Jeff, make this take in rdim and aoa, analogous to looking up terrain 
-    #     val = self.dom.Ground(float(x),float(y),dx=dx,dy=dy)
-    #     return Constant(val)
-        cl = self.fake_scipy_lift(rdim, aoa)
-
-        return Constant(cl)
-
-
-    def lookup_drag_coeff(self, rdim, aoa):
-        
-    #     TODO: Jeff, make this take in rdim and aoa, analogous to looking up terrain 
-    #     val = self.dom.Ground(float(x),float(y),dx=dx,dy=dy)
-    #     return Constant(val)
-        cd = self.fake_scipy_drag(rdim, aoa)
-        
-        return Constant(cd)
-
 
     def build_lift_drag_vec(self, vel_rel_unit, n_0):
         # The drag unit vector is oriented opposite of the relative fluid velocity
@@ -423,6 +362,7 @@ class ActuatorLineDolfin(GenericTurbine):
         r2 = delta_x**2.0 + delta_y**2.0 + delta_z**2.0
         
         # Compute the Gaussian kernel
+        # TODO: have this read from gaussian_width yaml
         gauss_kernel = exp(-r2/(self.eps**2.0))/(self.eps**3.0*np.pi**1.5)
 
         return gauss_kernel
@@ -432,7 +372,7 @@ class ActuatorLineDolfin(GenericTurbine):
         use_tip_loss = True
     #     if self.tip_loss:
         if use_tip_loss:
-            if rdim < 1e-12:
+            if float(rdim) < 1e-12:
                 tip_loss_fac = 1.0
 
             else:
@@ -483,10 +423,11 @@ class ActuatorLineDolfin(GenericTurbine):
 
         # Calculate the angle of attack for this actuator node node
         aoa = self.calcuate_aoa(vel_rel, n_0)
+        aoa_f = ufl_eval(aoa)
         
         # Lookup the lift and drag coefficients
-        cl = self.lookup_lift_coeff(rdim, aoa)
-        cd = self.lookup_drag_coeff(rdim, aoa)
+        cl = self.lookup_lift_coeff(rdim, aoa_f)
+        cd = self.lookup_drag_coeff(rdim, aoa_f)
 
         # Calculate the tip loss factor
         tip_loss_fac = self.calculate_tip_loss(rdim, aoa)
@@ -549,12 +490,13 @@ class ActuatorLineDolfin(GenericTurbine):
                 
                 for actuator_id in range(self.num_actuator_nodes):
                     # These quantities may vary on a node-by-node basis
-                    rdim = self.radius*actuator_id/(self.num_actuator_nodes-1)
+                    rdim = Constant(self.radius*actuator_id/(self.num_actuator_nodes-1))
                     w = self.radius/(self.num_actuator_nodes-1)
                     
-                    if rdim < 1e-6 or rdim > self.radius - 1e-6:
+                    if float(rdim) < 1e-6 or float(rdim) > self.radius - 1e-6:
                         w = 0.5*w
                         
+                    # TODO: read in from self.mchord
                     chord = Constant(4.0)
 
                     x_0 = as_tensor([0.0, rdim, 0.0])
@@ -569,7 +511,24 @@ class ActuatorLineDolfin(GenericTurbine):
 
         else:
             self.simTime.assign(kwargs['simTime'])
-            
+
+            # TODO: we got to do something like this. By storing the aoa forms in a list, 
+            # we should be able to just reassemble them after changing the time. We also 
+            # might need to do something similar to velocity
+
+            # for blade_id in range(self.num_blades):
+            #     for actuator_id in range(self.num_actuator_nodes):
+            #         rdim = Constant(self.radius*actuator_id/(self.num_actuator_nodes-1))
+            #         aoa_f = ufl_eval(aoa_list[blade_id][actuator_id])
+
+            #         # Lookup the lift and drag coefficients
+            #         cl_list[blade_id][actuator_id].assign(self.lookup_lift_coeff(rdim, aoa_f))
+            #         cd_list[blade_id][actuator_id].assign(self.lookup_drag_coeff(rdim, aoa_f))
+            #         
+            #         # Re Evaluate velocity
+            #         mpi_u_fluid_list[blade_id][actuator_id].assign(mpi_eval(u_k, x_0))
+
+
 
         return self.tf
         

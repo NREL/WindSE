@@ -192,13 +192,13 @@ class ActuatorDisk(GenericTurbine):
         if self.mchord is not None:
             if self.chord is not None:
                 if self.blade_segments == "computed":
-                    self.num_blade_segments = 10 ##### FIX THIS ####
-                    self.blade_segments = self.num_blade_segments
+                    self.num_actuator_nodes = 10 ##### FIX THIS ####
+                    self.blade_segments = self.num_actuator_nodes
                 else:
-                    self.num_blade_segments = self.blade_segments
+                    self.num_actuator_nodes = self.blade_segments
 
                 if self.read_turb_data:
-                    print('Num blade segments: ', self.num_blade_segments)
+                    print('Num blade segments: ', self.num_actuator_nodes)
                     turb_data = self.params["wind_farm"]["read_turb_data"]
                     self.fprint('Setting chord from file \'%s\'' % (turb_data))
                     actual_turbine_data = np.genfromtxt(turb_data, delimiter = ',', skip_header = 1)
@@ -210,7 +210,7 @@ class ActuatorDisk(GenericTurbine):
                     self.chord = chord_interp(interp_points)
                 else:
                     self.chord = np.ones(self.blade_segments)
-            self.num_blade_segments = self.blade_segments
+            self.num_actuator_nodes = self.blade_segments
             self.baseline_chord = copy.copy(self.chord)
 
             self.cl = np.ones(self.blade_segments)

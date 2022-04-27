@@ -1413,7 +1413,7 @@ class UnsteadySolver(GenericSolver):
         # print(self.problem.farm.radius)
 
         # Discretize each blade into separate nodes
-        num_blade_segments = 10
+        num_actuator_nodes = 10
 
         #================================================================
         # Set Derived Constants
@@ -1422,41 +1422,41 @@ class UnsteadySolver(GenericSolver):
         # Calculate the blade velocity
         period = 60.0/RPM
         tip_speed = np.pi*2.0*L*RPM/60.0
-        blade_vel = np.vstack((np.zeros(num_blade_segments),
-                               np.zeros(num_blade_segments),
-                               np.linspace(0.0, tip_speed, num_blade_segments)))
+        blade_vel = np.vstack((np.zeros(num_actuator_nodes),
+                               np.zeros(num_actuator_nodes),
+                               np.linspace(0.0, tip_speed, num_actuator_nodes)))
 
         # Set the initial angle of each blade
         theta_vec = np.linspace(0.0, 2.0*np.pi, num_blades+1)
         theta_vec = theta_vec[0:num_blades]
 
         # Calculate discrete node positions
-        rdim = np.linspace(0.0, L, num_blade_segments)
+        rdim = np.linspace(0.0, L, num_actuator_nodes)
 
         # Calculate width of individual blade segment
         w = rdim[1] - rdim[0]
 
         # Calculate an array describing the x, y, z position of each point
-        xblade = np.vstack((np.zeros(num_blade_segments),
+        xblade = np.vstack((np.zeros(num_actuator_nodes),
                             rdim,
-                            np.zeros(num_blade_segments)))
+                            np.zeros(num_actuator_nodes)))
 
         #================================================================
         # Begin Calculating Turbine Forces
         #================================================================
 
         # Lift and drag coefficient (could be an array and you interpolate the value based on R)
-        # cl_dolf = Constant((np.linspace(1.5, 0.5, num_blade_segments)))
-        # cd_dolf = Constant((np.ones(num_blade_segments)))
+        # cl_dolf = Constant((np.linspace(1.5, 0.5, num_actuator_nodes)))
+        # cd_dolf = Constant((np.ones(num_actuator_nodes)))
         # cl = cl_dolf.values()
         # cd = cd_dolf.values()
 
-        cl = np.linspace(0.0, 2.0, num_blade_segments) # Uncomment for controllability study
-        cd = np.linspace(2.0, 0.0, num_blade_segments)
-        # cl = np.linspace(2.0, 0.0, num_blade_segments) # Uncomment for controllability study
-        # cd = np.linspace(0.0, 2.0, num_blade_segments)
-        # cl = np.ones(num_blade_segments)
-        # cd = np.ones(num_blade_segments)
+        cl = np.linspace(0.0, 2.0, num_actuator_nodes) # Uncomment for controllability study
+        cd = np.linspace(2.0, 0.0, num_actuator_nodes)
+        # cl = np.linspace(2.0, 0.0, num_actuator_nodes) # Uncomment for controllability study
+        # cd = np.linspace(0.0, 2.0, num_actuator_nodes)
+        # cl = np.ones(num_actuator_nodes)
+        # cd = np.ones(num_actuator_nodes)
 
 
         # Create space to hold the vector values
@@ -1482,7 +1482,7 @@ class UnsteadySolver(GenericSolver):
             xblade_rotated = np.dot(Rz, np.dot(Rx, xblade))
             xblade_rotated[2, :] += hub_height
 
-            # Tile the blade coordinates for every mesh point, [numGridPts*ndim x num_blade_segments]
+            # Tile the blade coordinates for every mesh point, [numGridPts*ndim x num_actuator_nodes]
             xblade_rotated_full = np.tile(xblade_rotated, (np.shape(coords)[0], 1))
 
             # Subtract and square to get the dx^2 values in the x, y, and z directions
@@ -1496,23 +1496,23 @@ class UnsteadySolver(GenericSolver):
         
             if using_local_velocity:
                 # Generate the fluid velocity from the actual node locations in the flow
-                u_fluid = np.zeros((3, num_blade_segments))
+                u_fluid = np.zeros((3, num_actuator_nodes))
                 
-                for k in range(num_blade_segments):
+                for k in range(num_actuator_nodes):
                     u_fluid[:, k] = self.problem.u_k1(xblade_rotated[0, k],
                                                       xblade_rotated[1, k],
                                                       xblade_rotated[2, k])
                                     
             else:
                 # Generate the fluid velocity analytically using the hub height velocity
-                # u_inf_vec = u_inf*np.ones(num_blade_segments)
+                # u_inf_vec = u_inf*np.ones(num_actuator_nodes)
                 
                 # u_fluid = np.vstack((u_inf_vec,
-                #                      np.zeros(num_blade_segments),
-                #                      np.zeros(num_blade_segments)))
-                u_fluid = np.zeros((3, num_blade_segments))
+                #                      np.zeros(num_actuator_nodes),
+                #                      np.zeros(num_actuator_nodes)))
+                u_fluid = np.zeros((3, num_actuator_nodes))
                 
-                for k in range(num_blade_segments):
+                for k in range(num_actuator_nodes):
                     u_fluid[0, k] = 8.0*(xblade_rotated[2, k]/hub_height)**0.18
 
             
@@ -1538,7 +1538,7 @@ class UnsteadySolver(GenericSolver):
             # Calculate a vector in the direction of the blade
             blade_unit = xblade_rotated[:, -1] - np.array([0.0, 0.0, hub_height])  
             
-            for k in range(num_blade_segments):
+            for k in range(num_actuator_nodes):
                 # The drag unit simply points opposite the relative velocity unit vector
                 drag_unit = -u_unit[:, k]
                 
@@ -1598,10 +1598,10 @@ class UnsteadySolver(GenericSolver):
         c = L/20
 
         # Number of blade evaluation sections
-        num_blade_segments = 50
-        rdim = np.linspace(0, L, num_blade_segments)
-        zdim = 0.0 + np.zeros(num_blade_segments)
-        xblade = np.vstack((np.zeros(num_blade_segments), rdim, zdim))
+        num_actuator_nodes = 50
+        rdim = np.linspace(0, L, num_actuator_nodes)
+        zdim = 0.0 + np.zeros(num_actuator_nodes)
+        xblade = np.vstack((np.zeros(num_actuator_nodes), rdim, zdim))
 
         # Width of individual blade segment
         w = rdim[1] - rdim[0]
@@ -1620,7 +1620,7 @@ class UnsteadySolver(GenericSolver):
 
         tip_speed = np.pi*2*L*RPM/60
 
-        blade_vel = np.linspace(0.0, tip_speed, num_blade_segments)
+        blade_vel = np.linspace(0.0, tip_speed, num_actuator_nodes)
 
 
         constant_vel_mag = True

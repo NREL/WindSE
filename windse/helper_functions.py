@@ -7,6 +7,16 @@ if windse_parameters.dolfin_adjoint:
     from dolfin_adjoint import *
     from windse.blocks import blockify, MpiEvalBlock
 
+def ufl_eval(form):
+    '''
+    This function converts complex ufl forms to floats
+    '''
+    mesh = UnitIntervalMesh(2)
+    dx_lame = Measure("dx",mesh)
+    out = assemble(form*dx_lame)
+    return out
+
+
 def mpi_eval(u, x, comm=MPI.comm_world):
 
     '''
@@ -89,3 +99,7 @@ if windse_parameters.dolfin_adjoint:
         "base_eval": mpi_eval
     }
     mpi_eval = blockify(mpi_eval,MpiEvalBlock,block_kwargs=block_kwargs)
+
+
+
+

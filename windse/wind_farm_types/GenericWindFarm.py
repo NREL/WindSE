@@ -390,7 +390,7 @@ class GenericWindFarm(object):
             plt.plot(x,bounds[1][-baseline_blade_segments:],"--r")
 
         for turb in self.turbines:
-            x = np.linspace(0,1,turb.num_blade_segments)
+            x = np.linspace(0,1,turb.num_actuator_nodes)
             y = np.array(turb.chord,dtype=float)
             plt.plot(x,y,'.-',label=turb.index)
 
@@ -482,8 +482,8 @@ class GenericWindFarm(object):
         thickness = np.zeros(self.numturbs)
         axial = np.zeros(self.numturbs)
         for i,turb in enumerate(self.turbines):
-            if turb.type == 'line':
-                thickness[i] = turb.gaussian_width
+            if 'line' in turb.type:
+                thickness[i] = np.nan
                 axial[i] = np.nan
             else:
                 thickness[i] = turb.thickness

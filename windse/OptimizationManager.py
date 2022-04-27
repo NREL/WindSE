@@ -409,7 +409,7 @@ class Optimizer(object):
 
         if "lift" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.farm.turbines[0].num_blade_segments):
+                for k in range(self.farm.turbines[0].num_actuator_nodes):
                     self.control_pointers.append(("lift",[i,k]))
                     self.indexes[4].append(j)
                     j+=1
@@ -419,7 +419,7 @@ class Optimizer(object):
 
         if "drag" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.farm.turbines[0].num_blade_segments):
+                for k in range(self.farm.turbines[0].num_actuator_nodes):
                     self.control_pointers.append(("drag",[i,k]))
                     self.indexes[5].append(j)
                     j+=1
@@ -429,7 +429,7 @@ class Optimizer(object):
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.farm.turbines[0].num_blade_segments):
+                for k in range(self.farm.turbines[0].num_actuator_nodes):
                     self.control_pointers.append(("chord",[i,k]))
                     self.indexes[6].append(j)
                     j+=1
@@ -461,25 +461,25 @@ class Optimizer(object):
 
         if "lift" in self.control_types:
             for i in self.solver.opt_turb_id:
-                num_blade_segments = self.farm.turbines[i].num_blade_segments
-                for k in range(num_blade_segments):
+                num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
+                for k in range(num_actuator_nodes):
                     lower_bounds.append(Constant(0))
                     upper_bounds.append(Constant(2.))
 
         if "drag" in self.control_types:
             for i in self.solver.opt_turb_id:
-                num_blade_segments = self.farm.turbines[i].num_blade_segments
-                for k in range(num_blade_segments):
+                num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
+                for k in range(num_actuator_nodes):
                     lower_bounds.append(Constant(0))
                     upper_bounds.append(Constant(2.))
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
                 c_avg = 0
-                num_blade_segments = self.farm.turbines[i].num_blade_segments
+                num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
                 max_chord = self.farm.turbines[i].max_chord
                 baseline_chord = self.farm.turbines[i].baseline_chord
-                for k in range(num_blade_segments):
+                for k in range(num_actuator_nodes):
                     modifier = 2.0
                     max_chord = max_chord
                     seg_chord = baseline_chord[k]

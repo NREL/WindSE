@@ -87,12 +87,12 @@ class GenericProblem(object):
                     chord = []
                     cl = []
                     cd = []
-                    num_blade_segments = []
+                    num_actuator_nodes = []
                     for i in range(self.farm.numturbs):
                         chord.append(self.farm.turbines[i].chord)
                         cl.append(self.farm.turbines[i].cl)
                         cd.append(self.farm.turbines[i].cd)
-                        num_blade_segments.append(self.farm.turbines[i].num_blade_segments)
+                        num_actuator_nodes.append(self.farm.turbines[i].num_actuator_nodes)
 
                     self.tag_output("min_chord", np.min(chord))
                     self.tag_output("max_chord", np.max(chord))
@@ -103,7 +103,7 @@ class GenericProblem(object):
                     self.tag_output("min_cd", np.min(cd))
                     self.tag_output("max_cd", np.max(cd))
                     self.tag_output("avg_cd", np.mean(cd))
-                    self.tag_output("num_blade_segments", np.mean(num_blade_segments))
+                    self.tag_output("num_actuator_nodes", np.mean(num_actuator_nodes))
                 
 
     def ComputeTurbineForce(self,u,inflow_angle,**kwargs):
@@ -186,7 +186,7 @@ class GenericProblem(object):
         self.farm.cl = self.cl
         self.farm.cd = self.cd
         self.farm.chord = self.chord
-        self.farm.num_blade_segments = self.num_blade_segments
+        self.farm.num_actuator_nodes = self.num_actuator_nodes
 
     def SimpleControlUpdate(self):
         self.u_k, self.p_k = split(self.up_k)
@@ -225,17 +225,17 @@ class GenericProblem(object):
         if c_lift is not None:
             cl = np.array(c_lift, dtype = float)
             self.cl[turb_i] = cl
-            for k in range(self.num_blade_segments):
+            for k in range(self.num_actuator_nodes):
                 self.mcl[turb_i][k] = Constant(cl[k])
         if c_drag is not None:
             cd = np.array(c_drag, dtype = float)
             self.cd[turb_i] = cd
-            for k in range(self.num_blade_segments):
+            for k in range(self.num_actuator_nodes):
                 self.mcd[turb_i][k] = Constant(cd[k])
         if chord is not None:
             chord = np.array(chord, dtype = float)
             self.chord[turb_i] = chord
-            for k in range(self.num_blade_segments):
+            for k in range(self.num_actuator_nodes):
                 self.mchord[turb_i][k] = Constant(chord[k])
         if yaw is not None:
             yaw = float(yaw)
@@ -712,7 +712,7 @@ class UnsteadyProblem(GenericProblem):
 #         if c_drag is not None:
 #             cd = np.array(c_drag, dtype = float)
 
-#         for k in range(self.num_blade_segments):
+#         for k in range(self.num_actuator_nodes):
 #             self.mcl[k] = Constant(cl[k])
 #             self.mcd[k] = Constant(cd[k])
 
