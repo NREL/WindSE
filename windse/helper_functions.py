@@ -11,7 +11,7 @@ def ufl_eval(form):
     '''
     This function converts complex ufl forms to floats
     '''
-    mesh = UnitCubeMesh(2,2,2)
+    mesh = UnitCubeMesh(2,2,2) # TODO: this might be bad in parallel
     dx_lame = Measure("dx",mesh)
     out = assemble(form*dx_lame)
     return out
@@ -90,7 +90,32 @@ def mpi_eval(u, x, comm=MPI.comm_world):
 
     return Constant(ux)
 
+def test_dolfin_adjoint(control_list,form):
 
+    if form.ufl_domain() is None:
+        mesh = UnitCubeMesh(8,8,8)
+        dx = Measure("dx",mesh)
+        J = assemble(form*dx)
+    else:
+        dx = Measure("dx",form.ufl_domain())
+        J = assemble(form*dx)
+
+    h = []
+    controls = []
+    init_vals = []
+    for c in control_list:
+        h.append(Constant(0.1*float(c)))
+        controls.append(Control(c))
+        init_vals.append(Constant(float(c)))
+
+    Jhat = ReducedFunctional(J,controls)
+
+    conv_rate = taylor_test(Jhat, init_vals, h)
+
+    der = Jhat.derivative()
+
+    for d in der:
+        print(d.values())
 
 
 # blockify functions as needed

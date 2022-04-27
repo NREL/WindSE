@@ -10,10 +10,9 @@ if windse_parameters.dolfin_adjoint:
 from . import GenericTurbine
 
 from . import (Constant, Expression, Function, Point, assemble, dot, dx,
-pi, cos, acos, asin, sin, sqrt, exp, cross, as_tensor, SpatialCoordinate,
-VectorFunctionSpace, ReducedFunctional, Control, Measure, taylor_test,
-UnitCubeMesh,)
-from windse.helper_functions import mpi_eval, ufl_eval
+pi, cos, acos, asin, sin, sqrt, exp, cross, as_tensor, as_vector, SpatialCoordinate
+)
+from windse.helper_functions import mpi_eval, ufl_eval, test_dolfin_adjoint
 
 '''
 FIXME After Jeff Meeting 1/13/22
@@ -85,12 +84,7 @@ class ActuatorLineDolfin(GenericTurbine):
 
 
     def compute_parameters(self):
-        # compute turbine radius
-        self.rho = 1.0
-        self.num_blades = 3
-        self.radius = 0.5*self.RD
-        self.angular_velocity = 2.0*pi*self.rpm/60.0
-
+        pass
 
     def create_controls(self, initial_call_from_setup=True):
 
@@ -108,14 +102,24 @@ class ActuatorLineDolfin(GenericTurbine):
             self.mcl = []
             self.mcd = []
 
-            for k in range(self.num_actuator_nodes):
-                self.mchord.append(Constant(self.chord[k]))
-                self.mtwist.append(Constant(self.twist[k]))
-                self.mcl.append(Constant(self.cl[k]))
-                self.mcd.append(Constant(self.cd[k]))
+            for i in range(self.num_blades):
+                self.mcl.append([])
+                self.mcd.append([])
+                for j in range(self.num_actuator_nodes):
+                    self.mcl[i].append(Constant(self.cl[j]))
+                    self.mcd[i].append(Constant(self.cd[j]))
 
+            for j in range(self.num_actuator_nodes):
+                self.mchord.append(Constant(self.chord[j]))
+                self.mtwist.append(Constant(self.twist[j]))
 
     def init_alm_calc_terms(self):
+        # compute turbine radius
+        self.rho = 1.0
+        self.num_blades = 3
+        self.radius = 0.5*self.RD
+        self.angular_velocity = 2.0*pi*self.rpm/60.0
+
 
         self.simTime = Constant(0.0)
         self.simTime_prev = Constant(0.0)
@@ -127,6 +131,33 @@ class ActuatorLineDolfin(GenericTurbine):
             self.num_actuator_nodes = int(2.0*self.radius/self.eps)
         else:
             self.num_actuator_nodes = self.blade_segments
+
+        # Build along blade dims
+        w = self.radius/(self.num_actuator_nodes-1)
+        self.w = []
+        self.rdim = []
+        for i in range(self.num_actuator_nodes):
+            if i == 0 or i == self.num_actuator_nodes - 1:
+                self.w.append(Constant(w/2.0))
+            else:
+                self.w.append(Constant(w/2.0))
+            self.rdim.append(Constant(self.radius*i/(self.num_actuator_nodes-1)))
+
+        # Initialize lists
+        self.aoa_forms = []
+        self.aoa_values = []
+        self.vel_fluid = []
+        self.x_0_prev = []
+        for i in range(self.num_blades):
+            self.aoa_forms.append([])
+            self.aoa_values.append([])
+            self.vel_fluid.append([])
+            self.x_0_prev.append([])
+            for j in range(self.num_actuator_nodes):
+                self.aoa_forms[i].append(0.0)
+                self.aoa_values[i].append(Constant(0.0))
+                self.vel_fluid[i].append(Constant((0.0,0.0,0.0)))  
+                self.x_0_prev[i].append(Constant((0.0,0.0,0.0)))  
 
 
     def init_blade_properties(self):
@@ -265,6 +296,7 @@ class ActuatorLineDolfin(GenericTurbine):
 
         return cd
 
+    # TODO: use the one from GenericTurbine
     def rot_x(self, theta):
         Rx = as_tensor([[1, 0, 0],
                        [0, cos(theta), -sin(theta)],
@@ -273,10 +305,12 @@ class ActuatorLineDolfin(GenericTurbine):
         return Rx
 
 
-    def calculate_relative_fluid_velocity(self, u_k, x_0, n_0, rdim):
+    def calculate_relative_fluid_velocity(self, u_k, x_0, n_0, blade_id, actuator_id):
+        rdim = self.rdim[actuator_id]
 
         # Evaluate the fluid velocity u_k at the point x_0 
-        vel_fluid = mpi_eval(u_k, x_0)
+        self.vel_fluid[blade_id][actuator_id].assign(mpi_eval(u_k, x_0))
+        vel_fluid = self.vel_fluid[blade_id][actuator_id]
         
         # Remove the component of the fluid velocity oriented along the blade's axis
         vel_fluid -= dot(vel_fluid, n_0[:, 1])*n_0[:, 1]
@@ -318,7 +352,7 @@ class ActuatorLineDolfin(GenericTurbine):
                 else:
                     aoa_1 = pi - aoa_1
 
-            return aoa_1, aoa_1_np
+            return aoa_1
 
         # wind_vec = vel_rel
 
@@ -335,12 +369,11 @@ class ActuatorLineDolfin(GenericTurbine):
         # vel_rel = vel_rel - dot(vel_rel, n_0[:, 1]) * n_0[:, 1]
         # print(vel_rel.values())
 
-        aoa, aoa_1_np = get_angle_between_vectors(-n_0[:, 2], vel_rel, -n_0[:, 1])
+        aoa = get_angle_between_vectors(-n_0[:, 2], vel_rel, -n_0[:, 1])
 
         aoa -= twist
-        aoa_1_np -= twist
 
-        return aoa, aoa_1_np
+        return aoa
 
     def build_lift_drag_vec(self, vel_rel_unit, n_0):
         # The drag unit vector is oriented opposite of the relative fluid velocity
@@ -391,7 +424,7 @@ class ActuatorLineDolfin(GenericTurbine):
         return tip_loss_fac
 
 
-    def build_actuator_node(self, u_k, x_0, x_0_prev, n_0, rdim, w, chord, twist):
+    def build_actuator_node(self, u_k, x_0, n_0, blade_id, actuator_id):
         """
         Build the force function for a single actuator node.
 
@@ -421,66 +454,41 @@ class ActuatorLineDolfin(GenericTurbine):
                 A vector-valued UFL representation of the turbine force including both
                 lift and drag effects for a single actutor point.
         """
+        # Get blade properties
+        rdim = self.rdim[actuator_id]
+        w = self.w[actuator_id]
+        twist = self.mtwist[actuator_id]
+        chord = self.mchord[actuator_id]
 
         # Calculate the relative fluid velocity, a function of fluid and blade velocity    
-
-        rdim = Constant(1.0)
-        x_0 = as_tensor([rdim, rdim, rdim])
-        mesh = UnitCubeMesh(8,8,8)
-        dx = Measure("dx",mesh)
-        V = VectorFunctionSpace(mesh, 'P', 1)
-
-        u_k = Function(V)
-
-        e = Expression(('x[0]', 'x[1]', 'x[2]'), degree=1)
-
-        u_k.interpolate(e)
-
-        vel_rel, vel_rel_mag, vel_rel_unit = self.calculate_relative_fluid_velocity(u_k, x_0, n_0, rdim)
+        vel_rel, vel_rel_mag, vel_rel_unit = self.calculate_relative_fluid_velocity(u_k, x_0, n_0, blade_id, actuator_id)
 
         # Calculate the angle of attack for this actuator node node
-        aoa = self.calcuate_aoa(vel_rel, n_0)
-        aoa_f = Constant(0.0)
-        aoa_f.assign(assemble(aoa*dx))
-        print(type(aoa_f))
+        self.aoa_forms[blade_id][actuator_id] = self.calcuate_aoa(vel_rel, n_0, twist)
+        self.aoa_values[blade_id][actuator_id].assign(ufl_eval(self.aoa_forms[blade_id][actuator_id]))
+        aoa_f = self.aoa_values[blade_id][actuator_id]
         
         # Lookup the lift and drag coefficients
-        cl = Constant(0.0)
-        cl.assign(self.lookup_lift_coeff(rdim, aoa_f))
-        cd = self.lookup_drag_coeff(rdim, aoa_f)
-
-        ### Test dolfin_adjoint ###
-        J = assemble(cl*dx)
-
-        control_list = []
-        control_list.append(rdim)
-
-        h = []
-        controls = []
-        init_vals = []
-        for c in control_list:
-            h.append(Constant(0.1*float(c)))
-            controls.append(Control(c))
-            init_vals.append(Constant(float(c)))
-
-        Jhat = ReducedFunctional(J,controls)
-
-        conv_rate = taylor_test(Jhat, init_vals, h)
-
-        der = Jhat.derivative()
-
-        for d in der:
-            print(d.values())
-
-        exit()
+        self.mcl[blade_id][actuator_id].assign(self.lookup_lift_coeff(rdim, aoa_f))
+        self.mcd[blade_id][actuator_id].assign(self.lookup_drag_coeff(rdim, aoa_f))
+        cl = self.mcl[blade_id][actuator_id]
+        cd = self.mcd[blade_id][actuator_id]
 
         # Calculate the tip loss factor
-        tip_loss_fac = self.calculate_tip_loss(rdim, aoa)
+        tip_loss_fac = self.calculate_tip_loss(rdim, self.aoa_forms[blade_id][actuator_id])
                 
         # Calculate the magnitude (a scalar quantity) of the lift and drag forces
         lift_mag = tip_loss_fac*(0.5*cl*self.rho*chord*w*vel_rel_mag**2.0)
         drag_mag = tip_loss_fac*(0.5*cd*self.rho*chord*w*vel_rel_mag**2.0)
-        
+
+        # if actuator_id == 2:
+        #     control_list = []
+        #     control_list.append(twist)
+        #     control_list.append(chord)
+        #     test_dolfin_adjoint(control_list,lift_mag)
+        #     print(ufl_eval(tip_loss_fac*(0.5*cl*self.rho*w*vel_rel_mag**2.0)))
+        #     exit()
+
         # Build a spherical Gaussian with width eps about point x_0
         gauss_kernel = self.build_gauss_kernel_at_point(u_k, x_0)
         
@@ -488,7 +496,7 @@ class ActuatorLineDolfin(GenericTurbine):
         # The result is a scalar function at each point on the grid
         projected_lift_mag = lift_mag*gauss_kernel
         projected_drag_mag = drag_mag*gauss_kernel
-        
+
         # Compute the orientation of the lift and drag unit vectors
         lift_unit, drag_unit = self.build_lift_drag_vec(vel_rel_unit, n_0)
         
@@ -498,7 +506,7 @@ class ActuatorLineDolfin(GenericTurbine):
 
         # The final force of this actuator is the sum of lift and drag effects
         actuator_force = lift_force + drag_force
-            
+
         return actuator_force
 
 
@@ -522,8 +530,8 @@ class ActuatorLineDolfin(GenericTurbine):
             for blade_id in range(self.num_blades):
                 # This can be built on a blade-by-blade basis
                 n_0_base = as_tensor([[1, 0, 0],
-                                 [0, 1, 0],
-                                 [0, 0, 1]])
+                                      [0, 1, 0],
+                                      [0, 0, 1]])
                 
                 theta_0 = 2.0*pi*(blade_id/self.num_blades)
                 theta = theta_0 + self.simTime*self.angular_velocity
@@ -541,47 +549,52 @@ class ActuatorLineDolfin(GenericTurbine):
                 n_0_prev = dot(rx_prev, n_0_base).T
 
                 for actuator_id in range(self.num_actuator_nodes):
-                    # These quantities may vary on a node-by-node basis
-                    rdim = Constant(self.radius*actuator_id/(self.num_actuator_nodes-1))
-                    w = self.radius/(self.num_actuator_nodes-1)
-                    
-                    if float(rdim) < 1e-6 or float(rdim) > self.radius - 1e-6:
-                        w = 0.5*w
-                        
-                    chord = self.chord[actuator_id]
-                    twist = self.twist[actuator_id]
 
-                    x_0_base = as_tensor([0.0, rdim, 0.0])
+                    x_0_base = as_tensor([0.0, self.rdim[actuator_id], 0.0])
 
                     x_0 = dot(x_0_base, rx)
-                    x_0 += as_tensor([0.0, 0.0, self.z])
+                    x_0 += as_tensor([0.0, 0.0, self.mz]) # TODO: what about mx and my do those matter
 
                     x_0_prev = dot(x_0_base, rx_prev)
-                    x_0_prev += as_tensor([0.0, 0.0, self.z])
+                    x_0_prev += as_tensor([0.0, 0.0, self.mz])
+
                                     
-                    tf += self.build_actuator_node(u, x_0, x_0_prev, n_0, rdim, w, chord, twist)
+                    tf += self.build_actuator_node(u, x_0, n_0, blade_id, actuator_id)
 
             self.tf = tf
+
+            control_list = []
+            control_list += self.mtwist[:-1]
+            control_list += self.mchord
+            test_dolfin_adjoint(control_list,dot(self.tf,as_vector((1.0,1.0,1.0))))
+            exit()
 
             self.first_call_to_alm = False
 
         else:
+            self.simTime_prev.assign(self.simTime)
             self.simTime.assign(kwargs['simTime'])
 
             # TODO: we got to do something like this. By storing the aoa forms in a list, 
             # we should be able to just reassemble them after changing the time. We also 
             # might need to do something similar to velocity
 
-            # for blade_id in range(self.num_blades):
-            #     for actuator_id in range(self.num_actuator_nodes):
-            #         # Re Evaluate velocity
-            #         mpi_u_fluid_list[blade_id][actuator_id].assign(mpi_eval(u_k, x_0))
+            for blade_id in range(self.num_blades):
+                for actuator_id in range(self.num_actuator_nodes):
+                    # Re Evaluate velocity
+                    x_0_prev = self.x_0_prev[blade_id][actuator_id]
+                    self.vel_fluid[blade_id][actuator_id].assign(mpi_eval(u, x_0_prev))
 
-            #         aoa_values_list[blade_id][actuator_id].assign(ufl_eval(aoa_forms_list[blade_id][actuator_id]))
+                    # Re Evaluate the aoa form
+                    self.aoa_values[blade_id][actuator_id].assign(ufl_eval(self.aoa_forms[blade_id][actuator_id]))
 
-            #         # Lookup the lift and drag coefficients
-            #         cl_list[blade_id][actuator_id].assign(self.lookup_lift_coeff(rdim_list[actuator_id], aoa_values_list[blade_id][actuator_id]))
-            #         cd_list[blade_id][actuator_id].assign(self.lookup_drag_coeff(rdim_list[actuator_id], aoa_values_list[blade_id][actuator_id]))
+                    # Get blade props
+                    rdim = self.rdim[actuator_id]
+                    aoa = self.aoa_values[blade_id][actuator_id]
+
+                    # Lookup the lift and drag coefficients
+                    self.mcl[blade_id][actuator_id].assign(self.lookup_lift_coeff(rdim,aoa))
+                    self.mcd[blade_id][actuator_id].assign(self.lookup_drag_coeff(rdim,aoa))
                     
 
 
