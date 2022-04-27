@@ -32,6 +32,7 @@ domain:                         # parameters for DomainManager
     nt:                  Null       # number of nodes in the theta direction for cylinder/circle domains
     res:                 Null       # the mshr resolution for cylinder/circle domains with the mshr mesh_type
     interpolated:        False      # lets you define a terrain_path to have complex domain
+    imported:            False      # lets you import either a Box or Cylinder domain from file
     analytic:            False      # use an analytic function instead of a terrain_path
     gaussian:                       # create a gaussian hill analytic complex terrain
         center:  [0.0, 0.0]             # center of the hill

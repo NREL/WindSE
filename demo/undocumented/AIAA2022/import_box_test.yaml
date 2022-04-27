@@ -1,0 +1,35 @@
+general: 
+    name: import_box_test
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    output_type: pvd
+    dolfin_adjoint: false
+
+wind_farm: 
+    type: imported
+    path: Input_Data/wind_farm_yaw.txt
+    force: sine
+
+domain: 
+    type: box
+    imported: True
+    path: output/export_box_test/mesh/exported_mesh/
+
+function_space:
+    type: linear
+
+boundary_conditions:
+    vel_profile: log
+    HH_vel: 8.0
+    k: 0.4
+    inflow_angle: [1.34,5.04,3]
+
+problem:
+    type: stabilized
+    viscosity: .1
+    lmax: 15
+
+
+solver:
+    type: multiangle
+    endpoint: true
+    save_power: true

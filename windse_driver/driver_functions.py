@@ -91,17 +91,19 @@ def BuildDomain(params):
     """
 
     ### Build Domain ###
-    if params["domain"]["interpolated"]:
+    if params["domain"]["imported"]:
+        dom_dict = {"box":windse.ImportedBoxDomain,
+                    "cylinder":windse.ImportedCylinderDomain,
+        }
+    elif params["domain"]["interpolated"]:
         dom_dict = {"box":windse.InterpolatedBoxDomain,
                     "cylinder":windse.InterpolatedCylinderDomain,
-                    "imported":windse.ImportedDomain
         }
     else:
         dom_dict = {"box":windse.BoxDomain,
                     "rectangle":windse.RectangleDomain,
                     "cylinder":windse.CylinderDomain,
                     "circle":windse.CircleDomain,
-                    "imported":windse.ImportedDomain,
                     "periodic":windse.PeriodicDomain}
     dom = dom_dict[params["domain"]["type"]]()
 

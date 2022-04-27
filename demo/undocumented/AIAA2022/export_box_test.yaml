@@ -1,0 +1,63 @@
+# General options
+general: 
+    name: export_box_test      # Name of the output folder
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    output_type: pvd
+    dolfin_adjoint: false
+
+# Wind Farm Parameters:
+wind_farm: 
+
+    ####################### Imported Wind Farm #######################
+    type: imported                   #                          |
+    path: Input_Data/wind_farm_yaw.txt   # location of wind farm    | -
+    force: sine                      # radial force distribution| -
+    ###################################################################
+
+domain: 
+    
+    ########################### Box Domain ############################
+    type: box              #                       |
+    x_range: [-1200, 1200] # x-range of the domain | m
+    y_range: [-1200, 1200] # y-range of the domain | m
+    z_range: [0.04, 640]   # z-range of the domain | m
+    nx: 16                 # Number of x-nodes     | -
+    ny: 16                 # Number of y-nodes     | -
+    nz: 10                 # Number of z-nodes      | -
+    ###################################################################
+
+refine:
+    warp_type: split
+    warp_percent: 0.7     # percent of cells moved       | -
+    warp_height: 250       # move cell below this value   | m
+    refine_custom: [
+        [box, [  [[-750,750],[-750,750],[ 0,200]]  ]]
+    ]
+    turbine_num: 1         # number of turbine refinements| -
+    turbine_factor: 1.0   # turbine radius multiplier    | -
+
+
+function_space:
+    type: linear
+
+boundary_conditions:
+    vel_profile: log
+    HH_vel: 8.0
+    k: 0.4
+    inflow_angle: [1.34,5.04,3]
+
+problem:
+    type: stabilized
+    viscosity: .1
+    lmax: 15
+
+
+solver:
+    type: multiangle
+    endpoint: true
+    save_power: true
+
+# optimization:
+#     control_types: [yaw]
+#     gradient: False
+    # optimize: True

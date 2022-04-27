@@ -1352,15 +1352,16 @@ class RectangleDomain(GenericDomain):
         mark_stop = time.time()
         self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
 
-class ImportedDomain(GenericDomain):
+class ImportedCylinderDomain(GenericDomain):
     """
-    This class generates a domain from imported files. This mesh is defined
-    by 2 parameters in the param.yaml file. 
+    This class generates a cylinder domain from imported files. 
 
     Example:
         In the yaml file define::
 
             domain: 
+                type: cylender
+                imported: true
                 path: "Mesh_data/"
                 filetype: "xml.gz"
 
@@ -1391,9 +1392,161 @@ class ImportedDomain(GenericDomain):
 
     def __init__(self):
         # raise NotImplementedError("Imported Domains need to be updated. Please use an Interpolated domain for now.")
-        super(ImportedDomain, self).__init__()
+        super(ImportedCylinderDomain, self).__init__()
 
-        self.fprint("Importing Domain",special="header")
+        self.fprint("Importing Cylinder Domain",special="header")
+
+        ### Import data from Options ###
+        if self.path is not None:
+            if self.filetype == "xml.gz":
+                self.mesh_path  = self.path + "mesh.xml.gz"
+                self.boundary_path = self.path + "boundaries.xml.gz"
+            elif self.filetype == "h5":
+                self.mesh_path = self.path + "mesh_data.h5"
+            if self.interpolated and self.terrain_path is not None:
+                self.terrain_path = self.path + "terrain.txt"
+
+        ### Copy Files to input folder ###
+        shutil.copy(self.mesh_path,self.params.folder+"input_files/")
+        if self.filetype == "xml.gz":
+            shutil.copy(self.boundary_path,self.params.folder+"input_files/")
+
+        ### Create the mesh ###
+        mesh_start = time.time()
+        self.fprint("")
+        self.fprint("Importing Mesh")
+        if self.filetype == "h5":
+            self.mesh = Mesh()
+            hdf5 = HDF5File(self.mesh.mpi_comm(), self.mesh_path, 'r')
+            hdf5.read(self.mesh, '/mesh', False)
+        elif self.filetype == "xml.gz":
+            self.mesh = Mesh(self.mesh_path)
+        else:
+            raise ValueError("Supported mesh types: h5, xml.gz.")
+        self.mesh.coordinates()[:] *= self.xscale
+
+        self.bmesh = BoundaryMesh(self.mesh,"exterior")
+        mesh_stop = time.time()
+        self.dim = self.mesh.topology().dim()
+
+        if self.dim != 3:
+            raise ValueError("Currently, only 3D meshes can be imported.")
+
+        # compute the center of the domain (needed for recomputing boundary markers)
+        center_x = np.mean(self.bmesh.coordinates()[:,0])
+        center_y = np.mean(self.bmesh.coordinates()[:,1])
+        self.center = [center_x,center_y]
+
+        self.fprint("Mesh Imported: {:1.2f} s".format(mesh_stop-mesh_start))
+
+        ### Calculate the range of the domain and push to options ###
+        self.x_range = [min(self.mesh.coordinates()[:,0]),max(self.mesh.coordinates()[:,0])]
+        self.y_range = [min(self.mesh.coordinates()[:,1]),max(self.mesh.coordinates()[:,1])]
+        self.z_range = [min(self.mesh.coordinates()[:,2]),max(self.mesh.coordinates()[:,2])]
+        self.params["domain"]["x_range"] = [min(self.mesh.coordinates()[:,0])/self.xscale,max(self.mesh.coordinates()[:,0])/self.xscale]
+        self.params["domain"]["y_range"] = [min(self.mesh.coordinates()[:,1])/self.xscale,max(self.mesh.coordinates()[:,1])/self.xscale]
+        self.params["domain"]["z_range"] = [min(self.mesh.coordinates()[:,2])/self.xscale,max(self.mesh.coordinates()[:,2])/self.xscale]
+
+        ### Load the boundary markers ###
+        mark_start = time.time()
+        self.fprint("")
+        self.fprint("Importing Boundary Markers")
+        if self.filetype == "h5":
+            self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.geometry().dim()-1)
+            hdf5.read(self.boundary_markers, "/boundaries")
+        elif self.filetype == "xml.gz":
+            self.boundary_markers = MeshFunction("size_t", self.mesh, self.boundary_path)
+        print("Markers Imported")
+        self.boundary_names = {"west":None,"east":None,"south":None,"north":None,"bottom":7,"top":8,"inflow":6,"outflow":5}
+        self.boundary_types = {"inflow":          ["inflow"],
+                               "no_stress":       ["outflow"],
+                               "free_slip":       ["top"],
+                               "no_slip":         ["bottom"]}
+
+        mark_stop = time.time()
+        self.fprint("Boundary Markers Imported: {:1.2f} s".format(mark_stop-mark_start))
+
+        ### Create the interpolation function for the ground ###
+        interp_start = time.time()
+        self.fprint("")
+        self.fprint("Building Interpolating Function")
+
+        if self.interpolated:
+            self.SetupInterpolatedGround()
+
+        interp_stop = time.time()
+        self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
+        self.fprint("Initial Domain Setup",special="footer")
+
+
+    def RecomputeBoundaryMarkers(self,inflow_angle):
+        mark_start = time.time()
+        self.fprint("")
+        self.fprint("Remarking Boundaries")
+
+        ### Define Plane Normal ###
+        nom_x = np.cos(inflow_angle)
+        nom_y = np.sin(inflow_angle)
+
+        # ### Define Boundary Subdomains ###
+        # outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1])
+        # inflow  = CompiledSubDomain("x[2] >= z0 && x[2] <= z1 && nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
+        # top     = CompiledSubDomain("near(x[2], z1) && on_boundary",z1 = self.z_range[1])
+        # bottom  = CompiledSubDomain("near(x[2], z0) && on_boundary",z0 = self.z_range[0])
+        # self.boundary_subdomains = [None,None,None,None,bottom,top,inflow,outflow]
+
+        # ### Generate the boundary markers for boundary conditions ###
+        # self.BuildBoundaryMarkers()
+
+        ### Define center ###
+        c0 = self.center[0]
+        c1 = self.center[1]
+
+        ### Set Tol ###
+        tol = 1e-5
+
+        wall_facets = self.boundary_markers.where_equal(self.boundary_names["inflow"]) \
+                    + self.boundary_markers.where_equal(self.boundary_names["outflow"])
+
+        boundary_val_temp = self.boundary_markers.array()
+        self.boundary_markers = MeshFunction("size_t", self.mesh, self.mesh.topology().dim() - 1)
+        self.boundary_markers.set_values(boundary_val_temp)
+
+        for facet_id in wall_facets:
+            facet = Facet(self.mesh,facet_id)
+            vert_ids = facet.entities(0)
+            vert_coords = self.mesh.coordinates()[vert_ids]
+            x = vert_coords[:,0]
+            y = vert_coords[:,1]
+
+            if all(nom_x*(x-c0)+nom_y*(y-c1)<=0+tol):
+                self.boundary_markers.set_value(facet_id,self.boundary_names["inflow"])
+            else:
+                self.boundary_markers.set_value(facet_id,self.boundary_names["outflow"])
+
+        mark_stop = time.time()
+        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
+
+class ImportedBoxDomain(GenericDomain):
+    """
+    This class generates a box domain from imported files. The arguments are the
+    same as imported cylinder domain except the type is set to box. 
+
+    Example:
+        In the yaml file define::
+
+            domain: 
+                type: cylender
+                imported: true
+                path: "Mesh_data/"
+                filetype: "xml.gz"
+    """
+
+    def __init__(self):
+        # raise NotImplementedError("Imported Domains need to be updated. Please use an Interpolated domain for now.")
+        super(ImportedBoxDomain, self).__init__()
+
+        self.fprint("Importing Box Domain",special="header")
 
         ### Import data from Options ###
         if self.path is not None:
@@ -1471,6 +1624,58 @@ class ImportedDomain(GenericDomain):
         interp_stop = time.time()
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start))
         self.fprint("Initial Domain Setup",special="footer")
+
+
+    def RecomputeBoundaryMarkers(self,inflow_angle):
+        mark_start = time.time()
+        self.fprint("")
+        self.fprint("Remarking Boundaries")
+
+        ### Get ids for new markings ###
+        inflow_id  = self.boundary_names[self.boundary_types["inflow"][0]]
+        outflow_id = self.boundary_names[self.boundary_types["no_stress"][0]]
+        east_id    = self.boundary_names["east"]
+        north_id   = self.boundary_names["north"]
+        west_id    = self.boundary_names["west"]
+        south_id   = self.boundary_names["south"]
+        
+        ### Set up the baseline (angle=0) order ###
+        cardinal_ids = [east_id,north_id,west_id,south_id]
+        diagonal_ids = [outflow_id,outflow_id,inflow_id,inflow_id]
+
+        ### Count the number of pi/2 sections in the new inflow_angle ###
+        turns = inflow_angle/(pi/2)
+
+        ### New order ###
+        tol = 1e-3
+        if turns % 1 <= tol: # we are at a cardinal direction
+            new_order = np.roll(cardinal_ids,int(turns))
+        else:
+            new_order = np.roll(diagonal_ids,int(turns))
+
+        ### Get a list of all wall facets ###
+        wall_facets = []
+        for i in cardinal_ids:
+            wall_facets += self.boundary_markers.where_equal(i) 
+
+        ### Iterate through facets remarking as prescribed by new_order ###
+        for facet_id in wall_facets:
+
+            ### Get the facet normal
+            facet = Facet(self.mesh,facet_id)
+            facet_normal = facet.normal().array()
+            nx = np.sign(facet_normal[0])*(abs(facet_normal[0])>tol)
+            ny = np.sign(facet_normal[1])*(abs(facet_normal[1])>tol)
+
+            ### Map the normal to the order east, north, west, south
+            face_id = int(abs(nx+2*ny-1))
+
+            ### remark the boundary ###
+            self.boundary_markers.set_value(facet_id,new_order[face_id])
+
+        mark_stop = time.time()
+        self.fprint("Boundaries Marked: {:1.2f} s".format(mark_stop-mark_start))
+
 
 class InterpolatedCylinderDomain(CylinderDomain):
     def __init__(self):

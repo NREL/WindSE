@@ -32,8 +32,8 @@ def initialize(loc,updated_parameters=[]):
     else:
         from windse.helper_functions import BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce
     
-    global BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
-    from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
+    global BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedCylinderDomain, ImportedBoxDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
+    from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedCylinderDomain, ImportedBoxDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
 
     global GridWindFarm, RandomWindFarm, ImportedWindFarm, EmptyWindFarm
     from windse.WindFarmManager import GridWindFarm, RandomWindFarm, ImportedWindFarm, EmptyWindFarm
