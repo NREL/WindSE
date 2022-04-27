@@ -10,7 +10,9 @@ if windse_parameters.dolfin_adjoint:
 from . import GenericTurbine
 
 from . import (Constant, Expression, Function, Point, assemble, dot, dx,
-pi, cos, acos, asin, sin, sqrt, exp, cross, as_tensor, SpatialCoordinate)
+pi, cos, acos, asin, sin, sqrt, exp, cross, as_tensor, SpatialCoordinate,
+VectorFunctionSpace, ReducedFunctional, Control, Measure, taylor_test,
+UnitCubeMesh,)
 
 from windse.helper_functions import mpi_eval, ufl_eval
 
@@ -419,15 +421,56 @@ class ActuatorLineDolfin(GenericTurbine):
         """
 
         # Calculate the relative fluid velocity, a function of fluid and blade velocity    
+
+        rdim = Constant(1.0)
+        x_0 = as_tensor([rdim, rdim, rdim])
+        mesh = UnitCubeMesh(8,8,8)
+        dx = Measure("dx",mesh)
+        V = VectorFunctionSpace(mesh, 'P', 1)
+
+        u_k = Function(V)
+
+        e = Expression(('x[0]', 'x[1]', 'x[2]'), degree=1)
+
+        u_k.interpolate(e)
+
         vel_rel, vel_rel_mag, vel_rel_unit = self.calculate_relative_fluid_velocity(u_k, x_0, n_0, rdim)
 
         # Calculate the angle of attack for this actuator node node
         aoa = self.calcuate_aoa(vel_rel, n_0)
-        aoa_f = ufl_eval(aoa)
+        aoa_f = Constant(0.0)
+        aoa_f.assign(assemble(aoa*dx))
+        print(type(aoa_f))
         
         # Lookup the lift and drag coefficients
-        cl = self.lookup_lift_coeff(rdim, aoa_f)
+        cl = Constant(0.0)
+        cl.assign(self.lookup_lift_coeff(rdim, aoa_f))
         cd = self.lookup_drag_coeff(rdim, aoa_f)
+
+        ### Test dolfin_adjoint ###
+        J = assemble(cl*dx)
+
+        control_list = []
+        control_list.append(rdim)
+
+        h = []
+        controls = []
+        init_vals = []
+        for c in control_list:
+            h.append(Constant(0.1*float(c)))
+            controls.append(Control(c))
+            init_vals.append(Constant(float(c)))
+
+        Jhat = ReducedFunctional(J,controls)
+
+        conv_rate = taylor_test(Jhat, init_vals, h)
+
+        der = Jhat.derivative()
+
+        for d in der:
+            print(d.values())
+
+        exit()
 
         # Calculate the tip loss factor
         tip_loss_fac = self.calculate_tip_loss(rdim, aoa)
@@ -518,15 +561,15 @@ class ActuatorLineDolfin(GenericTurbine):
 
             # for blade_id in range(self.num_blades):
             #     for actuator_id in range(self.num_actuator_nodes):
-            #         rdim = Constant(self.radius*actuator_id/(self.num_actuator_nodes-1))
-            #         aoa_f = ufl_eval(aoa_list[blade_id][actuator_id])
-
-            #         # Lookup the lift and drag coefficients
-            #         cl_list[blade_id][actuator_id].assign(self.lookup_lift_coeff(rdim, aoa_f))
-            #         cd_list[blade_id][actuator_id].assign(self.lookup_drag_coeff(rdim, aoa_f))
-            #         
             #         # Re Evaluate velocity
             #         mpi_u_fluid_list[blade_id][actuator_id].assign(mpi_eval(u_k, x_0))
+
+            #         aoa_values_list[blade_id][actuator_id].assign(ufl_eval(aoa_forms_list[blade_id][actuator_id]))
+
+            #         # Lookup the lift and drag coefficients
+            #         cl_list[blade_id][actuator_id].assign(self.lookup_lift_coeff(rdim_list[actuator_id], aoa_values_list[blade_id][actuator_id]))
+            #         cd_list[blade_id][actuator_id].assign(self.lookup_drag_coeff(rdim_list[actuator_id], aoa_values_list[blade_id][actuator_id]))
+                    
 
 
 

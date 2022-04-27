@@ -11,7 +11,7 @@ def ufl_eval(form):
     '''
     This function converts complex ufl forms to floats
     '''
-    mesh = UnitIntervalMesh(2)
+    mesh = UnitCubeMesh(2,2,2)
     dx_lame = Measure("dx",mesh)
     out = assemble(form*dx_lame)
     return out
