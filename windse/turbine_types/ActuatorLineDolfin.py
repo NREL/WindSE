@@ -156,7 +156,7 @@ class ActuatorLineDolfin(GenericTurbine):
             for j in range(self.num_actuator_nodes):
                 self.aoa_forms[i].append(0.0)
                 self.aoa_values[i].append(Constant(0.0))
-                self.vel_fluid[i].append(Constant((0.0,0.0,0.0)))  
+                self.vel_fluid[i].append(as_vector((Constant(0.0),Constant(0.0),Constant(0.0))))  
                 self.x_0_prev[i].append(Constant((0.0,0.0,0.0)))  
 
 
@@ -309,7 +309,9 @@ class ActuatorLineDolfin(GenericTurbine):
         rdim = self.rdim[actuator_id]
 
         # Evaluate the fluid velocity u_k at the point x_0 
-        self.vel_fluid[blade_id][actuator_id].assign(mpi_eval(u_k, x_0))
+        vel_fluid_temp = mpi_eval(u_k, x_0)
+        for i in range(self.dom.dim):
+            self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
         vel_fluid = self.vel_fluid[blade_id][actuator_id]
         
         # Remove the component of the fluid velocity oriented along the blade's axis
@@ -346,8 +348,8 @@ class ActuatorLineDolfin(GenericTurbine):
             # c2 = np.clip(c2, -1.0, 1.0)
             aoa_2 = acos(c2)
 
-            if ufl_eval(aoa_2) > pi/2.0:
-                if ufl_eval(aoa_1) < 0:
+            if float(aoa_2) > pi/2.0:
+                if float(aoa_1) < 0:
                     aoa_1 = -pi - aoa_1
                 else:
                     aoa_1 = pi - aoa_1
@@ -567,6 +569,7 @@ class ActuatorLineDolfin(GenericTurbine):
             control_list += self.mtwist[:-1]
             control_list += self.mchord
             test_dolfin_adjoint(control_list,dot(self.tf,as_vector((1.0,1.0,1.0))))
+            # test_dolfin_adjoint(control_list,self.tf[0])
             exit()
 
             self.first_call_to_alm = False
@@ -583,7 +586,9 @@ class ActuatorLineDolfin(GenericTurbine):
                 for actuator_id in range(self.num_actuator_nodes):
                     # Re Evaluate velocity
                     x_0_prev = self.x_0_prev[blade_id][actuator_id]
-                    self.vel_fluid[blade_id][actuator_id].assign(mpi_eval(u, x_0_prev))
+                    vel_fluid_temp = mpi_eval(u, x_0_prev)
+                    for i in range(self.dom.dim):
+                        self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
 
                     # Re Evaluate the aoa form
                     self.aoa_values[blade_id][actuator_id].assign(ufl_eval(self.aoa_forms[blade_id][actuator_id]))

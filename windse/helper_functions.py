@@ -1,20 +1,29 @@
 from dolfin import *
 from windse import windse_parameters
 import numpy as np
+import time
 
 ### Check if we need dolfin_adjoint ###
 if windse_parameters.dolfin_adjoint:
     from dolfin_adjoint import *
-    from windse.blocks import blockify, MpiEvalBlock
+    from windse.blocks import blockify, MpiEvalBlock, UflEvalBlock
+    from pyadjoint.overloaded_type import create_overloaded_object
 
 def ufl_eval(form):
     '''
     This function converts complex ufl forms to floats
     '''
-    mesh = UnitCubeMesh(2,2,2) # TODO: this might be bad in parallel
-    dx_lame = Measure("dx",mesh)
-    out = assemble(form*dx_lame)
-    return out
+    # mesh = UnitCubeMesh(2,2,2) # TODO: this might be bad in parallel
+    # dx_lame = Measure("dx",mesh)
+    # out = assemble(form*dx_lame)
+    # return out
+    return Constant(form)
+
+if windse_parameters.dolfin_adjoint:
+    block_kwargs = {
+        "base_eval": ufl_eval
+    }
+    ufl_eval = blockify(ufl_eval,UflEvalBlock,block_kwargs=block_kwargs)
 
 
 def mpi_eval(u, x, comm=MPI.comm_world):
@@ -88,10 +97,27 @@ def mpi_eval(u, x, comm=MPI.comm_world):
         ux_global = ux_global.reshape(-1, nn)
         ux = np.nanmean(ux_global, axis=0)
 
-    return Constant(ux)
+    # if value_rank == 0:
+    #     out = Constant(ux)
+    # elif value_rank == 1:
+    #     out = numpy_adjoint.array.ndarray(ux)
+    # print(type(ux))
+    out =  create_overloaded_object(ux)
+    # out = Constant(ux)
+    # print(type(out))
+
+    return out
+
+if windse_parameters.dolfin_adjoint:
+    block_kwargs = {
+        "base_eval": mpi_eval
+    }
+    mpi_eval = blockify(mpi_eval,MpiEvalBlock,block_kwargs=block_kwargs)
+
+
 
 def test_dolfin_adjoint(control_list,form):
-
+    tick = time.time()
     if form.ufl_domain() is None:
         mesh = UnitCubeMesh(8,8,8)
         dx = Measure("dx",mesh)
@@ -116,14 +142,10 @@ def test_dolfin_adjoint(control_list,form):
 
     for d in der:
         print(d.values())
+    tock = time.time()
+    print(f"Total time: {tock-tick:1.2f} s")
 
 
-# blockify functions as needed
-if windse_parameters.dolfin_adjoint:
-    block_kwargs = {
-        "base_eval": mpi_eval
-    }
-    mpi_eval = blockify(mpi_eval,MpiEvalBlock,block_kwargs=block_kwargs)
 
 
 

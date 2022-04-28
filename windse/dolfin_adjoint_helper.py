@@ -218,7 +218,41 @@ def _assemble_and_solve_adj_eq(self, dFdu_form, dJdu):
 if "dolfin_adjoint_helper" not in dolfin_adjoint.solving.SolveBlock._assemble_and_solve_adj_eq.__module__:
     dolfin_adjoint.solving.SolveBlock._assemble_and_solve_adj_eq = _assemble_and_solve_adj_eq
 
+# This is a fix to account for a strange occurrence involving as_vector(np_a_float)
+def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
+    adj_output = np.zeros(inputs[0].shape)
+    adj_input = adj_inputs[0]
+    if isinstance(adj_input,dolfin.Vector):
+        adj_output[self.item] = adj_input.get_local()
+    else:
+        adj_output[self.item] = adj_input
+    return adj_output
 
+if "dolfin_adjoint_helper" not in dolfin_adjoint.numpy_adjoint.array.NumpyArraySliceBlock.evaluate_adj_component.__module__:
+    dolfin_adjoint.numpy_adjoint.array.NumpyArraySliceBlock.evaluate_adj_component = evaluate_adj_component
 
+def dot(self, o, da, db):
+    a, b = o.ufl_operands
+    pa = dolfin.dot(da, b)
+    pb = dolfin.dot(a, db)
+    s = ufl.classes.Sum(pa, pb)
+    return s
 
+if not hasattr(ufl.algorithms.apply_derivatives.GenericDerivativeRuleset, "dot"):
+    ufl.algorithms.apply_derivatives.GenericDerivativeRuleset.dot = dot
 
+def cross(self, o, da, db):
+    a, b = o.ufl_operands
+    pa = dolfin.cross(da, b)
+    pb = dolfin.cross(a, db)
+    s = ufl.classes.Sum(pa, pb)
+    return s
+
+if not hasattr(ufl.algorithms.apply_derivatives.GenericDerivativeRuleset, "cross"):
+    ufl.algorithms.apply_derivatives.GenericDerivativeRuleset.cross = cross
+
+def transposed(self, o, da):
+    return da.T
+
+if not hasattr(ufl.algorithms.apply_derivatives.GenericDerivativeRuleset, "transposed"):
+    ufl.algorithms.apply_derivatives.GenericDerivativeRuleset.transposed = transposed
