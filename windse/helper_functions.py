@@ -118,13 +118,16 @@ if windse_parameters.dolfin_adjoint:
 
 def test_dolfin_adjoint(control_list,form):
     tick = time.time()
-    if form.ufl_domain() is None:
-        mesh = UnitCubeMesh(8,8,8)
-        dx = Measure("dx",mesh)
-        J = assemble(form*dx)
+    if not isinstance(form, AdjFloat):
+        if form.ufl_domain() is None:
+            mesh = UnitCubeMesh(8,8,8)
+            dx = Measure("dx",mesh)
+            J = assemble(form*dx)
+        else:
+            dx = Measure("dx",form.ufl_domain())
+            J = assemble(form*dx)
     else:
-        dx = Measure("dx",form.ufl_domain())
-        J = assemble(form*dx)
+        J = form
 
     h = []
     controls = []
