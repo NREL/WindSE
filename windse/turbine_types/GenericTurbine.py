@@ -171,7 +171,13 @@ class GenericTurbine(object):
         """
         pass
 
-    def turbine_force(self,u,inflow_angle,fs):
+    def turbine_force(self, u, inflow_angle, fs, **kwargs):
+        """
+        computes the turbine force
+        """
+        raise NotImplementedError(type(self))
+
+    def update_turbine_force(self, u, inflow_angle, fs, **kwargs):
         """
         computes the turbine force
         """

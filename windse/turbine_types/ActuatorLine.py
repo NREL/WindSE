@@ -885,6 +885,8 @@ class ActuatorLine(GenericTurbine):
         except:
             raise ValueError('"simTime" and "dt" must be specified for the calculation of ALM force.')
 
+        update = kwargs.get("update",False)
+
         # If this is the first call to the function, set some things up before proceeding
         if self.first_call_to_alm:
             self.init_constant_alm_terms(fs)
@@ -906,7 +908,10 @@ class ActuatorLine(GenericTurbine):
         self.get_u_fluid_at_alm_nodes(u)
 
         # Call the ALM function for this turbine
-        self.tf = self.build_actuator_lines(u, inflow_angle, fs)
+        if update:
+            self.tf.assign(self.build_actuator_lines(u, inflow_angle, fs))
+        else:
+            self.tf = self.build_actuator_lines(u, inflow_angle, fs)
 
         # Do some sharing of information when everything is finished
         self.finalize_rotor_torque()
@@ -915,6 +920,12 @@ class ActuatorLine(GenericTurbine):
             self.first_call_to_alm = False
 
         return self.tf
+
+    def update_turbine_force(self, u, inflow_angle, fs, **kwargs):
+        """
+        computes the turbine force
+        """
+        self.turbine_force(u, inflow_angle, fs, **kwargs, update=True)
 
 
     def power(self, u, inflow_angle):

@@ -185,17 +185,12 @@ class GenericWindFarm(object):
         for turb in self.turbines:
             turb.update_controls()
 
-    def update_turbines(self):
+    def update_turbine_force(self, u, inflow_angle, fs, **kwargs):
         """
         Updates the turbines
         """
-        pass
-
-    def update_turbine_force(self):
-        """
-        Updates the turbine force
-        """
-        pass
+        for turb in self.turbines:
+            turb.update_turbine_force(u, inflow_angle, fs, **kwargs)
 
     def compute_power(self, u, inflow_angle):
         """
