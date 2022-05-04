@@ -147,17 +147,21 @@ class ActuatorLineDolfin(GenericTurbine):
         self.aoa_forms = []
         self.aoa_values = []
         self.vel_fluid = []
+        self.x_0 = []
         self.x_0_prev = []
         for i in range(self.num_blades):
             self.aoa_forms.append([])
             self.aoa_values.append([])
             self.vel_fluid.append([])
+            self.x_0.append([])
             self.x_0_prev.append([])
             for j in range(self.num_actuator_nodes):
                 self.aoa_forms[i].append(0.0)
                 self.aoa_values[i].append(Constant(0.0))
-                self.vel_fluid[i].append(as_vector((Constant(0.0),Constant(0.0),Constant(0.0))))  
-                self.x_0_prev[i].append(Constant((0.0,0.0,0.0)))  
+                self.vel_fluid[i].append(as_vector((Constant(0.0),Constant(0.0),Constant(0.0))))
+                # self.x_0_prev[i].append(as_vector((Constant(0.0),Constant(0.0),Constant(0.0))))
+                self.x_0[i].append(as_vector([0.0, 0.0, 0.0]))
+                self.x_0_prev[i].append(as_vector([0.0, 0.0, 0.0]))
 
 
     def init_blade_properties(self):
@@ -554,23 +558,23 @@ class ActuatorLineDolfin(GenericTurbine):
 
                     x_0_base = as_tensor([0.0, self.rdim[actuator_id], 0.0])
 
-                    x_0 = dot(x_0_base, rx)
-                    x_0 += as_tensor([0.0, 0.0, self.mz]) # TODO: what about mx and my do those matter
+                    self.x_0[blade_id][actuator_id] = dot(x_0_base, rx)
+                    self.x_0[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz]) # TODO: what about mx and my do those matter
 
-                    x_0_prev = dot(x_0_base, rx_prev)
-                    x_0_prev += as_tensor([0.0, 0.0, self.mz])
+                    self.x_0_prev[blade_id][actuator_id] = dot(x_0_base, rx_prev)
+                    self.x_0_prev[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz])
 
                                     
-                    tf += self.build_actuator_node(u, x_0, n_0, blade_id, actuator_id)
+                    tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], n_0, blade_id, actuator_id)
 
             self.tf = tf
 
-            control_list = []
-            control_list += self.mtwist[:-1]
-            control_list += self.mchord
-            test_dolfin_adjoint(control_list,dot(self.tf,as_vector((1.0,1.0,1.0))))
+            # control_list = []
+            # control_list += self.mtwist[:-1]
+            # control_list += self.mchord
+            # test_dolfin_adjoint(control_list,dot(self.tf,as_vector((1.0,1.0,1.0))))
             # test_dolfin_adjoint(control_list,self.tf[0])
-            exit()
+            # exit()
 
             self.first_call_to_alm = False
 
@@ -582,10 +586,15 @@ class ActuatorLineDolfin(GenericTurbine):
             # we should be able to just reassemble them after changing the time. We also 
             # might need to do something similar to velocity
 
+            import matplotlib.pyplot as plt
+
+            plt.figure()
+
             for blade_id in range(self.num_blades):
                 for actuator_id in range(self.num_actuator_nodes):
                     # Re Evaluate velocity
                     x_0_prev = self.x_0_prev[blade_id][actuator_id]
+
                     vel_fluid_temp = mpi_eval(u, x_0_prev)
                     for i in range(self.dom.dim):
                         self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
@@ -600,8 +609,13 @@ class ActuatorLineDolfin(GenericTurbine):
                     # Lookup the lift and drag coefficients
                     self.mcl[blade_id][actuator_id].assign(self.lookup_lift_coeff(rdim,aoa))
                     self.mcd[blade_id][actuator_id].assign(self.lookup_drag_coeff(rdim,aoa))
-                    
 
+                    plt.plot(float(x_0_prev[1]), float(x_0_prev[2]), '.', color=f'C{blade_id}')
+            
+            plt.xlim(-100, 100)
+            plt.ylim(-100, 100)
+            # plt.axis('equal')
+            plt.savefig(f'images/rotor_{int(1000.0*float(self.simTime_prev))}.png')
 
 
         return self.tf

@@ -102,7 +102,11 @@ def mpi_eval(u, x, comm=MPI.comm_world):
     # elif value_rank == 1:
     #     out = numpy_adjoint.array.ndarray(ux)
     # print(type(ux))
-    out =  create_overloaded_object(ux)
+    if windse_parameters.dolfin_adjoint:
+        out =  create_overloaded_object(ux)
+    else:
+        out = ux
+        
     # out = Constant(ux)
     # print(type(out))
 
