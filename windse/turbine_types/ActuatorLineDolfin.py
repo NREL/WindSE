@@ -52,15 +52,6 @@ class ActuatorLineDolfin(GenericTurbine):
         # self.turbine_motion_freq = None#0.1
         # self.turbine_motion_amp = np.radians(20.0)
 
-        self.along_blade_quantities = {}
-        self.along_blade_quantities['lift'] = []
-        self.along_blade_quantities['drag'] = []
-        self.along_blade_quantities['aoa'] = []
-        self.along_blade_quantities['axial'] = []
-        self.along_blade_quantities['force_x'] = []
-        self.along_blade_quantities['force_y'] = []
-        self.along_blade_quantities['force_z'] = []
-
     def get_baseline_chord(self):
         '''
         This function need to return the baseline chord as a numpy array with length num_actuator_nodes
@@ -149,12 +140,22 @@ class ActuatorLineDolfin(GenericTurbine):
         self.vel_fluid = []
         self.x_0 = []
         self.x_0_prev = []
+        
+        self.lift_mag = []
+        self.drag_mag = []
+        self.axial = []
+
         for i in range(self.num_blades):
             self.aoa_forms.append([])
             self.aoa_values.append([])
             self.vel_fluid.append([])
             self.x_0.append([])
             self.x_0_prev.append([])
+
+            self.lift_mag.append([])
+            self.drag_mag.append([])
+            self.axial.append([])
+
             for j in range(self.num_actuator_nodes):
                 self.aoa_forms[i].append(0.0)
                 self.aoa_values[i].append(Constant(0.0))
@@ -163,6 +164,9 @@ class ActuatorLineDolfin(GenericTurbine):
                 self.x_0[i].append(as_vector([0.0, 0.0, 0.0]))
                 self.x_0_prev[i].append(as_vector([0.0, 0.0, 0.0]))
 
+                self.lift_mag[i].append(Constant(0.0))
+                self.drag_mag[i].append(Constant(0.0))
+                self.axial[i].append(Constant(0.0))
 
     def init_blade_properties(self):
         if self.read_turb_data:
@@ -317,7 +321,9 @@ class ActuatorLineDolfin(GenericTurbine):
         for i in range(self.dom.dim):
             self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
         vel_fluid = self.vel_fluid[blade_id][actuator_id]
-        
+
+        self.axial[blade_id][actuator_id] = dot(self.vel_fluid[blade_id][actuator_id], n_0[:, 0])
+
         # Remove the component of the fluid velocity oriented along the blade's axis
         vel_fluid -= dot(vel_fluid, n_0[:, 1])*n_0[:, 1]
 
@@ -487,6 +493,9 @@ class ActuatorLineDolfin(GenericTurbine):
         lift_mag = tip_loss_fac*(0.5*cl*self.rho*chord*w*vel_rel_mag**2.0)
         drag_mag = tip_loss_fac*(0.5*cd*self.rho*chord*w*vel_rel_mag**2.0)
 
+        self.lift_mag[blade_id][actuator_id] = lift_mag
+        self.drag_mag[blade_id][actuator_id] = drag_mag
+
         # if actuator_id == 2:
         #     control_list = []
         #     control_list.append(twist)
@@ -530,8 +539,18 @@ class ActuatorLineDolfin(GenericTurbine):
             self.fprint(f'Minimum Mesh Spacing: {self.dom.global_hmin}')
             self.fprint(f'Number of Actuators per Blade: {self.num_actuator_nodes}')
 
-
             tf = 0
+
+            self.along_blade_quantities = {}
+            self.along_blade_quantities['lift'] = []
+            self.along_blade_quantities['drag'] = []
+            self.along_blade_quantities['aoa'] = []
+            self.along_blade_quantities['axial'] = []
+
+            along_blade_lift = []
+            along_blade_drag = []
+            along_blade_aoa = []
+            along_blade_axial = []
 
             for blade_id in range(self.num_blades):
                 # This can be built on a blade-by-blade basis
@@ -567,6 +586,16 @@ class ActuatorLineDolfin(GenericTurbine):
                                     
                     tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], n_0, blade_id, actuator_id)
 
+                    along_blade_lift.append(float(self.lift_mag[blade_id][actuator_id]))
+                    along_blade_drag.append(float(self.drag_mag[blade_id][actuator_id]))
+                    along_blade_aoa.append(float(self.aoa_values[blade_id][actuator_id]))
+                    along_blade_axial.append(float(self.axial[blade_id][actuator_id]))
+
+            self.along_blade_quantities['lift'].append(along_blade_lift)
+            self.along_blade_quantities['drag'].append(along_blade_drag)
+            self.along_blade_quantities['aoa'].append(along_blade_aoa)
+            self.along_blade_quantities['axial'].append(along_blade_axial)
+
             self.tf = tf
 
             # control_list = []
@@ -586,9 +615,10 @@ class ActuatorLineDolfin(GenericTurbine):
             # we should be able to just reassemble them after changing the time. We also 
             # might need to do something similar to velocity
 
-            import matplotlib.pyplot as plt
-
-            plt.figure()
+            along_blade_lift = []
+            along_blade_drag = []
+            along_blade_aoa = []
+            along_blade_axial = []
 
             for blade_id in range(self.num_blades):
                 for actuator_id in range(self.num_actuator_nodes):
@@ -610,12 +640,15 @@ class ActuatorLineDolfin(GenericTurbine):
                     self.mcl[blade_id][actuator_id].assign(self.lookup_lift_coeff(rdim,aoa))
                     self.mcd[blade_id][actuator_id].assign(self.lookup_drag_coeff(rdim,aoa))
 
-                    plt.plot(float(x_0_prev[1]), float(x_0_prev[2]), '.', color=f'C{blade_id}')
-            
-            plt.xlim(-100, 100)
-            plt.ylim(-100, 100)
-            # plt.axis('equal')
-            plt.savefig(f'images/rotor_{int(1000.0*float(self.simTime_prev))}.png')
+                    along_blade_lift.append(float(self.lift_mag[blade_id][actuator_id]))
+                    along_blade_drag.append(float(self.drag_mag[blade_id][actuator_id]))
+                    along_blade_aoa.append(float(self.aoa_values[blade_id][actuator_id]))
+                    along_blade_axial.append(float(self.axial[blade_id][actuator_id]))
+
+            self.along_blade_quantities['lift'].append(along_blade_lift)
+            self.along_blade_quantities['drag'].append(along_blade_drag)
+            self.along_blade_quantities['aoa'].append(along_blade_aoa)
+            self.along_blade_quantities['axial'].append(along_blade_axial)
 
 
         return self.tf
@@ -649,5 +682,6 @@ class ActuatorLineDolfin(GenericTurbine):
         if self.params.rank == 0:
             for key in self.along_blade_quantities.keys():
                 data = self.along_blade_quantities[key]
+                data = np.array(data)
                 filename = os.path.join(self.params.folder, f'data/alm/{key}_{self.index}.npy')
                 np.save(filename, data)
