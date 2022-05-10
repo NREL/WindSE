@@ -436,6 +436,16 @@ class Optimizer(object):
                     self.names.append("chord_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.farm.turbines[i].mchord[k]))
                     self.init_vals.append(Constant(float(self.farm.turbines[i].mchord[k])))
+
+        if "twist" in self.control_types:
+            for i in self.solver.opt_turb_id:
+                for k in range(self.farm.turbines[0].num_actuator_nodes-1):
+                    self.control_pointers.append(("twist",[i,k]))
+                    self.indexes[6].append(j)
+                    j+=1
+                    self.names.append("twist_"+repr(i)+"_"+repr(k))
+                    self.controls.append(Control(self.farm.turbines[i].mtwist[k]))
+                    self.init_vals.append(Constant(float(self.farm.turbines[i].mtwist[k])))
         self.num_controls = len(self.controls)
 
     def CreateBounds(self):
@@ -486,6 +496,13 @@ class Optimizer(object):
                     lower_bounds.append(Constant(seg_chord/modifier))
                     upper_bounds.append(Constant(np.maximum(np.minimum(seg_chord*modifier,max_chord),c_avg)))
                     c_avg = (c_avg*k+seg_chord)/(k+1)
+
+        if "twist" in self.control_types:
+            for i in self.solver.opt_turb_id:
+                num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
+                for k in range(num_actuator_nodes-1):
+                    lower_bounds.append(Constant(-pi/4))
+                    upper_bounds.append(Constant(pi/4))
 
         self.bounds = [lower_bounds,upper_bounds]
 
@@ -725,7 +742,7 @@ class Optimizer(object):
 
         h = []
         for i,c in enumerate(self.controls):
-            h.append(Constant(10.0))
+            h.append(Constant(0.01))
             # h.append(Constant(0.01*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
             # h.append(Constant(10.0*abs(float(self.bounds[1][i])-float(self.bounds[0][i]))/2.0))
             # h.append(Constant(0.01*abs(np.mean(self.bounds[1])+np.mean(self.bounds[0]))/2.0))

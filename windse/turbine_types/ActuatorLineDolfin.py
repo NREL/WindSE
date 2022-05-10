@@ -10,8 +10,8 @@ if windse_parameters.dolfin_adjoint:
 from . import GenericTurbine
 
 from . import (Constant, Expression, Function, Point, assemble, dot, dx,
-pi, cos, acos, asin, sin, sqrt, exp, cross, as_tensor, as_vector, SpatialCoordinate
-)
+pi, cos, acos, asin, sin, sqrt, exp, cross, as_tensor, as_vector, SpatialCoordinate,
+project)
 from windse.helper_functions import mpi_eval, ufl_eval, test_dolfin_adjoint
 
 '''
@@ -89,7 +89,7 @@ class ActuatorLineDolfin(GenericTurbine):
     def create_controls(self, initial_call_from_setup=True):
 
         if initial_call_from_setup:
-            self.controls_list = ["x","y","cl","cd","chord","yaw"] # this is just part of the function as an example of the types of controls 
+            self.controls_list = ["x","y","cl","cd","chord","yaw","twist"] # this is just part of the function as an example of the types of controls 
 
             self.mx     = Constant(self.x, name="x_{:d}".format(self.index))
             self.my     = Constant(self.y, name="y_{:d}".format(self.index))
@@ -567,18 +567,13 @@ class ActuatorLineDolfin(GenericTurbine):
                                     
                     tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], n_0, blade_id, actuator_id)
 
-            self.tf = tf
+            self.tf = project(tf,fs.V, solver_type='cg')
 
-            # control_list = []
-            # control_list += self.mtwist[:-1]
-            # control_list += self.mchord
-            # test_dolfin_adjoint(control_list,dot(self.tf,as_vector((1.0,1.0,1.0))))
-            # test_dolfin_adjoint(control_list,self.tf[0])
-            # exit()
 
             self.first_call_to_alm = False
 
         else:
+
             self.simTime_prev.assign(self.simTime)
             self.simTime.assign(kwargs['simTime'])
 
@@ -588,7 +583,7 @@ class ActuatorLineDolfin(GenericTurbine):
 
             import matplotlib.pyplot as plt
 
-            plt.figure()
+            # plt.figure()
 
             for blade_id in range(self.num_blades):
                 for actuator_id in range(self.num_actuator_nodes):
@@ -610,15 +605,22 @@ class ActuatorLineDolfin(GenericTurbine):
                     self.mcl[blade_id][actuator_id].assign(self.lookup_lift_coeff(rdim,aoa))
                     self.mcd[blade_id][actuator_id].assign(self.lookup_drag_coeff(rdim,aoa))
 
-                    plt.plot(float(x_0_prev[1]), float(x_0_prev[2]), '.', color=f'C{blade_id}')
+                    # plt.plot(float(x_0_prev[1]), float(x_0_prev[2]), '.', color=f'C{blade_id}')
             
-            plt.xlim(-100, 100)
-            plt.ylim(-100, 100)
-            # plt.axis('equal')
-            plt.savefig(f'images/rotor_{int(1000.0*float(self.simTime_prev))}.png')
+            # plt.xlim(-100, 100)
+            # plt.ylim(-100, 100)
+            # # plt.axis('equal')
+            # plt.savefig(f'images/rotor_{int(1000.0*float(self.simTime_prev))}.png')
 
+            # if float(self.simTime) >= 0.0:
+            #     control_list = []
+            #     control_list += self.mtwist[:-1]
+            #     control_list += self.mchord
+            #     test_dolfin_adjoint(control_list,dot(self.tf,as_vector((1.0,1.0,1.0))))
+            # # test_dolfin_adjoint(control_list,self.tf[0])
+            # exit()
 
-        return self.tf
+        return project(self.tf,fs.V, solver_type='cg')
         
 
 
@@ -632,6 +634,7 @@ class ActuatorLineDolfin(GenericTurbine):
             zs=self.mz)
 
         self.power_dolfin = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
+        # self.power_dolfin = assemble(dot(self.tf,as_vector((1.0,1.0,1.0)))*dx)
 
         return self.power_dolfin
 
