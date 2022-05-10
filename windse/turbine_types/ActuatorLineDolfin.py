@@ -144,6 +144,7 @@ class ActuatorLineDolfin(GenericTurbine):
         self.lift_mag = []
         self.drag_mag = []
         self.axial = []
+        self.actuator_force_components = []
 
         for i in range(self.num_blades):
             self.aoa_forms.append([])
@@ -155,6 +156,7 @@ class ActuatorLineDolfin(GenericTurbine):
             self.lift_mag.append([])
             self.drag_mag.append([])
             self.axial.append([])
+            self.actuator_force_components.append([])
 
             for j in range(self.num_actuator_nodes):
                 self.aoa_forms[i].append(0.0)
@@ -167,6 +169,7 @@ class ActuatorLineDolfin(GenericTurbine):
                 self.lift_mag[i].append(Constant(0.0))
                 self.drag_mag[i].append(Constant(0.0))
                 self.axial[i].append(Constant(0.0))
+                self.actuator_force_components[i].append([])
 
     def init_blade_properties(self):
         if self.read_turb_data:
@@ -411,7 +414,6 @@ class ActuatorLineDolfin(GenericTurbine):
         r2 = delta_x**2.0 + delta_y**2.0 + delta_z**2.0
         
         # Compute the Gaussian kernel
-        # TODO: have this read from gaussian_width yaml
         gauss_kernel = exp(-r2/(self.eps**2.0))/(self.eps**3.0*np.pi**1.5)
 
         return gauss_kernel
@@ -522,6 +524,14 @@ class ActuatorLineDolfin(GenericTurbine):
         # The final force of this actuator is the sum of lift and drag effects
         actuator_force = lift_force + drag_force
 
+        actuator_force_components = []
+
+        for i in range(self.dom.dim):
+            f_i = dot(actuator_force, n_0[:, i])
+            actuator_force_components.append(f_i)
+
+        self.actuator_force_components[blade_id][actuator_id] = actuator_force_components
+
         return actuator_force
 
 
@@ -547,10 +557,18 @@ class ActuatorLineDolfin(GenericTurbine):
             self.along_blade_quantities['aoa'] = []
             self.along_blade_quantities['axial'] = []
 
+            self.along_blade_quantities['force_x'] = []
+            self.along_blade_quantities['force_y'] = []
+            self.along_blade_quantities['force_z'] = []
+
             along_blade_lift = []
             along_blade_drag = []
             along_blade_aoa = []
             along_blade_axial = []
+
+            along_blade_force_x = []
+            along_blade_force_y = []
+            along_blade_force_z = []
 
             for blade_id in range(self.num_blades):
                 # This can be built on a blade-by-blade basis
@@ -591,10 +609,19 @@ class ActuatorLineDolfin(GenericTurbine):
                     along_blade_aoa.append(float(self.aoa_values[blade_id][actuator_id]))
                     along_blade_axial.append(float(self.axial[blade_id][actuator_id]))
 
+                    # TODO : wrap the appended quantity (e.g., fx, fy, fz) as a float and store the evaluated value
+                    along_blade_force_x.append(self.actuator_force_components[blade_id][actuator_id][0])
+                    along_blade_force_y.append(self.actuator_force_components[blade_id][actuator_id][1])
+                    along_blade_force_z.append(self.actuator_force_components[blade_id][actuator_id][2])
+
             self.along_blade_quantities['lift'].append(along_blade_lift)
             self.along_blade_quantities['drag'].append(along_blade_drag)
             self.along_blade_quantities['aoa'].append(along_blade_aoa)
             self.along_blade_quantities['axial'].append(along_blade_axial)
+
+            self.along_blade_quantities['force_x'].append(along_blade_force_x)
+            self.along_blade_quantities['force_y'].append(along_blade_force_y)
+            self.along_blade_quantities['force_z'].append(along_blade_force_z)
 
             self.tf = tf
 
@@ -614,6 +641,10 @@ class ActuatorLineDolfin(GenericTurbine):
             along_blade_drag = []
             along_blade_aoa = []
             along_blade_axial = []
+
+            along_blade_force_x = []
+            along_blade_force_y = []
+            along_blade_force_z = []
 
             for blade_id in range(self.num_blades):
                 for actuator_id in range(self.num_actuator_nodes):
@@ -640,10 +671,18 @@ class ActuatorLineDolfin(GenericTurbine):
                     along_blade_aoa.append(float(self.aoa_values[blade_id][actuator_id]))
                     along_blade_axial.append(float(self.axial[blade_id][actuator_id]))
 
+                    along_blade_force_x.append(self.actuator_force_components[blade_id][actuator_id][0])
+                    along_blade_force_y.append(self.actuator_force_components[blade_id][actuator_id][1])
+                    along_blade_force_z.append(self.actuator_force_components[blade_id][actuator_id][2])
+
             self.along_blade_quantities['lift'].append(along_blade_lift)
             self.along_blade_quantities['drag'].append(along_blade_drag)
             self.along_blade_quantities['aoa'].append(along_blade_aoa)
             self.along_blade_quantities['axial'].append(along_blade_axial)
+
+            self.along_blade_quantities['force_x'].append(along_blade_force_x)
+            self.along_blade_quantities['force_y'].append(along_blade_force_y)
+            self.along_blade_quantities['force_z'].append(along_blade_force_z)
 
         return project(self.tf,fs.V, solver_type='cg')
         
@@ -677,6 +716,9 @@ class ActuatorLineDolfin(GenericTurbine):
         if self.params.rank == 0:
             for key in self.along_blade_quantities.keys():
                 data = self.along_blade_quantities[key]
-                data = np.array(data)
-                filename = os.path.join(self.params.folder, f'data/alm/{key}_{self.index}.npy')
-                np.save(filename, data)
+                try:
+                    data = np.array(data)
+                    filename = os.path.join(self.params.folder, f'data/alm/{key}_{self.index}.npy')
+                    np.save(filename, data)
+                except:
+                    self.fprint(f'Could not save along blade data: {key}')
