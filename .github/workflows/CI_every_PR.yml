@@ -32,31 +32,36 @@ jobs:
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -sv --cov=windse tests/test_regression_parallel.py
+          cd tests/9-Regression
+          mpirun -n 2 python -u ../../windse_driver/driver.py run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
         
       - name: Run parallel regression tests within WindSE 2
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -sv --cov=windse tests/test_regression_parallel.py
+          cd tests/9-Regression
+          mpirun -n 2 python -u ../../windse_driver/driver.py run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
         
       - name: Run parallel regression tests within WindSE 3
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -sv --cov=windse tests/test_regression_parallel.py
+          cd tests/9-Regression
+          mpirun -n 2 python -u ../../windse_driver/driver.py run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
         
       - name: Run parallel regression tests within WindSE 4
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -sv --cov=windse tests/test_regression_parallel.py
+          cd tests/9-Regression
+          mpirun -n 2 python -u ../../windse_driver/driver.py run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
         
       - name: Run parallel regression tests within WindSE 5
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -sv --cov=windse tests/test_regression_parallel.py
+          cd tests/9-Regression
+          mpirun -n 2 python -u ../../windse_driver/driver.py run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
         
       - name: Run parallel regression tests within WindSE 6
         shell: pwsh
