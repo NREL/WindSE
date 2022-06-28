@@ -304,40 +304,40 @@ class GenericBoundary(object):
         ### Calculate the distance to the ground for the Q function space ###
         # self.z_dist_Q = Function(fs.Q)
         print_i = 0
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         self.height = Function(self.fs.Q)
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         self.depth = Function(self.fs.Q)
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         Q_coords = self.fs.Q.tabulate_dof_coordinates()
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         height_vals = self.height.vector()[:]
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         for i in range(len(Q_coords)):
             height_vals[i] = self.dom.Ground(Q_coords[i,0],Q_coords[i,1])
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         z_dist_Q = Q_coords[:,2]-height_vals
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         self.height.vector()[:]=height_vals
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         self.depth.vector()[:]=z_dist_Q
 
         ### Calculate the distance to the ground for the V function space ###
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         self.depth_V = Function(self.fs.V)
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         V_coords = self.fs.V.tabulate_dof_coordinates()
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         z_dist_V_val = np.zeros(len(V_coords))
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         for i in range(len(V_coords)):
             z_dist_V_val[i] = V_coords[i,2]-self.dom.Ground(V_coords[i,0],V_coords[i,1])
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
         self.depth_V.vector()[:]=z_dist_V_val
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
 
         self.V0_coords = self.fs.V0.tabulate_dof_coordinates()
-        print("at step "+print_i); print_i += 1
+        print("at step "+repr(print_i)); print_i += 1
 
 
 class UniformInflow(GenericBoundary):

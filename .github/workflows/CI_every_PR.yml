@@ -17,8 +17,8 @@ jobs:
           miniconda-version: "latest"
           channels: conda-forge
           auto-update-conda: true
-          python-version: 3.8
-      #     environment-file: environment.yml
+          # python-version: 3.8
+          # environment-file: environment.yml
       
       - name: Install test environment
         shell: pwsh # putting in a shell command makes for compile linking problems later
