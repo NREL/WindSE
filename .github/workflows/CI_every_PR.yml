@@ -41,7 +41,61 @@ jobs:
       #     cd tests/9-Regression
       #     mpirun -n 2 windse run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
 
-      - name: Run all regression tests within WindSE
+      - name: Run all regression tests within WindSE 1
+        shell: pwsh
+        run: |
+          conda activate test-environment
+          pytest -sv --cov=windse --cov-append tests/test_regression.py
+
+      - name: Run all regression tests within WindSE 2
+        shell: pwsh
+        run: |
+          conda activate test-environment
+          pytest -sv --cov=windse --cov-append tests/test_regression.py
+
+      - name: Run all regression tests within WindSE 3
+        shell: pwsh
+        run: |
+          conda activate test-environment
+          pytest -sv --cov=windse --cov-append tests/test_regression.py
+
+      - name: Run all regression tests within WindSE 4
+        shell: pwsh
+        run: |
+          conda activate test-environment
+          pytest -sv --cov=windse --cov-append tests/test_regression.py
+
+      - name: Run all regression tests within WindSE 5
+        shell: pwsh
+        run: |
+          conda activate test-environment
+          pytest -sv --cov=windse --cov-append tests/test_regression.py
+
+      - name: Run all regression tests within WindSE 6
+        shell: pwsh
+        run: |
+          conda activate test-environment
+          pytest -sv --cov=windse --cov-append tests/test_regression.py
+
+      - name: Run all regression tests within WindSE 7
+        shell: pwsh
+        run: |
+          conda activate test-environment
+          pytest -sv --cov=windse --cov-append tests/test_regression.py
+
+      - name: Run all regression tests within WindSE 8
+        shell: pwsh
+        run: |
+          conda activate test-environment
+          pytest -sv --cov=windse --cov-append tests/test_regression.py
+
+      - name: Run all regression tests within WindSE 9
+        shell: pwsh
+        run: |
+          conda activate test-environment
+          pytest -sv --cov=windse --cov-append tests/test_regression.py
+
+      - name: Run all regression tests within WindSE 10
         shell: pwsh
         run: |
           conda activate test-environment
