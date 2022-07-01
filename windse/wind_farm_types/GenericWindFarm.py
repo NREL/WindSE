@@ -381,6 +381,7 @@ class GenericWindFarm(object):
             plt.plot(x,lower,"--r",label="Optimization Boundaries")
             plt.plot(x,upper,"--r")
         else:
+            bounds = np.array(bounds,dtype=float)
             plt.plot(x,bounds[0][-baseline_blade_segments:],"--r",label="Optimization Boundaries")
             plt.plot(x,bounds[1][-baseline_blade_segments:],"--r")
 

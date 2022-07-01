@@ -17,8 +17,8 @@ jobs:
           miniconda-version: "latest"
           channels: conda-forge
           auto-update-conda: true
-          python-version: 3.8
-      #     environment-file: environment.yml
+          # python-version: 3.8
+          # environment-file: environment.yml
       
       - name: Install test environment
         shell: pwsh # putting in a shell command makes for compile linking problems later
@@ -34,12 +34,19 @@ jobs:
       #     conda activate test-environment
       #     pytest -sv --cov=windse tests/test_regression_parallel.py
 
+      # - name: Run parallel regression tests within WindSE
+      #   shell: pwsh
+      #   run: |
+      #     conda activate test-environment
+      #     cd tests/9-Regression
+      #     mpirun -n 2 windse run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
+
       - name: Run parallel regression tests within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
           cd tests/9-Regression
-          mpirun -n 2 windse run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
+          mpirun -n 2 python -u ../../windse_driver/driver.py run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
 
       - name: Run all regression tests within WindSE
         shell: pwsh
