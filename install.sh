@@ -4,7 +4,7 @@
 source $(conda info --base)/etc/profile.d/conda.sh
 
 ### Create the Environment
-conda create -y --name $1
+conda create -y --name $1 python=3.8.0
 conda activate $1
 
 ### Install conda-forge dependencies 
