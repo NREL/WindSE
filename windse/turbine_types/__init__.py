@@ -11,6 +11,7 @@ from .ActuatorDisk         import ActuatorDisk
 from .ActuatorDisk2D       import ActuatorDisk2D
 from .ActuatorDiskNumpy    import ActuatorDiskNumpy
 from .ActuatorLine         import ActuatorLine
+from .DisabledTurbine      import DisabledTurbine
 
 ### Create the turbine dictionary ###
 turbine_dict = {
@@ -22,4 +23,5 @@ turbine_dict = {
     "numpy_disks": ActuatorDiskNumpy,
     "line":       ActuatorLine,
     "lines":       ActuatorLine,
+    "disabled":       DisabledTurbine,
 }

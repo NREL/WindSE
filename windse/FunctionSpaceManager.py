@@ -31,6 +31,7 @@ class GenericFunctionSpace(object):
         self.fprint = self.params.fprint
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
+        self.dom = dom
         self.dim = dom.dim
         self.mesh = dom.mesh
 
@@ -59,7 +60,7 @@ class GenericFunctionSpace(object):
         ### Create Function Spaces for numpy turbine force ###
         if self.turbine_method == "numpy_disk":
             tf_V = VectorElement(self.turbine_space,self.mesh.ufl_cell(),degree=self.turbine_degree,quad_scheme="default")
-            self.tf_V = FunctionSpace(self.mesh, tf_V)
+            self.tf_V = FunctionSpace(self.mesh, tf_V, constrained_domain = self.dom.periodic_mapping)
             self.tf_V0 = self.tf_V.sub(0).collapse() 
             self.fprint("Quadrature DOFS: {:d}".format(self.tf_V.dim()))
 
@@ -85,8 +86,8 @@ class LinearFunctionSpace(GenericFunctionSpace):
 
         V = VectorElement('Lagrange', self.mesh.ufl_cell(), 1) 
         Q = FiniteElement('Lagrange', self.mesh.ufl_cell(), 1)
-        self.T = FunctionSpace(dom.mesh, TensorElement('Lagrange', dom.mesh.ufl_cell(), 1))
-        self.W = FunctionSpace(self.mesh, MixedElement([V,Q]))
+        self.T = FunctionSpace(dom.mesh, TensorElement('Lagrange', dom.mesh.ufl_cell(), 1), constrained_domain = self.dom.periodic_mapping)
+        self.W = FunctionSpace(self.mesh, MixedElement([V,Q]), constrained_domain = self.dom.periodic_mapping)
 
         self.SetupSubspaces()
 
@@ -118,8 +119,8 @@ class TaylorHoodFunctionSpace(GenericFunctionSpace):
         self.fprint("Creating Function Space",special="header")
         V = VectorElement('Lagrange', self.mesh.ufl_cell(), 2) 
         Q = FiniteElement('Lagrange', self.mesh.ufl_cell(), 1)
-        self.T = FunctionSpace(dom.mesh, TensorElement('Lagrange', dom.mesh.ufl_cell(), 1))
-        self.W = FunctionSpace(self.mesh, MixedElement([V,Q]))
+        self.T = FunctionSpace(dom.mesh, TensorElement('Lagrange', dom.mesh.ufl_cell(), 1), constrained_domain = self.dom.periodic_mapping)
+        self.W = FunctionSpace(self.mesh, MixedElement([V,Q]), constrained_domain = self.dom.periodic_mapping)
 
         self.SetupSubspaces()
 
