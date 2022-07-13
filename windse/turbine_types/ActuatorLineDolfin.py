@@ -11,7 +11,7 @@ from . import GenericTurbine
 
 from . import (Constant, Expression, Function, Point, assemble, dot, dx,
 pi, cos, acos, asin, sin, sqrt, exp, cross, as_tensor, as_vector, SpatialCoordinate,
-project)
+project, inner, TrialFunction, TestFunction, PETScKrylovSolver)
 from windse.helper_functions import mpi_eval, ufl_eval, test_dolfin_adjoint
 
 '''
@@ -549,7 +549,17 @@ class ActuatorLineDolfin(GenericTurbine):
             self.fprint(f'Minimum Mesh Spacing: {self.dom.global_hmin}')
             self.fprint(f'Number of Actuators per Blade: {self.num_actuator_nodes}')
 
-            tf = 0
+
+            debugging_chunked_form = True
+
+            if self.num_actuator_nodes > 20 or debugging_chunked_form == True:
+                # To avoid running out of memory for what will be a very
+                # large UFL form, store the form in multiple chunks associated
+                # with each of the turbine blades in a [1 x num_blades] list. 
+                # e.g., tf[0] = the UFL form for blade number 1, and so on.
+                tf = [0 for k in range(self.num_blades)]
+            else:
+                tf = 0
 
             self.along_blade_quantities = {}
             self.along_blade_quantities['lift'] = []
@@ -602,7 +612,11 @@ class ActuatorLineDolfin(GenericTurbine):
                     self.x_0_prev[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz])
 
                                     
-                    tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], n_0, blade_id, actuator_id)
+                    # tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], n_0, blade_id, actuator_id)
+                    if isinstance(tf, list):
+                        tf[blade_id] += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], n_0, blade_id, actuator_id)
+                    else:
+                        tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], n_0, blade_id, actuator_id)
 
                     along_blade_lift.append(float(self.lift_mag[blade_id][actuator_id]))
                     along_blade_drag.append(float(self.drag_mag[blade_id][actuator_id]))
@@ -610,6 +624,7 @@ class ActuatorLineDolfin(GenericTurbine):
                     along_blade_axial.append(float(self.axial[blade_id][actuator_id]))
 
                     # TODO : wrap the appended quantity (e.g., fx, fy, fz) as a float and store the evaluated value
+                    # TODO: wrap these as assemble and only save when necessary, i.e., if saving_blade_loads ...
                     along_blade_force_x.append(self.actuator_force_components[blade_id][actuator_id][0])
                     along_blade_force_y.append(self.actuator_force_components[blade_id][actuator_id][1])
                     along_blade_force_z.append(self.actuator_force_components[blade_id][actuator_id][2])
@@ -623,7 +638,44 @@ class ActuatorLineDolfin(GenericTurbine):
             self.along_blade_quantities['force_y'].append(along_blade_force_y)
             self.along_blade_quantities['force_z'].append(along_blade_force_z)
 
+            # Create a form for quickly projecting turbine force onto a vector function space
+            # equivalent to: tf_fn = project(tf, V, solver_type='cg')
             self.tf = tf
+            self.tf_fn = Function(fs.V)
+
+            if isinstance(self.tf, list):
+                self.blade_tf_fn = Function(fs.V)
+
+                self.a = []
+                self.L = []
+
+                self.A = []
+                self.b = []
+
+                self.project_tf = []
+
+                for blade_id in range(self.num_blades):
+                    blade_a = inner(TrialFunction(fs.V), TestFunction(fs.V))*dx
+                    blade_L = inner(self.tf[blade_id], TestFunction(fs.V))*dx
+
+                    self.a.append(blade_a)
+                    self.L.append(blade_L)
+
+                    self.A.append(assemble(self.a[blade_id]))
+                    self.b.append(assemble(self.L[blade_id]))
+
+                    self.project_tf.append(PETScKrylovSolver('cg', 'jacobi'))
+                    self.project_tf[blade_id].set_operator(self.A[blade_id])
+
+            else:
+                self.a = inner(TrialFunction(fs.V), TestFunction(fs.V))*dx
+                self.L = inner(self.tf, TestFunction(fs.V))*dx
+
+                self.A = assemble(self.a)
+                self.b = assemble(self.L)
+
+                self.project_tf = PETScKrylovSolver('cg', 'jacobi')
+                self.project_tf.set_operator(self.A)
 
             self.first_call_to_alm = False
 
@@ -684,8 +736,44 @@ class ActuatorLineDolfin(GenericTurbine):
             self.along_blade_quantities['force_y'].append(along_blade_force_y)
             self.along_blade_quantities['force_z'].append(along_blade_force_z)
 
-        return project(self.tf,fs.V, solver_type='cg')
-        
+        if hasattr(self, 'project_tf'):
+            if isinstance(self.tf, list):
+                self.fprint('Solving list w/ custom')
+                self.tf_fn.vector()[:] = 0.0
+
+                for blade_id in range(self.num_blades):
+                    self.b[blade_id] = assemble(self.L[blade_id], tensor=self.b[blade_id])
+                    self.project_tf[blade_id].solve(self.blade_tf_fn.vector(), self.b[blade_id])
+                    self.tf_fn.vector()[:] += self.blade_tf_fn.vector().get_local()
+            else:
+                self.fprint('Solving non-list w/ custom')
+                self.b = assemble(self.L, tensor=self.b)
+                self.project_tf.solve(self.tf_fn.vector(), self.b)
+
+        else:
+            if isinstance(self.tf, list):
+                self.fprint('Solving list w/ built in')
+
+                self.tf_fn.vector()[:] = 0.0
+
+                for blade_id in range(self.num_blades):
+                    self.blade_tf_fn = project(self.tf[blade_id], fs.V, solver_type='cg', preconditioner_type='jacobi')
+                    self.tf_fn.vector().axpy(1.0, self.blade_tf_fn.vector())
+
+            else:
+                self.fprint('Solving non-list w/ built in')
+                self.tf_fn = project(self.tf, fs.V, solver_type='cg', preconditioner_type='jacobi')
+                filename = os.path.join(self.params.folder, f'data/alm/true_force.npy')
+                np.save(filename, self.tf_fn.vector()[:])
+
+        # print(self.tf_fn.vector().max(), self.tf_fn.vector().min())
+
+        # filename = os.path.join(self.params.folder, f'data/alm/true_force.npy')
+        # truth_data = np.load(filename)
+
+        # print(f'Max diff from truth: {np.amax(np.abs(truth_data - self.tf_fn.vector()[:]))}')
+
+        return self.tf_fn
 
 
     def power(self, u, inflow_angle):
@@ -697,7 +785,15 @@ class ActuatorLineDolfin(GenericTurbine):
             ys=self.my,
             zs=self.mz)
 
-        self.power_dolfin = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
+        if isinstance(self.tf, list):
+            self.power_dolfin = 0.0
+
+            for blade_id in range(self.num_blades):
+                self.power_dolfin += assemble(1e-6*dot(-self.tf[blade_id]*self.angular_velocity, self.cyld_expr)*dx)
+
+        else:
+            self.power_dolfin = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
+
         # self.power_dolfin = assemble(dot(self.tf,as_vector((1.0,1.0,1.0)))*dx)
 
         return self.power_dolfin
@@ -705,10 +801,10 @@ class ActuatorLineDolfin(GenericTurbine):
     def prepare_saved_functions(self, func_list):
         if len(func_list) == 0:
             func_list = [
-                [self.tf,"turbine_force"]
+                [self.tf_fn,"turbine_force"]
             ]
         else:
-            func_list[1][0] += self.tf
+            func_list[1][0] += self.tf_fn
 
         return func_list
 
