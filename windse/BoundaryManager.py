@@ -232,7 +232,10 @@ class GenericBoundary(object):
         uy_com = np.zeros(length)
         uz_com = np.zeros(length)
 
-        self.inflow_unit_vector = as_vector((cos(inflow_angle),sin(inflow_angle),0.0))
+        if self.dom.dim == 3:
+            self.inflow_unit_vector = as_vector((cos(inflow_angle),sin(inflow_angle),0.0))
+        else:
+            self.inflow_unit_vector = as_vector((cos(inflow_angle),sin(inflow_angle)))
 
         for i in range(length):
             v = self.HH_vel * self.unit_reference_velocity[i]
