@@ -420,9 +420,7 @@ class ActuatorLineDolfin(GenericTurbine):
 
 
     def calculate_tip_loss(self, rdim, aoa):
-        use_tip_loss = True
-    #     if self.tip_loss:
-        if use_tip_loss:
+        if self.tip_loss:
             if float(rdim) < 1e-12:
                 tip_loss_fac = 1.0
 
