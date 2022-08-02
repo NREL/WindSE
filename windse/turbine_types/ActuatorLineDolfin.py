@@ -131,7 +131,7 @@ class ActuatorLineDolfin(GenericTurbine):
             if i == 0 or i == self.num_actuator_nodes - 1:
                 self.w.append(Constant(w/2.0))
             else:
-                self.w.append(Constant(w/2.0))
+                self.w.append(Constant(w))
             self.rdim.append(Constant(self.radius*i/(self.num_actuator_nodes-1)))
 
         # Initialize lists
