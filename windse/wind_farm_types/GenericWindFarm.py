@@ -386,6 +386,10 @@ class GenericWindFarm(object):
             plt.plot(x,lower,"--r",label="Optimization Boundaries")
             plt.plot(x,upper,"--r")
         else:
+            print(f'Bounds = {bounds}')
+            print(f'baseline_blade_segments = {baseline_blade_segments}')
+            print(f'baseline_chord = {baseline_chord}')
+            print(f'x = {x}')
             plt.plot(x,bounds[0][-baseline_blade_segments:],"--r",label="Optimization Boundaries")
             plt.plot(x,bounds[1][-baseline_blade_segments:],"--r")
 
