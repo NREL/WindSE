@@ -642,7 +642,14 @@ class ActuatorLine(GenericTurbine):
 
             else:
                 u_fluid_constant = self.mpi_u_fluid[blade_id]
-                u_fluid = [const.values() for const in u_fluid_constant]
+                u_fluid = []
+
+                for const in u_fluid_constant:
+                    if isinstance(const, Constant):
+                        u_fluid.append(const.values())
+                    else:
+                        u_fluid.append(const)
+
                 u_fluid = np.array(u_fluid).T
 
 
