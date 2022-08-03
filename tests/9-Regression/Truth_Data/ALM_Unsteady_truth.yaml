@@ -67,7 +67,7 @@ ProblemManager:
   min_cd: 0.008425092333333334
   max_cd: 0.5
   avg_cd: 0.13290783725
-  num_blade_segments: 4.0
+  num_actuator_nodes: 4.0
 SolverManager:
   time_0.0: 0.0
   min_x_vel_0.0: 0.6303245027860005
