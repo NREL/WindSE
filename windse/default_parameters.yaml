@@ -170,3 +170,4 @@ optimization:                   # parameters for OptimizationManager
     gradient:       False           # output the gradient
     verify_snopt:   False           # use the SNOPT FD gradient verification
     check_totals:   False           # check the total derivatives of the problem; optimize must be true as well
+    hard_scaling_factor: 1.0               # A hard-coded scaling factor, objective_value = objective_value*hard_scaling_factor
