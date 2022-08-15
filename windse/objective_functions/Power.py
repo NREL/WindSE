@@ -35,6 +35,6 @@ def objective(solver, inflow_angle = 0.0, first_call=False, annotate=True, **kwa
     J = solver.problem.farm.compute_power(solver.problem.u_k,inflow_angle)
 
 
-    J *= solver.params.hard_scaling_factor
+    J *= float(solver.params['optimization']['hard_scaling_factor'])
 
     return J
