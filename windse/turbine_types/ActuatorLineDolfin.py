@@ -272,6 +272,8 @@ class ActuatorLineDolfin(GenericTurbine):
                 c_lift_0 = data[:, 1]
                 c_drag_0 = data[:, 2]
 
+                s_i = station_radii[station_id]*np.ones(np.size(angles_i))
+
                 c_lift_interp = interp.interp1d(angles_0, c_lift_0, kind='linear')
                 c_drag_interp = interp.interp1d(angles_0, c_drag_0, kind='linear')
 
@@ -279,15 +281,30 @@ class ActuatorLineDolfin(GenericTurbine):
                 c_drag_i = c_drag_interp(angles_i)
 
                 if station_id == 0:
+                    station = s_i
+                    angles = angles_i
                     c_lift = c_lift_i
                     c_drag = c_drag_i
                 else:
+                    station = np.vstack((station, s_i))
+                    angles = np.vstack((angles, angles_i))
                     c_lift = np.vstack((c_lift, c_lift_i))
                     c_drag = np.vstack((c_drag, c_drag_i))
 
             # Create interpolation functions for lift and drag based on angle of attack and location along blade
-            self.lookup_cl = interp.RectBivariateSpline(station_radii, angles_i, c_lift)
-            self.lookup_cd = interp.RectBivariateSpline(station_radii, angles_i, c_drag)
+            if 'linear_interp' in self.params['general']['name']:
+                print(f'Using linear interpolator: LinearNDInterpolator')
+                nodes = np.vstack((station.flatten(), angles.flatten())).T
+
+                # Create interpolation functions for lift and drag based on angle of attack and location along blade
+                self.lookup_cl = interp.LinearNDInterpolator(nodes, c_lift.flatten())
+                self.lookup_cd = interp.LinearNDInterpolator(nodes, c_drag.flatten())
+                self.lookup_takes_derivatives = False
+
+            else:
+                self.lookup_cl = interp.RectBivariateSpline(station_radii, angles_i, c_lift)
+                self.lookup_cd = interp.RectBivariateSpline(station_radii, angles_i, c_drag)
+                self.lookup_takes_derivatives = True
 
         else:
             self.lookup_cl = None # TODO: We probably need to handle this case
@@ -296,14 +313,20 @@ class ActuatorLineDolfin(GenericTurbine):
 
     def lookup_lift_coeff(self, rdim, aoa, dx=0, dy=0):
 
-        cl = self.lookup_cl(rdim, aoa, dx=dx, dy=dy)[0][0]
-        
+        if self.lookup_takes_derivatives:
+            cl = self.lookup_cl(rdim, aoa, dx=dx, dy=dy)[0][0]
+        else:
+            cl = self.lookup_cl(rdim, aoa)
+
         return cl
 
 
     def lookup_drag_coeff(self, rdim, aoa, dx=0, dy=0):
         
-        cd = self.lookup_cd(rdim, aoa, dx=dx, dy=dy)[0][0]
+        if self.lookup_takes_derivatives:
+            cd = self.lookup_cd(rdim, aoa, dx=dx, dy=dy)[0][0]
+        else:
+            cd = self.lookup_cd(rdim, aoa)
 
         return cd
 
