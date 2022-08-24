@@ -33,6 +33,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
         from windse.blocks import blockify, MarkerBlock, ControlUpdaterBlock
+        from pyadjoint import AdjFloat
 
     ### Import objective functions ###
     import windse.objective_functions as obj_funcs
@@ -87,10 +88,14 @@ class GenericSolver(object):
         if self.params.dolfin_adjoint:
             self.extra_kwarg["annotate"] = False
 
+        J_temp = 0.0
+        if self.params["general"]["dolfin_adjoint"]:
+            J_temp = AdjFloat(0.0)
+
         self.optimizing = False
         if self.params.performing_opt_calc or self.save_objective:
             self.optimizing = True
-            self.J = 0.0
+            self.J = J_temp
             self.adj_file = XDMFFile(self.params.folder+"timeSeries/local_adjoint.xdmf")
             self.adj_time_iter = 1
             self.adj_time_list = [0.0]
@@ -110,7 +115,7 @@ class GenericSolver(object):
 
         #Check if we need to save the power output
         if self.save_power:
-            self.J = 0.0
+            self.J = J_temp
             self.J_saved = False
 
     @no_annotations
@@ -947,6 +952,11 @@ class UnsteadySolver(GenericSolver):
         # self.problem.alm_power_sum = 0.0
 
         while not stable and self.simTime < self.final_time:
+
+            # add a fake block that allows us to update the control while dolfin_adjoint is doing it's thing
+            print(f"integral(u_x) = {assemble(self.problem.u_k[0]*dx)}")
+            self.J = self.control_updater(self.J, self.problem, time=self.simTime)
+
             self.problem.bd.UpdateVelocity(self.simTime)
 
             # Record the "old" max velocity (before this update)
@@ -1068,7 +1078,6 @@ class UnsteadySolver(GenericSolver):
                 # e.g., actuator disks
                 self.problem.alm_power = np.zeros(self.problem.farm.numturbs)
                 self.problem.alm_power_dolfin = np.zeros(self.problem.farm.numturbs)
-                self.J = self.control_updater(self.J, self.problem, time=self.simTime)
 
                 # exit()
             toc = time.time()
@@ -1146,6 +1155,8 @@ class UnsteadySolver(GenericSolver):
 
                 self.fprint("Current Objective Value: "+repr(float(self.J/dt_sum)))
                 self.fprint("Change in Objective    : "+repr(float(J_diff)))
+
+
 
             # to only call the power functional once, check if a) the objective is the power, b) that we are before record time
             if self.save_power:

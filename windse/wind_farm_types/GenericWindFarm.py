@@ -339,7 +339,7 @@ class GenericWindFarm(object):
         elif isinstance(objective_value,(list,np.ndarray)):
             plt.title("Objective Value: {: 5.6f}".format(sum(objective_value)))
         else:
-            plt.title("Objective Value: {: 5.6f}".format(objective_value))
+            plt.title("Objective Value: {: 5.6f}".format(float(objective_value)))
 
         plt.savefig(file_string, transparent=True)
 
@@ -396,7 +396,7 @@ class GenericWindFarm(object):
         elif isinstance(objective_value,(list,np.ndarray)):
             plt.title("Objective Value: {: 5.6f}".format(sum(objective_value)))
         else:
-            plt.title("Objective Value: {: 5.6f}".format(objective_value)) 
+            plt.title("Objective Value: {: 5.6f}".format(float(objective_value))) 
         plt.xlabel("Blade Span")      
         plt.ylabel("Chord")
         plt.legend()      

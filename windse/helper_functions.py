@@ -19,7 +19,6 @@ def ufl_eval(form, print_statement=None):
     # return out
     if print_statement is not None:
         print(f'Standard: {print_statement}')
-
     return Constant(form)
 
 if windse_parameters.dolfin_adjoint:
