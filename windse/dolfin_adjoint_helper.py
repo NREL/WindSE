@@ -102,7 +102,8 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
 
 
     if not self.forward_kwargs:
-        dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters={'linear_solver': 'mumps'})
+        #dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters={'linear_solver': 'mumps'})
+        dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters={'linear_solver': 'gmres', 'preconditioner': 'hypre_amg'})
     else:
         if "krylov_solver_parameters" in self.forward_kwargs.keys():
             solver_parameters={'linear_solver': self.forward_kwargs["krylov_method"], 'preconditioner': self.forward_kwargs["krylov_preconditioner"]}

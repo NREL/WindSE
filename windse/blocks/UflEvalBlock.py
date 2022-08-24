@@ -6,11 +6,12 @@ import ufl
 class UflEvalBlock(Block):
     '''This is the Block class that will be used to calculate adjoint 
     information for optimizations. '''
-    def __init__(self, form, base_eval=None):
+    def __init__(self, form, print_statement=None, base_eval=None):
         super(UflEvalBlock, self).__init__()
         self.form = form
         self.base_eval = base_eval
         self.coeffs = self.explore(self.form)
+        self.print_statement = print_statement
         for c in self.coeffs:
             self.add_dependency(c, no_duplicates=True)
 
@@ -33,6 +34,9 @@ class UflEvalBlock(Block):
         form = prepared
         output = self.base_eval(form)
         output = create_overloaded_object(output)
+        if self.print_statement is not None:
+            print(f'Forward: {self.print_statement}')
+
         return output
 
     def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
@@ -52,4 +56,7 @@ class UflEvalBlock(Block):
         der = diff(form,inputs[idx])
         # print(der)
         output = float(ufl.algorithms.apply_derivatives.apply_derivatives(der))
+        if self.print_statement is not None:
+            print(f'Adjoint: {self.print_statement}')
+        
         return adj_input * output

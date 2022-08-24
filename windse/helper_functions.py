@@ -9,7 +9,7 @@ if windse_parameters.dolfin_adjoint:
     from windse.blocks import blockify, MpiEvalBlock, UflEvalBlock
     from pyadjoint.overloaded_type import create_overloaded_object
 
-def ufl_eval(form):
+def ufl_eval(form, print_statement=None):
     '''
     This function converts complex ufl forms to floats
     '''
@@ -17,6 +17,9 @@ def ufl_eval(form):
     # dx_lame = Measure("dx",mesh)
     # out = assemble(form*dx_lame)
     # return out
+    if print_statement is not None:
+        print(f'Standard: {print_statement}')
+
     return Constant(form)
 
 if windse_parameters.dolfin_adjoint:

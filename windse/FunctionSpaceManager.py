@@ -45,6 +45,10 @@ class GenericFunctionSpace(object):
     def SetupSubspaces(self):
         self.V = self.W.sub(0).collapse()
         self.Q = self.W.sub(1).collapse()
+        print('about to setupsubspaces')
+        f = Function(self.Q)
+        print('made it in setupsubspaces')
+        #exit()
         self.V0 = self.V.sub(0).collapse() 
         self.V1 = self.V.sub(1).collapse()
 

@@ -500,7 +500,7 @@ class ActuatorLineDolfin(GenericTurbine):
 
         # Calculate the angle of attack for this actuator node node
         self.aoa_forms[blade_id][actuator_id] = self.calcuate_aoa(vel_rel, n_0, twist)
-        self.aoa_values[blade_id][actuator_id].assign(ufl_eval(self.aoa_forms[blade_id][actuator_id]))
+        self.aoa_values[blade_id][actuator_id].assign(ufl_eval(self.aoa_forms[blade_id][actuator_id], print_statement=f'Init Actuator Line rank = {self.params.rank}'))
         aoa_f = self.aoa_values[blade_id][actuator_id]
         
         # Lookup the lift and drag coefficients
@@ -729,7 +729,7 @@ class ActuatorLineDolfin(GenericTurbine):
                         self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
 
                     # Re Evaluate the aoa form
-                    self.aoa_values[blade_id][actuator_id].assign(ufl_eval(self.aoa_forms[blade_id][actuator_id]))
+                    self.aoa_values[blade_id][actuator_id].assign(ufl_eval(self.aoa_forms[blade_id][actuator_id], print_statement=f'Actuator at {float(self.simTime)} rank = {self.params.rank}'))
 
                     # Get blade props
                     rdim = self.rdim[actuator_id]

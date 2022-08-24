@@ -15,6 +15,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     import sys
     import windse
     import numpy as np
+    # from fenics import FunctionSpace, Function
     
 def DefaultParameters():
     """
@@ -118,6 +119,11 @@ def BuildDomain(params):
         ### warp and refine the mesh
         windse.WarpMesh(dom)
         windse.RefineMesh(dom,farm)
+
+        #print('Calling from driver_function')
+        #Q = dom.my_fs(dom.mesh, 'P', 1)
+        #f = dom.my_fn(Q)
+        #print('finished in driver_function')
 
         ### Finalize the Domain ###
         dom.Finalize()

@@ -16,7 +16,8 @@ else:
 ### This checks if we are just doing documentation ###
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
-    from mshr import *
+    #from mshr import *
+    #from windse.mshr_fake import *
     import copy
     import time
     import warnings
@@ -392,6 +393,12 @@ class GenericDomain(object):
             # This isn't needed for actual boundary marking, but it helps it pass a test later on
             self.BuildBoundaryMarkers()
 
+        self.my_fs = FunctionSpace
+        self.my_fn = Function
+        print('After refinement')
+        Q = FunctionSpace(self.mesh, 'P', 1)
+        f = Function(Q)
+        print('finished after refinement')
 
         self.fprint("Original Mesh Vertices: {:d}".format(old_verts))
         self.fprint("Original Mesh Cells:    {:d}".format(old_cells))
@@ -658,6 +665,12 @@ class GenericDomain(object):
 
 
     def Finalize(self):
+        print('Calling from dom.finalize')
+        #Q = FunctionSpace(self.mesh, 'P', 1)
+        #f = Function(Q)
+        print('finished in dom.finalize')
+
+
         # self.ComputeCellRadius()
         self.ComputeGlobalHmin()
         self.finalized = True
