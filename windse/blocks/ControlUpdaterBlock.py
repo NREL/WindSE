@@ -47,7 +47,12 @@ class ControlUpdaterBlock(Block):
 
     def recompute_component(self, inputs, block_variable, idx, prepared):
         print(f"Current Objective = {inputs[-1]}")
-        print(f"integral(u_x) = {assemble(inputs[-3][0]*dx)}")
+        print(f"u(0, 0,150):   {inputs[-3]([0.0, 0.0,150.0])}")
+        print(f"u(0, 0,210):   {inputs[-3]([0.0, 0.0,210.0])}")
+        print(f"u(0,60,150):   {inputs[-3]([0.0,60.0,150.0])}")
+        print(f"max(u):        {inputs[-3].vector().max()}")
+        print(f"min(u):        {inputs[-3].vector().min()}")
+        print(f"integral(u_x): {assemble(inputs[-3][0]*dx)}")
         if self.problem.df_first_save:
             self.problem.df_velocity_file = self.problem.params.Save(inputs[-3],"df_velocity",subfolder="timeSeries/",val=self.time)
             self.problem.df_first_save = False
