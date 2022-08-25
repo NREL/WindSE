@@ -145,6 +145,7 @@ solver:                         # parameters for the SolverManager
     newton_relaxation: 1.0          # relaxation parameter (0,1] for newton
     cfl_target: 0.5                 # target cfl number for unsteady solve 
     cl_iterator: 0                  # debugging tool, do not use
+    save_all_timesteps: False       # Save fields at every time step
 
 optimization:                   # parameters for OptimizationManager
     opt_type:       maximize        # minimize or maximize

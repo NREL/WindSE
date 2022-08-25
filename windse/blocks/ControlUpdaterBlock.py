@@ -8,6 +8,7 @@ class ControlUpdaterBlock(Block):
         self.problem = problem
         self.farm = problem.farm
         self.time = kwargs.get("time",None)
+        self.problem.df_first_save = True
 
         # Add dependencies on the controls
         self.num_dependancies = 0
@@ -47,6 +48,11 @@ class ControlUpdaterBlock(Block):
     def recompute_component(self, inputs, block_variable, idx, prepared):
         print(f"Current Objective = {inputs[-1]}")
         print(f"integral(u_x) = {assemble(inputs[-3][0]*dx)}")
+        if self.problem.df_first_save:
+            self.problem.df_velocity_file = self.problem.params.Save(inputs[-3],"df_velocity",subfolder="timeSeries/",val=self.time)
+            self.problem.df_first_save = False
+        else:
+            self.problem.params.Save(inputs[-3],"df_velocity",subfolder="timeSeries/",val=self.time,file=self.problem.df_velocity_file)
 
         return inputs[-1]
 

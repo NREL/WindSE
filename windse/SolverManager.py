@@ -1026,7 +1026,9 @@ class UnsteadySolver(GenericSolver):
                     print("calc vertKE")
                     self.problem.vertKE = (self.problem.u_k[0]-self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))*(self.problem.u_k[2]-self.problem.uk_sum[2]/(self.record_time-self.u_avg_time))*(self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))
             
-            if save_next_timestep:
+            if self.save_all_timesteps:
+                self.SaveTimeSeries(self.simTime,simIter)
+            elif save_next_timestep:
                 # Read in new inlet values
                 # bcu = self.updateInletVelocityFromFile(saveCount, bcu)
                 
@@ -1198,7 +1200,9 @@ class UnsteadySolver(GenericSolver):
                 output_str = 'AVERAGE Rotor Power: %s MW' % (average_power)
             self.fprint(output_str)
 
-
+        # add a fake block that allows us to update the control while dolfin_adjoint is doing it's thing
+        print(f"integral(u_x) = {assemble(self.problem.u_k[0]*dx)}")
+        self.J = self.control_updater(self.J, self.problem, time=self.simTime)
         stop = time.time()
 
         self.fprint('================================================================')
