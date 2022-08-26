@@ -954,9 +954,13 @@ class UnsteadySolver(GenericSolver):
         while not stable and self.simTime < self.final_time:
 
             # add a fake block that allows us to update the control while dolfin_adjoint is doing it's thing
-            print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
-            print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
-            print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
+            try:
+                print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
+                print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
+                print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
+            except:
+                # Need to allow processes which don't own the above points to fail gracefully
+                pass
             print(f"max(u):        {self.problem.u_k.vector().max()}")
             print(f"min(u):        {self.problem.u_k.vector().min()}")
             print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
@@ -1206,9 +1210,14 @@ class UnsteadySolver(GenericSolver):
             self.fprint(output_str)
 
         # add a fake block that allows us to update the control while dolfin_adjoint is doing it's thing
-        print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
-        print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
-        print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
+        try:
+            print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
+            print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
+            print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
+        except:
+            # Need to allow processes which don't own the above points to fail gracefully
+            pass
+
         print(f"max(u):        {self.problem.u_k.vector().max()}")
         print(f"min(u):        {self.problem.u_k.vector().min()}")
         print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
