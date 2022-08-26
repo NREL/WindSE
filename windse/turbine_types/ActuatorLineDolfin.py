@@ -72,6 +72,8 @@ class ActuatorLineDolfin(GenericTurbine):
         self.gauss_factor = self.params["turbines"]["gauss_factor"]
         self.tip_loss = self.params["turbines"]["tip_loss"]
         self.hub_rad = self.params["turbines"]["hub_rad"]
+        self.chord_perturb = float(self.params["turbines"]["chord_perturb"])
+        self.chord_perturb_id = int(self.params["turbines"]["chord_perturb_id"])
 
 
     def compute_parameters(self):
@@ -215,6 +217,12 @@ class ActuatorLineDolfin(GenericTurbine):
             twist = np.zeros(self.num_actuator_nodes)
             cl = np.ones(self.num_actuator_nodes)
             cd = 0.1*np.ones(self.num_actuator_nodes)
+
+        if abs(self.chord_perturb) > 0:
+            self.fprint(f'Perturbing chord index {self.chord_perturb_id} by {self.chord_perturb}')
+            self.fprint(f'Old Value: {chord[self.chord_perturb_id]}')
+            self.fprint(f'New Value: {chord[self.chord_perturb_id]+self.chord_perturb}')
+            chord[self.chord_perturb_id] += self.chord_perturb
 
         # Store the chord, twist, cl, and cd values
         self.chord = chord
