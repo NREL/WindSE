@@ -226,7 +226,7 @@ class ActuatorLineDolfin(GenericTurbine):
 
         if self.params.rank == 0:
             chord_filename = os.path.join(self.params.folder, f'data/alm/chord.csv')
-            np.txt(chord_filename, chord, delimiter=',')
+            np.savetxt(chord_filename, chord, delimiter=',')
 
         # Store the chord, twist, cl, and cd values
         self.chord = chord
