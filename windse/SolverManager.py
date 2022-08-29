@@ -936,8 +936,8 @@ class UnsteadySolver(GenericSolver):
 
         # Initialize need loop objects
         start = time.time()
-        # dt_sum = 1.0
-        dt_sum = 0.0
+        # self.problem.dt_sum = 1.0
+        self.problem.dt_sum = 0.0
         J_old = 0
         J_diff_old = 100000
         min_count = 0
@@ -1142,8 +1142,8 @@ class UnsteadySolver(GenericSolver):
                 self.adj_time_list.append(self.simTime)
 
                 self.J += float(self.problem.dt)*J_next
-                dt_sum += self.problem.dt 
-                J_new = float(self.J/dt_sum)
+                self.problem.dt_sum += self.problem.dt 
+                J_new = float(self.J/self.problem.dt_sum)
 
                 ### TODO, replace this with an actual stabilization criteria such as relative difference tolerance
                 # Check the change in J with respect to time and check if we are "stable" i.e. hit the required number of minimums
@@ -1160,7 +1160,7 @@ class UnsteadySolver(GenericSolver):
                 # if abs(J_diff) <= 0.001:
                 #     stable = True
 
-                self.fprint("Current Objective Value: "+repr(float(self.J/dt_sum)))
+                self.fprint("Current Objective Value: "+repr(float(self.J/self.problem.dt_sum)))
                 self.fprint("Change in Objective    : "+repr(float(J_diff)))
 
 
@@ -1187,8 +1187,8 @@ class UnsteadySolver(GenericSolver):
             self.J = self.EvaluateObjective()
 
         elif (self.optimizing or self.save_objective):
-            # if dt_sum > 0.0:
-            self.J = self.J/float(dt_sum)
+            # if self.problem.dt_sum > 0.0:
+            self.J = self.J/float(self.problem.dt_sum)
 
 
         if self.simTime > average_start_time:

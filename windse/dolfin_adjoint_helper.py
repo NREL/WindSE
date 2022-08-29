@@ -51,8 +51,9 @@ def linalg_solve(*args, **kwargs):
         to get access to all the ksp options.
 
     """
-    # print("performing a solve")
+    print("performing a solve")
     return dolfin_adjoint.backend.solve(*args)#,"mumps") 
+    # return dolfin_adjoint.backend.solve(*args,"mumps") 
 
 if "dolfin_adjoint_helper" not in dolfin_adjoint.types.compat.linalg_solve.__module__:
     dolfin_adjoint.types.compat.linalg_solve = linalg_solve
@@ -102,7 +103,7 @@ def recompute_component(self, inputs, block_variable, idx, prepared):
 
 
     if not self.forward_kwargs:
-        #dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters={'linear_solver': 'mumps'})
+        # dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters={'linear_solver': 'mumps'})
         dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters={'linear_solver': 'gmres', 'preconditioner': 'hypre_amg'})
     else:
         if "krylov_solver_parameters" in self.forward_kwargs.keys():

@@ -17,8 +17,8 @@ def ufl_eval(form, print_statement=None):
     # dx_lame = Measure("dx",mesh)
     # out = assemble(form*dx_lame)
     # return out
-    if print_statement is not None:
-        print(f'Standard: {print_statement}')
+    # if print_statement is not None:
+    #     print(f'Standard: {print_statement}, output: {float(Constant(form))}')
     return Constant(form)
 
 if windse_parameters.dolfin_adjoint:
@@ -51,6 +51,8 @@ def mpi_eval(u, x, comm=MPI.comm_world):
 
     '''
     
+
+
     assert len(x) == u.geometric_dimension()
 
     rank = comm.Get_rank()
@@ -112,6 +114,9 @@ def mpi_eval(u, x, comm=MPI.comm_world):
     # out = Constant(ux)
     # print(type(out))
 
+    # print(f"x: {np.array(x,dtype=float)}")
+    # print(f"x: {np.array(x,dtype=float)}")
+    # print(f"u: {np.array(out,dtype=float)}")
     return out
 
 if windse_parameters.dolfin_adjoint:

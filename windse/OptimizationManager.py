@@ -429,7 +429,7 @@ class Optimizer(object):
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.farm.turbines[0].num_actuator_nodes):
+                for k in range(1,self.farm.turbines[0].num_actuator_nodes):
                     self.control_pointers.append(("chord",[i,k]))
                     self.indexes[6].append(j)
                     j+=1
@@ -439,7 +439,8 @@ class Optimizer(object):
 
         if "twist" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.farm.turbines[0].num_actuator_nodes-1):
+                # for k in range(self.farm.turbines[0].num_actuator_nodes-1):
+                for k in range(1,self.farm.turbines[0].num_actuator_nodes):
                     self.control_pointers.append(("twist",[i,k]))
                     self.indexes[6].append(j)
                     j+=1
@@ -660,10 +661,10 @@ class Optimizer(object):
         if "layout" in self.control_types or "yaw" in self.control_types:
             self.problem.farm.plot_farm(filename="wind_farm_step_"+repr(self.iteration),objective_value=self.Jcurrent)
 
-        if "chord" in self.control_types:
-            c_lower = np.array(self.bounds[0])[self.indexes[6]] 
-            c_upper = np.array(self.bounds[1])[self.indexes[6]] 
-            self.problem.farm.plot_chord(filename="chord_step_"+repr(self.iteration),objective_value=self.Jcurrent,bounds=[c_lower,c_upper])
+        # if "chord" in self.control_types:
+        #     c_lower = np.array(self.bounds[0])[self.indexes[6]] 
+        #     c_upper = np.array(self.bounds[1])[self.indexes[6]] 
+        #     self.problem.farm.plot_chord(filename="chord_step_"+repr(self.iteration),objective_value=self.Jcurrent,bounds=[c_lower,c_upper])
 
         self.DebugOutput(self.iteration, m)
 
@@ -742,7 +743,7 @@ class Optimizer(object):
 
         h = []
         for i,c in enumerate(self.controls):
-            h.append(Constant(0.01))
+            h.append(Constant(0.1))
             # h.append(Constant(0.01*max(abs(float(self.bounds[1][i])),abs(float(self.bounds[1][i])))))
             # h.append(Constant(10.0*abs(float(self.bounds[1][i])-float(self.bounds[0][i]))/2.0))
             # h.append(Constant(0.01*abs(np.mean(self.bounds[1])+np.mean(self.bounds[0]))/2.0))

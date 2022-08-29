@@ -12,8 +12,13 @@ class UflEvalBlock(Block):
         self.base_eval = base_eval
         self.coeffs = self.explore(self.form)
         self.print_statement = print_statement
+        self.names = []
         for c in self.coeffs:
+            self.names.append(f"{c}")# print(c)
+            # print(f"{c}: {float(c)}")
             self.add_dependency(c, no_duplicates=True)
+        # print(form)
+        # exit()
 
     def __str__(self):
         return "UflEvalBlock"
@@ -31,11 +36,14 @@ class UflEvalBlock(Block):
         return self.prepare_evaluate_adj(inputs, None, None)
 
     def recompute_component(self, inputs, block_variable, idx, prepared):
-        if self.print_statement is not None:
-            print(f"Forward: {self.print_statement}")
+        # for i, inp in enumerate(inputs):
+        #     print(f"{self.names[i]}: {float(inp)}")
+
         form = prepared
         output = self.base_eval(form)
         output = create_overloaded_object(output)
+        # if self.print_statement is not None:
+        #     print(f"Forward: {self.print_statement}, output: {float(output)}")
         return output
 
     def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
@@ -50,13 +58,10 @@ class UflEvalBlock(Block):
         return form
 
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
-        print("adj_test")
-        if self.print_statement is not None:
-            print(f"Adjoint: {self.print_statement}")
         form = prepared
         adj_input = adj_inputs[0]
         der = diff(form,inputs[idx])
-        print(der)
         output = float(ufl.algorithms.apply_derivatives.apply_derivatives(der))
-        print(output)
+        # if self.print_statement is not None:
+        #     print(f"Adjoint: {self.print_statement}, output: {float(output)}")
         return adj_input * output
