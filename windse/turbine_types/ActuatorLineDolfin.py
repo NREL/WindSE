@@ -72,6 +72,9 @@ class ActuatorLineDolfin(GenericTurbine):
         self.gauss_factor = self.params["turbines"]["gauss_factor"]
         self.tip_loss = self.params["turbines"]["tip_loss"]
         self.hub_rad = self.params["turbines"]["hub_rad"]
+        self.chord_perturb = float(self.params["turbines"]["chord_perturb"])
+        self.chord_perturb_id = int(self.params["turbines"]["chord_perturb_id"])
+        self.chord_override = self.params["turbines"]["chord_override"]
 
 
     def compute_parameters(self):
@@ -215,6 +218,21 @@ class ActuatorLineDolfin(GenericTurbine):
             twist = np.zeros(self.num_actuator_nodes)
             cl = np.ones(self.num_actuator_nodes)
             cd = 0.1*np.ones(self.num_actuator_nodes)
+
+        if self.chord_override is not None:
+            chord_new = np.genfromtxt(self.chord_override, delimiter=',')
+            assert np.size(chord_new) == np.size(chord)
+            chord = np.copy(chord_new)
+
+        if abs(self.chord_perturb) > 0:
+            self.fprint(f'Perturbing chord index {self.chord_perturb_id} by {self.chord_perturb}')
+            self.fprint(f'Old Value: {chord[self.chord_perturb_id]}')
+            self.fprint(f'New Value: {chord[self.chord_perturb_id]+self.chord_perturb}')
+            chord[self.chord_perturb_id] += self.chord_perturb
+
+        if self.params.rank == 0:
+            chord_filename = os.path.join(self.params.folder, f'data/alm/chord.csv')
+            np.savetxt(chord_filename, chord, delimiter=',')
 
         # Store the chord, twist, cl, and cd values
         self.chord = chord
