@@ -225,7 +225,10 @@ def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepar
     adj_output = np.zeros(inputs[0].shape)
     adj_input = adj_inputs[0]
     if isinstance(adj_input,dolfin.Vector):
-        adj_output[self.item] = adj_input.get_local()
+        if len(adj_input.get_local()) == 0: # I think the process that doesn't have the evaluation point will return an empty vector
+            adj_output[self.item] = 0
+        else:
+            adj_output[self.item] = adj_input.get_local()
     else:
         adj_output[self.item] = adj_input
     return adj_output

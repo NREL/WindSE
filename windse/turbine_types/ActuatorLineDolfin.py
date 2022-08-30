@@ -398,7 +398,7 @@ class ActuatorLineDolfin(GenericTurbine):
             # c1 = np.clip(c1, -1.0, 1.0)
             aoa_1 = asin(c1)
 
-            c2 = dot(a, b)/(norm_a*norm_b+0.001)
+            c2 = dot(a, b)/(norm_a*norm_b)
             # c2 = np.clip(c2, -1.0, 1.0)
             # print(float(c2))
             aoa_2 = acos(c2)

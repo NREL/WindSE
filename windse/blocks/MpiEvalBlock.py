@@ -52,8 +52,6 @@ class MpiEvalBlock(Block):
         return None
 
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
-        print(adj_inputs)
-
 
         x0 = self.recompute_x0()
         p = Point(np.array(x0))
@@ -92,6 +90,5 @@ class MpiEvalBlock(Block):
             junk=Function(V)
             junk.vector()[:] = adj_vec
             File("mpi_eval.pvd")<<junk
-
 
         return output
