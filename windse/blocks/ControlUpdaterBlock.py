@@ -12,8 +12,8 @@ class ControlUpdaterBlock(Block):
         self.time = kwargs.get("time",None)
         self.problem.df_first_save = True
         self.dt_sum = copy.copy(self.problem.dt_sum)
-        self.tick = None
-        self.tock = None
+        self.problem.cu_tick = None
+        self.problem.cu_tock = None
 
         # Add dependencies on the controls
         self.num_dependancies = 0
@@ -60,31 +60,28 @@ class ControlUpdaterBlock(Block):
         return "ControlUpdaterBlock"
 
     def update_wc(self):
-        if self.tick is None:
-            self.tick = time.time()
-            self.wc_time = -1
+        if self.problem.cu_tick is None:
+            self.problem.cu_tick = time.time()
+            self.problem.cu_wc_time = -1
         else:
-            self.tock = time.time()
-            self.wc_time = self.tock-self.tick
-            self.tick = self.tock
+            self.problem.cu_tock = time.time()
+            self.problem.cu_wc_time = self.problem.cu_tock-self.problem.cu_tick
+            self.problem.cu_tick = self.problem.cu_tock
 
     def recompute_component(self, inputs, block_variable, idx, prepared):
         # print(f"simTime =      {float(inputs[-6])}")
         # print(f"simTime_prev = {float(inputs[-5])}")
-        self.problem.fprint(f"Current Objective = {inputs[-1]/self.dt_sum if self.dt_sum>0 else inputs[-1]}")
+        self.problem.fprint(f"|    Current Objective =    {inputs[-1]/self.dt_sum if self.dt_sum>0 else inputs[-1]}")
         try:
-            print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
-            print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
-            print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
+            print(f"|    |    |    u(0, 0,150):   {inputs[-3]([0.0, 0.0,150.0])}")
+            print(f"|    |    |    u(0, 0,210):   {inputs[-3]([0.0, 0.0,210.0])}")
+            print(f"|    |    |    u(0,60,150):   {inputs[-3]([0.0,60.0,150.0])}")
         except:
             # Need to allow processes which don't own the above points to fail gracefully
             pass
-        print(f"max(u):        {self.problem.u_k.vector().max()}")
-        print(f"min(u):        {self.problem.u_k.vector().min()}")
-        print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
-        print(f"max(u):        {inputs[-3].vector().max()}")
-        print(f"min(u):        {inputs[-3].vector().min()}")
-        print(f"integral(u_x): {assemble(inputs[-3][0]*dx)}")
+        print(f"|    |    |    max(u):        {inputs[-3].vector().max()}")
+        print(f"|    |    |    min(u):        {inputs[-3].vector().min()}")
+        print(f"|    |    |    integral(u_x): {assemble(inputs[-3][0]*dx)}")
         # if self.problem.df_first_save:
         #     self.problem.df_velocity_file = self.problem.params.Save(inputs[-3],"df_velocity",subfolder="timeSeries/",val=self.time)
         #     self.problem.df_first_save = False
@@ -95,7 +92,8 @@ class ControlUpdaterBlock(Block):
 
     def recompute(self, markings=False):
         self.update_wc()
-        self.problem.fprint(f"Forward Solve Time: {self.time:1.5f} s,        Wall Clock Solve Time: {self.wc_time:1.5f} s")
+        self.problem.fprint(f"Forward Solve Time: {self.time:1.5f} s")
+        self.problem.fprint(f"|    Wall Clock Solve Time: {self.problem.cu_wc_time:1.5f} s")
         self.Update()
 
         # Run original recompute
@@ -114,7 +112,8 @@ class ControlUpdaterBlock(Block):
     @no_annotations
     def evaluate_adj(self, markings=False):
         self.update_wc()
-        self.problem.fprint(f"Adjoint Solve Time: {self.time:1.5f} s,        Wall Clock Solve Time: {self.wc_time:1.5f} s")
+        self.problem.fprint(f"Adjoint Solve Time: {self.time:1.5f} s")
+        self.problem.fprint(f"|    Wall Clock Solve Time: {self.problem.cu_wc_time:1.5f} s")
         self.Update()
 
         # Run original evaluate_adj

@@ -80,6 +80,13 @@ def mpi_eval(u, x, comm=MPI.comm_world):
     if mesh.bounding_box_tree().compute_first_entity_collision(point) < mesh.num_cells():
         ux = np.array(u(point))
 
+    # try:
+    #     ux = np.array(u(point))
+    #     print("win:  "+repr(rank))
+    # except:
+    #     pass
+    #     # print("fail: "+repr(rank))
+
 
     # implementation_method = 1
     implementation_method = 2 # 2 is recommended, type(ux) is variable with method 1

@@ -52,7 +52,6 @@ class MpiEvalBlock(Block):
         return None
 
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
-
         x0 = self.recompute_x0()
         p = Point(np.array(x0))
         V = inputs[0].function_space()
@@ -61,11 +60,17 @@ class MpiEvalBlock(Block):
         element = V.element()
         visited = []
         adj_vec = Function(V).vector().get_local()
+        adj_vec_size = len(adj_vec)
 
+        adj_input = adj_inputs[idx]
+
+        # print(self.comm.Get_rank(),adj_inputs[idx])
         for cell_idx in range(len(mesh.cells())):
             cell = Cell(mesh, cell_idx)
             if cell.contains(p):
+                # print("yes", cell.midpoint().array())
                 for ref_dof, dof in enumerate(dofs.cell_dofs(cell_idx)):
+                    # print("dof",dof, self.comm.Get_rank(), inputs[0].vector().get_local()[dof])
                     if dof in visited:
                         continue
                     visited.append(dof)
@@ -73,7 +78,12 @@ class MpiEvalBlock(Block):
                                                    p.array(),
                                                    cell.get_coordinate_dofs(),
                                                    cell.orientation())
-                    adj_vec[dof] = basis.dot(adj_inputs[idx])
+                    # print(self.comm.Get_rank(),basis)
+                    # print(self.comm.Get_rank(),basis.dot(adj_inputs[idx]))
+                    if dof < adj_vec_size:
+                        adj_vec[dof] = basis.dot(adj_input)
+
+
 
         output = Function(V).vector()
         output[:] = adj_vec
@@ -91,4 +101,9 @@ class MpiEvalBlock(Block):
             junk.vector()[:] = adj_vec
             File("mpi_eval.pvd")<<junk
 
+        # print(dir(output))
+        # exit()
+        # print(f"mpi: {self.comm.Get_rank()}, {output.min()}, {output.max()}")
+        # print(self.comm.Get_rank(), min(adj_vec), max(adj_vec))
+        # exit()
         return output

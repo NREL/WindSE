@@ -224,13 +224,33 @@ if "dolfin_adjoint_helper" not in dolfin_adjoint.solving.SolveBlock._assemble_an
 def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
     adj_output = np.zeros(inputs[0].shape)
     adj_input = adj_inputs[0]
+
+
+    slice_size = np.size(self.item)
+    mpi_size = dolfin.MPI.comm_world.Get_size() 
+
+    # for some reason some processors get blank vectors. to fix this we are going to sync the adj_input between all
     if isinstance(adj_input,dolfin.Vector):
-        if len(adj_input.get_local()) == 0: # I think the process that doesn't have the evaluation point will return an empty vector
-            adj_output[self.item] = 0
+        if mpi_size > 1:
+            adj_global = np.zeros(mpi_size*slice_size)
+            adj_local = adj_input.get_local()
+
+            # make sure the off processors are not empty
+            if len(adj_local) == 0:
+                adj_local = np.array([np.nan for k in range(slice_size)])
+
+            # sync
+            dolfin.MPI.comm_world.Allgather(adj_local, adj_global)
+            adj_global = adj_global.reshape(-1, slice_size)
+            adj_local = np.nanmean(adj_global, axis=0)
+
+            # save
+            adj_output[self.item] = adj_local
         else:
             adj_output[self.item] = adj_input.get_local()
     else:
         adj_output[self.item] = adj_input
+    # print(f"np: {dolfin.MPI.comm_world.Get_rank()}, {adj_output}")
     return adj_output
 
 if "dolfin_adjoint_helper" not in dolfin_adjoint.numpy_adjoint.array.NumpyArraySliceBlock.evaluate_adj_component.__module__:
