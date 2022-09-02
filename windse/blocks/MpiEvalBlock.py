@@ -52,6 +52,7 @@ class MpiEvalBlock(Block):
         return None
 
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
+        # print(f"input: {self.comm.Get_rank()}: {adj_inputs[idx]}")
         x0 = self.recompute_x0()
         p = Point(np.array(x0))
         V = inputs[0].function_space()
@@ -64,7 +65,6 @@ class MpiEvalBlock(Block):
 
         adj_input = adj_inputs[idx]
 
-        # print(self.comm.Get_rank(),adj_inputs[idx])
         for cell_idx in range(len(mesh.cells())):
             cell = Cell(mesh, cell_idx)
             if cell.contains(p):
@@ -103,7 +103,8 @@ class MpiEvalBlock(Block):
 
         # print(dir(output))
         # exit()
-        # print(f"mpi: {self.comm.Get_rank()}, {output.min()}, {output.max()}")
+        # print(f"output: {self.comm.Get_rank()}: {adj_vec}")
+        # print(f"output: {self.comm.Get_rank()}: {output.min()}, {output.max()}")
         # print(self.comm.Get_rank(), min(adj_vec), max(adj_vec))
         # exit()
         return output

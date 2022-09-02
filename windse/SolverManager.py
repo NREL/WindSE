@@ -145,7 +145,7 @@ class GenericSolver(object):
 
 
 
-
+    @no_annotations
     def Save(self,val=0):
         """
         This function saves the mesh and boundary markers to output/.../solutions/
@@ -218,6 +218,7 @@ class GenericSolver(object):
     #     np.savetxt(f,[J_list])
     #     f.close()
 
+    @no_annotations
     def EvaulatePowerFunctional(self):
 
         kwargs = {
@@ -419,6 +420,23 @@ class SteadySolver(GenericSolver):
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
         # self.u_k,self.p_k = self.problem.up_k.split(True)
         self.problem.u_k,self.problem.p_k = self.problem.up_k.split()
+
+        try:
+            print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
+        except:
+            pass
+        try:
+            print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
+        except:
+            pass
+        try:
+            print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
+        except:
+            pass
+        print(f"max(u):        {self.problem.u_k.vector().max()}")
+        print(f"min(u):        {self.problem.u_k.vector().min()}")
+        print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
+
 
         ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
         self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
@@ -729,6 +747,7 @@ class IterativeSteadySolver(GenericSolver):
         if self.save_power and "power":
             self.EvaulatePowerFunctional()
 
+    @no_annotations
     def SaveTimeSeries(self, simTime):
         # if hasattr(self.problem,"tf_save"):
         #     self.problem.tf_save.vector()[:] = 0
@@ -895,19 +914,19 @@ class UnsteadySolver(GenericSolver):
         #     sol_choice = 'gmres'
         #     pre_choice = 'default'
 
-        solver_1 = PETScKrylovSolver('gmres', 'jacobi')
+        # solver_1 = PETScKrylovSolver('gmres', 'jacobi')
         # solver_1 = PETScKrylovSolver('gmres', 'default')
-        # solver_1 = PETScKrylovSolver('default', 'default')
+        solver_1 = PETScKrylovSolver('default', 'default')
         solver_1.set_operator(A1)
 
-        solver_2 = PETScKrylovSolver('gmres', 'petsc_amg')
+        # solver_2 = PETScKrylovSolver('gmres', 'petsc_amg')
         # solver_2 = PETScKrylovSolver('gmres', 'hypre_amg')
-        # solver_2 = PETScKrylovSolver('default', 'default')
+        solver_2 = PETScKrylovSolver('default', 'default')
         solver_2.set_operator(A2)
 
-        solver_3 = PETScKrylovSolver('cg', 'jacobi')
+        # solver_3 = PETScKrylovSolver('cg', 'jacobi')
         # solver_3 = PETScKrylovSolver('gmres', 'default')
-        # solver_3 = PETScKrylovSolver('default', 'default')
+        solver_3 = PETScKrylovSolver('default', 'default')
         solver_3.set_operator(A3)
 
         pr = cProfile.Profile()
@@ -954,12 +973,18 @@ class UnsteadySolver(GenericSolver):
         while not stable and self.simTime < self.final_time:
 
             # add a fake block that allows us to update the control while dolfin_adjoint is doing it's thing
+            # Need to allow processes which don't own the above points to fail gracefully
             try:
                 print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
+            except:
+                pass
+            try:
                 print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
+            except:
+                pass
+            try:
                 print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
             except:
-                # Need to allow processes which don't own the above points to fail gracefully
                 pass
             print(f"max(u):        {self.problem.u_k.vector().max()}")
             print(f"min(u):        {self.problem.u_k.vector().min()}")
@@ -1212,10 +1237,15 @@ class UnsteadySolver(GenericSolver):
         # add a fake block that allows us to update the control while dolfin_adjoint is doing it's thing
         try:
             print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
+        except:
+            pass
+        try:
             print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
+        except:
+            pass
+        try:
             print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
         except:
-            # Need to allow processes which don't own the above points to fail gracefully
             pass
 
         print(f"max(u):        {self.problem.u_k.vector().max()}")
@@ -1245,7 +1275,7 @@ class UnsteadySolver(GenericSolver):
 
 
     # ================================================================
-
+    @no_annotations
     def SaveTimeSeries(self, simTime, simIter=None):
 
         self.DebugOutput(simTime,simIter)

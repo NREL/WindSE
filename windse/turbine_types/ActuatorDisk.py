@@ -2,7 +2,7 @@
 from . import GenericTurbine
 
 # import dolfin functions
-from . import Constant, SpatialCoordinate, as_vector, cos, sin, exp, sqrt, dot
+from . import Constant, SpatialCoordinate, as_vector, cos, sin, exp, sqrt, dot, project
 
 # import other modules
 import numpy as np
@@ -84,6 +84,8 @@ class ActuatorDisk(GenericTurbine):
 
         # compute disk averaged velocity in yawed case and don't project
         actuator_disks=F*T*D*WTGbase/volNormalization
+        # actuator_disks=project(actuator_disks,self.fs.V,solver_type='cg',preconditioner_type="hypre_amg")
+
 
         return actuator_disks
 
@@ -114,6 +116,7 @@ class ActuatorDisk(GenericTurbine):
         """
 
         ### compute the space kernal and radial force
+        self.fs = fs
         self.actuator_disk = self.build_actuator_disk(inflow_angle)
 
         ### Expand the dot product

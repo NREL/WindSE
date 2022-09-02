@@ -76,66 +76,69 @@ if "dolfin_adjoint_helper" not in dolfin_adjoint.types.compat.assemble_adjoint_v
 
 shutil.rmtree(windse_parameters.folder+"debug/", ignore_errors=True)
 
-def recompute_component(self, inputs, block_variable, idx, prepared):
-    file_exists = False
-    # print("resolving")
+# def recompute_component(self, inputs, block_variable, idx, prepared):
+#     file_exists = False
+#     # print("resolving")
 
-    # print()
-    # print("hey Look at me I'm recomputing!")
-    # print()
-    """This function overrides 
-    dolfin_adjoint.solving.SolveBlock.recompute_component
+#     # print()
+#     # print("hey Look at me I'm recomputing!")
+#     # print()
+#     """This function overrides 
+#     dolfin_adjoint.solving.SolveBlock.recompute_component
 
-    The original function doesn't account for kwargs in a project so it 
-    doesn't pass them to this function. For now, we just supply the
-    solver_parameters manually in this case. 
+#     The original function doesn't account for kwargs in a project so it 
+#     doesn't pass them to this function. For now, we just supply the
+#     solver_parameters manually in this case. 
 
-    Todo:
+#     Todo:
 
-        Eventually, we want to replace this with a full PetscKrylovSolver()
-        to get access to all the ksp options.
+#         Eventually, we want to replace this with a full PetscKrylovSolver()
+#         to get access to all the ksp options.
 
-    """
-    lhs = prepared[0]
-    rhs = prepared[1]
-    func = prepared[2]
-    bcs = prepared[3]
+#     """
+#     lhs = prepared[0]
+#     rhs = prepared[1]
+#     func = prepared[2]
+#     bcs = prepared[3]
 
 
-    if not self.forward_kwargs:
-        # dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters={'linear_solver': 'mumps'})
-        dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters={'linear_solver': 'gmres', 'preconditioner': 'hypre_amg'})
-    else:
-        if "krylov_solver_parameters" in self.forward_kwargs.keys():
-            solver_parameters={'linear_solver': self.forward_kwargs["krylov_method"], 'preconditioner': self.forward_kwargs["krylov_preconditioner"]}
-            dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters=solver_parameters)
-        else:
-            dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, **self.forward_kwargs)
-        # print()
-        # print("func = "+repr(np.mean(func.vector().get_local())))
+#     if not self.forward_kwargs:
+#         print("oh here we are")
+#         # dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters={'linear_solver': 'mumps'})
+#         dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters={'linear_solver': 'gmres', 'preconditioner': 'hypre_amg'})
+#     else:
+#         print("perhaps this one")
+#         print(self.forward_kwargs)
+#         if "krylov_solver_parameters" in self.forward_kwargs.keys():
+#             solver_parameters={'linear_solver': self.forward_kwargs["krylov_method"], 'preconditioner': self.forward_kwargs["krylov_preconditioner"]}
+#             dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, solver_parameters=solver_parameters)
+#         else:
+#             dolfin_adjoint.backend.solve(lhs == rhs, func, bcs, **self.forward_kwargs)
+#         # print()
+#         # print("func = "+repr(np.mean(func.vector().get_local())))
 
-        if "debug" in windse_parameters.output:
-            if hasattr(self, 'solve_iteration'):
-                self.solve_iteration += 1
-            else:
-                # print()
-                # print("but we haven't been here before")
-                self.recompute_set = 0
-                while os.path.isfile(windse_parameters.folder+"debug/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd"):
-                    self.recompute_set +=1
-                # print("and that's the "+repr(self.recompute_set)+" time this has happened")
-                # print()
-                self.savefile = dolfin.File(windse_parameters.folder+"debug/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd")
-                self.solve_iteration = 0
+#         if "debug" in windse_parameters.output:
+#             if hasattr(self, 'solve_iteration'):
+#                 self.solve_iteration += 1
+#             else:
+#                 # print()
+#                 # print("but we haven't been here before")
+#                 self.recompute_set = 0
+#                 while os.path.isfile(windse_parameters.folder+"debug/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd"):
+#                     self.recompute_set +=1
+#                 # print("and that's the "+repr(self.recompute_set)+" time this has happened")
+#                 # print()
+#                 self.savefile = dolfin.File(windse_parameters.folder+"debug/dolfin_adjoint_func_"+repr(self.recompute_set)+".pvd")
+#                 self.solve_iteration = 0
             
             
-            u, p = func.split(True)
-            u.rename("velocity","velocity")
-            self.savefile << (u,self.solve_iteration)
-    # print("assemble(func*dx): " + repr(float(dolfin.assemble(dolfin.inner(func,func)*dolfin.dx))))
-    return func
-if "dolfin_adjoint_helper" not in dolfin_adjoint.solving.SolveBlock.recompute_component.__module__:
-    dolfin_adjoint.solving.SolveBlock.recompute_component = recompute_component
+#             u, p = func.split(True)
+#             u.rename("velocity","velocity")
+#             self.savefile << (u,self.solve_iteration)
+#     # print("assemble(func*dx): " + repr(float(dolfin.assemble(dolfin.inner(func,func)*dolfin.dx))))
+#     return func
+# if "dolfin_adjoint_helper" not in dolfin_adjoint.solving.SolveBlock.recompute_component.__module__:
+#     dolfin_adjoint.solving.SolveBlock.recompute_component = recompute_component
 
 def _init_dependencies(self, *args, **kwargs):
     self.preconditioner_method = "default"

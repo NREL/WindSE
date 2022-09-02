@@ -6,12 +6,13 @@ import os
 from windse import windse_parameters
 if windse_parameters.dolfin_adjoint:
     from windse.blocks import blockify, InterpBlock
+    from pyadjoint import AdjFloat
 
 from . import GenericTurbine
 
 from . import (Constant, Expression, Function, Point, assemble, dot, dx,
 pi, cos, acos, asin, sin, sqrt, exp, cross, as_tensor, as_vector, SpatialCoordinate,
-project, inner, TrialFunction, TestFunction, PETScKrylovSolver)
+project, inner, TrialFunction, TestFunction, PETScKrylovSolver, MPI)
 from windse.helper_functions import mpi_eval, ufl_eval, test_dolfin_adjoint
 
 '''
@@ -31,7 +32,6 @@ class ActuatorLineDolfin(GenericTurbine):
         # Init turbine
         super(ActuatorLineDolfin, self).__init__(i,x,y,dom,imported_params)
 
-        # TODO : CREATE A BLOCK FOR THIS FUNCTION
         # blockify custom functions so dolfin adjoint can track them
         if self.params.performing_opt_calc:
             block_kwargs = {
@@ -333,8 +333,10 @@ class ActuatorLineDolfin(GenericTurbine):
 
         if self.lookup_takes_derivatives:
             cl = self.lookup_cl(rdim, aoa, dx=dx, dy=dy)[0][0]
+            # print(f"rank: {MPI.comm_world.Get_rank()}, {float(rdim)}, {float(aoa)}, cl: {cl}")
         else:
             cl = self.lookup_cl(rdim, aoa)
+
 
         return cl
 
@@ -343,6 +345,7 @@ class ActuatorLineDolfin(GenericTurbine):
         
         if self.lookup_takes_derivatives:
             cd = self.lookup_cd(rdim, aoa, dx=dx, dy=dy)[0][0]
+            # print(f"rank: {MPI.comm_world.Get_rank()}, {float(rdim)}, {float(aoa)}, cd: {cd}")
         else:
             cd = self.lookup_cd(rdim, aoa)
 
@@ -362,6 +365,7 @@ class ActuatorLineDolfin(GenericTurbine):
 
         # Evaluate the fluid velocity u_k at the point x_0 
         vel_fluid_temp = mpi_eval(u_k, x_0)
+        # vel_fluid_temp = [AdjFloat(8.0),AdjFloat(0.0),AdjFloat(0.0)]#mpi_eval(u_k, x_0)
         for i in range(self.dom.dim):
             self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
         vel_fluid = self.vel_fluid[blade_id][actuator_id]
@@ -747,6 +751,7 @@ class ActuatorLineDolfin(GenericTurbine):
                     x_0_prev = self.x_0_prev[blade_id][actuator_id]
 
                     vel_fluid_temp = mpi_eval(u, x_0_prev)
+                    # vel_fluid_temp = [AdjFloat(8.0),AdjFloat(0.0),AdjFloat(0.0)]#mpi_eval(u, x_0_prev)
                     for i in range(self.dom.dim):
                         self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
 

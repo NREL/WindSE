@@ -55,6 +55,8 @@ def mpi_eval(u, x, comm=MPI.comm_world):
 
     assert len(x) == u.geometric_dimension()
 
+
+
     rank = comm.Get_rank()
     num_procs = comm.Get_size()
 
@@ -77,15 +79,16 @@ def mpi_eval(u, x, comm=MPI.comm_world):
     ux_global = np.zeros(nn*num_procs)
 
     # Check if this rank owns the point and, if so, evaluate the function there 
-    if mesh.bounding_box_tree().compute_first_entity_collision(point) < mesh.num_cells():
-        ux = np.array(u(point))
-
-    # try:
+    # if mesh.bounding_box_tree().compute_first_entity_collision(point) < mesh.num_cells():
     #     ux = np.array(u(point))
-    #     print("win:  "+repr(rank))
-    # except:
-    #     pass
-    #     # print("fail: "+repr(rank))
+
+    try:
+        ux = np.array(u(point))
+        # print(np.array(x,dtype=float))
+        # print(f"proc: {rank} owns {ufl_eval(x).values()}")
+    except:
+        pass
+        # print("fail: "+repr(rank))
 
 
     # implementation_method = 1
