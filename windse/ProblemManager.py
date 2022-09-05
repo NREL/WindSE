@@ -568,14 +568,14 @@ class UnsteadyProblem(GenericProblem):
         # FIXME: These should probably be set in params.yaml input filt
         # nu = 1/10000
         rho = 1
-        nu_c = Constant(self.viscosity)
-        rho_c = Constant(rho)
+        nu_c = Constant(self.viscosity, name="viscosity")
+        rho_c = Constant(rho, name="rho")
 
         # Define time step size (this value is used only for step 1 if adaptive timestepping is used)
         # FIXME: change variable name to avoid confusion within dolfin adjoint
         self.dt = 0.1*self.dom.global_hmin/self.bd.HH_vel
         # self.dt = 0.05
-        self.dt_c  = Constant(self.dt)
+        self.dt_c  = Constant(self.dt, name="dt_c")
 
         self.fprint("Viscosity: {:1.2e}".format(float(self.viscosity)))
         self.fprint("Density:   {:1.2e}".format(float(rho)))
@@ -592,9 +592,9 @@ class UnsteadyProblem(GenericProblem):
         # >> _k = current (step k)
         # >> _k1 = previous (step k-1)
         # >> _k2 = double previous (step k-2)
-        self.u_k = Function(self.fs.V)
-        self.u_k1 = Function(self.fs.V)
-        self.u_k2 = Function(self.fs.V)
+        self.u_k = Function(self.fs.V, name="u_k")
+        self.u_k1 = Function(self.fs.V, name="u_k1")
+        self.u_k2 = Function(self.fs.V, name="u_k2")
 
         # Seed previous velocity fields with the chosen initial condition
         self.u_k.assign(self.bd.bc_velocity)
@@ -602,15 +602,15 @@ class UnsteadyProblem(GenericProblem):
         self.u_k2.assign(self.bd.bc_velocity)
 
         # Calculate Reynolds stress 
-        self.uk_sum = Function(self.fs.V)
+        self.uk_sum = Function(self.fs.V, name="uk_sum")
         self.uk_sum.assign(self.dt_c*self.u_k)
-        self.vertKE = Function(self.fs.Q)
+        self.vertKE = Function(self.fs.Q, name="vertKE")
 
         # Define functions for pressure solutions
         # >> _k = current (step k)
         # >> _k1 = previous (step k-1)
-        self.p_k  = Function(self.fs.Q)
-        self.p_k1 = Function(self.fs.Q)
+        self.p_k  = Function(self.fs.Q, name="p_k")
+        self.p_k1 = Function(self.fs.Q, name="p_k1")
 
         # Seed previous pressure fields with the chosen initial condition
         self.p_k1.assign(self.bd.bc_pressure)
@@ -632,7 +632,7 @@ class UnsteadyProblem(GenericProblem):
         # during assignments in GenericSolver.__init__
 
         # Create the combined function space
-        self.up_k = Function(self.fs.W)
+        self.up_k = Function(self.fs.W, name="up_k")
 
         # Create the turbine force
         # FIXME: Should this be set by a numpy array operation or a fenics function?

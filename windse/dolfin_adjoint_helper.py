@@ -20,6 +20,8 @@ import cProfile
 #################################################################################################
 
 
+
+
 ### We need to override ALE move so that dolfin-adjoint can track the change ###
 backend_move = dolfin.ALE.move
 def move(mesh,bmesh, **kwargs):
@@ -33,30 +35,36 @@ def move(mesh,bmesh, **kwargs):
 if "dolfin_adjoint_helper" not in dolfin.ALE.move.__module__:
     dolfin.ALE.move = move
 
-def linalg_solve(*args, **kwargs):
-    """This function overrides dolfin_adjoints.compat.linalg_solve.
 
-    The original function doesn't allow for solver options because it uses
-     the::
 
-        dolfin.solve(A,x,b) 
 
-    form which doesn't accept keyword arguments. However, It does except 
-    additional arguments that defined some solver options, which we pass
-    in manually
+# def linalg_solve(*args, **kwargs):
+#     """This function overrides dolfin_adjoints.compat.linalg_solve.
 
-    Todo:
+#     The original function doesn't allow for solver options because it uses
+#      the::
 
-        Eventually, we want to replace this with a full PetscKrylovSolver()
-        to get access to all the ksp options.
+#         dolfin.solve(A,x,b) 
 
-    """
-    print("performing a solve")
-    return dolfin_adjoint.backend.solve(*args)#,"mumps") 
-    # return dolfin_adjoint.backend.solve(*args,"mumps") 
+#     form which doesn't accept keyword arguments. However, It does except 
+#     additional arguments that defined some solver options, which we pass
+#     in manually
 
-if "dolfin_adjoint_helper" not in dolfin_adjoint.types.compat.linalg_solve.__module__:
-    dolfin_adjoint.types.compat.linalg_solve = linalg_solve
+#     Todo:
+
+#         Eventually, we want to replace this with a full PetscKrylovSolver()
+#         to get access to all the ksp options.
+
+#     """
+#     # print("performing a solve")
+#     return dolfin_adjoint.backend.solve(*args)#,"mumps") 
+#     # return dolfin_adjoint.backend.solve(*args,"mumps") 
+
+# if "dolfin_adjoint_helper" not in dolfin_adjoint.types.compat.linalg_solve.__module__:
+#     dolfin_adjoint.types.compat.linalg_solve = linalg_solve
+
+
+
 
 def assemble_adjoint_value(form, **kwargs):
     """Wrapper that assembles a matrix with boundary conditions"""
@@ -69,12 +77,20 @@ def assemble_adjoint_value(form, **kwargs):
     result = dolfin_adjoint.backend.assemble(form,form_compiler_parameters={'representation': rep})
     for bc in bcs:
         bc.apply(result)
+
+    if isinstance(result, dolfin.cpp.la.GenericVector):
+        if result.size() == 1:
+            result = result.max()
+
     return result
 
 if "dolfin_adjoint_helper" not in dolfin_adjoint.types.compat.assemble_adjoint_value.__module__:
     dolfin_adjoint.types.compat.assemble_adjoint_value = assemble_adjoint_value
 
-shutil.rmtree(windse_parameters.folder+"debug/", ignore_errors=True)
+
+
+
+# shutil.rmtree(windse_parameters.folder+"debug/", ignore_errors=True)
 
 # def recompute_component(self, inputs, block_variable, idx, prepared):
 #     file_exists = False
@@ -140,124 +156,137 @@ shutil.rmtree(windse_parameters.folder+"debug/", ignore_errors=True)
 # if "dolfin_adjoint_helper" not in dolfin_adjoint.solving.SolveBlock.recompute_component.__module__:
 #     dolfin_adjoint.solving.SolveBlock.recompute_component = recompute_component
 
-def _init_dependencies(self, *args, **kwargs):
-    self.preconditioner_method = "default"
-    self.solver_method = "mumps"
 
-    if self.varform:
-        eq = args[0]
-        self.lhs = eq.lhs
-        self.rhs = eq.rhs
-        self.func = args[1]
 
-        if len(args) > 2:
-            self.bcs = args[2]
-        elif "bcs" in kwargs:
-            self.bcs = self.kwargs.pop("bcs")
-            self.forward_kwargs.pop("bcs")
-        else:
-            self.bcs = []
 
-        if self.bcs is None:
-            self.bcs = []
+# def _init_dependencies(self, *args, **kwargs):
+#     self.preconditioner_method = "default"
+#     self.solver_method = "mumps"
 
-        self.assemble_system = False
-    else:
-        # Linear algebra problem.
-        # TODO: Consider checking if attributes exist.
-        A = args[0]
-        u = args[1]
-        b = args[2]
-        if len(args) >= 4:
-            self.solver_method = args[3]
-        if len(args) >= 5:
-            self.preconditioner_method = args[4]
+#     if self.varform:
+#         eq = args[0]
+#         self.lhs = eq.lhs
+#         self.rhs = eq.rhs
+#         self.func = args[1]
 
-        sp = {"solver_parameters": {'linear_solver': self.solver_method,
-                                    'preconditioner': self.preconditioner_method}}
-        self.forward_kwargs.update(sp)
+#         if len(args) > 2:
+#             self.bcs = args[2]
+#         elif "bcs" in kwargs:
+#             self.bcs = self.kwargs.pop("bcs")
+#             self.forward_kwargs.pop("bcs")
+#         else:
+#             self.bcs = []
 
-        self.lhs = A.form
-        self.rhs = b.form
-        self.bcs = A.bcs if hasattr(A, "bcs") else []
-        self.func = u.function
-        self.assemble_system = A.assemble_system if hasattr(A, "assemble_system") else False
+#         if self.bcs is None:
+#             self.bcs = []
 
-    if not isinstance(self.bcs, list):
-        self.bcs = [self.bcs]
+#         self.assemble_system = False
+#     else:
+#         # Linear algebra problem.
+#         # TODO: Consider checking if attributes exist.
+#         A = args[0]
+#         u = args[1]
+#         b = args[2]
+#         if len(args) >= 4:
+#             self.solver_method = args[3]
+#         if len(args) >= 5:
+#             self.preconditioner_method = args[4]
 
-    if isinstance(self.lhs, ufl.Form) and isinstance(self.rhs, ufl.Form):
-        self.linear = True
-        # Add dependence on coefficients on the right hand side.
-        for c in self.rhs.coefficients():
-            self.add_dependency(c, no_duplicates=True)
-    else:
-        self.linear = False
+#         sp = {"solver_parameters": {'linear_solver': self.solver_method,
+#                                     'preconditioner': self.preconditioner_method}}
+#         self.forward_kwargs.update(sp)
 
-    for bc in self.bcs:
-        self.add_dependency(bc, no_duplicates=True)
+#         self.lhs = A.form
+#         self.rhs = b.form
+#         self.bcs = A.bcs if hasattr(A, "bcs") else []
+#         self.func = u.function
+#         self.assemble_system = A.assemble_system if hasattr(A, "assemble_system") else False
 
-    for c in self.lhs.coefficients():
-        self.add_dependency(c, no_duplicates=True)
-if "dolfin_adjoint_helper" not in dolfin_adjoint.solving.SolveBlock._init_dependencies.__module__:
-    dolfin_adjoint.solving.SolveBlock._init_dependencies = _init_dependencies
+#     if not isinstance(self.bcs, list):
+#         self.bcs = [self.bcs]
 
-def _assemble_and_solve_adj_eq(self, dFdu_form, dJdu):
-    dJdu_copy = dJdu.copy()
-    kwargs = self.assemble_kwargs.copy()
-    # Homogenize and apply boundary conditions on adj_dFdu and dJdu.
-    bcs = self._homogenize_bcs()
-    kwargs["bcs"] = bcs
-    dFdu = dolfin_adjoint.compat.assemble_adjoint_value(dFdu_form, **kwargs)
+#     if isinstance(self.lhs, ufl.Form) and isinstance(self.rhs, ufl.Form):
+#         self.linear = True
+#         # Add dependence on coefficients on the right hand side.
+#         for c in self.rhs.coefficients():
+#             self.add_dependency(c, no_duplicates=True)
+#     else:
+#         self.linear = False
 
-    for bc in bcs:
-        bc.apply(dJdu)
+#     for bc in self.bcs:
+#         self.add_dependency(bc, no_duplicates=True)
 
-    adj_sol = dolfin_adjoint.Function(self.function_space)
-    dolfin_adjoint.compat.linalg_solve(dFdu, adj_sol.vector(), dJdu, self.solver_method, self.preconditioner_method,**self.kwargs)
+#     for c in self.lhs.coefficients():
+#         self.add_dependency(c, no_duplicates=True)
+# if "dolfin_adjoint_helper" not in dolfin_adjoint.solving.SolveBlock._init_dependencies.__module__:
+#     dolfin_adjoint.solving.SolveBlock._init_dependencies = _init_dependencies
 
-    adj_sol_bdy = dolfin_adjoint.compat.function_from_vector(self.function_space, dJdu_copy - dolfin_adjoint.compat.assemble_adjoint_value(
-        dolfin.action(dFdu_form, adj_sol)))
 
-    return adj_sol, adj_sol_bdy
-if "dolfin_adjoint_helper" not in dolfin_adjoint.solving.SolveBlock._assemble_and_solve_adj_eq.__module__:
-    dolfin_adjoint.solving.SolveBlock._assemble_and_solve_adj_eq = _assemble_and_solve_adj_eq
+
+
+# def _assemble_and_solve_adj_eq(self, dFdu_form, dJdu):
+#     dJdu_copy = dJdu.copy()
+#     kwargs = self.assemble_kwargs.copy()
+#     # Homogenize and apply boundary conditions on adj_dFdu and dJdu.
+#     bcs = self._homogenize_bcs()
+#     kwargs["bcs"] = bcs
+#     dFdu = dolfin_adjoint.compat.assemble_adjoint_value(dFdu_form, **kwargs)
+
+#     for bc in bcs:
+#         bc.apply(dJdu)
+
+#     adj_sol = dolfin_adjoint.Function(self.function_space)
+#     dolfin_adjoint.compat.linalg_solve(dFdu, adj_sol.vector(), dJdu, self.solver_method, self.preconditioner_method,**self.kwargs)
+
+#     adj_sol_bdy = dolfin_adjoint.compat.function_from_vector(self.function_space, dJdu_copy - dolfin_adjoint.compat.assemble_adjoint_value(
+#         dolfin.action(dFdu_form, adj_sol)))
+
+#     return adj_sol, adj_sol_bdy
+# if "dolfin_adjoint_helper" not in dolfin_adjoint.solving.SolveBlock._assemble_and_solve_adj_eq.__module__:
+#     dolfin_adjoint.solving.SolveBlock._assemble_and_solve_adj_eq = _assemble_and_solve_adj_eq
+
+
+
 
 # This is a fix to account for a strange occurrence involving as_vector(np_a_float)
-def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
-    adj_output = np.zeros(inputs[0].shape)
-    adj_input = adj_inputs[0]
+# def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
+#     adj_output = np.zeros(inputs[0].shape)
+#     adj_input = adj_inputs[0]
+
+#     # print(f"np_input: {dolfin.MPI.comm_world.Get_rank()}, {adj_input.get_local() if hasattr(adj_input,'get_local') else float(adj_input)}")
+
+#     slice_size = np.size(self.item)
+#     mpi_size = dolfin.MPI.comm_world.Get_size() 
+
+#     # for some reason some processors get blank vectors. to fix this we are going to sync the adj_input between all
+#     if isinstance(adj_input,dolfin.Vector):
+#         if mpi_size > 1:
+#             adj_global = np.zeros(mpi_size*slice_size)
+#             adj_local = adj_input.get_local()
+
+#             # make sure the off processors are not empty
+#             if len(adj_local) == 0:
+#                 adj_local = np.array([np.nan for k in range(slice_size)])
+
+#             # sync
+#             dolfin.MPI.comm_world.Allgather(adj_local, adj_global)
+#             adj_global = adj_global.reshape(-1, slice_size)
+#             adj_local = np.nanmean(adj_global, axis=0)
+
+#             # save
+#             adj_output[self.item] = adj_local
+#         else:
+#             adj_output[self.item] = adj_input.get_local()
+#     else:
+#         adj_output[self.item] = adj_input
+#     # print(f"np_output: {dolfin.MPI.comm_world.Get_rank()}, {adj_output}")
+#     return adj_output
+
+# if "dolfin_adjoint_helper" not in dolfin_adjoint.numpy_adjoint.array.NumpyArraySliceBlock.evaluate_adj_component.__module__:
+#     dolfin_adjoint.numpy_adjoint.array.NumpyArraySliceBlock.evaluate_adj_component = evaluate_adj_component
 
 
-    slice_size = np.size(self.item)
-    mpi_size = dolfin.MPI.comm_world.Get_size() 
 
-    # for some reason some processors get blank vectors. to fix this we are going to sync the adj_input between all
-    if isinstance(adj_input,dolfin.Vector):
-        if mpi_size > 1:
-            adj_global = np.zeros(mpi_size*slice_size)
-            adj_local = adj_input.get_local()
-
-            # make sure the off processors are not empty
-            if len(adj_local) == 0:
-                adj_local = np.array([np.nan for k in range(slice_size)])
-
-            # sync
-            dolfin.MPI.comm_world.Allgather(adj_local, adj_global)
-            adj_global = adj_global.reshape(-1, slice_size)
-            adj_local = np.nanmean(adj_global, axis=0)
-
-            # save
-            adj_output[self.item] = adj_local
-        else:
-            adj_output[self.item] = adj_input.get_local()
-    else:
-        adj_output[self.item] = adj_input
-    # print(f"np: {dolfin.MPI.comm_world.Get_rank()}, {adj_output}")
-    return adj_output
-
-if "dolfin_adjoint_helper" not in dolfin_adjoint.numpy_adjoint.array.NumpyArraySliceBlock.evaluate_adj_component.__module__:
-    dolfin_adjoint.numpy_adjoint.array.NumpyArraySliceBlock.evaluate_adj_component = evaluate_adj_component
 
 def dot(self, o, da, db):
     a, b = o.ufl_operands
@@ -269,6 +298,9 @@ def dot(self, o, da, db):
 if not hasattr(ufl.algorithms.apply_derivatives.GenericDerivativeRuleset, "dot"):
     ufl.algorithms.apply_derivatives.GenericDerivativeRuleset.dot = dot
 
+
+
+
 def cross(self, o, da, db):
     a, b = o.ufl_operands
     pa = dolfin.cross(da, b)
@@ -278,6 +310,9 @@ def cross(self, o, da, db):
 
 if not hasattr(ufl.algorithms.apply_derivatives.GenericDerivativeRuleset, "cross"):
     ufl.algorithms.apply_derivatives.GenericDerivativeRuleset.cross = cross
+
+
+
 
 def transposed(self, o, da):
     return da.T

@@ -421,21 +421,21 @@ class SteadySolver(GenericSolver):
         # self.u_k,self.p_k = self.problem.up_k.split(True)
         self.problem.u_k,self.problem.p_k = self.problem.up_k.split()
 
-        try:
-            print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
-        except:
-            pass
-        try:
-            print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
-        except:
-            pass
-        try:
-            print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
-        except:
-            pass
-        print(f"max(u):        {self.problem.u_k.vector().max()}")
-        print(f"min(u):        {self.problem.u_k.vector().min()}")
-        print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
+        # try:
+        #     print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
+        # except:
+        #     pass
+        # try:
+        #     print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
+        # except:
+        #     pass
+        # try:
+        #     print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
+        # except:
+        #     pass
+        # print(f"max(u):        {self.problem.u_k.vector().max()}")
+        # print(f"min(u):        {self.problem.u_k.vector().min()}")
+        # print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
 
 
         ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
@@ -914,19 +914,19 @@ class UnsteadySolver(GenericSolver):
         #     sol_choice = 'gmres'
         #     pre_choice = 'default'
 
-        # solver_1 = PETScKrylovSolver('gmres', 'jacobi')
+        solver_1 = PETScKrylovSolver('gmres', 'jacobi')
         # solver_1 = PETScKrylovSolver('gmres', 'default')
-        solver_1 = PETScKrylovSolver('default', 'default')
+        # solver_1 = PETScKrylovSolver('default', 'default')
         solver_1.set_operator(A1)
 
-        # solver_2 = PETScKrylovSolver('gmres', 'petsc_amg')
+        solver_2 = PETScKrylovSolver('gmres', 'petsc_amg')
         # solver_2 = PETScKrylovSolver('gmres', 'hypre_amg')
-        solver_2 = PETScKrylovSolver('default', 'default')
+        # solver_2 = PETScKrylovSolver('default', 'default')
         solver_2.set_operator(A2)
 
-        # solver_3 = PETScKrylovSolver('cg', 'jacobi')
+        solver_3 = PETScKrylovSolver('cg', 'jacobi')
         # solver_3 = PETScKrylovSolver('gmres', 'default')
-        solver_3 = PETScKrylovSolver('default', 'default')
+        # solver_3 = PETScKrylovSolver('default', 'default')
         solver_3.set_operator(A3)
 
         pr = cProfile.Profile()
@@ -974,21 +974,21 @@ class UnsteadySolver(GenericSolver):
 
             # add a fake block that allows us to update the control while dolfin_adjoint is doing it's thing
             # Need to allow processes which don't own the above points to fail gracefully
-            try:
-                print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
-            except:
-                pass
-            try:
-                print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
-            except:
-                pass
-            try:
-                print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
-            except:
-                pass
-            print(f"max(u):        {self.problem.u_k.vector().max()}")
-            print(f"min(u):        {self.problem.u_k.vector().min()}")
-            print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
+            # try:
+            #     print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
+            # except:
+            #     pass
+            # try:
+            #     print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
+            # except:
+            #     pass
+            # try:
+            #     print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
+            # except:
+            #     pass
+            # print(f"max(u):        {self.problem.u_k.vector().max()}")
+            # print(f"min(u):        {self.problem.u_k.vector().min()}")
+            # print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
             self.J = self.control_updater(self.J, self.problem, time=self.simTime)
 
             self.problem.bd.UpdateVelocity(self.simTime)
@@ -998,6 +998,9 @@ class UnsteadySolver(GenericSolver):
 
             # Step 1: Tentative velocity step
             tic = time.time()
+            # solve(self.problem.a1==self.problem.L1, self.problem.u_k, bcs=self.problem.bd.bcu)
+            # solve(self.problem.a1==self.problem.L1, self.problem.u_k, bcs=self.problem.bd.bcu, solver_parameters={"linear_solver": "gmres","preconditioner": "jacobi"})
+
             b1 = assemble(self.problem.L1, tensor=b1)
             [bc.apply(b1) for bc in self.problem.bd.bcu]
             if self.optimizing:
@@ -1014,6 +1017,9 @@ class UnsteadySolver(GenericSolver):
 
             # Step 2: Pressure correction step
             tic = time.time()
+            # solve(self.problem.a2==self.problem.L2, self.problem.p_k, bcs=self.problem.bd.bcp)
+            # solve(self.problem.a2==self.problem.L2, self.problem.p_k, bcs=self.problem.bd.bcp, solver_parameters={"linear_solver": "gmres","preconditioner": "petsc_amg"})
+            
             b2 = assemble(self.problem.L2, tensor=b2)
             [bc.apply(b2) for bc in self.problem.bd.bcp]
             if self.optimizing:
@@ -1028,6 +1034,9 @@ class UnsteadySolver(GenericSolver):
 
             # Step 3: Velocity correction step
             tic = time.time()
+            # solve(self.problem.a3==self.problem.L3, self.problem.u_k)
+            # solve(self.problem.a3==self.problem.L3, self.problem.u_k, solver_parameters={"linear_solver": "cg","preconditioner": "jacobi"})
+            
             b3 = assemble(self.problem.L3, tensor=b3)
             if self.optimizing:
                 # solve(A3, self.problem.u_k.vector(), b3, 'gmres', 'default')
@@ -1235,22 +1244,22 @@ class UnsteadySolver(GenericSolver):
             self.fprint(output_str)
 
         # add a fake block that allows us to update the control while dolfin_adjoint is doing it's thing
-        try:
-            print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
-        except:
-            pass
-        try:
-            print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
-        except:
-            pass
-        try:
-            print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
-        except:
-            pass
+        # try:
+        #     print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
+        # except:
+        #     pass
+        # try:
+        #     print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
+        # except:
+        #     pass
+        # try:
+        #     print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
+        # except:
+        #     pass
 
-        print(f"max(u):        {self.problem.u_k.vector().max()}")
-        print(f"min(u):        {self.problem.u_k.vector().min()}")
-        print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
+        # print(f"max(u):        {self.problem.u_k.vector().max()}")
+        # print(f"min(u):        {self.problem.u_k.vector().min()}")
+        # print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
         self.J = self.control_updater(self.J, self.problem, time=self.simTime)
         stop = time.time()
 

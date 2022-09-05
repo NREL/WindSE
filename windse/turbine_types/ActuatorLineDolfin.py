@@ -100,8 +100,8 @@ class ActuatorLineDolfin(GenericTurbine):
                 self.mcl.append([])
                 self.mcd.append([])
                 for j in range(self.num_actuator_nodes):
-                    self.mcl[i].append(Constant(self.cl[j]))
-                    self.mcd[i].append(Constant(self.cd[j]))
+                    self.mcl[i].append(Constant(self.cl[j],name=f"cl_{i,j}"))
+                    self.mcd[i].append(Constant(self.cd[j],name=f"cd_{i,j}"))
 
             for j in range(self.num_actuator_nodes):
                 self.mchord.append(Constant(self.chord[j],name=f"chord_{j}"))
@@ -117,7 +117,7 @@ class ActuatorLineDolfin(GenericTurbine):
 
         self.simTime = Constant(0.0,name="simTime")
         self.simTime_prev = Constant(0.0,name="simTime_prev")
-        self.dt = Constant(0.0)
+        self.dt = Constant(0.0,name="dt")
 
         self.eps = self.gauss_factor*self.dom.global_hmin
 
@@ -132,12 +132,13 @@ class ActuatorLineDolfin(GenericTurbine):
         self.rdim = []
         for i in range(self.num_actuator_nodes):
             if i == 0 or i == self.num_actuator_nodes - 1:
-                self.w.append(Constant(w/2.0))
+                self.w.append(Constant(w/2.0, name=f"w_{i}"))
             else:
-                self.w.append(Constant(w))
+                self.w.append(Constant(w, name=f"w_{i}"))
             self.rdim.append(Constant(self.radius*i/(self.num_actuator_nodes-1),name=f"rdim_{i}"))
 
         # Initialize lists
+        self.gauss_kernel = []
         self.aoa_forms = []
         self.aoa_values = []
         self.vel_fluid = []
@@ -150,6 +151,7 @@ class ActuatorLineDolfin(GenericTurbine):
         self.actuator_force_components = []
 
         for i in range(self.num_blades):
+            self.gauss_kernel.append([])
             self.aoa_forms.append([])
             self.aoa_values.append([])
             self.vel_fluid.append([])
@@ -162,16 +164,17 @@ class ActuatorLineDolfin(GenericTurbine):
             self.actuator_force_components.append([])
 
             for j in range(self.num_actuator_nodes):
+                self.gauss_kernel[i].append(0.0)
                 self.aoa_forms[i].append(0.0)
-                self.aoa_values[i].append(Constant(0.0))
+                self.aoa_values[i].append(Constant(0.0,name=f"aoa_{(i,j)}"))
                 self.vel_fluid[i].append(as_vector((Constant(0.0,name=f"ux_{(i,j)}"),Constant(0.0,name=f"uy_{(i,j)}"),Constant(0.0,name=f"uz_{(i,j)}"))))
                 # self.x_0_prev[i].append(as_vector((Constant(0.0),Constant(0.0),Constant(0.0))))
                 self.x_0[i].append(as_vector([0.0, 0.0, 0.0]))
                 self.x_0_prev[i].append(as_vector([0.0, 0.0, 0.0]))
 
-                self.lift_mag[i].append(Constant(0.0))
-                self.drag_mag[i].append(Constant(0.0))
-                self.axial[i].append(Constant(0.0))
+                self.lift_mag[i].append(Constant(0.0,name=f"lift_mag_{(i,j)}"))
+                self.drag_mag[i].append(Constant(0.0,name=f"drag_mag_{(i,j)}"))
+                self.axial[i].append(Constant(0.0,name=f"axial_{(i,j)}"))
                 self.actuator_force_components[i].append([])
 
     def init_blade_properties(self):
@@ -363,14 +366,13 @@ class ActuatorLineDolfin(GenericTurbine):
     def calculate_relative_fluid_velocity(self, u_k, x_0, n_0, blade_id, actuator_id):
         rdim = self.rdim[actuator_id]
 
-        # Evaluate the fluid velocity u_k at the point x_0 
-        vel_fluid_temp = mpi_eval(u_k, x_0)
-        # vel_fluid_temp = [AdjFloat(8.0),AdjFloat(0.0),AdjFloat(0.0)]#mpi_eval(u_k, x_0)
-        for i in range(self.dom.dim):
-            self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
+        # vel_fluid_temp = mpi_eval(u_k, x_0)
+        # # vel_fluid_temp = [AdjFloat(8.0),AdjFloat(0.0),AdjFloat(0.0)]#mpi_eval(u_k, x_0)
+        # for i in range(self.dom.dim):
+        #     self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
         vel_fluid = self.vel_fluid[blade_id][actuator_id]
 
-        self.axial[blade_id][actuator_id] = dot(self.vel_fluid[blade_id][actuator_id], n_0[:, 0])
+        self.axial[blade_id][actuator_id] = dot(vel_fluid, n_0[:, 0])
 
         # Remove the component of the fluid velocity oriented along the blade's axis
         vel_fluid -= dot(vel_fluid, n_0[:, 1])*n_0[:, 1]
@@ -446,10 +448,10 @@ class ActuatorLineDolfin(GenericTurbine):
         return lift_unit, drag_unit
 
 
-    def build_gauss_kernel_at_point(self, u_k, x_0):
+    def build_gauss_kernel_at_point(self, x_0):
 
         # Get the coordinates of the mesh points as UFL term
-        x_mesh = SpatialCoordinate(u_k.function_space().mesh())
+        x_mesh = SpatialCoordinate(self.fs.V.mesh())
         
         # Calculate distance from actuator node, x_0, in 3 directions
         delta_x = x_mesh[0] - x_0[0]
@@ -481,6 +483,12 @@ class ActuatorLineDolfin(GenericTurbine):
             
         return tip_loss_fac
 
+
+    def vel_fluid_eval(self,u,g):
+        out = []
+        for i in range(self.dom.dim):
+            out.append(assemble(u[i]*g*dx)/assemble(g*dx))
+        return out
 
     def build_actuator_node(self, u_k, x_0, n_0, blade_id, actuator_id):
         """
@@ -518,6 +526,16 @@ class ActuatorLineDolfin(GenericTurbine):
         twist = self.mtwist[actuator_id]
         chord = self.mchord[actuator_id]
 
+        # Build a spherical Gaussian with width eps about point x_0
+        self.gauss_kernel[blade_id][actuator_id] = self.build_gauss_kernel_at_point(x_0)
+
+
+        # approximate the fluid velocity u_k at the point x_0 
+        vel_fluid_temp = self.vel_fluid_eval(u_k, self.gauss_kernel[blade_id][actuator_id])
+        for i in range(self.dom.dim):
+            self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
+        vel_fluid = self.vel_fluid[blade_id][actuator_id]
+
         # Calculate the relative fluid velocity, a function of fluid and blade velocity    
         vel_rel, vel_rel_mag, vel_rel_unit = self.calculate_relative_fluid_velocity(u_k, x_0, n_0, blade_id, actuator_id)
 
@@ -536,8 +554,8 @@ class ActuatorLineDolfin(GenericTurbine):
         tip_loss_fac = self.calculate_tip_loss(rdim, self.aoa_forms[blade_id][actuator_id])
                 
         # Calculate the magnitude (a scalar quantity) of the lift and drag forces
-        lift_mag = tip_loss_fac*(0.5*cl*self.rho*chord*w*vel_rel_mag**2.0)
-        drag_mag = tip_loss_fac*(0.5*cd*self.rho*chord*w*vel_rel_mag**2.0)
+        lift_mag = tip_loss_fac*(0.5*cl*self.rho*chord*w*vel_rel_mag*vel_rel_mag)
+        drag_mag = tip_loss_fac*(0.5*cd*self.rho*chord*w*vel_rel_mag*vel_rel_mag)
 
         self.lift_mag[blade_id][actuator_id] = lift_mag
         self.drag_mag[blade_id][actuator_id] = drag_mag
@@ -550,13 +568,11 @@ class ActuatorLineDolfin(GenericTurbine):
         #     print(ufl_eval(tip_loss_fac*(0.5*cl*self.rho*w*vel_rel_mag**2.0)))
         #     exit()
 
-        # Build a spherical Gaussian with width eps about point x_0
-        gauss_kernel = self.build_gauss_kernel_at_point(u_k, x_0)
         
         # Smear the lift and drag forces onto the grid using the Gaussian kernel
         # The result is a scalar function at each point on the grid
-        projected_lift_mag = lift_mag*gauss_kernel
-        projected_drag_mag = drag_mag*gauss_kernel
+        projected_lift_mag = lift_mag*self.gauss_kernel[blade_id][actuator_id]
+        projected_drag_mag = drag_mag*self.gauss_kernel[blade_id][actuator_id]
 
         # Compute the orientation of the lift and drag unit vectors
         lift_unit, drag_unit = self.build_lift_drag_vec(vel_rel_unit, n_0)
@@ -688,7 +704,7 @@ class ActuatorLineDolfin(GenericTurbine):
             # Create a form for quickly projecting turbine force onto a vector function space
             # equivalent to: tf_fn = project(tf, V, solver_type='cg')
             self.tf = tf
-            self.tf_fn = Function(fs.V)
+            self.tf_fn = Function(fs.V,name="tf_fn")
 
             # if isinstance(self.tf, list):
             #     self.blade_tf_fn = Function(fs.V)
@@ -750,7 +766,7 @@ class ActuatorLineDolfin(GenericTurbine):
                     # Re Evaluate velocity
                     x_0_prev = self.x_0_prev[blade_id][actuator_id]
 
-                    vel_fluid_temp = mpi_eval(u, x_0_prev)
+                    vel_fluid_temp = self.vel_fluid_eval(u, self.gauss_kernel[blade_id][actuator_id])
                     # vel_fluid_temp = [AdjFloat(8.0),AdjFloat(0.0),AdjFloat(0.0)]#mpi_eval(u, x_0_prev)
                     for i in range(self.dom.dim):
                         self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])

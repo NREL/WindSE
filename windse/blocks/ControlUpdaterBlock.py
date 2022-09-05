@@ -79,6 +79,7 @@ class ControlUpdaterBlock(Block):
         J = inputs[-1]
         if self.problem.params["solver"]["type"] == "unsteady": 
             u_k = inputs[-3]
+            p_k = inputs[-2]
         else:
             u_k, p_k = inputs[-2].split(True)
 
@@ -86,26 +87,26 @@ class ControlUpdaterBlock(Block):
         # print(f"simTime_prev = {float(inputs[-5])}")
         self.problem.fprint(f"|    Current Objective =    {J/self.dt_sum if self.dt_sum>0 else inputs[-1]}")
         # Need to allow processes which don't own the above points to fail gracefully
-        try:
-            print(f"|    |    |    u(0, 0,150):   {u_k([0.0, 0.0,150.0])}")
-        except:
-            pass
-        try:
-            print(f"|    |    |    u(0, 0,210):   {u_k([0.0, 0.0,210.0])}")
-        except:
-            pass
-        try:
-            print(f"|    |    |    u(0,60,150):   {u_k([0.0,60.0,150.0])}")
-        except:
-            pass
-        print(f"|    |    |    max(u):        {u_k.vector().max()}")
-        print(f"|    |    |    min(u):        {u_k.vector().min()}")
-        print(f"|    |    |    integral(u_x): {assemble(u_k[0]*dx)}")
-        if self.problem.df_first_save:
-            self.problem.df_velocity_file = self.problem.params.Save(u_k,"df_velocity",subfolder="timeSeries/",val=self.time)
-            self.problem.df_first_save = False
-        else:
-            self.problem.params.Save(u_k,"df_velocity",subfolder="timeSeries/",val=self.time,file=self.problem.df_velocity_file)
+        # try:
+        #     print(f"|    |    |    u(0, 0,150):   {u_k([0.0, 0.0,150.0])}")
+        # except:
+        #     pass
+        # try:
+        #     print(f"|    |    |    u(0, 0,210):   {u_k([0.0, 0.0,210.0])}")
+        # except:
+        #     pass
+        # try:
+        #     print(f"|    |    |    u(0,60,150):   {u_k([0.0,60.0,150.0])}")
+        # except:
+        #     pass
+        # print(f"|    |    |    max(u):        {u_k.vector().max()}")
+        # print(f"|    |    |    min(u):        {u_k.vector().min()}")
+        # print(f"|    |    |    integral(u_x): {assemble(u_k[0]*dx)}")
+        # if self.problem.df_first_save:
+        #     self.problem.df_velocity_file = self.problem.params.Save(u_k,"df_velocity",subfolder="timeSeries/",val=self.time)
+        #     self.problem.df_first_save = False
+        # else:
+        #     self.problem.params.Save(u_k,"df_velocity",subfolder="timeSeries/",val=self.time,file=self.problem.df_velocity_file)
 
         return inputs[-1]
 

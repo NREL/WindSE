@@ -45,10 +45,10 @@ class GenericFunctionSpace(object):
     def SetupSubspaces(self):
         self.V = self.W.sub(0).collapse()
         self.Q = self.W.sub(1).collapse()
-        print('about to setupsubspaces')
-        f = Function(self.Q)
-        print('made it in setupsubspaces')
-        #exit()
+        # print('about to setupsubspaces')
+        # f = Function(self.Q)
+        # print('made it in setupsubspaces')
+        # exit()
         self.V0 = self.V.sub(0).collapse() 
         self.V1 = self.V.sub(1).collapse()
 
@@ -83,12 +83,27 @@ class LinearFunctionSpace(GenericFunctionSpace):
     def __init__(self,dom):
         super(LinearFunctionSpace, self).__init__(dom)
 
+        # trick the mesh to working?
+        # dummy = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
+        # print("before:", self.mesh.num_entities_global(0))
+        # self.mesh = refine(self.mesh,dummy)
+        # print("after:", self.mesh.num_entities_global(0))
+
         ### Create the function space ###
         fs_start = time.time()
         self.fprint("Creating Function Space",special="header")
 
+
+        # test = FunctionSpace(self.mesh, "CG", 1)
+        # print('about to do the thing')
+        # f = Function(test)
+        # print('did the thing')
+        # exit()
+
+
         V = VectorElement('Lagrange', self.mesh.ufl_cell(), 1) 
         Q = FiniteElement('Lagrange', self.mesh.ufl_cell(), 1)
+
         self.T = FunctionSpace(dom.mesh, TensorElement('Lagrange', dom.mesh.ufl_cell(), 1))
         self.W = FunctionSpace(self.mesh, MixedElement([V,Q]))
 

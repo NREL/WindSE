@@ -24,7 +24,7 @@ class InterpBlock(Block):
     def recompute_component(self, inputs, block_variable, idx, prepared):
         x = prepared[0]
         y = prepared[1]
-        # print(f"{MPI.comm_world.Get_rank()}, {float(x)}, {float(y)}, {self.func(x,y)}")
+        # print(f"interp: {MPI.comm_world.Get_rank()}, {float(x)}, {float(y)}, {float(self.func(x,y))}")
 
         return Constant(self.func(x,y))
 
@@ -36,7 +36,6 @@ class InterpBlock(Block):
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
         x = prepared[0]
         y = prepared[1]
-        # print(f"{MPI.comm_world.Get_rank()}, {float(x)}, {float(y)}")
         adj_input = adj_inputs[0]
 
         # Compute derivative with respect to x
@@ -47,6 +46,7 @@ class InterpBlock(Block):
         elif idx == 1:
             adj = self.func(x,y,dy=1)
 
+        # print(f"interp: {MPI.comm_world.Get_rank()}, {float(x)}, {float(y)}, {float(adj)}")
         adj_output = adj_input * adj
 
         return adj_output

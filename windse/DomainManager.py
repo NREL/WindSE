@@ -395,10 +395,10 @@ class GenericDomain(object):
 
         self.my_fs = FunctionSpace
         self.my_fn = Function
-        print('After refinement')
-        Q = FunctionSpace(self.mesh, 'P', 1)
-        f = Function(Q)
-        print('finished after refinement')
+        # print('After refinement')
+        # Q = FunctionSpace(self.mesh, 'P', 1)
+        # f = Function(Q)
+        # print('finished after refinement')
 
         self.fprint("Original Mesh Vertices: {:d}".format(old_verts))
         self.fprint("Original Mesh Cells:    {:d}".format(old_cells))

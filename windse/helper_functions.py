@@ -18,8 +18,8 @@ def ufl_eval(form, print_statement=None):
     # out = assemble(form*dx_lame)
     # return out
     # if print_statement is not None:
-    #     print(f'Standard: {print_statement}, output: {float(Constant(form))}')
-    return Constant(form)
+    #     print(f'Standard: {print_statement}, output: {float(Constant(form)):1.20f}')
+    return Constant(form, name = "ufl_eval")
 
 if windse_parameters.dolfin_adjoint:
     block_kwargs = {
@@ -127,6 +127,7 @@ def mpi_eval(u, x, comm=MPI.comm_world):
     # print(f"x: {np.array(x,dtype=float)}")
     # print(f"x: {np.array(x,dtype=float)}")
     # print(f"u: {np.array(out,dtype=float)}")
+    # print(type(out))
     return out
 
 if windse_parameters.dolfin_adjoint:

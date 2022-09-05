@@ -52,7 +52,7 @@ class MpiEvalBlock(Block):
         return None
 
     def evaluate_adj_component(self, inputs, adj_inputs, block_variable, idx, prepared=None):
-        # print(f"input: {self.comm.Get_rank()}: {adj_inputs[idx]}")
+        # print(f"mpi_input: {self.comm.Get_rank()}: {adj_inputs[idx]}")
         x0 = self.recompute_x0()
         p = Point(np.array(x0))
         V = inputs[0].function_space()
@@ -78,10 +78,12 @@ class MpiEvalBlock(Block):
                                                    p.array(),
                                                    cell.get_coordinate_dofs(),
                                                    cell.orientation())
-                    # print(self.comm.Get_rank(),basis)
+                    # print(f"rank: {self.comm.Get_rank()}, basis {basis}, dot: {basis.dot(adj_inputs[idx])}")
                     # print(self.comm.Get_rank(),basis.dot(adj_inputs[idx]))
                     if dof < adj_vec_size:
                         adj_vec[dof] = basis.dot(adj_input)
+                    else:
+                        print(f"rank: {self.comm.Get_rank()}, OH NOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO")
 
 
 
@@ -104,7 +106,7 @@ class MpiEvalBlock(Block):
         # print(dir(output))
         # exit()
         # print(f"output: {self.comm.Get_rank()}: {adj_vec}")
-        # print(f"output: {self.comm.Get_rank()}: {output.min()}, {output.max()}")
+        # print(f"mpi_output: {self.comm.Get_rank()}: {output.min()}, {output.max()}")
         # print(self.comm.Get_rank(), min(adj_vec), max(adj_vec))
         # exit()
         return output

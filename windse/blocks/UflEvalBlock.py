@@ -43,7 +43,7 @@ class UflEvalBlock(Block):
         output = self.base_eval(form)
         output = create_overloaded_object(output)
         # if self.print_statement is not None:
-        #     print(f"Forward: {self.print_statement}, output: {float(output)}")
+        #     print(f"ufl: {self.print_statement}, output: {float(output)}")
         return output
 
     def prepare_evaluate_adj(self, inputs, adj_inputs, relevant_dependencies):
@@ -62,6 +62,10 @@ class UflEvalBlock(Block):
         adj_input = adj_inputs[0]
         der = diff(form,inputs[idx])
         output = float(ufl.algorithms.apply_derivatives.apply_derivatives(der))
-        # if self.print_statement is not None:
-        #     print(f"Adjoint: {self.print_statement}, output: {float(output)}")
+        # print(f"ufl: rank: {}, input: {}, ")
+        # if self.print_statement is not None and abs(float(output))>1e-14:
+            # print(f"ufl: {self.print_statement},input: {idx}, input_val: {float(inputs[idx]): <20}, output: {float(output)}")
+
+        # print(type(adj_input),type(output))
+
         return adj_input * output
