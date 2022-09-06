@@ -531,7 +531,8 @@ class ActuatorLineDolfin(GenericTurbine):
 
 
         # approximate the fluid velocity u_k at the point x_0 
-        vel_fluid_temp = self.vel_fluid_eval(u_k, self.gauss_kernel[blade_id][actuator_id])
+        vel_fluid_temp = mpi_eval(u_k, x_0)
+        # vel_fluid_temp = self.vel_fluid_eval(u_k, self.gauss_kernel[blade_id][actuator_id])
         for i in range(self.dom.dim):
             self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
         vel_fluid = self.vel_fluid[blade_id][actuator_id]
@@ -766,7 +767,8 @@ class ActuatorLineDolfin(GenericTurbine):
                     # Re Evaluate velocity
                     x_0_prev = self.x_0_prev[blade_id][actuator_id]
 
-                    vel_fluid_temp = self.vel_fluid_eval(u, self.gauss_kernel[blade_id][actuator_id])
+                    vel_fluid_temp = mpi_eval(u, x_0_prev)
+                    # vel_fluid_temp = self.vel_fluid_eval(u, self.gauss_kernel[blade_id][actuator_id])
                     # vel_fluid_temp = [AdjFloat(8.0),AdjFloat(0.0),AdjFloat(0.0)]#mpi_eval(u, x_0_prev)
                     for i in range(self.dom.dim):
                         self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
