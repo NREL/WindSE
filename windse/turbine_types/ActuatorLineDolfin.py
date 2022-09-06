@@ -653,14 +653,14 @@ class ActuatorLineDolfin(GenericTurbine):
                 theta = theta_0 + self.simTime*self.angular_velocity
                 
 
-                rx = self.rot_x(theta)
+                rx = self.rot_x(-theta)
                 
                 # Why does this need to be transposed to work correctly?
                 n_0 = dot(rx, n_0_base).T
 
                 theta_prev = theta_0 + self.simTime_prev*self.angular_velocity
                 
-                rx_prev = self.rot_x(theta_prev)
+                rx_prev = self.rot_x(-theta_prev)
 
                 # Why does this need to be transposed to work correctly?
                 n_0_prev = dot(rx_prev, n_0_base).T
