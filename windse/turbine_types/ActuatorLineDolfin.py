@@ -75,6 +75,7 @@ class ActuatorLineDolfin(GenericTurbine):
         self.chord_perturb = float(self.params["turbines"]["chord_perturb"])
         self.chord_perturb_id = int(self.params["turbines"]["chord_perturb_id"])
         self.chord_override = self.params["turbines"]["chord_override"]
+        self.motion_file = self.params["turbines"]["motion_file"]
 
 
     def compute_parameters(self):
@@ -106,6 +107,54 @@ class ActuatorLineDolfin(GenericTurbine):
             for j in range(self.num_actuator_nodes):
                 self.mchord.append(Constant(self.chord[j],name=f"chord_{j}"))
                 self.mtwist.append(Constant(self.twist[j],name=f"twist_{j}"))
+
+    def init_platform_motion(self):
+        # 0: Time (s)
+        # 1: PtfmSurge (m)
+        # 2: PtfmSway (m)
+        # 3: PtfmHeave (m)
+        # 4: PtfmRoll (deg)
+        # 5: PtfmPitch (deg)
+        # 6: PtfmYaw (deg)
+
+        path_to_motion_file = os.path.join(os.path.dirname(self.read_turb_data), self.motion_file)
+        motion_data = np.genfromtxt(path_to_motion_file, skip_header=1)
+
+        time_0 = motion_data[:, 0]
+        pitch_0 = motion_data[:, 5]
+
+        self.motion_interp = interp.interp1d(time_0, pitch_0, kind='linear')
+
+    def calc_platform_motion(self):
+
+        if hasattr(self, 'motion_interp'):
+            platform_theta = self.motion_interp(float(self.simTime))
+            platform_theta = np.radians(platform_theta)
+            print(platform_theta)
+
+        else:
+            platform_theta = 0.0
+
+        return platform_theta
+
+
+        '''
+        pos_before_floating = self.rotate_points(pos, np.radians(wave_interp(theta_prev_tt)), [0, 1, 0])
+        pos, unit_vec, vel = self.rotate_points([pos, unit_vec, vel], np.radians(wave_interp(theta_tt)), [0, 1, 0])
+        pos_prev = self.rotate_points(pos_prev, np.radians(wave_interp(theta_prev_tt)), [0, 1, 0])
+
+        # Finite different calc of the velocity incurred by this shift in the floating position
+        # Negative because we seek the velocity of fluid relative to a stationary blade
+        if self.simTime_prev is None:
+            vel_due_to_floating = 0.0
+        else:
+            vel_due_to_floating = -(pos - pos_before_floating)/(0.5*(self.simTime + self.dt - self.simTime_prev))
+
+        test_experimental_finite_diff = True
+
+        if test_experimental_finite_diff:
+            vel += vel_due_to_floating
+        '''
 
     def init_alm_calc_terms(self):
         # compute turbine radius
@@ -144,6 +193,7 @@ class ActuatorLineDolfin(GenericTurbine):
         self.vel_fluid = []
         self.x_0 = []
         self.x_0_prev = []
+        self.x_0_pre_motion = []
         
         self.lift_mag = []
         self.drag_mag = []
@@ -157,6 +207,7 @@ class ActuatorLineDolfin(GenericTurbine):
             self.vel_fluid.append([])
             self.x_0.append([])
             self.x_0_prev.append([])
+            self.x_0_pre_motion.append([])
 
             self.lift_mag.append([])
             self.drag_mag.append([])
@@ -171,6 +222,7 @@ class ActuatorLineDolfin(GenericTurbine):
                 # self.x_0_prev[i].append(as_vector((Constant(0.0),Constant(0.0),Constant(0.0))))
                 self.x_0[i].append(as_vector([0.0, 0.0, 0.0]))
                 self.x_0_prev[i].append(as_vector([0.0, 0.0, 0.0]))
+                self.x_0_pre_motion[i].append(as_vector([0.0, 0.0, 0.0]))
 
                 self.lift_mag[i].append(Constant(0.0,name=f"lift_mag_{(i,j)}"))
                 self.drag_mag[i].append(Constant(0.0,name=f"drag_mag_{(i,j)}"))
@@ -356,14 +408,33 @@ class ActuatorLineDolfin(GenericTurbine):
 
     # TODO: use the one from GenericTurbine
     def rot_x(self, theta):
-        Rx = as_tensor([[1, 0, 0],
-                       [0, cos(theta), -sin(theta)],
-                       [0, sin(theta), cos(theta)]])
-        
+        # Rotation about x-axis (e.g., due to normal rotor rotation)
+        Rx = as_tensor([[1,          0,           0],
+                        [0, cos(theta), -sin(theta)],
+                        [0, sin(theta),  cos(theta)]])
+
         return Rx
 
+    # TODO: use the one from GenericTurbine
+    def rot_y(self, theta):
+        # Rotation about y-axis (e.g., due to pitching platform)
+        Ry = as_tensor([[ cos(theta), 0, sin(theta)],
+                        [          0, 1,          0],
+                        [-sin(theta), 0, cos(theta)]])
 
-    def calculate_relative_fluid_velocity(self, u_k, x_0, n_0, blade_id, actuator_id):
+        return Ry
+
+    # TODO: use the one from GenericTurbine
+    def rot_z(self, theta):
+        # Rotation about z-axis (e.g., due to yawing)
+        Rz = as_tensor([[cos(theta), -sin(theta), 0],
+                        [sin(theta),  cos(theta), 0],
+                        [         0,           0, 1]])
+
+        return Rz
+
+
+    def calculate_relative_fluid_velocity(self, u_k, x_0, x_0_pre_motion, n_0, blade_id, actuator_id):
         rdim = self.rdim[actuator_id]
 
         # vel_fluid_temp = mpi_eval(u_k, x_0)
@@ -382,12 +453,29 @@ class ActuatorLineDolfin(GenericTurbine):
         # relative to a stationary blade
         vel_blade = -(rdim+0.01)*self.angular_velocity*n_0[:, 2]
 
+        # Calculate the velocity due to any platform motion
+        # Note: this finite difference is not as accurate as the analytic method
+        # using angular velocity above, so the former should be used if no
+        # complicated platform motion is expected.
+        # As before, take the negative sign since we seek the velocity of
+        # the fluid as relative to a stationary blade.
+        if self.motion_file is not None:
+            vel_blade_2 = -(x_0 - x_0_pre_motion)/(self.simTime - self.simTime_prev + 1e-6)
+            # x_0_np = np.array(x_0, dtype=float)
+            # x_0_pre_motion_np = np.array(x_0_pre_motion, dtype=float)
+            # vel_blade_2_np = -(x_0_np - x_0_pre_motion_np)/(self.simTime - self.simTime_prev)
+            # print('vel_blade = ', np.array(vel_blade_2_np, dtype=float))
+        else:
+            vel_blade_2 = 0
+
         # The relative velocity is the sum of the fluid and blade velocity
-        vel_rel = vel_fluid + vel_blade
+        vel_rel = vel_fluid + vel_blade + vel_blade_2
         
         # Calculate the magnitude of the relative velocity
         vel_rel_mag = sqrt(vel_rel[0]**2.0 + vel_rel[1]**2.0 + vel_rel[2]**2.0)
         vel_rel_unit = vel_rel/vel_rel_mag
+
+
 
         return vel_rel, vel_rel_mag, vel_rel_unit
 
@@ -490,7 +578,8 @@ class ActuatorLineDolfin(GenericTurbine):
             out.append(assemble(u[i]*g*dx)/assemble(g*dx))
         return out
 
-    def build_actuator_node(self, u_k, x_0, n_0, blade_id, actuator_id):
+
+    def build_actuator_node(self, u_k, x_0, x_0_pre_motion, n_0, blade_id, actuator_id):
         """
         Build the force function for a single actuator node.
 
@@ -531,14 +620,14 @@ class ActuatorLineDolfin(GenericTurbine):
 
 
         # approximate the fluid velocity u_k at the point x_0 
-        vel_fluid_temp = mpi_eval(u_k, x_0)
-        # vel_fluid_temp = self.vel_fluid_eval(u_k, self.gauss_kernel[blade_id][actuator_id])
+        # vel_fluid_temp = mpi_eval(u_k, x_0)
+        vel_fluid_temp = self.vel_fluid_eval(u_k, self.gauss_kernel[blade_id][actuator_id])
         for i in range(self.dom.dim):
             self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
         vel_fluid = self.vel_fluid[blade_id][actuator_id]
 
         # Calculate the relative fluid velocity, a function of fluid and blade velocity    
-        vel_rel, vel_rel_mag, vel_rel_unit = self.calculate_relative_fluid_velocity(u_k, x_0, n_0, blade_id, actuator_id)
+        vel_rel, vel_rel_mag, vel_rel_unit = self.calculate_relative_fluid_velocity(u_k, x_0, x_0_pre_motion, n_0, blade_id, actuator_id)
 
         # Calculate the angle of attack for this actuator node node
         self.aoa_forms[blade_id][actuator_id] = self.calcuate_aoa(vel_rel, n_0, twist)
@@ -608,6 +697,9 @@ class ActuatorLineDolfin(GenericTurbine):
             self.init_lift_drag_lookup_tables()
             self.create_controls(initial_call_from_setup=False)
 
+            if self.motion_file is not None:
+                self.init_platform_motion()
+
             self.fprint(f'Gaussian Width: {self.eps}')
             self.fprint(f'Minimum Mesh Spacing: {self.dom.global_hmin}')
             self.fprint(f'Number of Actuators per Blade: {self.num_actuator_nodes}')
@@ -654,16 +746,25 @@ class ActuatorLineDolfin(GenericTurbine):
                 
 
                 rx = self.rot_x(-theta)
+
+                platform_theta = self.calc_platform_motion()
+                self.platform_theta = Constant(platform_theta)
+                self.platform_theta_prev = Constant(platform_theta)
+
+                ry = self.rot_y(-self.platform_theta)
                 
                 # Why does this need to be transposed to work correctly?
-                n_0 = dot(rx, n_0_base).T
+                # n_0 = dot(rx, n_0_base).T # WORKS FOR NO PLATFORM MOTION
+                n_0 = dot(ry, dot(rx, n_0_base)).T
 
                 theta_prev = theta_0 + self.simTime_prev*self.angular_velocity
                 
                 rx_prev = self.rot_x(-theta_prev)
+                ry_prev = self.rot_y(-self.platform_theta_prev)
 
                 # Why does this need to be transposed to work correctly?
-                n_0_prev = dot(rx_prev, n_0_base).T
+                # n_0_prev = dot(rx_prev, n_0_base).T # WORKS FOR NO PLATFORM MOTION
+                n_0_prev = dot(ry_prev, dot(rx_prev, n_0_base)).T
 
                 for actuator_id in range(self.num_actuator_nodes):
 
@@ -671,16 +772,21 @@ class ActuatorLineDolfin(GenericTurbine):
 
                     self.x_0[blade_id][actuator_id] = dot(x_0_base, rx)
                     self.x_0[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz]) # TODO: what about mx and my do those matter
+                    self.x_0[blade_id][actuator_id] = dot(self.x_0[blade_id][actuator_id], ry)
+
+                    self.x_0_pre_motion[blade_id][actuator_id] = dot(x_0_base, rx)
+                    self.x_0_pre_motion[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz]) # TODO: what about mx and my do those matter
+                    self.x_0_pre_motion[blade_id][actuator_id] = dot(self.x_0_pre_motion[blade_id][actuator_id], ry_prev)
 
                     self.x_0_prev[blade_id][actuator_id] = dot(x_0_base, rx_prev)
                     self.x_0_prev[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz])
+                    self.x_0_prev[blade_id][actuator_id] = dot(self.x_0_prev[blade_id][actuator_id], ry_prev)
 
-                                    
-                    # tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], n_0, blade_id, actuator_id)
+                    # tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], self.x_0_pre_motion[blade_id][actuator_id], n_0, blade_id, actuator_id)
                     if isinstance(tf, list):
-                        tf[blade_id] += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], n_0, blade_id, actuator_id)
+                        tf[blade_id] += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], self.x_0_pre_motion[blade_id][actuator_id], n_0, blade_id, actuator_id)
                     else:
-                        tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], n_0, blade_id, actuator_id)
+                        tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], self.x_0_pre_motion[blade_id][actuator_id], n_0, blade_id, actuator_id)
 
                     along_blade_lift.append(float(self.lift_mag[blade_id][actuator_id]))
                     along_blade_drag.append(float(self.drag_mag[blade_id][actuator_id]))
@@ -748,6 +854,10 @@ class ActuatorLineDolfin(GenericTurbine):
             self.simTime_prev.assign(self.simTime)
             self.simTime.assign(kwargs['simTime'])
 
+            self.platform_theta_prev.assign(self.platform_theta)
+            platform_theta = self.calc_platform_motion()
+            self.platform_theta.assign(platform_theta)
+
             # TODO: we got to do something like this. By storing the aoa forms in a list, 
             # we should be able to just reassemble them after changing the time. We also 
             # might need to do something similar to velocity
@@ -767,8 +877,8 @@ class ActuatorLineDolfin(GenericTurbine):
                     # Re Evaluate velocity
                     x_0_prev = self.x_0_prev[blade_id][actuator_id]
 
-                    vel_fluid_temp = mpi_eval(u, x_0_prev)
-                    # vel_fluid_temp = self.vel_fluid_eval(u, self.gauss_kernel[blade_id][actuator_id])
+                    # vel_fluid_temp = mpi_eval(u, x_0_prev)
+                    vel_fluid_temp = self.vel_fluid_eval(u, self.gauss_kernel[blade_id][actuator_id])
                     # vel_fluid_temp = [AdjFloat(8.0),AdjFloat(0.0),AdjFloat(0.0)]#mpi_eval(u, x_0_prev)
                     for i in range(self.dom.dim):
                         self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])

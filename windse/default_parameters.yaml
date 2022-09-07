@@ -81,6 +81,7 @@ turbines:                   # parameters for the turbine objects
     chord_perturb:  0.0         # An amount to perturb one of the chord values, used for finite difference gradient calculations
     chord_perturb_id: 0         # The index of the chord to perturb, used for finite difference gradient calculations
     chord_override: Null        # The path to a specific chord to use in csv format, e.g., input_data/chord_base.csv
+    motion_file: Null
 
 refine:                     # parameters for RefinementManager
     warp_type:      Null        # warping will shift the nodes along the z direction concentrating them near the ground. choices: "smooth", "split"
