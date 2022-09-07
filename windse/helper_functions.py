@@ -5,7 +5,31 @@ import numpy as np
 ### Check if we need dolfin_adjoint ###
 if windse_parameters.dolfin_adjoint:
     from dolfin_adjoint import *
+<<<<<<< Updated upstream
     from windse.blocks import blockify, MpiEvalBlock
+=======
+    from windse.blocks import blockify, MpiEvalBlock, UflEvalBlock
+    from pyadjoint.overloaded_type import create_overloaded_object
+
+def ufl_eval(form, print_statement=None):
+    '''
+    This function converts complex ufl forms to floats
+    '''
+    # mesh = UnitCubeMesh(2,2,2) # TODO: this might be bad in parallel
+    # dx_lame = Measure("dx",mesh)
+    # out = assemble(form*dx_lame)
+    # return out
+    if self.print_statement is not None:
+        print(f"Standard: {self.print_statement}")
+    return Constant(form)
+
+if windse_parameters.dolfin_adjoint:
+    block_kwargs = {
+        "base_eval": ufl_eval
+    }
+    ufl_eval = blockify(ufl_eval,UflEvalBlock,block_kwargs=block_kwargs)
+
+>>>>>>> Stashed changes
 
 def mpi_eval(u, x, comm=MPI.comm_world):
 

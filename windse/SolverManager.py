@@ -5,6 +5,7 @@ in windse
 
 import __main__
 import os
+from pyadjoint.tape import no_annotations
 
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
@@ -24,7 +25,6 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     from mpmath import hyper
     import cProfile
     import pstats
-    from pyadjoint.tape import no_annotations 
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
