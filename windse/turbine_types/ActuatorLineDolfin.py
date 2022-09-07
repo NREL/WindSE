@@ -466,7 +466,7 @@ class ActuatorLineDolfin(GenericTurbine):
             # vel_blade_2_np = -(x_0_np - x_0_pre_motion_np)/(self.simTime - self.simTime_prev)
             # print('vel_blade = ', np.array(vel_blade_2_np, dtype=float))
         else:
-            vel_blade_2 = 0
+            vel_blade_2 = as_vector([0, 0, 0])
 
         # The relative velocity is the sum of the fluid and blade velocity
         vel_rel = vel_fluid + vel_blade + vel_blade_2
