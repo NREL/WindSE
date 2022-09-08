@@ -130,7 +130,7 @@ class ActuatorLineDolfin(GenericTurbine):
         if hasattr(self, 'motion_interp'):
             platform_theta = self.motion_interp(float(self.simTime))
             platform_theta = np.radians(platform_theta)
-            print(platform_theta)
+            # print(platform_theta)
 
         else:
             platform_theta = 0.0
@@ -735,6 +735,10 @@ class ActuatorLineDolfin(GenericTurbine):
             along_blade_force_y = []
             along_blade_force_z = []
 
+            platform_theta = self.calc_platform_motion()
+            self.platform_theta = Constant(platform_theta, name="platform_theta")
+            self.platform_theta_prev = Constant(platform_theta, name="platform_theta_prev")
+            
             for blade_id in range(self.num_blades):
                 # This can be built on a blade-by-blade basis
                 n_0_base = as_tensor([[1, 0, 0],
@@ -747,9 +751,6 @@ class ActuatorLineDolfin(GenericTurbine):
 
                 rx = self.rot_x(-theta)
 
-                platform_theta = self.calc_platform_motion()
-                self.platform_theta = Constant(platform_theta)
-                self.platform_theta_prev = Constant(platform_theta)
 
                 ry = self.rot_y(-self.platform_theta)
                 
@@ -857,6 +858,8 @@ class ActuatorLineDolfin(GenericTurbine):
             self.platform_theta_prev.assign(self.platform_theta)
             platform_theta = self.calc_platform_motion()
             self.platform_theta.assign(platform_theta)
+
+            # print(self.platform_theta_prev, self.platform_theta_prev.values())
 
             # TODO: we got to do something like this. By storing the aoa forms in a list, 
             # we should be able to just reassemble them after changing the time. We also 
