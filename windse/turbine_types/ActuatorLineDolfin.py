@@ -76,6 +76,7 @@ class ActuatorLineDolfin(GenericTurbine):
         self.chord_perturb_id = int(self.params["turbines"]["chord_perturb_id"])
         self.chord_override = self.params["turbines"]["chord_override"]
         self.motion_file = self.params["turbines"]["motion_file"]
+        self.use_gauss_vel_probe = self.params["turbines"]["use_gauss_vel_probe"]
 
 
     def compute_parameters(self):
@@ -175,16 +176,28 @@ class ActuatorLineDolfin(GenericTurbine):
         else:
             self.num_actuator_nodes = self.blade_segments
 
-        # Build along blade dims
-        w = self.radius/(self.num_actuator_nodes-1)
-        self.w = []
-        self.rdim = []
-        for i in range(self.num_actuator_nodes):
-            if i == 0 or i == self.num_actuator_nodes - 1:
-                self.w.append(Constant(w/2.0, name=f"w_{i}"))
-            else:
+
+        place_nodes_at_extremes = False
+
+        if place_nodes_at_extremes:
+            w = self.radius/(self.num_actuator_nodes-1)
+            self.w = []
+            self.rdim = []
+            for i in range(self.num_actuator_nodes):
+                if i == 0 or i == self.num_actuator_nodes - 1:
+                    self.w.append(Constant(w/2.0, name=f"w_{i}"))
+                else:
+                    self.w.append(Constant(w, name=f"w_{i}"))
+                self.rdim.append(Constant(self.radius*i/(self.num_actuator_nodes-1),name=f"rdim_{i}"))
+
+        else:
+            w = self.radius/self.num_actuator_nodes
+            self.w = []
+            self.rdim = []
+            for i in range(self.num_actuator_nodes):
                 self.w.append(Constant(w, name=f"w_{i}"))
-            self.rdim.append(Constant(self.radius*i/(self.num_actuator_nodes-1),name=f"rdim_{i}"))
+                self.rdim.append(Constant(self.radius*(i+0.5)/self.num_actuator_nodes,name=f"rdim_{i}"))
+
 
         # Initialize lists
         self.gauss_kernel = []
@@ -620,8 +633,11 @@ class ActuatorLineDolfin(GenericTurbine):
 
 
         # approximate the fluid velocity u_k at the point x_0 
-        # vel_fluid_temp = mpi_eval(u_k, x_0)
-        vel_fluid_temp = self.vel_fluid_eval(u_k, self.gauss_kernel[blade_id][actuator_id])
+        if self.use_gauss_vel_probe:
+            vel_fluid_temp = self.vel_fluid_eval(u_k, self.gauss_kernel[blade_id][actuator_id])
+        else:
+            vel_fluid_temp = mpi_eval(u_k, x_0)
+
         for i in range(self.dom.dim):
             self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
         vel_fluid = self.vel_fluid[blade_id][actuator_id]
@@ -880,8 +896,11 @@ class ActuatorLineDolfin(GenericTurbine):
                     # Re Evaluate velocity
                     x_0_prev = self.x_0_prev[blade_id][actuator_id]
 
-                    # vel_fluid_temp = mpi_eval(u, x_0_prev)
-                    vel_fluid_temp = self.vel_fluid_eval(u, self.gauss_kernel[blade_id][actuator_id])
+                    if self.use_gauss_vel_probe:
+                        vel_fluid_temp = self.vel_fluid_eval(u, self.gauss_kernel[blade_id][actuator_id])
+                    else:
+                        vel_fluid_temp = mpi_eval(u, x_0_prev)
+
                     # vel_fluid_temp = [AdjFloat(8.0),AdjFloat(0.0),AdjFloat(0.0)]#mpi_eval(u, x_0_prev)
                     for i in range(self.dom.dim):
                         self.vel_fluid[blade_id][actuator_id][i].assign(vel_fluid_temp[i])
@@ -965,9 +984,21 @@ class ActuatorLineDolfin(GenericTurbine):
 
     def power(self, u, inflow_angle):
         # Create a cylindrical expression aligned with the position of this turbine
-        self.cyld_expr = Expression(('sin(yaw)*(x[2]-zs)', '-cos(yaw)*(x[2]-zs)', '(x[1]-ys)*cos(yaw)-(x[0]-xs)*sin(yaw)'),
+        #self.cyld_expr = Expression(('sin(yaw)*(x[2]-zs)', '-cos(yaw)*(x[2]-zs)', '(x[1]-ys)*cos(yaw)-(x[0]-xs)*sin(yaw)'),
+        #    degree=1,
+        #    yaw=self.myaw,
+        #    xs=self.mx,
+        #    ys=self.my,
+        #    zs=self.mz)
+
+        #print(f'Theta = {float(self.platform_theta)}, mx = {float(self.mx)}, my = {float(self.my)}, mz = {float(self.mz)}')
+
+        self.cyld_expr = Expression(
+            ('-x[1]*sin(pitch)',
+            '-1.0*(-sin(pitch)*x[0] + cos(pitch)*x[2] - zs)',
+            'x[1]*cos(pitch)'),
             degree=1,
-            yaw=self.myaw,
+            pitch=-float(self.platform_theta),
             xs=self.mx,
             ys=self.my,
             zs=self.mz)
@@ -982,6 +1013,7 @@ class ActuatorLineDolfin(GenericTurbine):
             self.power_dolfin = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
 
         # self.power_dolfin = assemble(dot(self.tf,as_vector((1.0,1.0,1.0)))*dx)
+        # print('Power: ', self.power_dolfin)
 
         return self.power_dolfin
 
