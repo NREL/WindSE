@@ -131,7 +131,7 @@ class ActuatorDisk(GenericTurbine):
         pass
 
     def power(self, u, inflow_angle):
-        return dot(-self.tf,u)
+        return dot(-self.tf,u)/1.0e6
 
     def power_gradient(self):
         pass

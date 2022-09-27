@@ -1,0 +1,1 @@
+.. include:: ../../../demo/documented/studies/template/template.rst
