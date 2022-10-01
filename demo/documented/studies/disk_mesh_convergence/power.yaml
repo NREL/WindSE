@@ -30,9 +30,9 @@ domain:
     type: box              #                       |
     x_range: [-756, 756] # x-range of the domain | m
     y_range: [-756, 756] # y-range of the domain | m
-    z_range: [0.04, 640]   # z-range of the domain | m
-    nx: 16                  # Number of x-nodes     | -
-    ny: 16                  # Number of y-nodes     | -
+    z_range: [0.04, 630]   # z-range of the domain | m
+    nx: 12                  # Number of x-nodes     | -
+    ny: 12                  # Number of y-nodes     | -
     nz: 10                  # Number of z-nodes      | -
     ###################################################################
 
@@ -71,9 +71,10 @@ problem:
 solver:
     type: steady
     save_power: true
+    # nonlinear_solver: newton
 
 optimization:
-    control_types: [layout,yaw]
+    control_types: [layout, yaw]
     layout_bounds: [[-378, 378],[-378, 378]] 
     gradient: true
-    # taylor_test: trdomue
+    taylor_test: true

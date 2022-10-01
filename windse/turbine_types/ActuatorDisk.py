@@ -2,7 +2,7 @@
 from . import GenericTurbine
 
 # import dolfin functions
-from . import Constant, SpatialCoordinate, as_vector, cos, sin, exp, sqrt, dot
+from . import Constant, SpatialCoordinate, as_vector, cos, sin, exp, sqrt, dot, assemble, dx
 
 # import other modules
 import numpy as np
@@ -81,6 +81,11 @@ class ActuatorDisk(GenericTurbine):
 
         ### Calculate normalization constant ###
         volNormalization = T_norm*D_norm*W*R**(self.dom.dim-1)
+
+        self.fprint(f"Turbine {self.index}:")
+        self.fprint(f"Assembled Volume: {assemble(T*D*dx)}",offset=1)
+        self.fprint(f"Computed Volume:  {volNormalization}",offset=1)
+        self.fprint(f"Assembled Force:  {assemble(F*T*D/volNormalization*dx)}",offset=1)
 
         # compute disk averaged velocity in yawed case and don't project
         actuator_disks=F*T*D*WTGbase/volNormalization

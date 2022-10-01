@@ -381,15 +381,24 @@ class SteadySolver(GenericSolver):
 
         elif self.nonlinear_solver == "snes":
             # ### Add some helper functions to solver options ###
+
+            krylov_options = {"absolute_tolerance":  1e-12,
+                              "relative_tolerance":  1e-6,
+                              "maximum_iterations":  5000,
+                              "monitor_convergence": True}
+
             solver_parameters = {"nonlinear_solver": "snes",
                                  "snes_solver": {
                                  "absolute_tolerance": 1e-6,
                                  "relative_tolerance": 1e-5,
                                  "linear_solver": "mumps",
+                                 "preconditioner": "default",
                                  "maximum_iterations": 40,
                                  "error_on_nonconvergence": True,
                                  "line_search": "basic",
-                                 }}                        
+                                 "krylov_solver": krylov_options
+                                 }}  
+
         else:
             raise ValueError("Unknown nonlinear solver type: {0}".format(self.nonlinear_solver))
 
