@@ -1,1 +1,1 @@
-.. include:: ../../../demo/documented/studies/template/template.rst
+.. include:: ../../../demo/documented/studies/template/writeup/template.rst
