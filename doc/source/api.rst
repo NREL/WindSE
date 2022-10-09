@@ -7,7 +7,6 @@ WindSE API
 
     windse.ParameterManager
     windse.DomainManager
-    windse.WindFarmManager
     windse.RefinementManager
     windse.FunctionSpaceManager
     windse.BoundaryManager
