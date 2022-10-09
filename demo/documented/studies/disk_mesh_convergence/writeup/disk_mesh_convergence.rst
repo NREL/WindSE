@@ -21,7 +21,7 @@ Input files and code version:
 This study was ran using this parameter file and code version: 
     
     * Parameter File: :download:`../../../demo/documented/studies/disk_mesh_convergence/simulation/power.yaml`
-    * Code Version: `WindSE 2021.08.01 <https://github.com/NREL/WindSE/releases/tag/2021.08.01>`_
+    * Code Version: `WindSE 2021.08.01 <https://github.com/NREL/WindSE/releases/tag/s_2022.10.09>`_
 
 
 
