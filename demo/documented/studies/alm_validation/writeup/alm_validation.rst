@@ -20,7 +20,7 @@ Input files and code version:
 The complete details of the domain, mesh, and turbine can be found in Martínez-Tossas et al. [1]_ but are reproduced as a WindSE study in the following YAML file. 
 
     * Parameter File: :download:`../../../demo/documented/studies/alm_validation/input_files/alm_validation.yaml`
-    * Code Version: `WindSE 2021.08.01 <https://github.com/NREL/WindSE/releases/tag/2021.08.01>`_
+    * Code Version: `WindSE 2021.08.01 <https://github.com/NREL/WindSE/releases/tag/s_2022.10.09>`_
 
 .. Note: not all studies need a full release, but they should at least link to a tag/commit.
 
