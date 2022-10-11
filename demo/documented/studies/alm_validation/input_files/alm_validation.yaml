@@ -1,33 +1,60 @@
-# General options
-general: 
-    name: "2D"
-    output: ["mesh","initial_guess","turbine_force","solution"]
-    output_type: "xdmf"
+general:
+    name: "alm_validation"
+    output: ["initial_guess","height","turbine_force","solution"]
 
-# Wind Farm constants for a grid farm
-wind_farm: 
-    type: grid            #                          |
-    grid_rows: 6
-    grid_cols: 6
-    ex_x: [-1800,1800]
-    ex_y: [-1800,1800]
-    HH: 90
+wind_farm:
+    type: grid
+    grid_rows: 1                    # Number of turbines in the y direction
+    grid_cols: 1                    # number of turbines in the x direction
+    ex_x: [-65, 65]                 # extents of the farm in the x direction in meters
+    ex_y: [-65, 65]                 # extents of the farm in the y direction in meters
+
+turbines:
+    type: dolfin_line
+    read_turb_data: nrel_5mw/blade_data.csv
+    HH: 0
     RD: 126
-    thickness: 10
     yaw: 0
-    axial: 0.33
+    rpm: 9.155                      # Rotor revolutions per minute (RPM) | rev/min
+    chord_factor: 1.0
+    gauss_factor: 5.079365079365079 # gaussian_width = gauss_factor*h_min => this value produces width = 10.0
+    blade_segments: 64              # Use 64 nodes to match the benchmark, 12 for an optimization run
+    tip_loss: False                 # Do not use a tip-loss model for the validation test case
 
-# Domain Constants for a Box Domain
-domain: 
-    #                      # Description           | Units
-    type: rectangle                              |
-    x_range: [-2500, 2500]        # x-range of the domain | m
-    y_range: [-2500, 2500]        # y-range of the domain | m
-    nx: 50                        # Number of x-nodes     | -
-    ny: 50                        # Number of y-nodes     | -
+domain:
+    type: box                       # A box domain, specified by x, y, and z dimensions
     
+    x_range: [-378, 2646]           # x-range of the domain, [-3xD, 21xD] | m
+    y_range: [-378, 378]            # y-range of the domain,  [-3xD, 3xD] | m
+    z_range: [-378, 378]            # z-range of the domain,  [-3xD, 3xD] | m
+
+    nx: 384                         # Number of x-nodes | -
+    ny: 96                          # Number of y-nodes | -
+    nz: 96                          # Number of z-nodes | -
+
+refine:
+    turbine_num: 2                  # Two local refinements brings h_min to 1.96875 m
+    turbine_type: sphere
+    turbine_factor: 1.5
+
+function_space:
+    type: linear                    # Use linear finite elements for both pressure and velocity
+
+boundary_conditions:
+    vel_profile: uniform
+    HH_vel: 8.0                     # The velocity at the turbine hub height | m
+    boundary_types:
+        inflow: ["west"]
+        no_stress: ["east"]
+        free_slip: ["top","north","south","bottom"]
+
 problem:
-    type: taylor-hood
+    type: unsteady                  # The unsteady solver is required for ALM simulations
+    viscosity: 0.000015             # The kinematic viscosity of the fluid | m^2/s
+    turbulence_model: smagorinsky   # Use smagorinsky eddy viscosity with cs = 0.16 (set in ProblemManager.py)
 
 solver:
-    type: taylor-hood
+    type: unsteady                  # The unsteady solver is required for this test
+    save_interval: 10.0             # Save the velocity and pressure files at intervals of "save_interval" | s
+    final_time: 100.0               # The total duration of the simulation | s
+    cfl_target: 0.5
