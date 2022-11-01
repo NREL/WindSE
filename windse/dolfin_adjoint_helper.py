@@ -38,30 +38,30 @@ if "dolfin_adjoint_helper" not in dolfin.ALE.move.__module__:
 
 
 
-# def linalg_solve(*args, **kwargs):
-#     """This function overrides dolfin_adjoints.compat.linalg_solve.
+def linalg_solve(*args, **kwargs):
+    """This function overrides dolfin_adjoints.compat.linalg_solve.
 
-#     The original function doesn't allow for solver options because it uses
-#      the::
+    The original function doesn't allow for solver options because it uses
+     the::
 
-#         dolfin.solve(A,x,b) 
+        dolfin.solve(A,x,b) 
 
-#     form which doesn't accept keyword arguments. However, It does except 
-#     additional arguments that defined some solver options, which we pass
-#     in manually
+    form which doesn't accept keyword arguments. However, It does except 
+    additional arguments that defined some solver options, which we pass
+    in manually
 
-#     Todo:
+    Todo:
 
-#         Eventually, we want to replace this with a full PetscKrylovSolver()
-#         to get access to all the ksp options.
+        Eventually, we want to replace this with a full PetscKrylovSolver()
+        to get access to all the ksp options.
 
-#     """
-#     # print("performing a solve")
-#     return dolfin_adjoint.backend.solve(*args)#,"mumps") 
-#     # return dolfin_adjoint.backend.solve(*args,"mumps") 
+    """
+    # print("performing a solve")
+    return dolfin_adjoint.backend.solve(*args,"mumps") 
+    # return dolfin_adjoint.backend.solve(*args,"mumps") 
 
-# if "dolfin_adjoint_helper" not in dolfin_adjoint.types.compat.linalg_solve.__module__:
-#     dolfin_adjoint.types.compat.linalg_solve = linalg_solve
+if "dolfin_adjoint_helper" not in dolfin_adjoint.types.compat.linalg_solve.__module__:
+    dolfin_adjoint.types.compat.linalg_solve = linalg_solve
 
 
 
