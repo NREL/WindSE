@@ -855,7 +855,7 @@ class GenericDomain(object):
 
     def SetupPeriodicMapping(self):
         # TODO: account for periodic in refine
-        if self.type not in ["box","rectangle"]:
+        if self.type not in ["box","rectangle"] and (self.streamwise_periodic or self.spanwise_periodic):
             raise TypeError("Periodic boundary conditions are only supported for box and rectangle")
 
         if self.streamwise_periodic and self.spanwise_periodic:
@@ -872,6 +872,10 @@ class GenericDomain(object):
             self.fprint("Setting up spanwise periodic boundary mapping")
             self.periodic_mapping = SinglePeriodicBoundary(self.y_range[0], self.y_range[1], axis=1)
             self.bcs_to_remove = ["north","south"]
+
+        else:
+            self.periodic_mapping = None
+            self.bcs_to_remove = None
 
     def RecomputeBoundaryMarkers(self,inflow_angle):
         raise NotImplementedError("This Domain type does not support nonzero inflow angles.")
