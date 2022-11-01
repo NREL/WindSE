@@ -369,7 +369,7 @@ class Optimizer(object):
         self.controls = []
         self.control_pointers = []
         self.names = []
-        self.indexes = [[],[],[],[],[],[],[]]
+        self.indexes = [[],[],[],[],[],[],[],[]]
         self.init_vals = []
         j = 0
 
@@ -436,6 +436,17 @@ class Optimizer(object):
                     self.names.append("chord_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.farm.turbines[i].mchord[k]))
                     self.init_vals.append(Constant(float(self.farm.turbines[i].mchord[k])))
+
+        if "body_force" in self.control_types:
+                    self.control_pointers.append(("body_force",[-1,-1]))
+                    self.indexes[7].append(j)
+                    j+=1
+                    self.names.append("body_force")
+                    self.controls.append(Control(self.problem.mbody_force))
+                    self.init_vals.append(Constant(float(self.problem.mbody_force)))
+
+
+
         self.num_controls = len(self.controls)
 
     def CreateBounds(self):
@@ -486,6 +497,10 @@ class Optimizer(object):
                     lower_bounds.append(Constant(seg_chord/modifier))
                     upper_bounds.append(Constant(np.maximum(np.minimum(seg_chord*modifier,max_chord),c_avg)))
                     c_avg = (c_avg*k+seg_chord)/(k+1)
+
+        if "body_force" in self.control_types:
+            lower_bounds.append(Constant(0.0001))
+            upper_bounds.append(Constant(0.01))
 
         self.bounds = [lower_bounds,upper_bounds]
 
@@ -587,7 +602,9 @@ class Optimizer(object):
         m_new = np.array(m,dtype=float)
         m_old = []
         for control_name, index in self.control_pointers:
-            if not isinstance(index,int):
+            if control_name == "body_force":
+                m_old.append(float(self.problem.body_force))
+            elif not isinstance(index,int):
                 turb_id = index[0]
                 seg_id = index[1]
                 m_old.append(float(getattr(self.farm.turbines[turb_id],control_name)[seg_id]))
@@ -696,10 +713,10 @@ class Optimizer(object):
             m_opt=opt_function(self.Jhat, method=self.opt_routine, options = options, constraints = self.merged_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
 
         self.m_opt = m_opt
-
+        
         if self.num_controls == 1:
-            self.m_opt = (self.m_opt,)
-        self.OptPrintFunction(m_opt)
+            self.m_opt = [self.m_opt]
+        self.OptPrintFunction(self.m_opt)
         # self.fprint("Assigning New Values")
         # new_values = {}
         # m_f = np.array(m_opt,dtype=float)

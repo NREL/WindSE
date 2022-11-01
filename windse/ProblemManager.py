@@ -63,6 +63,10 @@ class GenericProblem(object):
         if self.params.dolfin_adjoint:
             self.extra_kwarg["annotate"] = False
 
+        # Setup body force
+        self.mbody_force = Constant(self.body_force)
+
+
     @no_annotations
     def DebugOutput(self):
         if self.debug_mode:
@@ -312,8 +316,10 @@ class StabilizedProblem(GenericProblem):
         # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx# - inner(self.tf,v)*dx 
         self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf,v)*dx 
         
-        ################ THIS IS A CHEAT ####################
+        # Add body force to functional
+        self.F += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
 
+        ################ THIS IS A CHEAT ####################\
         if self.use_corrective_force:
             self.fprint("Using Corrective Force")
             extra_S = sqrt(2*inner(0.5*(grad(self.bd.bc_velocity)+grad(self.bd.bc_velocity).T),0.5*(grad(self.bd.bc_velocity)+grad(self.bd.bc_velocity).T)))
@@ -401,6 +407,9 @@ class TaylorHoodProblem(GenericProblem):
 
         ### Create the functional ###
         self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf,v)*dx 
+
+        # Add body force to functional
+        self.F += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
 
         if self.use_25d_model:
             if self.dom.dim == 3:
@@ -503,6 +512,9 @@ class IterativeSteady(GenericProblem):
            + (nu+self.nu_T)*inner(grad(u), grad(v))*dx \
            - inner(self.tf, v)*dx 
 
+        # Add body force to functional
+        F1 += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
+
         self.F1_lhs = lhs(F1)
         self.F1_rhs = rhs(F1)
 
@@ -522,6 +534,8 @@ class IterativeSteady(GenericProblem):
            + inner(grad(self.p_k), v)*dx \
            + self.dt_1*inner(u - self.u_k, v)*dx
 
+        # Add body force to functional
+        F3 += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
 
         self.F3_lhs = lhs(F3)
         self.F3_rhs = rhs(F3)

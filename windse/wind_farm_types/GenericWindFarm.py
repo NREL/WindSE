@@ -525,6 +525,7 @@ class GenericWindFarm(object):
         """
         saves a text file containing the wind_farm and turbine parameters
         """
+        # TODO: update for csv mode
         folder_string = self.params.folder+"/data/"
         if val is not None:
             file_string = self.params.folder+"/data/"+filename+"_"+repr(val)+".txt"
@@ -549,6 +550,9 @@ class GenericWindFarm(object):
         for i,turb in enumerate(self.turbines):
             if turb.type == 'line':
                 thickness[i] = turb.gaussian_width
+                axial[i] = np.nan
+            elif turb.type == 'disabled':
+                thickness[i] = np.nan
                 axial[i] = np.nan
             else:
                 thickness[i] = turb.thickness

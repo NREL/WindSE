@@ -64,6 +64,17 @@ class GenericBoundary(object):
         if not self.params.user_supplied["boundary_conditions"]["boundary_types"]:
             self.boundary_types = self.dom.boundary_types
 
+        # Process bc to account for periodic 
+        if self.dom.periodic_mapping is not None:
+            # Disable boundaries that are now periodic [east,west]
+            for key in self.dom.bcs_to_remove:
+                self.boundary_names[key] = None
+
+            # Make sure those boundaries are not doubly set
+            for key,value in self.boundary_types.items():
+                self.boundary_types[key] = [i for i in value if i not in self.dom.bcs_to_remove]
+
+
     @no_annotations
     def DebugOutput(self):
         if self.debug_mode:
@@ -221,10 +232,15 @@ class GenericBoundary(object):
         uy_com = np.zeros(length)
         uz_com = np.zeros(length)
 
+        if self.dom.dim == 3:
+            self.inflow_unit_vector = as_vector((cos(inflow_angle),sin(inflow_angle),0.0))
+        else:
+            self.inflow_unit_vector = as_vector((cos(inflow_angle),sin(inflow_angle)))
+
         for i in range(length):
             v = self.HH_vel * self.unit_reference_velocity[i]
-            ux_com[i] = math.cos(inflow_angle)*v
-            uy_com[i] = math.sin(inflow_angle)*v
+            ux_com[i] = self.inflow_unit_vector[0]*v
+            uy_com[i] = self.inflow_unit_vector[1]*v
             if self.dom.dim == 3:
                 uz_com[i] = 0.0   
         return [ux_com,uy_com,uz_com]

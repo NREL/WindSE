@@ -44,6 +44,62 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     ### This parameter allows for refining the mesh functions ###
     parameters["refinement_algorithm"] = "plaza_with_parent_facets"
 
+class SinglePeriodicBoundary(SubDomain):
+
+    def __init__(self,a,b,axis=0):
+        super(SinglePeriodicBoundary, self).__init__()
+        self.axis   = axis # 0 for periodic x and 1 for periodic y
+        self.target = a    # location of the primary boundary 
+        self.offset = b-a  # the offset from the primary to the secondary 
+
+    # returns true primary boundary 
+    def inside(self, x, on_boundary):
+        return near(x[self.axis],self.target) and on_boundary
+
+    # this maps the secondary boundary to the primary boundary
+    def map(self, x, y):
+        y[:] = x[:] # Set all equal
+        y[self.axis] = x[self.axis] - self.offset # Modify the value that is periodic
+
+class DoublePeriodicBoundary(SubDomain):
+
+    def __init__(self,x_range,y_range):
+        super(DoublePeriodicBoundary, self).__init__()
+        self.x_range = x_range    # location of the primary boundary 
+        self.y_range = y_range    # location of the primary boundary
+        self.x_offset = x_range[1]-x_range[0]  # the offset from the primary to the secondary 
+        self.y_offset = y_range[1]-y_range[0]  # the offset from the primary to the secondary 
+        self.eps = 1e-4
+
+    # returns true primary boundary 
+    def inside(self, x, on_boundary):
+        on_either  = near(x[0], self.x_range[0],self.eps)  or near(x[1], self.y_range[0],self.eps)
+        on_corner1 = near(x[0], self.x_range[1],self.eps) and near(x[1], self.y_range[0],self.eps)
+        on_corner2 = near(x[0], self.x_range[0],self.eps) and near(x[1], self.y_range[1],self.eps)
+        return (on_either and not (on_corner1 or on_corner2)) and on_boundary
+
+    # this maps the secondary boundary to the primary boundary
+    def map(self, x, y):
+        if near(x[0], self.x_range[1],self.eps) and near(x[1], self.y_range[1],self.eps):
+            y[0] = x[0] - self.x_offset
+            y[1] = x[1] - self.y_offset
+            y[2] = x[2]
+            # print(1)
+        elif near(x[0], self.x_range[1],self.eps):
+            y[0] = x[0] - self.x_offset
+            y[1] = x[1]
+            y[2] = x[2]
+            # print(2)
+        elif near(x[1], self.y_range[1],self.eps):
+            y[0] = x[0]
+            y[1] = x[1] - self.y_offset
+            y[2] = x[2]
+            # print(3)
+        else:
+            y[0] = -1000
+            y[1] = -1000
+            y[2] = -1000
+
 
 
 def Elliptical_Grid(x, y, z, radius):
@@ -89,8 +145,14 @@ def Simple_Stretching(x, y, z, radius):
     z_hat = z
     return [x_hat, y_hat, z_hat]
 
-
-
+def DefaultFinalize(dom):
+    # self.ComputeCellRadius()
+    dom.SetupPeriodicMapping()
+    dom.ComputeGlobalHmin()
+    dom.DebugOutput()
+    dom.finalized = True
+    dom.fprint("")
+    dom.fprint("Domain Finalized")
 
 class GenericDomain(object):
     """
@@ -128,6 +190,9 @@ class GenericDomain(object):
             self.inflow_angle = self.inflow_angle[0]
         self.initial_inflow_angle = self.inflow_angle
 
+        ### Add a space to store periodic boundary conditions ###
+        self.periodic_mapping = None
+        self.bcs_to_remove = []
 
     @no_annotations
     def DebugOutput(self):
@@ -659,10 +724,7 @@ class GenericDomain(object):
 
 
     def Finalize(self):
-        # self.ComputeCellRadius()
-        self.ComputeGlobalHmin()
-        self.finalized = True
-        self.DebugOutput()
+        DefaultFinalize(self)
 
     # def ComputeCellRadius(self):
     #     self.mesh_radius = MeshFunction("double", self.mesh, self.mesh.topology().dim())
@@ -792,6 +854,30 @@ class GenericDomain(object):
             else:
                 return float(self.ground_function(x,y,dx=dx,dy=dy))
 
+    def SetupPeriodicMapping(self):
+        # TODO: account for periodic in refine
+        if self.type not in ["box","rectangle"] and (self.streamwise_periodic or self.spanwise_periodic):
+            raise TypeError("Periodic boundary conditions are only supported for box and rectangle")
+
+        if self.streamwise_periodic and self.spanwise_periodic:
+            self.fprint("Setting up dual periodic boundary mapping")
+            self.periodic_mapping = DoublePeriodicBoundary(self.x_range, self.y_range)
+            self.bcs_to_remove = ["east","west","north","south"]
+
+        elif self.streamwise_periodic:
+            self.fprint("Setting up streamwise periodic boundary mapping")
+            self.periodic_mapping = SinglePeriodicBoundary(self.x_range[0], self.x_range[1], axis=0)
+            self.bcs_to_remove = ["east","west"]
+
+        elif self.spanwise_periodic:
+            self.fprint("Setting up spanwise periodic boundary mapping")
+            self.periodic_mapping = SinglePeriodicBoundary(self.y_range[0], self.y_range[1], axis=1)
+            self.bcs_to_remove = ["north","south"]
+
+        else:
+            self.periodic_mapping = None
+            self.bcs_to_remove = None
+
     def RecomputeBoundaryMarkers(self,inflow_angle):
         raise NotImplementedError("This Domain type does not support nonzero inflow angles.")
 
@@ -865,6 +951,8 @@ class BoxDomain(GenericDomain):
                                "no_slip":   ["bottom"],
                                "free_slip": ["top"],
                                "no_stress": ["east"]}
+
+        self.SetupPeriodicMapping()
 
         ### Generate the boundary markers for boundary conditions ###
         if self.params.num_procs == 1:
@@ -1518,11 +1606,7 @@ class InterpolatedCylinderDomain(CylinderDomain):
 
     def Finalize(self):
         self.Move(self.ground_function)
-        self.ComputeGlobalHmin()
-        self.finalized = True
-        self.DebugOutput()
-        self.fprint("")
-        self.fprint("Domain Finalized")
+        DefaultFinalize(self)
 
 class InterpolatedBoxDomain(BoxDomain):
     def __init__(self):
@@ -1553,11 +1637,7 @@ class InterpolatedBoxDomain(BoxDomain):
 
     def Finalize(self):
         self.Move(self.ground_function)
-        self.ComputeGlobalHmin()
-        self.finalized = True
-        self.DebugOutput()
-        self.fprint("")
-        self.fprint("Domain Finalized")
+        DefaultFinalize(self)
 
 
 class PeriodicDomain(BoxDomain):

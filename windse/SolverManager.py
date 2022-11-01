@@ -374,6 +374,7 @@ class SteadySolver(GenericSolver):
                               "linear_solver": "mumps",
                               "absolute_tolerance": 1e-6,
                               "relative_tolerance": 1e-5,
+                              "error_on_nonconvergence": True,
                               "krylov_solver": krylov_options}
         
             solver_parameters = {"nonlinear_solver": "newton",
