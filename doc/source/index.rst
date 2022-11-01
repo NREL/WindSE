@@ -14,6 +14,7 @@ Welcome to WindSE's documentation!
    run
    params
    demo
+   studies
    api
 
 
