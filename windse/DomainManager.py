@@ -16,7 +16,7 @@ else:
 ### This checks if we are just doing documentation ###
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
-    #from mshr import *
+    from mshr import *
     #from windse.mshr_fake import *
     import copy
     import time
