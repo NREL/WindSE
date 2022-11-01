@@ -6,6 +6,7 @@ creating different types of domains
 
 import __main__
 import os
+from pyadjoint.tape import no_annotations
 
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
@@ -26,7 +27,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     import numpy as np
     from scipy.interpolate import interp2d, interp1d,RectBivariateSpline
     import shutil
-    from pyadjoint.tape import no_annotations, stop_annotating
+    from pyadjoint.tape import stop_annotating
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters

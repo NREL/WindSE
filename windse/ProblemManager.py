@@ -5,6 +5,7 @@ different classes of problems that windse can solve
 
 import __main__
 import os
+from pyadjoint.tape import no_annotations
 
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
@@ -19,7 +20,6 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     import time
     import scipy.interpolate as interp
     import glob
-    from pyadjoint.tape import no_annotations
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
