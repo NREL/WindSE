@@ -984,24 +984,26 @@ class ActuatorLineDolfin(GenericTurbine):
 
     def power(self, u, inflow_angle):
         # Create a cylindrical expression aligned with the position of this turbine
-        #self.cyld_expr = Expression(('sin(yaw)*(x[2]-zs)', '-cos(yaw)*(x[2]-zs)', '(x[1]-ys)*cos(yaw)-(x[0]-xs)*sin(yaw)'),
+        # self.cyld_expr = Expression(('sin(yaw)*(x[2]-zs)', '-cos(yaw)*(x[2]-zs)', '(x[1]-ys)*cos(yaw)-(x[0]-xs)*sin(yaw)'),
         #    degree=1,
-        #    yaw=self.myaw,
-        #    xs=self.mx,
-        #    ys=self.my,
-        #    zs=self.mz)
+        #    yaw=float(self.myaw),
+        #    xs=float(self.mx),
+        #    ys=float(self.my),
+        #    zs=float(self.mz))
 
         #print(f'Theta = {float(self.platform_theta)}, mx = {float(self.mx)}, my = {float(self.my)}, mz = {float(self.mz)}')
 
-        self.cyld_expr = Expression(
-            ('-x[1]*sin(pitch)',
-            '-1.0*(-sin(pitch)*x[0] + cos(pitch)*x[2] - zs)',
-            'x[1]*cos(pitch)'),
-            degree=1,
-            pitch=-float(self.platform_theta),
-            xs=self.mx,
-            ys=self.my,
-            zs=self.mz)
+        # self.cyld_expr = Expression(
+        #     ('-x[1]*sin(pitch)',
+        #     '-1.0*(-sin(pitch)*x[0] + cos(pitch)*x[2] - zs)',
+        #     'x[1]*cos(pitch)'),
+        #     degree=1,
+        #     pitch=-float(self.platform_theta),
+        #     xs=float(self.mx),
+        #     ys=float(self.my),
+        #     zs=float(self.mz))
+
+        self.cyld_expr = Expression(('xs', '0.0', '0.0'), degree=1, xs=1.0)
 
         if isinstance(self.tf, list):
             self.power_dolfin = 0.0
@@ -1011,6 +1013,25 @@ class ActuatorLineDolfin(GenericTurbine):
 
         else:
             self.power_dolfin = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
+
+        # TODO: Assebmle these objects in groups to avoid running out of memory/hitting recursion limit
+        # as a result of trying to assemble lots of actuator nodes at once.
+
+        # rotor_torque = sum(tangential_force * rdim)
+        # rotor_power = rotor_torque * (2*pi*RPM/60)
+        rotor_torque = 0.0
+
+        # for blade_id in range(self.num_blades):
+        #     for actuator_id in range(self.num_actuator_nodes):
+        #         # torque = tangential_force * lever_arm
+        #         rotor_torque += self.actuator_force_components[blade_id][actuator_id][2]*self.rdim[actuator_id]
+
+        # self.power_dolfin_2 = assemble(rotor_torque * (2.0*pi*self.rpm/60.0)*dx)
+
+        print(f'old: {self.power_dolfin}')
+        # print(f'new: {self.power_dolfin_2}')
+
+
 
         # self.power_dolfin = assemble(dot(self.tf,as_vector((1.0,1.0,1.0)))*dx)
         # print('Power: ', self.power_dolfin)
