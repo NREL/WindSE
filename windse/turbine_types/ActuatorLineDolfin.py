@@ -1026,7 +1026,7 @@ class ActuatorLineDolfin(GenericTurbine):
                 # torque = tangential_force * lever_arm
                 rotor_torque += self.actuator_force_components[blade_id][actuator_id][2]*self.rdim[actuator_id]
 
-        self.power_dolfin = assemble(rotor_torque*self.angular_velocity*dx)
+        self.power_dolfin = assemble(-1e-6*rotor_torque*self.angular_velocity*dx)
 
         if self.params.rank == 0:
             print(f'old: {self.power_dolfin_old}')
