@@ -440,7 +440,7 @@ class Optimizer(object):
         if "twist" in self.control_types:
             for i in self.solver.opt_turb_id:
                 # for k in range(self.farm.turbines[0].num_actuator_nodes-1):
-                for k in range(1,self.farm.turbines[0].num_actuator_nodes):
+                for k in range(0,self.farm.turbines[0].num_actuator_nodes):
                     self.control_pointers.append(("twist",[i,k]))
                     self.indexes[6].append(j)
                     j+=1
