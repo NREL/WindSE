@@ -429,7 +429,7 @@ class Optimizer(object):
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(1,self.farm.turbines[0].num_actuator_nodes):
+                for k in range(0,self.farm.turbines[0].num_actuator_nodes):
                     self.control_pointers.append(("chord",[i,k]))
                     self.indexes[6].append(j)
                     j+=1
