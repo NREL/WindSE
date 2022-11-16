@@ -636,7 +636,12 @@ class Optimizer(object):
         f.close()
 
     def SaveFunctions(self):
-        u, p = self.problem.up_k.split()
+        if self.params["problem"]["type"] == "unsteady":
+            u = self.problem.u_k
+            p = self.problem.p_k
+        else:
+            u, p = self.problem.up_k.split()
+
         # tf = project(self.problem.tf,self.problem.fs.V,solver_type='cg',preconditioner_type="hypre_amg")
         if self.iteration == 0:
             self.velocity_file = self.params.Save(u,"velocity",subfolder="OptSeries/",val=self.iteration)
