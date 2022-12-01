@@ -370,11 +370,11 @@ class SteadySolver(GenericSolver):
                               "maximum_iterations": 5000}
 
             newton_options = {"relaxation_parameter": self.newton_relaxation,
-                              "maximum_iterations": 40,
+                              "maximum_iterations": 150,
                               "linear_solver": "mumps",
                               "absolute_tolerance": 1e-6,
                               "relative_tolerance": 1e-5,
-                              "error_on_nonconvergence": True,
+                              "error_on_nonconvergence": False,
                               "krylov_solver": krylov_options}
         
             solver_parameters = {"nonlinear_solver": "newton",
@@ -394,9 +394,9 @@ class SteadySolver(GenericSolver):
                                  "relative_tolerance": 1e-5,
                                  "linear_solver": "mumps",
                                  "preconditioner": "default",
-                                 "maximum_iterations": 40,
-                                 "error_on_nonconvergence": True,
-                                 "line_search": "basic",
+                                 "maximum_iterations": 100,
+                                 "error_on_nonconvergence": False,
+                                 "line_search": "bt", #[basic,bt,cp,l2,nleqerr]
                                  "krylov_solver": krylov_options
                                  }}  
 
@@ -406,7 +406,7 @@ class SteadySolver(GenericSolver):
         ### Start the Solve Process ###
         self.fprint("Solving",special="header")
         start = time.time()
-        
+
         # ### Solve the Baseline Problem ###
         # solve(self.problem.F_sans_tf == 0, self.problem.up_k, self.problem.bd.bcs, solver_parameters=solver_parameters, **self.extra_kwarg)
 
