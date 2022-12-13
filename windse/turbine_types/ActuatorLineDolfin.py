@@ -153,7 +153,8 @@ class ActuatorLineDolfin(GenericTurbine):
             # The translation of the platform
             platform_motion.append(0.0)
             # The rotation of the platform
-            platform_motion.append(self.motion_interp(float(self.simTime)))
+            rot_amount = np.radians(self.motion_interp(float(self.simTime)))
+            platform_motion.append(rot_amount)
 
         else:
             # The translation of the platform
