@@ -143,13 +143,13 @@ class ActuatorLineDolfin(GenericTurbine):
 
         platform_motion = []
 
-        if self.motion_type is in ['surge', 'sway', 'heave']:
+        if self.motion_type in ['surge', 'sway', 'heave']:
             # The translation of the platform
             platform_motion.append(self.motion_interp(float(self.simTime)))
             # The rotation of the platform
             platform_motion.append(0.0)
 
-        elif self.motion_type is in ['roll', 'pitch', 'yaw']:
+        elif self.motion_type in ['roll', 'pitch', 'yaw']:
             # The translation of the platform
             platform_motion.append(0.0)
             # The rotation of the platform
