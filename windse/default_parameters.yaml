@@ -82,6 +82,7 @@ turbines:                   # parameters for the turbine objects
     chord_perturb_id: 0         # The index of the chord to perturb, used for finite difference gradient calculations
     chord_override: Null        # The path to a specific chord to use in csv format, e.g., input_data/chord_base.csv
     motion_file: Null
+    motion_type: Null
     use_gauss_vel_probe: False
 
 refine:                     # parameters for RefinementManager

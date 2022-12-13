@@ -76,6 +76,7 @@ class ActuatorLineDolfin(GenericTurbine):
         self.chord_perturb_id = int(self.params["turbines"]["chord_perturb_id"])
         self.chord_override = self.params["turbines"]["chord_override"]
         self.motion_file = self.params["turbines"]["motion_file"]
+        self.motion_type = self.params["turbines"]["motion_type"]
         self.use_gauss_vel_probe = self.params["turbines"]["use_gauss_vel_probe"]
 
 
@@ -121,22 +122,46 @@ class ActuatorLineDolfin(GenericTurbine):
         path_to_motion_file = os.path.join(os.path.dirname(self.read_turb_data), self.motion_file)
         motion_data = np.genfromtxt(path_to_motion_file, skip_header=1)
 
-        time_0 = motion_data[:, 0]
-        pitch_0 = motion_data[:, 5]
+        motion_type = {'surge': 1,
+           'sway': 2,
+           'heave': 3,
+           'roll': 4,
+           'pitch': 5,
+           'yaw': 6}
 
-        self.motion_interp = interp.interp1d(time_0, pitch_0, kind='linear')
+        motion_type_id = motion_type.get(self.motion_type, None)
+
+        if motion_type_id is None:
+            raise ValueError("No motion type specified")
+
+        time_0 = motion_data[:, 0]
+        selected_motion_data = motion_data[:, motion_type_id]
+
+        self.motion_interp = interp.interp1d(time_0, selected_motion_data, kind='linear')
 
     def calc_platform_motion(self):
 
-        if hasattr(self, 'motion_interp'):
-            platform_theta = self.motion_interp(float(self.simTime))
-            platform_theta = np.radians(platform_theta)
-            # print(platform_theta)
+        platform_motion = []
+
+        if self.motion_type is in ['surge', 'sway', 'heave']:
+            # The translation of the platform
+            platform_motion.append(self.motion_interp(float(self.simTime)))
+            # The rotation of the platform
+            platform_motion.append(0.0)
+
+        elif self.motion_type is in ['roll', 'pitch', 'yaw']:
+            # The translation of the platform
+            platform_motion.append(0.0)
+            # The rotation of the platform
+            platform_motion.append(self.motion_interp(float(self.simTime)))
 
         else:
-            platform_theta = 0.0
+            # The translation of the platform
+            platform_motion.append(0.0)
+            # The rotation of the platform
+            platform_motion.append(0.0)
 
-        return platform_theta
+        return platform_motion
 
 
         '''
@@ -751,9 +776,12 @@ class ActuatorLineDolfin(GenericTurbine):
             along_blade_force_y = []
             along_blade_force_z = []
 
-            platform_theta = self.calc_platform_motion()
-            self.platform_theta = Constant(platform_theta, name="platform_theta")
-            self.platform_theta_prev = Constant(platform_theta, name="platform_theta_prev")
+            platform_motion = self.calc_platform_motion()
+            self.platform_trans = Constant(platform_motion[0], name="platform_trans")
+            self.platform_trans_prev = Constant(platform_motion[0], name="platform_trans_prev")
+
+            self.platform_rot = Constant(platform_motion[1], name="platform_rot")
+            self.platform_rot_prev = Constant(platform_motion[1], name="platform_rot_prev")
             
             for blade_id in range(self.num_blades):
                 # This can be built on a blade-by-blade basis
@@ -767,21 +795,43 @@ class ActuatorLineDolfin(GenericTurbine):
 
                 rx = self.rot_x(-theta)
 
+                if self.motion_type == 'surge':
+                    platform_trans = as_tensor([self.platform_trans, 0.0, 0.0])
+                    platform_trans_prev = as_tensor([self.platform_trans_prev, 0.0, 0.0])
+                elif self.motion_type == 'sway':
+                    platform_trans = as_tensor([0.0, self.platform_trans, 0.0])
+                    platform_trans_prev = as_tensor([0.0, self.platform_trans_prev, 0.0])
+                elif self.motion_type == 'heave':
+                    platform_trans = as_tensor([0.0, 0.0, self.platform_trans])
+                    platform_trans_prev = as_tensor([0.0, 0.0, self.platform_trans_prev])
+                else:
+                    platform_trans = as_tensor([0.0, 0.0, 0.0])
+                    platform_trans_prev = as_tensor([0.0, 0.0, 0.0])
 
-                ry = self.rot_y(-self.platform_theta)
+                if self.motion_type == 'roll':
+                    platform_rot = self.rot_x(-self.platform_rot)
+                    platform_rot_prev = self.rot_x(-self.platform_rot_prev)
+                elif self.motion_type == 'pitch':
+                    platform_rot = self.rot_y(-self.platform_rot)
+                    platform_rot_prev = self.rot_y(-self.platform_rot_prev)
+                elif self.motion_type == 'yaw':
+                    platform_rot = self.rot_z(-self.platform_rot)
+                    platform_rot_prev = self.rot_z(-self.platform_rot_prev)
+                else:
+                    platform_rot = self.rot_y(0.0)
+                    platform_rot_prev = self.rot_y(0.0)
                 
                 # Why does this need to be transposed to work correctly?
                 # n_0 = dot(rx, n_0_base).T # WORKS FOR NO PLATFORM MOTION
-                n_0 = dot(ry, dot(rx, n_0_base)).T
+                n_0 = dot(platform_rot, dot(rx, n_0_base)).T
 
                 theta_prev = theta_0 + self.simTime_prev*self.angular_velocity
                 
                 rx_prev = self.rot_x(-theta_prev)
-                ry_prev = self.rot_y(-self.platform_theta_prev)
 
                 # Why does this need to be transposed to work correctly?
                 # n_0_prev = dot(rx_prev, n_0_base).T # WORKS FOR NO PLATFORM MOTION
-                n_0_prev = dot(ry_prev, dot(rx_prev, n_0_base)).T
+                n_0_prev = dot(platform_rot_prev, dot(rx_prev, n_0_base)).T
 
                 for actuator_id in range(self.num_actuator_nodes):
 
@@ -789,15 +839,18 @@ class ActuatorLineDolfin(GenericTurbine):
 
                     self.x_0[blade_id][actuator_id] = dot(x_0_base, rx)
                     self.x_0[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz]) # TODO: what about mx and my do those matter
-                    self.x_0[blade_id][actuator_id] = dot(self.x_0[blade_id][actuator_id], ry)
+                    self.x_0[blade_id][actuator_id] += platform_trans # TODO: what about mx and my do those matter
+                    self.x_0[blade_id][actuator_id] = dot(self.x_0[blade_id][actuator_id], platform_rot)
 
                     self.x_0_pre_motion[blade_id][actuator_id] = dot(x_0_base, rx)
                     self.x_0_pre_motion[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz]) # TODO: what about mx and my do those matter
-                    self.x_0_pre_motion[blade_id][actuator_id] = dot(self.x_0_pre_motion[blade_id][actuator_id], ry_prev)
+                    self.x_0_pre_motion[blade_id][actuator_id] += platform_trans_prev # TODO: what about mx and my do those matter
+                    self.x_0_pre_motion[blade_id][actuator_id] = dot(self.x_0_pre_motion[blade_id][actuator_id], platform_rot_prev)
 
                     self.x_0_prev[blade_id][actuator_id] = dot(x_0_base, rx_prev)
                     self.x_0_prev[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz])
-                    self.x_0_prev[blade_id][actuator_id] = dot(self.x_0_prev[blade_id][actuator_id], ry_prev)
+                    self.x_0_prev[blade_id][actuator_id] += platform_trans_prev
+                    self.x_0_prev[blade_id][actuator_id] = dot(self.x_0_prev[blade_id][actuator_id], platform_rot_prev)
 
                     # tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], self.x_0_pre_motion[blade_id][actuator_id], n_0, blade_id, actuator_id)
                     if isinstance(tf, list):
@@ -871,11 +924,13 @@ class ActuatorLineDolfin(GenericTurbine):
             self.simTime_prev.assign(self.simTime)
             self.simTime.assign(kwargs['simTime'])
 
-            self.platform_theta_prev.assign(self.platform_theta)
-            platform_theta = self.calc_platform_motion()
-            self.platform_theta.assign(platform_theta)
+            self.platform_trans_prev.assign(self.platform_trans)
+            self.platform_rot_prev.assign(self.platform_rot)
+            platform_motion = self.calc_platform_motion()
+            self.platform_trans.assign(platform_motion[0])
+            self.platform_rot.assign(platform_motion[1])
 
-            # print(self.platform_theta_prev, self.platform_theta_prev.values())
+            # print(self.platform_rot_prev, self.platform_rot_prev.values())
 
             # TODO: we got to do something like this. By storing the aoa forms in a list, 
             # we should be able to just reassemble them after changing the time. We also 
@@ -991,14 +1046,14 @@ class ActuatorLineDolfin(GenericTurbine):
         #    ys=float(self.my),
         #    zs=float(self.mz))
 
-        #print(f'Theta = {float(self.platform_theta)}, mx = {float(self.mx)}, my = {float(self.my)}, mz = {float(self.mz)}')
+        #print(f'Theta = {float(self.platform_rot)}, mx = {float(self.mx)}, my = {float(self.my)}, mz = {float(self.mz)}')
 
         self.cyld_expr = Expression(
             ('-x[1]*sin(pitch)',
             '-1.0*(-sin(pitch)*x[0] + cos(pitch)*x[2] - zs)',
             'x[1]*cos(pitch)'),
             degree=1,
-            pitch=-float(self.platform_theta),
+            pitch=-float(self.platform_rot),
             xs=float(self.mx),
             ys=float(self.my),
             zs=float(self.mz))
