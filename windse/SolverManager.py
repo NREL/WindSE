@@ -1240,7 +1240,8 @@ class UnsteadySolver(GenericSolver):
 
         if self.simTime > average_start_time:
             average_vel_sum.vector()[:] = average_vel_sum.vector()[:]/(self.simTime-average_start_time)
-            fp = File('./output/%s/average_vel_sum.pvd' % (self.params.name))
+            # fp = File('./output/%s/average_vel_sum.pvd' % (self.params.name))
+            fp = File(f"{self.params.folder}timeSeries/average_vel_sum.pvd")
             average_vel_sum.rename('average_vel_sum', 'average_vel_sum')
             fp << average_vel_sum
 
