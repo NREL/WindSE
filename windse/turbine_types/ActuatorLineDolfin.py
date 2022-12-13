@@ -845,13 +845,13 @@ class ActuatorLineDolfin(GenericTurbine):
 
                     self.x_0_pre_motion[blade_id][actuator_id] = dot(x_0_base, rx)
                     self.x_0_pre_motion[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz]) # TODO: what about mx and my do those matter
-                    self.x_0_pre_motion[blade_id][actuator_id] += platform_trans_prev # TODO: what about mx and my do those matter
                     self.x_0_pre_motion[blade_id][actuator_id] = dot(self.x_0_pre_motion[blade_id][actuator_id], platform_rot_prev)
+                    self.x_0_pre_motion[blade_id][actuator_id] += platform_trans_prev # TODO: what about mx and my do those matter
 
                     self.x_0_prev[blade_id][actuator_id] = dot(x_0_base, rx_prev)
                     self.x_0_prev[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz])
-                    self.x_0_prev[blade_id][actuator_id] += platform_trans_prev
                     self.x_0_prev[blade_id][actuator_id] = dot(self.x_0_prev[blade_id][actuator_id], platform_rot_prev)
+                    self.x_0_prev[blade_id][actuator_id] += platform_trans_prev
 
                     # tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], self.x_0_pre_motion[blade_id][actuator_id], n_0, blade_id, actuator_id)
                     if isinstance(tf, list):
