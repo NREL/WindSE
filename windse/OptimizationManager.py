@@ -501,9 +501,11 @@ class Optimizer(object):
         if "twist" in self.control_types:
             for i in self.solver.opt_turb_id:
                 num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
-                for k in range(num_actuator_nodes-1):
-                    lower_bounds.append(Constant(-pi/4))
-                    upper_bounds.append(Constant(pi/4))
+                twist = self.farm.turbines[i].mtwist
+                for k in range(num_actuator_nodes):
+                    envelope = np.radians(5.0)
+                    lower_bounds.append(Constant(float(twist[k])-envelope))
+                    upper_bounds.append(Constant(float(twist[k])+envelope))
 
         self.bounds = [lower_bounds,upper_bounds]
 
@@ -613,27 +615,28 @@ class Optimizer(object):
                 m_old.append(float(getattr(self.farm.turbines[index],control_name)))
         # print(m_new)
         # print(type(m_new))            
-        if self.iteration == 0:
+        if self.problem.params.rank == 0:
+            if self.iteration == 0:
 
-            #### ADD HEADER ####
-            self.last_m = np.zeros(self.num_controls)
-            for i in range(self.num_controls):
-                self.last_m[i]=float(m_new[i])
-            err = 0.0
-            f = open(folder_string+"optimization_data.txt",'w')
-            header = str("Objective    Change    Prev_Controls:    p_"+"    p_".join(self.names)+"    New_Controls:    n_"+"    n_".join(self.names)+"\n")
-            f.write(header)
-        else:
-            err = np.linalg.norm(m_new-self.last_m)
-            self.last_m = copy.copy(m_new)
-            f = open(folder_string+"optimization_data.txt",'a')
+                #### ADD HEADER ####
+                self.last_m = np.zeros(self.num_controls)
+                for i in range(self.num_controls):
+                    self.last_m[i]=float(m_new[i])
+                err = 0.0
+                f = open(folder_string+"optimization_data.txt",'w')
+                header = str("Objective    Change    Prev_Controls:    p_"+"    p_".join(self.names)+"    New_Controls:    n_"+"    n_".join(self.names)+"\n")
+                f.write(header)
+            else:
+                err = np.linalg.norm(m_new-self.last_m)
+                self.last_m = copy.copy(m_new)
+                f = open(folder_string+"optimization_data.txt",'a')
 
-        output_data = np.concatenate(((self.Jcurrent, err, self.num_controls),m_old))
-        output_data = np.concatenate((output_data,(self.num_controls,)))
-        output_data = np.concatenate((output_data,m_new))
+            output_data = np.concatenate(((self.Jcurrent, err, self.num_controls),m_old))
+            output_data = np.concatenate((output_data,(self.num_controls,)))
+            output_data = np.concatenate((output_data,m_new))
 
-        np.savetxt(f,[output_data])
-        f.close()
+            np.savetxt(f,[output_data])
+            f.close()
 
     def SaveFunctions(self):
         if self.params["problem"]["type"] == "unsteady":
