@@ -111,7 +111,12 @@ class Parameters(dict):
             elif isinstance(current_value,str):
                 dic[keys[0]] = value
             elif isinstance(current_value,list):
-                dic[keys[0]] = ast.literal_eval(value)
+                formatted_value = ast.literal_eval(value)
+
+                if len(formatted_value) == 1 and "," in formatted_value[0]:
+                    formatted_value = formatted_value[0].split(",")
+
+                dic[keys[0]] = value
 
     def CheckParameters(self,updates,defaults,out_string=""):
         default_keys = defaults.keys()

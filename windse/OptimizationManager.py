@@ -253,6 +253,7 @@ class Optimizer(object):
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
         self.xscale = self.problem.dom.xscale
+        self.twist_range = float(self.params["optimization"]["twist_range"])
 
         ### Update attributes based on params file ###
         for key, value in self.params["optimization"].items():
@@ -503,7 +504,7 @@ class Optimizer(object):
                 num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
                 twist = self.farm.turbines[i].mtwist
                 for k in range(num_actuator_nodes):
-                    envelope = np.radians(5.0)
+                    envelope = np.radians(float(self.twist_range))
                     lower_bounds.append(Constant(float(twist[k])-envelope))
                     upper_bounds.append(Constant(float(twist[k])+envelope))
 
