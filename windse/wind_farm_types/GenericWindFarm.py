@@ -1,7 +1,7 @@
 from windse import windse_parameters
 import numpy as np
 import time, os
-from . import MeshFunction, cells, project, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters, Form
+from . import MeshFunction, cells, project, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters, Form, File
 import matplotlib.pyplot as plt
 from pyadjoint.tape import stop_annotating 
 from pyadjoint import AdjFloat
@@ -177,6 +177,23 @@ class GenericWindFarm(object):
         for turb in self.turbines:
             tf += turb.turbine_force(u,inflow_angle,fs,**kwargs)
         return tf
+
+        # T = 0
+        # dt = 0.5
+        # max_its = 20
+        # tf_file = File("output/float_demo/pitch_tf.pvd")
+        # for i in range(max_its):
+        #     print(f"Generating TF at time: {T} s")
+        #     tf = 0
+        #     for turb in self.turbines:
+        #         tf += turb.turbine_force(u,inflow_angle,fs,simTime=T)
+        #     tf = project(tf,fs.V,solver_type='cg',preconditioner_type="hypre_amg")
+        #     tf.rename("tf","tf")
+        #     tf_file << (tf,T)
+        #     T += dt
+
+        # exit()
+        # return tf
 
     def update_controls(self):
         """

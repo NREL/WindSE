@@ -666,12 +666,6 @@ class GenericDomain(object):
 
 
     def Finalize(self):
-        print('Calling from dom.finalize')
-        #Q = FunctionSpace(self.mesh, 'P', 1)
-        #f = Function(Q)
-        print('finished in dom.finalize')
-
-
         # self.ComputeCellRadius()
         self.ComputeGlobalHmin()
         self.finalized = True
@@ -1481,7 +1475,6 @@ class ImportedDomain(GenericDomain):
             hdf5.read(self.boundary_markers, "/boundaries")
         elif self.filetype == "xml.gz":
             self.boundary_markers = MeshFunction("size_t", self.mesh, self.boundary_path)
-        print("Markers Imported")
         self.boundary_names = {"east":1,"north":2,"west":3,"south":4,"bottom":5,"top":6,"inflow":None,"outflow":None}
         self.boundary_types = {"inflow":    ["west","south","north"],
                                "no_slip":   ["bottom"],

@@ -81,9 +81,10 @@ turbines:                   # parameters for the turbine objects
     chord_perturb:  0.0         # An amount to perturb one of the chord values, used for finite difference gradient calculations
     chord_perturb_id: 0         # The index of the chord to perturb, used for finite difference gradient calculations
     chord_override: Null        # The path to a specific chord to use in csv format, e.g., input_data/chord_base.csv
-    motion_file: Null
-    motion_type: Null
-    use_gauss_vel_probe: False
+    motion_file: Null           # Location to the platform motion data
+    motion_type: Null           # Type of motion to apply can be single string or list of: 'surge', 'sway', 'heave', 'roll', 'pitch', and/or 'yaw'
+    use_gauss_vel_probe: False  # Prob velocity at ALM nodes using an gaussian sphere rather than eval()
+    use_ap_linear_interp: False # Uses linear interpolation when building the airfoil polars. 
 
 refine:                     # parameters for RefinementManager
     warp_type:      Null        # warping will shift the nodes along the z direction concentrating them near the ground. choices: "smooth", "split"
@@ -179,3 +180,4 @@ optimization:                   # parameters for OptimizationManager
     check_totals:   False           # check the total derivatives of the problem; optimize must be true as well
     hard_scaling_factor: 1.0        # A hard-coded scaling factor, objective_value = objective_value*hard_scaling_factor
     twist_range: 5.0                # The envelope the twist control will be constrained to: baseline +/- twist_range
+

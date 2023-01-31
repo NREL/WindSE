@@ -36,7 +36,7 @@ domain:
     ny: 10                  # Number of y-nodes     | -
     nz: 5                  # Number of z-nodes      | -
     interpolated: true 
-    terrain_path: Input_Data/skew_terrain.txt
+    terrain_path: Input_Data/3D_Skew_Steady/skew_terrain.txt
     ###################################################################
 
 refine:

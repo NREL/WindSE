@@ -78,7 +78,7 @@ class ActuatorLineDolfin(GenericTurbine):
         self.motion_file = self.params["turbines"]["motion_file"]
         self.motion_type = self.params["turbines"]["motion_type"]
         self.use_gauss_vel_probe = self.params["turbines"]["use_gauss_vel_probe"]
-
+        self.use_ap_linear_interp = self.params["turbines"]["use_ap_linear_interp"]
 
     def compute_parameters(self):
         pass
@@ -119,69 +119,56 @@ class ActuatorLineDolfin(GenericTurbine):
         # 5: PtfmPitch (deg)
         # 6: PtfmYaw (deg)
 
-        path_to_motion_file = os.path.join(os.path.dirname(self.read_turb_data), self.motion_file)
-        motion_data = np.genfromtxt(path_to_motion_file, skip_header=1)
+        motion_data = np.genfromtxt(self.motion_file, skip_header=1)
 
-        motion_type = {'surge': 1,
-           'sway': 2,
-           'heave': 3,
-           'roll': 4,
-           'pitch': 5,
-           'yaw': 6}
-
-        motion_type_id = motion_type.get(self.motion_type, None)
-
-        if motion_type_id is None:
-            raise ValueError("No motion type specified")
+        if self.motion_type is None:
+            raise ValueError("No motion_type specified, but motion file was given")
 
         time_0 = motion_data[:, 0]
-        selected_motion_data = motion_data[:, motion_type_id]
 
-        self.motion_interp = interp.interp1d(time_0, selected_motion_data, kind='linear')
+        if 'surge' in self.motion_type:
+            self.surge_motion  = interp.interp1d(time_0, motion_data[:, 1], kind='linear')
 
-    def calc_platform_motion(self):
+        if 'sway' in self.motion_type:
+            self.sway_motion  = interp.interp1d(time_0, motion_data[:, 2], kind='linear')
 
-        platform_motion = []
+        if 'heave' in self.motion_type:
+            self.heave_motion  = interp.interp1d(time_0, motion_data[:, 3], kind='linear')
 
-        if self.motion_type in ['surge', 'sway', 'heave']:
-            # The translation of the platform
-            platform_motion.append(self.motion_interp(float(self.simTime)))
-            # The rotation of the platform
-            platform_motion.append(0.0)
+        if 'roll' in self.motion_type:
+            self.roll_motion  = interp.interp1d(time_0, motion_data[:, 4], kind='linear')
 
-        elif self.motion_type in ['roll', 'pitch', 'yaw']:
-            # The translation of the platform
-            platform_motion.append(0.0)
-            # The rotation of the platform
-            rot_amount = np.radians(self.motion_interp(float(self.simTime)))
-            platform_motion.append(rot_amount)
+        if 'pitch' in self.motion_type:
+            self.pitch_motion  = interp.interp1d(time_0, motion_data[:, 5], kind='linear')
 
-        else:
-            # The translation of the platform
-            platform_motion.append(0.0)
-            # The rotation of the platform
-            platform_motion.append(0.0)
+        if 'yaw' in self.motion_type:
+            self.yaw_motion  = interp.interp1d(time_0, motion_data[:, 6], kind='linear')
 
-        return platform_motion
+    def calc_platform_motion(self,T):
 
+        # init motion
+        plat_roll  = 0
+        plat_pitch = 0
+        plat_yaw   = 0
+        plat_surge = 0
+        plat_sway  = 0
+        plat_heave = 0
 
-        '''
-        pos_before_floating = self.rotate_points(pos, np.radians(wave_interp(theta_prev_tt)), [0, 1, 0])
-        pos, unit_vec, vel = self.rotate_points([pos, unit_vec, vel], np.radians(wave_interp(theta_tt)), [0, 1, 0])
-        pos_prev = self.rotate_points(pos_prev, np.radians(wave_interp(theta_prev_tt)), [0, 1, 0])
+        # retrieve motion
+        if hasattr(self, 'roll_motion'):
+            plat_roll  = self.roll_motion(T)*np.pi/180.0
+        if hasattr(self, 'pitch_motion'):
+            plat_pitch = self.pitch_motion(T)*np.pi/180.0
+        if hasattr(self, 'yaw_motion'):
+            plat_yaw   = self.yaw_motion(T)*np.pi/180.0
+        if hasattr(self, 'surge_motion'):
+            plat_surge = self.surge_motion(T)
+        if hasattr(self, 'sway_motion'):
+            plat_sway  = self.sway_motion(T)
+        if hasattr(self, 'heave_motion'):
+            plat_heave  = self.heave_motion(T)
 
-        # Finite different calc of the velocity incurred by this shift in the floating position
-        # Negative because we seek the velocity of fluid relative to a stationary blade
-        if self.simTime_prev is None:
-            vel_due_to_floating = 0.0
-        else:
-            vel_due_to_floating = -(pos - pos_before_floating)/(0.5*(self.simTime + self.dt - self.simTime_prev))
-
-        test_experimental_finite_diff = True
-
-        if test_experimental_finite_diff:
-            vel += vel_due_to_floating
-        '''
+        return plat_roll, plat_pitch, plat_yaw, plat_surge, plat_sway, plat_heave
 
     def init_alm_calc_terms(self):
         # compute turbine radius
@@ -201,6 +188,7 @@ class ActuatorLineDolfin(GenericTurbine):
             self.num_actuator_nodes = int(2.0*self.radius/self.eps)
         else:
             self.num_actuator_nodes = self.blade_segments
+        self.fprint(f"Number of Actuator nodes per blade: {self.num_actuator_nodes}")
 
 
         place_nodes_at_extremes = False
@@ -404,8 +392,8 @@ class ActuatorLineDolfin(GenericTurbine):
                     c_drag = np.vstack((c_drag, c_drag_i))
 
             # Create interpolation functions for lift and drag based on angle of attack and location along blade
-            if 'linear_interp' in self.params['general']['name']:
-                print(f'Using linear interpolator: LinearNDInterpolator')
+            if self.use_ap_linear_interp:
+                self.fprint(f'Using linear interpolator: LinearNDInterpolator')
                 nodes = np.vstack((station.flatten(), angles.flatten())).T
 
                 # Create interpolation functions for lift and drag based on angle of attack and location along blade
@@ -472,6 +460,11 @@ class ActuatorLineDolfin(GenericTurbine):
 
         return Rz
 
+    def rotate_platform(self, roll, pitch, yaw):
+        # Rotation due to platform motion 
+        R_plat = self.rot_z(yaw)*self.rot_y(pitch)*self.rot_x(roll)
+
+        return R_plat
 
     def calculate_relative_fluid_velocity(self, u_k, x_0, x_0_pre_motion, n_0, blade_id, actuator_id):
         rdim = self.rdim[actuator_id]
@@ -536,6 +529,7 @@ class ActuatorLineDolfin(GenericTurbine):
             # print(float(c2))
             aoa_2 = acos(c2)
 
+            # TODO: dolfin adjoint can't handle this if statement 
             if float(aoa_2) > pi/2.0:
                 if float(aoa_1) < 0:
                     aoa_1 = -pi - aoa_1
@@ -777,12 +771,19 @@ class ActuatorLineDolfin(GenericTurbine):
             along_blade_force_y = []
             along_blade_force_z = []
 
-            platform_motion = self.calc_platform_motion()
-            self.platform_trans = Constant(platform_motion[0], name="platform_trans")
-            self.platform_trans_prev = Constant(platform_motion[0], name="platform_trans_prev")
-
-            self.platform_rot = Constant(platform_motion[1], name="platform_rot")
-            self.platform_rot_prev = Constant(platform_motion[1], name="platform_rot_prev")
+            plat_roll, plat_pitch, plat_yaw, plat_surge, plat_sway, plat_heave = self.calc_platform_motion(float(self.simTime))
+            self.plat_roll  = Constant(plat_roll,  name="plat_roll")
+            self.plat_pitch = Constant(plat_pitch, name="plat_pitch")
+            self.plat_yaw   = Constant(plat_yaw,   name="plat_yaw")
+            self.plat_surge = Constant(plat_surge, name="plat_surge")
+            self.plat_sway  = Constant(plat_sway,  name="plat_sway")
+            self.plat_heave = Constant(plat_heave, name="plat_heave")
+            self.plat_roll_prev  = Constant(plat_roll,  name="plat_roll_prev")
+            self.plat_pitch_prev = Constant(plat_pitch, name="plat_pitch_prev")
+            self.plat_yaw_prev   = Constant(plat_yaw,   name="plat_yaw_prev")
+            self.plat_surge_prev = Constant(plat_surge, name="plat_surge_prev")
+            self.plat_sway_prev  = Constant(plat_sway,  name="plat_sway_prev")
+            self.plat_heave_prev = Constant(plat_heave, name="plat_heave_prev")
             
             for blade_id in range(self.num_blades):
                 # This can be built on a blade-by-blade basis
@@ -790,68 +791,64 @@ class ActuatorLineDolfin(GenericTurbine):
                                       [0, 1, 0],
                                       [0, 0, 1]])
                 
+                # Construct blade spin angle
                 theta_0 = 2.0*pi*(blade_id/self.num_blades)
                 theta = theta_0 + self.simTime*self.angular_velocity
                 
-
-                rx = self.rot_x(-theta)
-
-                if self.motion_type == 'surge':
-                    platform_trans = as_tensor([self.platform_trans, 0.0, 0.0])
-                    platform_trans_prev = as_tensor([self.platform_trans_prev, 0.0, 0.0])
-                elif self.motion_type == 'sway':
-                    platform_trans = as_tensor([0.0, self.platform_trans, 0.0])
-                    platform_trans_prev = as_tensor([0.0, self.platform_trans_prev, 0.0])
-                elif self.motion_type == 'heave':
-                    platform_trans = as_tensor([0.0, 0.0, self.platform_trans])
-                    platform_trans_prev = as_tensor([0.0, 0.0, self.platform_trans_prev])
-                else:
-                    platform_trans = as_tensor([0.0, 0.0, 0.0])
-                    platform_trans_prev = as_tensor([0.0, 0.0, 0.0])
-
-                if self.motion_type == 'roll':
-                    platform_rot = self.rot_x(-self.platform_rot)
-                    platform_rot_prev = self.rot_x(-self.platform_rot_prev)
-                elif self.motion_type == 'pitch':
-                    platform_rot = self.rot_y(-self.platform_rot)
-                    platform_rot_prev = self.rot_y(-self.platform_rot_prev)
-                elif self.motion_type == 'yaw':
-                    platform_rot = self.rot_z(-self.platform_rot)
-                    platform_rot_prev = self.rot_z(-self.platform_rot_prev)
-                else:
-                    platform_rot = self.rot_y(0.0)
-                    platform_rot_prev = self.rot_y(0.0)
+                # Construct rotation matrices
+                R_blade = self.rot_x(-theta)
+                R_yaw = self.rot_z(self.myaw)
+                R_plat = self.rotate_platform(-self.plat_roll, -self.plat_pitch, -self.plat_yaw)
                 
+                # Rotate normal to point in the direction of thrust?
                 # Why does this need to be transposed to work correctly?
                 # n_0 = dot(rx, n_0_base).T # WORKS FOR NO PLATFORM MOTION
-                n_0 = dot(platform_rot, dot(rx, n_0_base)).T
+                n_0 = dot(R_blade, n_0_base) # Rotate normal to account for blade spin
+                n_0 = dot(R_yaw, n_0)        # Rotate normal to account for yaw control
+                n_0 = dot(R_plat, n_0).T     # Rotate normal to account for platform motion
 
+                # Construct previous blade spin angle
                 theta_prev = theta_0 + self.simTime_prev*self.angular_velocity
                 
-                rx_prev = self.rot_x(-theta_prev)
+                # Construct previous rotation matrices
+                R_blade_prev = self.rot_x(-theta_prev)
+                R_yaw_prev  = R_yaw
+                R_plat_prev = self.rotate_platform(-self.plat_roll_prev, -self.plat_pitch_prev, -self.plat_yaw_prev)
 
                 # Why does this need to be transposed to work correctly?
                 # n_0_prev = dot(rx_prev, n_0_base).T # WORKS FOR NO PLATFORM MOTION
-                n_0_prev = dot(platform_rot_prev, dot(rx_prev, n_0_base)).T
+                # n_0_prev = dot(ry_prev, dot(rx_prev, n_0_base)).T 
+                n_0_prev = dot(R_blade_prev, n_0_base)  # Rotate normal to account for blade spin
+                n_0_prev = dot(R_yaw_prev, n_0_prev)    # Rotate normal to account for yaw control
+                n_0_prev = dot(R_plat_prev, n_0_prev).T # Rotate normal to account for platform motion
 
                 for actuator_id in range(self.num_actuator_nodes):
 
                     x_0_base = as_tensor([0.0, self.rdim[actuator_id], 0.0])
 
-                    self.x_0[blade_id][actuator_id] = dot(x_0_base, rx)
-                    self.x_0[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz]) # TODO: what about mx and my do those matter
-                    self.x_0[blade_id][actuator_id] += platform_trans # TODO: what about mx and my do those matter
-                    self.x_0[blade_id][actuator_id] = dot(self.x_0[blade_id][actuator_id], platform_rot)
+                    # Calculate actuator node current position 
+                    self.x_0[blade_id][actuator_id] = dot(x_0_base, R_blade)                                          # Rotates blade round hub (rotor spin)
+                    self.x_0[blade_id][actuator_id] = dot(self.x_0[blade_id][actuator_id], R_yaw)                     # yaws the rotor (tower control)
+                    self.x_0[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.HH])                                 # Translates rotor to hub height
+                    self.x_0[blade_id][actuator_id] = dot(self.x_0[blade_id][actuator_id], R_plat)                    # Rotates platform due to sea motion
+                    self.x_0[blade_id][actuator_id] += as_tensor([self.plat_surge, self.plat_sway, self.plat_heave])  # Translates platform due to sea motion
+                    self.x_0[blade_id][actuator_id] += as_tensor([self.mx, self.my, self.mz-self.HH])                 # Translates platform to final destination
 
-                    self.x_0_pre_motion[blade_id][actuator_id] = dot(x_0_base, rx)
-                    self.x_0_pre_motion[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz]) # TODO: what about mx and my do those matter
-                    self.x_0_pre_motion[blade_id][actuator_id] = dot(self.x_0_pre_motion[blade_id][actuator_id], platform_rot_prev)
-                    self.x_0_pre_motion[blade_id][actuator_id] += platform_trans_prev # TODO: what about mx and my do those matter
+                    # Calculate actuator node current position using previous motion
+                    self.x_0_pre_motion[blade_id][actuator_id] = dot(x_0_base, R_blade)
+                    self.x_0_pre_motion[blade_id][actuator_id] = dot(self.x_0_pre_motion[blade_id][actuator_id], R_yaw)
+                    self.x_0_pre_motion[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.HH])
+                    self.x_0_pre_motion[blade_id][actuator_id] = dot(self.x_0_pre_motion[blade_id][actuator_id], R_plat_prev)
+                    self.x_0_pre_motion[blade_id][actuator_id] += as_tensor([self.plat_surge_prev, self.plat_sway_prev, self.plat_heave_prev])
+                    self.x_0_pre_motion[blade_id][actuator_id] += as_tensor([self.mx, self.my, self.mz-self.HH])
 
-                    self.x_0_prev[blade_id][actuator_id] = dot(x_0_base, rx_prev)
-                    self.x_0_prev[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.mz])
-                    self.x_0_prev[blade_id][actuator_id] = dot(self.x_0_prev[blade_id][actuator_id], platform_rot_prev)
-                    self.x_0_prev[blade_id][actuator_id] += platform_trans_prev
+                    # Calculate actuator node previous position
+                    self.x_0_prev[blade_id][actuator_id] = dot(x_0_base, R_blade_prev)
+                    self.x_0_prev[blade_id][actuator_id] = dot(self.x_0_prev[blade_id][actuator_id], R_yaw_prev)
+                    self.x_0_prev[blade_id][actuator_id] += as_tensor([0.0, 0.0, self.HH])
+                    self.x_0_prev[blade_id][actuator_id] = dot(self.x_0_prev[blade_id][actuator_id], R_plat_prev)
+                    self.x_0_prev[blade_id][actuator_id] += as_tensor([self.plat_surge_prev, self.plat_sway_prev, self.plat_heave_prev])
+                    self.x_0_prev[blade_id][actuator_id] += as_tensor([self.mx, self.my, self.mz-self.HH])
 
                     # tf += self.build_actuator_node(u, self.x_0[blade_id][actuator_id], self.x_0_pre_motion[blade_id][actuator_id], n_0, blade_id, actuator_id)
                     if isinstance(tf, list):
@@ -921,22 +918,24 @@ class ActuatorLineDolfin(GenericTurbine):
             self.first_call_to_alm = False
 
         else:
-
+            # Update time
             self.simTime_prev.assign(self.simTime)
             self.simTime.assign(kwargs['simTime'])
 
-            self.platform_trans_prev.assign(self.platform_trans)
-            self.platform_rot_prev.assign(self.platform_rot)
-            platform_motion = self.calc_platform_motion()
-            self.platform_trans.assign(platform_motion[0])
-            self.platform_rot.assign(platform_motion[1])
-
-            # print(self.platform_rot_prev, self.platform_rot_prev.values())
-
-            # TODO: we got to do something like this. By storing the aoa forms in a list, 
-            # we should be able to just reassemble them after changing the time. We also 
-            # might need to do something similar to velocity
-
+            # Update motion
+            self.plat_roll_prev.assign(self.plat_roll)
+            self.plat_pitch_prev.assign(self.plat_pitch)
+            self.plat_yaw_prev.assign(self.plat_yaw)
+            self.plat_surge_prev.assign(self.plat_surge)
+            self.plat_sway_prev.assign(self.plat_sway)
+            self.plat_heave_prev.assign(self.plat_heave)
+            plat_roll, plat_pitch, plat_yaw, plat_surge, plat_sway, plat_heave = self.calc_platform_motion(float(self.simTime))
+            self.plat_roll.assign(plat_roll)
+            self.plat_pitch.assign(plat_pitch)
+            self.plat_yaw.assign(plat_yaw)
+            self.plat_surge.assign(plat_surge)
+            self.plat_sway.assign(plat_sway)
+            self.plat_heave.assign(plat_heave)
 
             along_blade_lift = []
             along_blade_drag = []
@@ -1033,48 +1032,11 @@ class ActuatorLineDolfin(GenericTurbine):
         #     temp += self.tf[blade_id]
         # self.tf_fn = project(temp, fs.V, solver_type='cg', preconditioner_type='jacobi')
 
-
         return sum(self.tf)
         # return self.tf_fn
 
 
     def power(self, u, inflow_angle):
-        # Create a cylindrical expression aligned with the position of this turbine
-        # self.cyld_expr = Expression(('sin(yaw)*(x[2]-zs)', '-cos(yaw)*(x[2]-zs)', '(x[1]-ys)*cos(yaw)-(x[0]-xs)*sin(yaw)'),
-        #    degree=1,
-        #    yaw=float(self.myaw),
-        #    xs=float(self.mx),
-        #    ys=float(self.my),
-        #    zs=float(self.mz))
-
-        #print(f'Theta = {float(self.platform_rot)}, mx = {float(self.mx)}, my = {float(self.my)}, mz = {float(self.mz)}')
-
-        self.cyld_expr = Expression(
-            ('-x[1]*sin(pitch)',
-            '-1.0*(-sin(pitch)*x[0] + cos(pitch)*x[2] - zs)',
-            'x[1]*cos(pitch)'),
-            degree=1,
-            pitch=-float(self.platform_rot),
-            xs=float(self.mx),
-            ys=float(self.my),
-            zs=float(self.mz))
-
-        # self.cyld_expr = Expression(('xs', '0.0', '0.0'), degree=1, xs=1.0)
-
-        if isinstance(self.tf, list):
-            self.power_dolfin_old = 0.0
-
-            for blade_id in range(self.num_blades):
-                self.power_dolfin_old += assemble(1e-6*dot(-self.tf[blade_id]*self.angular_velocity, self.cyld_expr)*dx)
-
-        else:
-            self.power_dolfin_old = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
-
-        # TODO: Assebmle these objects in groups to avoid running out of memory/hitting recursion limit
-        # as a result of trying to assemble lots of actuator nodes at once.
-
-        # rotor_torque = sum(tangential_force * rdim)
-        # rotor_power = rotor_torque * (2*pi*RPM/60)
         rotor_torque = 0.0
 
         for blade_id in range(self.num_blades):
@@ -1084,22 +1046,17 @@ class ActuatorLineDolfin(GenericTurbine):
 
         self.power_dolfin = assemble(-1e-6*rotor_torque*self.angular_velocity*dx)
 
-        if self.params.rank == 0:
-            print(f'old: {self.power_dolfin_old}')
-            print(f'new: {self.power_dolfin}')
-
-        # self.power_dolfin_old = assemble(dot(self.tf,as_vector((1.0,1.0,1.0)))*dx)
-        # print('Power: ', self.power_dolfin_old)
+        # self.fprint(f'Turbine {self.index} Power: {self.power_dolfin}')
 
         return self.power_dolfin
 
     def prepare_saved_functions(self, func_list):
         if len(func_list) == 0:
             func_list = [
-                [self.tf_fn,"turbine_force"]
+                [sum(self.tf),"turbine_force"]
             ]
         else:
-            func_list[1][0] += self.tf_fn
+            func_list[1][0] += sum(self.tf)
 
         return func_list
 

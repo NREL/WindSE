@@ -10,7 +10,7 @@ wind_farm:
 
     ########################## Grid Wind Farm #########################
     type: imported            #                          |
-    path: Input_Data/Yaw_Optimization_Layout.csv
+    path: Input_Data/Yaw_Optimization/Farm_Layout.csv
     ###################################################################
 
 turbines:

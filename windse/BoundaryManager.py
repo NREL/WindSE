@@ -24,9 +24,6 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
-        print('you made it into dolfin_adjoint')
-    print('did the import')
-    print(Function)
 
     import math 
     from scipy.interpolate import RegularGridInterpolator
@@ -305,17 +302,9 @@ class GenericBoundary(object):
 
     def CalculateHeights(self):
         ### Calculate the distance to the ground for the Q function space ###
-        # self.z_dist_Q = Function(fs.Q)
-        print('making Q')
-        # my_mesh = UnitSquareMesh(10, 10)
-        # my_Q = FunctionSpace(my_mesh, 'P', 1)
-        # my_height = Function(my_Q)
-        # print(type(my_height), my_height, my_Q)
+
         Q = FunctionSpace(self.dom.mesh, 'P', 1)
-        # print(type(Q), Q)
-        print('heights')
         self.height = Function(Q)
-        print('depths')
         self.depth = Function(Q)
         Q_coords = self.fs.Q.tabulate_dof_coordinates()
         height_vals = self.height.vector()[:]
