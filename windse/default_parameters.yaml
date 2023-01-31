@@ -138,6 +138,7 @@ problem:                        # parameters for ProblemManager
     script_iterator: 0              # debugging tool, do not use
     use_corrective_force: False     # add a force to the weak form to allow the inflow to recover
     stability_eps: 1.0              # stability term to help increase the well-possessedness of the linear mixed formulation
+    body_force: 0.0                 # set to a float to add a body force to the functional along the streamwise direction
 
 solver:                         # parameters for the SolverManager
     type:              steady       # type of solver

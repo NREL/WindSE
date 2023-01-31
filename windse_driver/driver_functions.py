@@ -103,8 +103,7 @@ def BuildDomain(params):
                     "rectangle":windse.RectangleDomain,
                     "cylinder":windse.CylinderDomain,
                     "circle":windse.CircleDomain,
-                    "imported":windse.ImportedDomain,
-                    "periodic":windse.PeriodicDomain}
+                    "imported":windse.ImportedDomain}
     dom = dom_dict[params["domain"]["type"]]()
 
 

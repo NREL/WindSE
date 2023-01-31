@@ -59,6 +59,10 @@ class ControlUpdaterBlock(Block):
             self.problem.p_k.block_variable.cu_tag = ("p",-1,-1)
             self.num_dependancies += 1
 
+        self.add_dependency(self.problem.mbody_force)
+        self.problem.mbody_force.block_variable.tag = ("body_force",-1,-1)
+        self.num_dependancies += 1
+
         J.block_variable.cu_tag = ("J",-1,-1)
         self.add_dependency(J)
         self.num_dependancies += 1
@@ -154,6 +158,10 @@ class ControlUpdaterBlock(Block):
                     control[seg_id] = float(inputs[i])
                 else:
                     setattr(self.farm.turbines[turb_id],name,float(inputs[i]))
+
             elif name in ["up", "u", "k"]:
                 self.problem.up_k.assign(inputs[i])
+            elif name == "body_force":
+                self.problem.body_force = float(inputs[i])
+
         self.farm.update_controls()

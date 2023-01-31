@@ -1,4 +1,5 @@
 from windse import windse_parameters
+from windse.turbine_types import turbine_dict
 import numpy as np
 import time, os
 from . import MeshFunction, cells, project, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters, Form, File
@@ -48,6 +49,10 @@ class GenericWindFarm(object):
         if self.params.dolfin_adjoint:
             self.extra_kwarg["annotate"] = False
 
+        ### Set the number of turbine when there are just too many and we need to project before solving
+        self.too_many_turbines = 60
+
+
         # Setup the wind farm (eventually this will happen outside the init)
         self.fprint(f"Generating {self.name}",special="header")
         self.setup()
@@ -92,7 +97,6 @@ class GenericWindFarm(object):
         """
         Using the parameters and initial locations this function will populate the list of turbines
         """
-        from windse.turbine_types import turbine_dict
         turbine_method = turbine_dict[self.turbine_type]
         for i,(x,y) in enumerate(self.initial_turbine_locations):
             self.turbines.append(turbine_method(i,x,y,self.dom))
@@ -173,10 +177,72 @@ class GenericWindFarm(object):
         self.fs = fs
 
         # compute tf!!!
-        tf = 0
-        for turb in self.turbines:
-            tf += turb.turbine_force(u,inflow_angle,fs,**kwargs)
-        return tf
+        # TODO: make this more robust
+        if self.numturbs > self.too_many_turbines and "disk" in self.turbine_type:
+            # evenly distribute the number of turbine per project
+            n_groups = int((((self.numturbs-1)-((self.numturbs-1)%self.too_many_turbines))+self.too_many_turbines)/self.too_many_turbines)
+            split_value = round(self.numturbs/n_groups)
+
+            print(f"Oh dear, there are just too many turbines (>={self.too_many_turbines}). I'm just going to collect them into {n_groups} groups of around {split_value} turbines each and then project.")
+
+            # init loop values
+            tf1_proj = []
+            tf2_proj = []
+            tf3_proj = []
+            tf1 = 0
+            tf2 = 0
+            tf3 = 0
+            counter = 0
+            group = 1
+            # sum and project tf parts
+            for turb in self.turbines:
+                turb.turbine_force(u,inflow_angle,fs,**kwargs)
+                tf1 += turb.tf1
+                tf2 += turb.tf2
+                tf3 += turb.tf3
+                if counter >= split_value:
+                    self.fprint(f"Projecting tf1 for group {group}")
+                    tf1_proj.append(project(tf1,fs.V,solver_type='gmres',preconditioner_type="hypre_amg"))
+                    self.fprint(f"Projecting tf2 for group {group}")
+                    tf2_proj.append(project(tf2,fs.V,solver_type='gmres',preconditioner_type="hypre_amg"))
+                    self.fprint(f"Projecting tf3 for group {group}")
+                    tf3_proj.append(project(tf3,fs.V,solver_type='gmres',preconditioner_type="hypre_amg"))
+                    tf1 = 0
+                    tf2 = 0
+                    tf3 = 0
+                    counter = 0
+                    group += 1
+                else:
+                    counter += 1
+
+            self.fprint(f"Projecting tf1 for group {group}")
+            tf1_proj.append(project(tf1,fs.V,solver_type='gmres',preconditioner_type="hypre_amg"))
+            self.fprint(f"Projecting tf2 for group {group}")
+            tf2_proj.append(project(tf2,fs.V,solver_type='gmres',preconditioner_type="hypre_amg"))
+            self.fprint(f"Projecting tf3 for group {group}")
+            tf3_proj.append(project(tf3,fs.V,solver_type='gmres',preconditioner_type="hypre_amg"))
+
+
+            # do one more sum and project
+            tf1 = sum(tf1_proj)
+            tf2 = sum(tf2_proj)
+            tf3 = sum(tf3_proj)
+
+            # self.fprint(f"Final project tf1")
+            # tf1 = project(sum(tf1_proj),fs.V)
+            # self.fprint(f"Final project tf2")
+            # tf2 = project(sum(tf2_proj),fs.V)
+            # self.fprint(f"Final project tf3")
+            # tf3 = project(sum(tf3_proj),fs.V) 
+
+            # create the final turbine force          
+            return tf1*u[0]**2+tf2*u[1]**2+tf3*u[0]*u[1]
+        else:
+            # do the normal loop
+            tf = 0
+            for turb in self.turbines:
+                tf += turb.turbine_force(u,inflow_angle,fs,**kwargs)
+            return tf
 
         # T = 0
         # dt = 0.5
@@ -435,8 +501,11 @@ class GenericWindFarm(object):
 
         # gather functions
         func_list = []
-        for turb in self.turbines:
-            func_list = turb.prepare_saved_functions(func_list)
+        if self.numturbs>=self.too_many_turbines:
+            print(f"Oh dear, there are just too many turbines (>={self.too_many_turbines}). Saving turbine function is disabled.")
+        else:
+            for turb in self.turbines:
+                func_list = turb.prepare_saved_functions(func_list)
 
         # prepare to store file pointer if needed
         if self.func_first_save:
@@ -473,6 +542,7 @@ class GenericWindFarm(object):
         """
         saves a text file containing the wind_farm and turbine parameters
         """
+        # TODO: update for csv mode
         folder_string = self.params.folder+"/data/"
         if val is not None:
             file_string = self.params.folder+"/data/"+filename+"_"+repr(val)+".txt"
@@ -496,6 +566,9 @@ class GenericWindFarm(object):
         axial = np.zeros(self.numturbs)
         for i,turb in enumerate(self.turbines):
             if 'line' in turb.type:
+                thickness[i] = np.nan
+                axial[i] = np.nan
+            elif turb.type == 'disabled':
                 thickness[i] = np.nan
                 axial[i] = np.nan
             else:
