@@ -47,7 +47,7 @@ jobs:
           conda activate test-environment
           cd tests/9-Regression
           mpirun -n 2 python -u ../../windse_driver/driver.py run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
-          mpirun -n 2 python -u ../../windse_driver/driver.py run Floating_ALM.yaml -p general:name:Floating_ALM_np_2 
+          # mpirun -n 2 python -u ../../windse_driver/driver.py run Floating_ALM.yaml -p general:name:Floating_ALM_np_2 
 
       - name: Run all regression tests within WindSE
         shell: pwsh

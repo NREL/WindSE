@@ -118,10 +118,10 @@ class GenericProblem(object):
         if inflow_angle is None:
             inflow_angle = self.dom.inflow_angle
 
-        self.fprint('Computing turbine forces using %s' % (self.farm.turbine_method.upper()))
+        self.fprint('Computing turbine forces using %s' % (self.farm.turbine_type.upper()))
 
         ### Create the turbine force function ###
-        if self.farm.turbine_method == "disabled" or self.farm.numturbs == 0:
+        if self.farm.turbine_type == "disabled" or self.farm.numturbs == 0:
             tf = Function(self.fs.V)
         else:
             tf = self.farm.compute_turbine_force(u,inflow_angle,self.fs,**kwargs)
