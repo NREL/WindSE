@@ -60,7 +60,7 @@ class ControlUpdaterBlock(Block):
             self.num_dependancies += 1
 
         self.add_dependency(self.problem.mbody_force)
-        self.problem.mbody_force.block_variable.tag = ("body_force",-1,-1)
+        self.problem.mbody_force.block_variable.cu_tag = ("body_force",-1,-1)
         self.num_dependancies += 1
 
         J.block_variable.cu_tag = ("J",-1,-1)

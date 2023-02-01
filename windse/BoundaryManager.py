@@ -319,10 +319,10 @@ class GenericBoundary(object):
     def CalculateHeights(self):
         ### Calculate the distance to the ground for the Q function space ###
 
-        Q = FunctionSpace(self.dom.mesh, 'P', 1)
-        self.height = Function(Q)
-        self.depth = Function(Q)
+        self.height = Function(self.fs.Q)
+        self.depth = Function(self.fs.Q)
         Q_coords = self.fs.Q.tabulate_dof_coordinates()
+        print(f"|    |    Rank {self.params.rank}: N Coords: {len(Q_coords)}, N Dofs: {len(self.height.vector().get_local())}")
         height_vals = self.height.vector()[:]
         for i in range(len(Q_coords)):
             height_vals[i] = self.dom.Ground(Q_coords[i,0],Q_coords[i,1])
