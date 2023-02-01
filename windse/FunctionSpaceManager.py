@@ -81,9 +81,9 @@ class LinearFunctionSpace(GenericFunctionSpace):
         super(LinearFunctionSpace, self).__init__(dom)
 
         # trick the mesh to working?
-        # dummy = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
+        dummy = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
         # print("before:", self.mesh.num_entities_global(0))
-        # self.mesh = refine(self.mesh,dummy)
+        self.mesh = refine(self.mesh,dummy)
         # print("after:", self.mesh.num_entities_global(0))
 
         ### Create the function space ###
