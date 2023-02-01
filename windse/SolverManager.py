@@ -220,13 +220,11 @@ class GenericSolver(object):
 
     @no_annotations
     def EvaulatePowerFunctional(self):
-
         kwargs = {
             "iter_val": self.iter_val, 
             "simTime": self.simTime
         }
         out = self.problem.farm.save_power(self.problem.u_k,self.problem.dom.inflow_angle, **kwargs)
-
         return out
 
 
