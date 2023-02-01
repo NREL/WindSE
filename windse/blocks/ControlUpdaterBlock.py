@@ -44,6 +44,9 @@ class ControlUpdaterBlock(Block):
         # self.problem.farm.turbines[0].simTime_prev.cu_tag = ("simTime_prev",-1,-1)
         # self.num_dependancies += 1
 
+        self.add_dependency(self.problem.mbody_force)
+        self.problem.mbody_force.block_variable.cu_tag = ("body_force",-1,-1)
+        self.num_dependancies += 1
 
         ### TODO: we need to make this work with unsteady as well since unsteady doesn't use problem.up_k. possible solution just update u_k,p_k but check if len(u_k.vector()[:]) = len(inputs[i].vector()[:]) first
         self.add_dependency(self.problem.up_k)
@@ -59,9 +62,6 @@ class ControlUpdaterBlock(Block):
             self.problem.p_k.block_variable.cu_tag = ("p",-1,-1)
             self.num_dependancies += 1
 
-        self.add_dependency(self.problem.mbody_force)
-        self.problem.mbody_force.block_variable.cu_tag = ("body_force",-1,-1)
-        self.num_dependancies += 1
 
         J.block_variable.cu_tag = ("J",-1,-1)
         self.add_dependency(J)
