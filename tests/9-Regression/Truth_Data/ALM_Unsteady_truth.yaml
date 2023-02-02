@@ -67,7 +67,7 @@ ProblemManager:
   min_cd: 0.008425092333333334
   max_cd: 0.5
   avg_cd: 0.13290783725
-  num_blade_segments: 4.0
+  num_actuator_nodes: 4.0
 SolverManager:
   time_0.0: 0.0
   min_x_vel_0.0: 0.6303245027860005
@@ -101,12 +101,12 @@ SolverManager:
   avg_z_vel_19: -0.0013792056241564302
 OptimizationManager:
   n_controls: 4
-  obj_value0: 0.13928713188441938
+  obj_value0: 0.13928713188441968
   val0_chord_0_0: 2.6
   val0_chord_0_1: 4.1403300000000005
   val0_chord_0_2: 2.225331666666667
   val0_chord_0_3: 0.2
-  grad_chord_0_0: 1.8899800196704833e-05
-  grad_chord_0_1: 0.011133405323697205
-  grad_chord_0_2: 0.04317667398996714
+  grad_chord_0_0: 1.8899800195412017e-05
+  grad_chord_0_1: 0.011133405323692102
+  grad_chord_0_2: 0.04317667399001535
   grad_chord_0_3: 0.0

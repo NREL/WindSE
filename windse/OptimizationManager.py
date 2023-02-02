@@ -253,6 +253,7 @@ class Optimizer(object):
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
         self.xscale = self.problem.dom.xscale
+        self.twist_range = float(self.params["optimization"]["twist_range"])
 
         ### Update attributes based on params file ###
         for key, value in self.params["optimization"].items():
@@ -409,7 +410,7 @@ class Optimizer(object):
 
         if "lift" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.farm.turbines[0].num_blade_segments):
+                for k in range(self.farm.turbines[0].num_actuator_nodes):
                     self.control_pointers.append(("lift",[i,k]))
                     self.indexes[4].append(j)
                     j+=1
@@ -419,7 +420,7 @@ class Optimizer(object):
 
         if "drag" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.farm.turbines[0].num_blade_segments):
+                for k in range(self.farm.turbines[0].num_actuator_nodes):
                     self.control_pointers.append(("drag",[i,k]))
                     self.indexes[5].append(j)
                     j+=1
@@ -429,13 +430,24 @@ class Optimizer(object):
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
-                for k in range(self.farm.turbines[0].num_blade_segments):
+                for k in range(0,self.farm.turbines[0].num_actuator_nodes):
                     self.control_pointers.append(("chord",[i,k]))
                     self.indexes[6].append(j)
                     j+=1
                     self.names.append("chord_"+repr(i)+"_"+repr(k))
                     self.controls.append(Control(self.farm.turbines[i].mchord[k]))
                     self.init_vals.append(Constant(float(self.farm.turbines[i].mchord[k])))
+
+        if "twist" in self.control_types:
+            for i in self.solver.opt_turb_id:
+                # for k in range(self.farm.turbines[0].num_actuator_nodes-1):
+                for k in range(0,self.farm.turbines[0].num_actuator_nodes):
+                    self.control_pointers.append(("twist",[i,k]))
+                    self.indexes[6].append(j)
+                    j+=1
+                    self.names.append("twist_"+repr(i)+"_"+repr(k))
+                    self.controls.append(Control(self.farm.turbines[i].mtwist[k]))
+                    self.init_vals.append(Constant(float(self.farm.turbines[i].mtwist[k])))
 
         if "body_force" in self.control_types:
                     self.control_pointers.append(("body_force",[-1,-1]))
@@ -444,8 +456,6 @@ class Optimizer(object):
                     self.names.append("body_force")
                     self.controls.append(Control(self.problem.mbody_force))
                     self.init_vals.append(Constant(float(self.problem.mbody_force)))
-
-
 
         self.num_controls = len(self.controls)
 
@@ -472,31 +482,40 @@ class Optimizer(object):
 
         if "lift" in self.control_types:
             for i in self.solver.opt_turb_id:
-                num_blade_segments = self.farm.turbines[i].num_blade_segments
-                for k in range(num_blade_segments):
+                num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
+                for k in range(num_actuator_nodes):
                     lower_bounds.append(Constant(0))
                     upper_bounds.append(Constant(2.))
 
         if "drag" in self.control_types:
             for i in self.solver.opt_turb_id:
-                num_blade_segments = self.farm.turbines[i].num_blade_segments
-                for k in range(num_blade_segments):
+                num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
+                for k in range(num_actuator_nodes):
                     lower_bounds.append(Constant(0))
                     upper_bounds.append(Constant(2.))
 
         if "chord" in self.control_types:
             for i in self.solver.opt_turb_id:
                 c_avg = 0
-                num_blade_segments = self.farm.turbines[i].num_blade_segments
+                num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
                 max_chord = self.farm.turbines[i].max_chord
                 baseline_chord = self.farm.turbines[i].baseline_chord
-                for k in range(num_blade_segments):
+                for k in range(num_actuator_nodes):
                     modifier = 2.0
                     max_chord = max_chord
                     seg_chord = baseline_chord[k]
                     lower_bounds.append(Constant(seg_chord/modifier))
                     upper_bounds.append(Constant(np.maximum(np.minimum(seg_chord*modifier,max_chord),c_avg)))
                     c_avg = (c_avg*k+seg_chord)/(k+1)
+
+        if "twist" in self.control_types:
+            for i in self.solver.opt_turb_id:
+                num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
+                twist = self.farm.turbines[i].mtwist
+                for k in range(num_actuator_nodes):
+                    envelope = np.radians(float(self.twist_range))
+                    lower_bounds.append(Constant(float(twist[k])-envelope))
+                    upper_bounds.append(Constant(float(twist[k])+envelope))
 
         if "body_force" in self.control_types:
             lower_bounds.append(Constant(0.0001))
@@ -612,30 +631,36 @@ class Optimizer(object):
                 m_old.append(float(getattr(self.farm.turbines[index],control_name)))
         # print(m_new)
         # print(type(m_new))            
-        if self.iteration == 0:
+        if self.problem.params.rank == 0:
+            if self.iteration == 0:
 
-            #### ADD HEADER ####
-            self.last_m = np.zeros(self.num_controls)
-            for i in range(self.num_controls):
-                self.last_m[i]=float(m_new[i])
-            err = 0.0
-            f = open(folder_string+"optimization_data.txt",'w')
-            header = str("Objective    Change    Prev_Controls:    p_"+"    p_".join(self.names)+"    New_Controls:    n_"+"    n_".join(self.names)+"\n")
-            f.write(header)
-        else:
-            err = np.linalg.norm(m_new-self.last_m)
-            self.last_m = copy.copy(m_new)
-            f = open(folder_string+"optimization_data.txt",'a')
+                #### ADD HEADER ####
+                self.last_m = np.zeros(self.num_controls)
+                for i in range(self.num_controls):
+                    self.last_m[i]=float(m_new[i])
+                err = 0.0
+                f = open(folder_string+"optimization_data.txt",'w')
+                header = str("Objective    Change    Prev_Controls:    p_"+"    p_".join(self.names)+"    New_Controls:    n_"+"    n_".join(self.names)+"\n")
+                f.write(header)
+            else:
+                err = np.linalg.norm(m_new-self.last_m)
+                self.last_m = copy.copy(m_new)
+                f = open(folder_string+"optimization_data.txt",'a')
 
-        output_data = np.concatenate(((self.Jcurrent, err, self.num_controls),m_old))
-        output_data = np.concatenate((output_data,(self.num_controls,)))
-        output_data = np.concatenate((output_data,m_new))
+            output_data = np.concatenate(((self.Jcurrent, err, self.num_controls),m_old))
+            output_data = np.concatenate((output_data,(self.num_controls,)))
+            output_data = np.concatenate((output_data,m_new))
 
-        np.savetxt(f,[output_data])
-        f.close()
+            np.savetxt(f,[output_data])
+            f.close()
 
     def SaveFunctions(self):
-        u, p = self.problem.up_k.split()
+        if self.params["problem"]["type"] == "unsteady":
+            u = self.problem.u_k
+            p = self.problem.p_k
+        else:
+            u, p = self.problem.up_k.split()
+
         # tf = project(self.problem.tf,self.problem.fs.V,solver_type='cg',preconditioner_type="hypre_amg")
         if self.iteration == 0:
             self.velocity_file = self.params.Save(u,"velocity",subfolder="OptSeries/",val=self.iteration)
@@ -645,7 +670,8 @@ class Optimizer(object):
             self.params.Save(u,"velocity",subfolder="OptSeries/",val=self.iteration,file=self.velocity_file)
             self.params.Save(p,"pressure",subfolder="OptSeries/",val=self.iteration,file=self.pressure_file)
             # self.params.Save(tf,"tf",subfolder="OptSeries/",val=self.iteration,file=self.tf_file)
-
+    
+    @no_annotations
     def OptPrintFunction(self,m,test=None):
         if test is not None:
             print("Hey, this method actually gives us more info")
@@ -660,10 +686,10 @@ class Optimizer(object):
         if "layout" in self.control_types or "yaw" in self.control_types:
             self.problem.farm.plot_farm(filename="wind_farm_step_"+repr(self.iteration),objective_value=self.Jcurrent)
 
-        if "chord" in self.control_types:
-            c_lower = np.array(self.bounds[0])[self.indexes[6]] 
-            c_upper = np.array(self.bounds[1])[self.indexes[6]] 
-            self.problem.farm.plot_chord(filename="chord_step_"+repr(self.iteration),objective_value=self.Jcurrent,bounds=[c_lower,c_upper])
+        # if "chord" in self.control_types:
+        #     c_lower = np.array(self.bounds[0])[self.indexes[6]] 
+        #     c_upper = np.array(self.bounds[1])[self.indexes[6]] 
+        #     self.problem.farm.plot_chord(filename="chord_step_"+repr(self.iteration),objective_value=self.Jcurrent,bounds=[c_lower,c_upper])
 
         self.DebugOutput(self.iteration, m)
 

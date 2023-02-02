@@ -9,7 +9,7 @@ wind_farm:
 
     ####################### Imported Wind Farm #######################
     type: imported                   #                          |
-    path: Input_Data/wind_farm.csv   # location of wind farm    | -
+    path: Input_Data/2_5D_Wind_Farm/wind_farm.csv   # location of wind farm    | -
     ###################################################################
 
 # The Turbine properties can be overwritten in the wind_farm.csv file

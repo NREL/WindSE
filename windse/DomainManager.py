@@ -18,6 +18,7 @@ else:
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
     from mshr import *
+    #from windse.mshr_fake import *
     import copy
     import time
     import warnings
@@ -458,6 +459,12 @@ class GenericDomain(object):
             # This isn't needed for actual boundary marking, but it helps it pass a test later on
             self.BuildBoundaryMarkers()
 
+        self.my_fs = FunctionSpace
+        self.my_fn = Function
+        # print('After refinement')
+        # Q = FunctionSpace(self.mesh, 'P', 1)
+        # f = Function(Q)
+        # print('finished after refinement')
 
         self.fprint("Original Mesh Vertices: {:d}".format(old_verts))
         self.fprint("Original Mesh Cells:    {:d}".format(old_cells))
@@ -1556,7 +1563,6 @@ class ImportedDomain(GenericDomain):
             hdf5.read(self.boundary_markers, "/boundaries")
         elif self.filetype == "xml.gz":
             self.boundary_markers = MeshFunction("size_t", self.mesh, self.boundary_path)
-        print("Markers Imported")
         self.boundary_names = {"east":1,"north":2,"west":3,"south":4,"bottom":5,"top":6,"inflow":None,"outflow":None}
         self.boundary_types = {"inflow":    ["west","south","north"],
                                "no_slip":   ["bottom"],

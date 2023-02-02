@@ -111,7 +111,12 @@ class Parameters(dict):
             elif isinstance(current_value,str):
                 dic[keys[0]] = value
             elif isinstance(current_value,list):
-                dic[keys[0]] = ast.literal_eval(value)
+                formatted_value = ast.literal_eval(value)
+
+                if len(formatted_value) == 1 and "," in formatted_value[0]:
+                    formatted_value = formatted_value[0].split(",")
+
+                dic[keys[0]] = value
 
     def CheckParameters(self,updates,defaults,out_string=""):
         default_keys = defaults.keys()
@@ -257,10 +262,10 @@ class Parameters(dict):
         opt_taylor   = yaml_file.get("optimization",{}).get("taylor_test",False)
         opt_optimize = yaml_file.get("optimization",{}).get("optimize",False)
         self.performing_opt_calc = opt_gradient or opt_taylor or opt_optimize
-        if self.performing_opt_calc and not self.dolfin_adjoint:
-            raise ValueError("Asked to perform gradient, Taylor test, or optimization but general:dolfin_adjoint is set to False. These operations will not work without dolfin_adjoint.")
-        elif not self.performing_opt_calc and self.dolfin_adjoint: 
-            warnings.warn("general:dolfin_adjoint is set to True but no optimization parameters provided. This will cause unneeded overhead.")
+        #if self.performing_opt_calc and not self.dolfin_adjoint:
+        #    raise ValueError("Asked to perform gradient, Taylor test, or optimization but general:dolfin_adjoint is set to False. These operations will not work without dolfin_adjoint.")
+        #elif not self.performing_opt_calc and self.dolfin_adjoint: 
+        #    warnings.warn("general:dolfin_adjoint is set to True but no optimization parameters provided. This will cause unneeded overhead.")
 
         # print(self.dolfin_adjoint)
         # for module in sys.modules:

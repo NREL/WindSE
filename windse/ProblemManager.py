@@ -91,12 +91,12 @@ class GenericProblem(object):
                     chord = []
                     cl = []
                     cd = []
-                    num_blade_segments = []
+                    num_actuator_nodes = []
                     for i in range(self.farm.numturbs):
                         chord.append(self.farm.turbines[i].chord)
                         cl.append(self.farm.turbines[i].cl)
                         cd.append(self.farm.turbines[i].cd)
-                        num_blade_segments.append(self.farm.turbines[i].num_blade_segments)
+                        num_actuator_nodes.append(self.farm.turbines[i].num_actuator_nodes)
 
                     self.tag_output("min_chord", np.min(chord))
                     self.tag_output("max_chord", np.max(chord))
@@ -107,13 +107,20 @@ class GenericProblem(object):
                     self.tag_output("min_cd", np.min(cd))
                     self.tag_output("max_cd", np.max(cd))
                     self.tag_output("avg_cd", np.mean(cd))
-                    self.tag_output("num_blade_segments", np.mean(num_blade_segments))
+                    self.tag_output("num_actuator_nodes", np.mean(num_actuator_nodes))
                 
 
     def ComputeTurbineForce(self,u,inflow_angle,**kwargs):
         tf_start = time.time()
         self.fprint("Calculating Turbine Force",special="header")
 
+        ### Compute the relative yaw angle ###
+        if inflow_angle is None:
+            inflow_angle = self.dom.inflow_angle
+
+        self.fprint('Computing turbine forces using %s' % (self.farm.turbine_type.upper()))
+
+        ### Create the turbine force function ###
         if self.farm.turbine_type == "disabled" or self.farm.numturbs == 0:
             tf = Function(self.fs.V)
         else:
@@ -190,7 +197,7 @@ class GenericProblem(object):
         self.farm.cl = self.cl
         self.farm.cd = self.cd
         self.farm.chord = self.chord
-        self.farm.num_blade_segments = self.num_blade_segments
+        self.farm.num_actuator_nodes = self.num_actuator_nodes
 
     def SimpleControlUpdate(self):
         self.u_k, self.p_k = split(self.up_k)
@@ -229,17 +236,17 @@ class GenericProblem(object):
         if c_lift is not None:
             cl = np.array(c_lift, dtype = float)
             self.cl[turb_i] = cl
-            for k in range(self.num_blade_segments):
+            for k in range(self.num_actuator_nodes):
                 self.mcl[turb_i][k] = Constant(cl[k])
         if c_drag is not None:
             cd = np.array(c_drag, dtype = float)
             self.cd[turb_i] = cd
-            for k in range(self.num_blade_segments):
+            for k in range(self.num_actuator_nodes):
                 self.mcd[turb_i][k] = Constant(cd[k])
         if chord is not None:
             chord = np.array(chord, dtype = float)
             self.chord[turb_i] = chord
-            for k in range(self.num_blade_segments):
+            for k in range(self.num_actuator_nodes):
                 self.mchord[turb_i][k] = Constant(chord[k])
         if yaw is not None:
             yaw = float(yaw)
@@ -582,14 +589,14 @@ class UnsteadyProblem(GenericProblem):
         # FIXME: These should probably be set in params.yaml input filt
         # nu = 1/10000
         rho = 1
-        nu_c = Constant(self.viscosity)
-        rho_c = Constant(rho)
+        nu_c = Constant(self.viscosity, name="viscosity")
+        rho_c = Constant(rho, name="rho")
 
         # Define time step size (this value is used only for step 1 if adaptive timestepping is used)
         # FIXME: change variable name to avoid confusion within dolfin adjoint
         self.dt = 0.1*self.dom.global_hmin/self.bd.HH_vel
         # self.dt = 0.05
-        self.dt_c  = Constant(self.dt)
+        self.dt_c  = Constant(self.dt, name="dt_c")
 
         self.fprint("Viscosity: {:1.2e}".format(float(self.viscosity)))
         self.fprint("Density:   {:1.2e}".format(float(rho)))
@@ -606,9 +613,9 @@ class UnsteadyProblem(GenericProblem):
         # >> _k = current (step k)
         # >> _k1 = previous (step k-1)
         # >> _k2 = double previous (step k-2)
-        self.u_k = Function(self.fs.V)
-        self.u_k1 = Function(self.fs.V)
-        self.u_k2 = Function(self.fs.V)
+        self.u_k = Function(self.fs.V, name="u_k")
+        self.u_k1 = Function(self.fs.V, name="u_k1")
+        self.u_k2 = Function(self.fs.V, name="u_k2")
 
         # Seed previous velocity fields with the chosen initial condition
         self.u_k.assign(self.bd.bc_velocity)
@@ -616,15 +623,15 @@ class UnsteadyProblem(GenericProblem):
         self.u_k2.assign(self.bd.bc_velocity)
 
         # Calculate Reynolds stress 
-        self.uk_sum = Function(self.fs.V)
+        self.uk_sum = Function(self.fs.V, name="uk_sum")
         self.uk_sum.assign(self.dt_c*self.u_k)
-        self.vertKE = Function(self.fs.Q)
+        self.vertKE = Function(self.fs.Q, name="vertKE")
 
         # Define functions for pressure solutions
         # >> _k = current (step k)
         # >> _k1 = previous (step k-1)
-        self.p_k  = Function(self.fs.Q)
-        self.p_k1 = Function(self.fs.Q)
+        self.p_k  = Function(self.fs.Q, name="p_k")
+        self.p_k1 = Function(self.fs.Q, name="p_k1")
 
         # Seed previous pressure fields with the chosen initial condition
         self.p_k1.assign(self.bd.bc_pressure)
@@ -646,7 +653,7 @@ class UnsteadyProblem(GenericProblem):
         # during assignments in GenericSolver.__init__
 
         # Create the combined function space
-        self.up_k = Function(self.fs.W)
+        self.up_k = Function(self.fs.W, name="up_k")
 
         # Create the turbine force
         # FIXME: Should this be set by a numpy array operation or a fenics function?
@@ -726,7 +733,7 @@ class UnsteadyProblem(GenericProblem):
 #         if c_drag is not None:
 #             cd = np.array(c_drag, dtype = float)
 
-#         for k in range(self.num_blade_segments):
+#         for k in range(self.num_actuator_nodes):
 #             self.mcl[k] = Constant(cl[k])
 #             self.mcd[k] = Constant(cd[k])
 

@@ -22,7 +22,7 @@ class ActuatorLineForceBlock(Block):
         self.dt = kwargs['dt']
 
         # Add dependencies on the controls
-        for j in range(self.turb.num_blade_segments):
+        for j in range(self.turb.num_actuator_nodes):
             self.turb.mcl[j].block_variable.tag = ("c_lift", self.turb.index, j, -1)
             self.add_dependency(self.turb.mcl[j])
 
@@ -123,7 +123,7 @@ class ActuatorLineForceBlock(Block):
 
         if "chord" in self.control_types:
             prepared["chord"] = []
-            for i in range(self.turb.num_blade_segments):
+            for i in range(self.turb.num_actuator_nodes):
                 old_chord_value = copy.copy(self.turb.chord[i])
                 h_mag = 0.0001#*old_chord_value
 

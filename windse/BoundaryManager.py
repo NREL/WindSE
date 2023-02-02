@@ -23,7 +23,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
-        from dolfin_adjoint import *  
+        from dolfin_adjoint import *
 
     import math 
     from scipy.interpolate import RegularGridInterpolator
@@ -318,10 +318,11 @@ class GenericBoundary(object):
 
     def CalculateHeights(self):
         ### Calculate the distance to the ground for the Q function space ###
-        # self.z_dist_Q = Function(fs.Q)
+
         self.height = Function(self.fs.Q)
         self.depth = Function(self.fs.Q)
         Q_coords = self.fs.Q.tabulate_dof_coordinates()
+        print(f"|    |    Rank {self.params.rank}: N Coords: {len(Q_coords)}, N Dofs: {len(self.height.vector().get_local())}")
         height_vals = self.height.vector()[:]
         for i in range(len(Q_coords)):
             height_vals[i] = self.dom.Ground(Q_coords[i,0],Q_coords[i,1])
