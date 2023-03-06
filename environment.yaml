@@ -11,7 +11,7 @@ dependencies:
   - matplotlib
   - memory_profiler
   - mshr
-  - openmdao==3.16.0
+  - openmdao
   - pandas
   - pyoptsparse
   - pytest

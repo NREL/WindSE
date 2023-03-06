@@ -80,12 +80,20 @@ class LinearFunctionSpace(GenericFunctionSpace):
     def __init__(self,dom):
         super(LinearFunctionSpace, self).__init__(dom)
 
+        # trick the mesh to working?
+        # dummy = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
+        # print("before:", self.mesh.num_entities_global(0))
+        # self.mesh = refine(self.mesh,dummy)
+        # self.mesh.init()
+        # print("after:", self.mesh.num_entities_global(0))
+
         ### Create the function space ###
         fs_start = time.time()
         self.fprint("Creating Function Space",special="header")
 
         V = VectorElement('Lagrange', self.mesh.ufl_cell(), 1) 
         Q = FiniteElement('Lagrange', self.mesh.ufl_cell(), 1)
+
         self.T = FunctionSpace(dom.mesh, TensorElement('Lagrange', dom.mesh.ufl_cell(), 1), constrained_domain = self.dom.periodic_mapping)
         self.W = FunctionSpace(self.mesh, MixedElement([V,Q]), constrained_domain = self.dom.periodic_mapping)
 

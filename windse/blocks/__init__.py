@@ -15,6 +15,8 @@ from .BaseHeightBlock        import BaseHeightBlock
 from .ControlUpdaterBlock    import ControlUpdaterBlock
 from .MarkerBlock            import MarkerBlock
 from .MpiEvalBlock           import MpiEvalBlock
+from .UflEvalBlock           import UflEvalBlock
+from .InterpBlock            import InterpBlock
 
 ### A function for automatically creating blocks
 def blockify(function_backend, function_block, block_kwargs={}):

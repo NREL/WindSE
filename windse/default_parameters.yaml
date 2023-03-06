@@ -78,6 +78,13 @@ turbines:                   # parameters for the turbine objects
     gauss_factor:   2.0         # This is the factor that gets multiplied by the minimum mesh spacing to set the gaussian width, e.g., gaussian_width = 2.0*dx_min
     tip_loss:       True        # Determines whether or not a tip-loss model is used in the calculation of the ALM force (False means no tip loss is modeled)
     hub_rad:        0.0         # The radius of the hub. If non-zero, actuator nodes will still be placed in the range [0, rotor_radius], but the lift/drag properties in the range [0, hub_rad] will be modified to reflect the blade root
+    chord_perturb:  0.0         # An amount to perturb one of the chord values, used for finite difference gradient calculations
+    chord_perturb_id: 0         # The index of the chord to perturb, used for finite difference gradient calculations
+    chord_override: Null        # The path to a specific chord to use in csv format, e.g., input_data/chord_base.csv
+    motion_file: Null           # Location to the platform motion data
+    motion_type: Null           # Type of motion to apply can be single string or list of: 'surge', 'sway', 'heave', 'roll', 'pitch', and/or 'yaw'
+    use_gauss_vel_probe: False  # Prob velocity at ALM nodes using an gaussian sphere rather than eval()
+    use_ap_linear_interp: False # Uses linear interpolation when building the airfoil polars. 
 
 refine:                     # parameters for RefinementManager
     warp_type:      Null        # warping will shift the nodes along the z direction concentrating them near the ground. choices: "smooth", "split"
@@ -146,6 +153,7 @@ solver:                         # parameters for the SolverManager
     newton_relaxation: 1.0          # relaxation parameter (0,1] for newton
     cfl_target: 0.5                 # target cfl number for unsteady solve 
     cl_iterator: 0                  # debugging tool, do not use
+    save_all_timesteps: False       # Save fields at every time step
 
 optimization:                   # parameters for OptimizationManager
     opt_type:       maximize        # minimize or maximize
@@ -171,3 +179,6 @@ optimization:                   # parameters for OptimizationManager
     gradient:       False           # output the gradient
     verify_snopt:   False           # use the SNOPT FD gradient verification
     check_totals:   False           # check the total derivatives of the problem; optimize must be true as well
+    hard_scaling_factor: 1.0        # A hard-coded scaling factor, objective_value = objective_value*hard_scaling_factor
+    twist_range: 5.0                # The envelope the twist control will be constrained to: baseline +/- twist_range
+

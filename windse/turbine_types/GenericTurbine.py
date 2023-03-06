@@ -133,7 +133,7 @@ class GenericTurbine(object):
         # self.mz = Constant(0.0)
         # base_height = self.base_height(self.mx,self.my)
         # self.mz.assign(self.HH + base_height)
-        self.mz = Constant(self.HH + self.base_height(self.mx,self.my))
+        self.mz = Constant(self.HH + self.base_height(self.mx,self.my),name="mz")
 
         # store the float for easy access
         self.z = float(self.mz)

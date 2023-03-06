@@ -6,11 +6,11 @@ general:
 
 wind_farm:
     type: imported               # Wind farm will be specified via input file
-    path: Input_Data/iea_rwt.csv # Path to the wind farm description
+    path: Input_Data/ALM_Unsteady/iea_rwt.csv # Path to the wind farm description
 
 turbines:
     type: line                   # Actuator Line Method (ALM)
-    read_turb_data: Input_Data/baseline.csv
+    read_turb_data: Input_Data/ALM_Unsteady/baseline.csv
     rpm: 4.0                     # Rotor revolutions per minute (RPM) | rev/min
     chord_factor: 1.0
     gauss_factor: 2.0
@@ -40,7 +40,7 @@ function_space:
 
 boundary_conditions:
     vel_profile: turbsim
-    turbsim_path: Input_Data/turbsim/
+    turbsim_path: Input_Data/ALM_Unsteady/turbsim/
     HH_vel: 9.0                  # The velocity at the turbine hub height | m
     k: 0.4                       # The von Karman constant
     boundary_types:

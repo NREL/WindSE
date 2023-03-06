@@ -2,7 +2,7 @@ from windse import windse_parameters
 from windse.turbine_types import turbine_dict
 import numpy as np
 import time, os
-from . import MeshFunction, cells, project, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters, Form
+from . import MeshFunction, cells, project, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters, Form, File
 import matplotlib.pyplot as plt
 from pyadjoint.tape import stop_annotating 
 from pyadjoint import AdjFloat
@@ -244,6 +244,23 @@ class GenericWindFarm(object):
                 tf += turb.turbine_force(u,inflow_angle,fs,**kwargs)
             return tf
 
+        # T = 0
+        # dt = 0.5
+        # max_its = 20
+        # tf_file = File("output/float_demo/pitch_tf.pvd")
+        # for i in range(max_its):
+        #     print(f"Generating TF at time: {T} s")
+        #     tf = 0
+        #     for turb in self.turbines:
+        #         tf += turb.turbine_force(u,inflow_angle,fs,simTime=T)
+        #     tf = project(tf,fs.V,solver_type='cg',preconditioner_type="hypre_amg")
+        #     tf.rename("tf","tf")
+        #     tf_file << (tf,T)
+        #     T += dt
+
+        # exit()
+        # return tf
+
     def update_controls(self):
         """
         iterates over the controls list assigns self.<name> to the control, self.m<name> 
@@ -405,7 +422,7 @@ class GenericWindFarm(object):
         elif isinstance(objective_value,(list,np.ndarray)):
             plt.title("Objective Value: {: 5.6f}".format(sum(objective_value)))
         else:
-            plt.title("Objective Value: {: 5.6f}".format(objective_value))
+            plt.title("Objective Value: {: 5.6f}".format(float(objective_value)))
 
         plt.savefig(file_string, transparent=True)
 
@@ -452,7 +469,7 @@ class GenericWindFarm(object):
             plt.plot(x,bounds[1][-baseline_blade_segments:],"--r")
 
         for turb in self.turbines:
-            x = np.linspace(0,1,turb.num_blade_segments)
+            x = np.linspace(0,1,turb.num_actuator_nodes)
             y = np.array(turb.chord,dtype=float)
             plt.plot(x,y,'.-',label=turb.index)
 
@@ -462,7 +479,7 @@ class GenericWindFarm(object):
         elif isinstance(objective_value,(list,np.ndarray)):
             plt.title("Objective Value: {: 5.6f}".format(sum(objective_value)))
         else:
-            plt.title("Objective Value: {: 5.6f}".format(objective_value)) 
+            plt.title("Objective Value: {: 5.6f}".format(float(objective_value))) 
         plt.xlabel("Blade Span")      
         plt.ylabel("Chord")
         plt.legend()      
@@ -548,8 +565,8 @@ class GenericWindFarm(object):
         thickness = np.zeros(self.numturbs)
         axial = np.zeros(self.numturbs)
         for i,turb in enumerate(self.turbines):
-            if turb.type == 'line':
-                thickness[i] = turb.gaussian_width
+            if 'line' in turb.type:
+                thickness[i] = np.nan
                 axial[i] = np.nan
             elif turb.type == 'disabled':
                 thickness[i] = np.nan

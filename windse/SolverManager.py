@@ -33,6 +33,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
         from windse.blocks import blockify, MarkerBlock, ControlUpdaterBlock
+        from pyadjoint import AdjFloat
 
     ### Import objective functions ###
     import windse.objective_functions as obj_funcs
@@ -87,10 +88,14 @@ class GenericSolver(object):
         if self.params.dolfin_adjoint:
             self.extra_kwarg["annotate"] = False
 
+        J_temp = 0.0
+        if self.params["general"]["dolfin_adjoint"]:
+            J_temp = AdjFloat(0.0)
+
         self.optimizing = False
         if self.params.performing_opt_calc or self.save_objective:
             self.optimizing = True
-            self.J = 0.0
+            self.J = J_temp
             self.adj_file = XDMFFile(self.params.folder+"timeSeries/local_adjoint.xdmf")
             self.adj_time_iter = 1
             self.adj_time_list = [0.0]
@@ -110,7 +115,7 @@ class GenericSolver(object):
 
         #Check if we need to save the power output
         if self.save_power:
-            self.J = 0.0
+            self.J = J_temp
             self.J_saved = False
 
     @no_annotations
@@ -140,7 +145,7 @@ class GenericSolver(object):
 
 
 
-
+    @no_annotations
     def Save(self,val=0):
         """
         This function saves the mesh and boundary markers to output/.../solutions/
@@ -213,14 +218,13 @@ class GenericSolver(object):
     #     np.savetxt(f,[J_list])
     #     f.close()
 
+    @no_annotations
     def EvaulatePowerFunctional(self):
-
         kwargs = {
             "iter_val": self.iter_val, 
             "simTime": self.simTime
         }
         out = self.problem.farm.save_power(self.problem.u_k,self.problem.dom.inflow_angle, **kwargs)
-
         return out
 
 
@@ -424,6 +428,23 @@ class SteadySolver(GenericSolver):
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
         # self.u_k,self.p_k = self.problem.up_k.split(True)
         self.problem.u_k,self.problem.p_k = self.problem.up_k.split()
+
+        # try:
+        #     print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
+        # except:
+        #     pass
+        # try:
+        #     print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
+        # except:
+        #     pass
+        # try:
+        #     print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
+        # except:
+        #     pass
+        # print(f"max(u):        {self.problem.u_k.vector().max()}")
+        # print(f"min(u):        {self.problem.u_k.vector().min()}")
+        # print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
+
 
         ### Hack into doflin adjoint to update the local controls at the start of the adjoint solve ###
         self.nu_T = project(self.problem.nu_T,self.problem.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
@@ -734,6 +755,7 @@ class IterativeSteadySolver(GenericSolver):
         if self.save_power and "power":
             self.EvaulatePowerFunctional()
 
+    @no_annotations
     def SaveTimeSeries(self, simTime):
         # if hasattr(self.problem,"tf_save"):
         #     self.problem.tf_save.vector()[:] = 0
@@ -941,15 +963,15 @@ class UnsteadySolver(GenericSolver):
 
         # Initialize need loop objects
         start = time.time()
-        # dt_sum = 1.0
-        dt_sum = 0.0
+        # self.problem.dt_sum = 1.0
+        self.problem.dt_sum = 0.0
         J_old = 0
         J_diff_old = 100000
         min_count = 0
         simIter = 0
         stable = False
 
-        if self.problem.farm.turbines[0].type == "line":
+        if self.problem.farm.turbines[0].type == "line" or self.problem.farm.turbines[0].type == "dolfin_line":
             tip_speed = self.problem.farm.turbines[0].rpm*2.0*np.pi*self.problem.farm.turbines[0].radius/60.0
         else:
             tip_speed = 0.0
@@ -957,6 +979,26 @@ class UnsteadySolver(GenericSolver):
         # self.problem.alm_power_sum = 0.0
 
         while not stable and self.simTime < self.final_time:
+
+            # add a fake block that allows us to update the control while dolfin_adjoint is doing it's thing
+            # Need to allow processes which don't own the above points to fail gracefully
+            # try:
+            #     print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
+            # except:
+            #     pass
+            # try:
+            #     print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
+            # except:
+            #     pass
+            # try:
+            #     print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
+            # except:
+            #     pass
+            # print(f"max(u):        {self.problem.u_k.vector().max()}")
+            # print(f"min(u):        {self.problem.u_k.vector().min()}")
+            # print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
+            self.J = self.control_updater(self.J, self.problem, time=self.simTime)
+
             self.problem.bd.UpdateVelocity(self.simTime)
 
             # Record the "old" max velocity (before this update)
@@ -964,6 +1006,9 @@ class UnsteadySolver(GenericSolver):
 
             # Step 1: Tentative velocity step
             tic = time.time()
+            # solve(self.problem.a1==self.problem.L1, self.problem.u_k, bcs=self.problem.bd.bcu)
+            # solve(self.problem.a1==self.problem.L1, self.problem.u_k, bcs=self.problem.bd.bcu, solver_parameters={"linear_solver": "gmres","preconditioner": "jacobi"})
+
             b1 = assemble(self.problem.L1, tensor=b1)
             [bc.apply(b1) for bc in self.problem.bd.bcu]
             if self.optimizing:
@@ -980,6 +1025,9 @@ class UnsteadySolver(GenericSolver):
 
             # Step 2: Pressure correction step
             tic = time.time()
+            # solve(self.problem.a2==self.problem.L2, self.problem.p_k, bcs=self.problem.bd.bcp)
+            # solve(self.problem.a2==self.problem.L2, self.problem.p_k, bcs=self.problem.bd.bcp, solver_parameters={"linear_solver": "gmres","preconditioner": "petsc_amg"})
+            
             b2 = assemble(self.problem.L2, tensor=b2)
             [bc.apply(b2) for bc in self.problem.bd.bcp]
             if self.optimizing:
@@ -994,6 +1042,9 @@ class UnsteadySolver(GenericSolver):
 
             # Step 3: Velocity correction step
             tic = time.time()
+            # solve(self.problem.a3==self.problem.L3, self.problem.u_k)
+            # solve(self.problem.a3==self.problem.L3, self.problem.u_k, solver_parameters={"linear_solver": "cg","preconditioner": "jacobi"})
+            
             b3 = assemble(self.problem.L3, tensor=b3)
             if self.optimizing:
                 # solve(A3, self.problem.u_k.vector(), b3, 'gmres', 'default')
@@ -1021,12 +1072,12 @@ class UnsteadySolver(GenericSolver):
             if 'KE_entrainment' in self.objective_type.keys():
                 if self.simTime >= self.u_avg_time and self.simTime < self.record_time:
                     self.problem.uk_sum.assign(self.problem.uk_sum+self.problem.dt_c*self.problem.u_k)
-                    print("averaging u")
                 elif self.simTime >= self.record_time:
-                    print("calc vertKE")
                     self.problem.vertKE = (self.problem.u_k[0]-self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))*(self.problem.u_k[2]-self.problem.uk_sum[2]/(self.record_time-self.u_avg_time))*(self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))
             
-            if save_next_timestep:
+            if self.save_all_timesteps:
+                self.SaveTimeSeries(self.simTime,simIter)
+            elif save_next_timestep:
                 # Read in new inlet values
                 # bcu = self.updateInletVelocityFromFile(saveCount, bcu)
                 
@@ -1043,17 +1094,21 @@ class UnsteadySolver(GenericSolver):
 
             # Update the turbine force
             tic = time.time()
-            if self.problem.farm.turbines[0].type == "line":
-
+            if self.problem.farm.turbines[0].type == "line" or self.problem.farm.turbines[0].type == "dolfin_line":
 
                 self.problem.alm_power = 0.0
                 # pass
 
                 # t1 = time.time()
                 pr.enable()
-                self.problem.farm.update_turbine_force(self.problem.u_k, self.problem.bd.inflow_angle, self.problem.fs, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                if 'dolfin' in self.problem.farm.turbines[0].type:
+                    self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                else:
+                    # updated method from dev, is this necessary?
+                    # self.problem.farm.update_turbine_force(self.problem.u_k, self.problem.bd.inflow_angle, self.problem.fs, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                    new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                    self.problem.tf.assign(new_tf)
                 pr.disable()
-
 
                 # # t2 = time.time()
                 # # print(t2-t1)
@@ -1074,7 +1129,6 @@ class UnsteadySolver(GenericSolver):
                 # e.g., actuator disks
                 self.problem.alm_power = np.zeros(self.problem.farm.numturbs)
                 self.problem.alm_power_dolfin = np.zeros(self.problem.farm.numturbs)
-                self.J = self.control_updater(self.J, self.problem, time=self.simTime)
 
                 # exit()
             toc = time.time()
@@ -1132,8 +1186,8 @@ class UnsteadySolver(GenericSolver):
                 self.adj_time_list.append(self.simTime)
 
                 self.J += float(self.problem.dt)*J_next
-                dt_sum += self.problem.dt 
-                J_new = float(self.J/dt_sum)
+                self.problem.dt_sum += self.problem.dt 
+                J_new = float(self.J/self.problem.dt_sum)
 
                 ### TODO, replace this with an actual stabilization criteria such as relative difference tolerance
                 # Check the change in J with respect to time and check if we are "stable" i.e. hit the required number of minimums
@@ -1150,8 +1204,10 @@ class UnsteadySolver(GenericSolver):
                 # if abs(J_diff) <= 0.001:
                 #     stable = True
 
-                self.fprint("Current Objective Value: "+repr(float(self.J/dt_sum)))
+                self.fprint("Current Objective Value: "+repr(float(self.J/self.problem.dt_sum)))
                 self.fprint("Change in Objective    : "+repr(float(J_diff)))
+
+
 
             # to only call the power functional once, check if a) the objective is the power, b) that we are before record time
             if self.save_power:
@@ -1175,13 +1231,14 @@ class UnsteadySolver(GenericSolver):
             self.J = self.EvaluateObjective()
 
         elif (self.optimizing or self.save_objective):
-            # if dt_sum > 0.0:
-            self.J = self.J/float(dt_sum)
+            # if self.problem.dt_sum > 0.0:
+            self.J = self.J/float(self.problem.dt_sum)
 
 
         if self.simTime > average_start_time:
             average_vel_sum.vector()[:] = average_vel_sum.vector()[:]/(self.simTime-average_start_time)
-            fp = File('./output/%s/average_vel_sum.pvd' % (self.params.name))
+            # fp = File('./output/%s/average_vel_sum.pvd' % (self.params.name))
+            fp = File(f"{self.params.folder}timeSeries/average_vel_sum.pvd")
             average_vel_sum.rename('average_vel_sum', 'average_vel_sum')
             fp << average_vel_sum
 
@@ -1193,7 +1250,24 @@ class UnsteadySolver(GenericSolver):
                 output_str = 'AVERAGE Rotor Power: %s MW' % (average_power)
             self.fprint(output_str)
 
+        # add a fake block that allows us to update the control while dolfin_adjoint is doing it's thing
+        # try:
+        #     print(f"u(0, 0,150):   {self.problem.u_k([0.0, 0.0,150.0])}")
+        # except:
+        #     pass
+        # try:
+        #     print(f"u(0, 0,210):   {self.problem.u_k([0.0, 0.0,210.0])}")
+        # except:
+        #     pass
+        # try:
+        #     print(f"u(0,60,150):   {self.problem.u_k([0.0,60.0,150.0])}")
+        # except:
+        #     pass
 
+        # print(f"max(u):        {self.problem.u_k.vector().max()}")
+        # print(f"min(u):        {self.problem.u_k.vector().min()}")
+        # print(f"integral(u_x): {assemble(self.problem.u_k[0]*dx)}")
+        self.J = self.control_updater(self.J, self.problem, time=self.simTime)
         stop = time.time()
 
         self.fprint('================================================================')
@@ -1217,7 +1291,7 @@ class UnsteadySolver(GenericSolver):
 
 
     # ================================================================
-
+    @no_annotations
     def SaveTimeSeries(self, simTime, simIter=None):
 
         self.DebugOutput(simTime,simIter)
@@ -1420,7 +1494,7 @@ class UnsteadySolver(GenericSolver):
         # print(self.problem.farm.radius)
 
         # Discretize each blade into separate nodes
-        num_blade_segments = 10
+        num_actuator_nodes = 10
 
         #================================================================
         # Set Derived Constants
@@ -1429,41 +1503,41 @@ class UnsteadySolver(GenericSolver):
         # Calculate the blade velocity
         period = 60.0/RPM
         tip_speed = np.pi*2.0*L*RPM/60.0
-        blade_vel = np.vstack((np.zeros(num_blade_segments),
-                               np.zeros(num_blade_segments),
-                               np.linspace(0.0, tip_speed, num_blade_segments)))
+        blade_vel = np.vstack((np.zeros(num_actuator_nodes),
+                               np.zeros(num_actuator_nodes),
+                               np.linspace(0.0, tip_speed, num_actuator_nodes)))
 
         # Set the initial angle of each blade
         theta_vec = np.linspace(0.0, 2.0*np.pi, num_blades+1)
         theta_vec = theta_vec[0:num_blades]
 
         # Calculate discrete node positions
-        rdim = np.linspace(0.0, L, num_blade_segments)
+        rdim = np.linspace(0.0, L, num_actuator_nodes)
 
         # Calculate width of individual blade segment
         w = rdim[1] - rdim[0]
 
         # Calculate an array describing the x, y, z position of each point
-        xblade = np.vstack((np.zeros(num_blade_segments),
+        xblade = np.vstack((np.zeros(num_actuator_nodes),
                             rdim,
-                            np.zeros(num_blade_segments)))
+                            np.zeros(num_actuator_nodes)))
 
         #================================================================
         # Begin Calculating Turbine Forces
         #================================================================
 
         # Lift and drag coefficient (could be an array and you interpolate the value based on R)
-        # cl_dolf = Constant((np.linspace(1.5, 0.5, num_blade_segments)))
-        # cd_dolf = Constant((np.ones(num_blade_segments)))
+        # cl_dolf = Constant((np.linspace(1.5, 0.5, num_actuator_nodes)))
+        # cd_dolf = Constant((np.ones(num_actuator_nodes)))
         # cl = cl_dolf.values()
         # cd = cd_dolf.values()
 
-        cl = np.linspace(0.0, 2.0, num_blade_segments) # Uncomment for controllability study
-        cd = np.linspace(2.0, 0.0, num_blade_segments)
-        # cl = np.linspace(2.0, 0.0, num_blade_segments) # Uncomment for controllability study
-        # cd = np.linspace(0.0, 2.0, num_blade_segments)
-        # cl = np.ones(num_blade_segments)
-        # cd = np.ones(num_blade_segments)
+        cl = np.linspace(0.0, 2.0, num_actuator_nodes) # Uncomment for controllability study
+        cd = np.linspace(2.0, 0.0, num_actuator_nodes)
+        # cl = np.linspace(2.0, 0.0, num_actuator_nodes) # Uncomment for controllability study
+        # cd = np.linspace(0.0, 2.0, num_actuator_nodes)
+        # cl = np.ones(num_actuator_nodes)
+        # cd = np.ones(num_actuator_nodes)
 
 
         # Create space to hold the vector values
@@ -1489,7 +1563,7 @@ class UnsteadySolver(GenericSolver):
             xblade_rotated = np.dot(Rz, np.dot(Rx, xblade))
             xblade_rotated[2, :] += hub_height
 
-            # Tile the blade coordinates for every mesh point, [numGridPts*ndim x num_blade_segments]
+            # Tile the blade coordinates for every mesh point, [numGridPts*ndim x num_actuator_nodes]
             xblade_rotated_full = np.tile(xblade_rotated, (np.shape(coords)[0], 1))
 
             # Subtract and square to get the dx^2 values in the x, y, and z directions
@@ -1503,23 +1577,23 @@ class UnsteadySolver(GenericSolver):
         
             if using_local_velocity:
                 # Generate the fluid velocity from the actual node locations in the flow
-                u_fluid = np.zeros((3, num_blade_segments))
+                u_fluid = np.zeros((3, num_actuator_nodes))
                 
-                for k in range(num_blade_segments):
+                for k in range(num_actuator_nodes):
                     u_fluid[:, k] = self.problem.u_k1(xblade_rotated[0, k],
                                                       xblade_rotated[1, k],
                                                       xblade_rotated[2, k])
                                     
             else:
                 # Generate the fluid velocity analytically using the hub height velocity
-                # u_inf_vec = u_inf*np.ones(num_blade_segments)
+                # u_inf_vec = u_inf*np.ones(num_actuator_nodes)
                 
                 # u_fluid = np.vstack((u_inf_vec,
-                #                      np.zeros(num_blade_segments),
-                #                      np.zeros(num_blade_segments)))
-                u_fluid = np.zeros((3, num_blade_segments))
+                #                      np.zeros(num_actuator_nodes),
+                #                      np.zeros(num_actuator_nodes)))
+                u_fluid = np.zeros((3, num_actuator_nodes))
                 
-                for k in range(num_blade_segments):
+                for k in range(num_actuator_nodes):
                     u_fluid[0, k] = 8.0*(xblade_rotated[2, k]/hub_height)**0.18
 
             
@@ -1545,7 +1619,7 @@ class UnsteadySolver(GenericSolver):
             # Calculate a vector in the direction of the blade
             blade_unit = xblade_rotated[:, -1] - np.array([0.0, 0.0, hub_height])  
             
-            for k in range(num_blade_segments):
+            for k in range(num_actuator_nodes):
                 # The drag unit simply points opposite the relative velocity unit vector
                 drag_unit = -u_unit[:, k]
                 
@@ -1605,10 +1679,10 @@ class UnsteadySolver(GenericSolver):
         c = L/20
 
         # Number of blade evaluation sections
-        num_blade_segments = 50
-        rdim = np.linspace(0, L, num_blade_segments)
-        zdim = 0.0 + np.zeros(num_blade_segments)
-        xblade = np.vstack((np.zeros(num_blade_segments), rdim, zdim))
+        num_actuator_nodes = 50
+        rdim = np.linspace(0, L, num_actuator_nodes)
+        zdim = 0.0 + np.zeros(num_actuator_nodes)
+        xblade = np.vstack((np.zeros(num_actuator_nodes), rdim, zdim))
 
         # Width of individual blade segment
         w = rdim[1] - rdim[0]
@@ -1627,7 +1701,7 @@ class UnsteadySolver(GenericSolver):
 
         tip_speed = np.pi*2*L*RPM/60
 
-        blade_vel = np.linspace(0.0, tip_speed, num_blade_segments)
+        blade_vel = np.linspace(0.0, tip_speed, num_actuator_nodes)
 
 
         constant_vel_mag = True
