@@ -45,6 +45,10 @@ class GenericBoundary(object):
         for key, value in self.params["boundary_conditions"].items():
             setattr(self,key,value)
 
+        self.extra_kwarg = {}            
+        if self.params.dolfin_adjoint:
+            self.extra_kwarg["annotate"] = False
+
         ### get the height to apply the HH_vel ###
         if self.vel_height == "HH":
             self.vel_height = np.mean(farm.get_hub_locations()[:,2])
@@ -112,7 +116,6 @@ class GenericBoundary(object):
         ### Inflow is always from the front
 
         self.fprint("Applying Boundary Conditions",offset=1)
-
         # If running in parallel, avoid using boundary markers
         if self.params.num_procs > 1:
 
@@ -173,6 +176,7 @@ class GenericBoundary(object):
                         for b in bs:
                             if self.boundary_names[b] in unique_ids:
                                 bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
+                                # bcu_eqns.append([self.fs.V, self.fs.W.sub(0), Constant((8.0,0,0)), self.boundary_names[b]])
 
                     elif bc_type == "no_slip":
                         for b in bs:
@@ -383,8 +387,12 @@ class UniformInflow(GenericBoundary):
 
         ### Create Initial Guess
         self.fprint("Assigning Initial Guess")
-        self.u0 = Function(fs.W)
-        self.fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
+        if self.params["solver"]["type"] == "steady" and self.dom.dim == 3:
+            # We need to have a non-constant initial guess otherwise the nu_T calculation is nan in 3D for steady problems
+            self.u0 = project(Expression(("HH_vel*(x[2]-z0)/(z1-z0)","0","0","0"),degree=1,HH_vel = self.HH_vel, z0 = self.dom.z_range[0],z1 = self.dom.z_range[1], y0 = self.dom.y_range[0],y1 = self.dom.y_range[1]),self.fs.W, solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
+        else:
+            self.u0 = Function(fs.W)
+            self.fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
 
         ### Setup the boundary Conditions ###
         self.SetupBoundaries()

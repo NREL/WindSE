@@ -376,6 +376,7 @@ class SteadySolver(GenericSolver):
             newton_options = {"relaxation_parameter": self.newton_relaxation,
                               "maximum_iterations": 150,
                               "linear_solver": "mumps",
+                              "preconditioner": "default",
                               "absolute_tolerance": 1e-6,
                               "relative_tolerance": 1e-5,
                               "error_on_nonconvergence": False,
@@ -398,7 +399,7 @@ class SteadySolver(GenericSolver):
                                  "relative_tolerance": 1e-5,
                                  "linear_solver": "mumps",
                                  "preconditioner": "default",
-                                 "maximum_iterations": 100,
+                                 "maximum_iterations": 150,
                                  "error_on_nonconvergence": False,
                                  "line_search": "bt", #[basic,bt,cp,l2,nleqerr]
                                  "krylov_solver": krylov_options

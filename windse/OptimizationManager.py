@@ -449,6 +449,28 @@ class Optimizer(object):
                     self.controls.append(Control(self.farm.turbines[i].mtwist[k]))
                     self.init_vals.append(Constant(float(self.farm.turbines[i].mtwist[k])))
 
+        if "thrust" in self.control_types:
+            for i in self.solver.opt_turb_id:
+                # for k in range(self.farm.turbines[0].num_actuator_nodes-1):
+                for k in range(0,self.farm.turbines[0].num_actuator_nodes):
+                    self.control_pointers.append(("thrust",[i,k]))
+                    self.indexes[6].append(j)
+                    j+=1
+                    self.names.append("thrust_"+repr(i)+"_"+repr(k))
+                    self.controls.append(Control(self.farm.turbines[i].mthrust[k]))
+                    self.init_vals.append(Constant(float(self.farm.turbines[i].mthrust[k])))
+
+        if "twirl" in self.control_types:
+            for i in self.solver.opt_turb_id:
+                # for k in range(self.farm.turbines[0].num_actuator_nodes-1):
+                for k in range(0,self.farm.turbines[0].num_actuator_nodes):
+                    self.control_pointers.append(("twirl",[i,k]))
+                    self.indexes[6].append(j)
+                    j+=1
+                    self.names.append("twirl_"+repr(i)+"_"+repr(k))
+                    self.controls.append(Control(self.farm.turbines[i].mtwirl[k]))
+                    self.init_vals.append(Constant(float(self.farm.turbines[i].mtwirl[k])))
+
         if "body_force" in self.control_types:
                     self.control_pointers.append(("body_force",[-1,-1]))
                     self.indexes[7].append(j)
@@ -516,6 +538,20 @@ class Optimizer(object):
                     envelope = np.radians(float(self.twist_range))
                     lower_bounds.append(Constant(float(twist[k])-envelope))
                     upper_bounds.append(Constant(float(twist[k])+envelope))
+
+        if "thrust" in self.control_types:
+            for i in self.solver.opt_turb_id:
+                num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
+                for k in range(num_actuator_nodes):
+                    lower_bounds.append(Constant(0.01))
+                    upper_bounds.append(Constant(3.00))
+
+        if "twirl" in self.control_types:
+            for i in self.solver.opt_turb_id:
+                num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
+                for k in range(num_actuator_nodes):
+                    lower_bounds.append(Constant(-0.300))
+                    upper_bounds.append(Constant(0.300))
 
         if "body_force" in self.control_types:
             lower_bounds.append(Constant(0.0001))
@@ -715,6 +751,7 @@ class Optimizer(object):
         options = {
             "disp" : True,
             "folder" : self.params.folder,
+            "gtol": 1.0e-8
             }
         if hasattr(self, 'obj_ref'):
             options["obj_ref"] = self.obj_ref
@@ -734,9 +771,9 @@ class Optimizer(object):
 
         ### optimize 
         if "SNOPT" in self.opt_routine or "OM_SLSQP" in self.opt_routine:
-            m_opt=opt_function(self.Jhat, method="Custom", options = options, constraints = self.merged_constraint, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
+            m_opt=opt_function(self.Jhat, method="Custom", tol=1.0e-8, options = options, constraints = self.merged_constraint, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
         else:
-            m_opt=opt_function(self.Jhat, method=self.opt_routine, options = options, constraints = self.merged_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
+            m_opt=opt_function(self.Jhat, method=self.opt_routine, tol=1.0e-8, options = options, constraints = self.merged_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
 
         self.m_opt = m_opt
         
