@@ -75,6 +75,10 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
         # save velocity to the solver
         solver.velocity_profile_target = vel
 
+        # save velocity file 
+        solver.params.Save(solver.velocity_profile_target,"velocity_profile_target",subfolder="functions/")
+
+
     # Compute difference in velocity
     vel_diff = solver.velocity_profile_target - solver.problem.u_k
     J = assemble(dot(vel_diff, vel_diff)*dx)/solver.problem.dom.volume
