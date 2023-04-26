@@ -101,11 +101,12 @@ class ActuatorHybridDisk(GenericTurbine):
             RF_z =  self.mtwirl[i]*xs[1]/(r)
 
             ### Create direction vector
-            # WTGbase = as_vector((cos(yaw)-RF_y*sin(yaw),sin(yaw)+RF_y*cos(yaw),RF_z))            
-            WTGbase = as_vector((F*cos(yaw)-RF_y*sin(yaw),F*sin(yaw)+RF_y*cos(yaw),RF_z))            
+            WTGbase = as_vector((cos(yaw)-RF_y*sin(yaw),sin(yaw)+RF_y*cos(yaw),RF_z))            
+            # WTGbase = as_vector((F*cos(yaw)-RF_y*sin(yaw),F*sin(yaw)+RF_y*cos(yaw),RF_z))  # this feel more right but completely fails          
 
             ### assemble disk
-            actuator_disk += T*D*WTGbase/volNormalization
+            actuator_disk += F*T*D*WTGbase/volNormalization
+            # actuator_disk += T*D*WTGbase/volNormalization
 
 
 
