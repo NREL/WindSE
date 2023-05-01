@@ -20,22 +20,25 @@ class ActuatorHybridDisk(GenericTurbine):
     
 
     def load_parameters(self):
-        self.HH        = self.params["turbines"]["HH"]
-        self.RD        = self.params["turbines"]["RD"]
-        self.yaw       = self.params["turbines"]["yaw"]
-        self.thickness = self.params["turbines"]["thickness"]
-        self.axial     = self.params["turbines"]["axial"]
-        self.force     = self.params["turbines"]["force"]
-        self.thrust = [1.000, 1.000, 1.000, 1.000]
-        self.twirl =  [0.000, 0.000, 0.000, 0.000]
+        self.HH             = self.params["turbines"]["HH"]
+        self.RD             = self.params["turbines"]["RD"]
+        self.yaw            = self.params["turbines"]["yaw"]
+        self.thickness      = self.params["turbines"]["thickness"]
+        self.axial          = self.params["turbines"]["axial"]
+        self.force          = self.params["turbines"]["force"]
+        self.blade_segments = self.params["turbines"]["blade_segments"]
+
+
+
+
+        self.thrust         = np.ones(self.blade_segments)
+        self.twirl          = np.zeros(self.blade_segments)
+        # self.thrust = [1.000, 1.000, 1.000, 1.000]
+        # self.twirl =  [0.000, 0.000, 0.000, 0.000]
         # self.thrust = [0.600, 0.700, 1.240, 1.050]
         # self.twirl =  [0.01, 0.05, 0.10, 0.07]
         # self.thrust = [0.43824640652668556, 0.5909172230419787, 0.6308489720927284, 0.6648589641278763]
         # self.twirl =  [0.061621858574383126, 0.1588757152218311, 0.15187482621601978, 0.1256821489866074]
-
-
-
-
         self.num_actuator_nodes = len(self.thrust)
     
     def create_controls(self):
