@@ -8,6 +8,7 @@ from . import Constant, SpatialCoordinate, as_vector, cos, sin, exp, sqrt, dot, 
 # import other modules
 import numpy as np
 from scipy.special import gamma
+import scipy.interpolate as interp
 
 class ActuatorHybridDisk(GenericTurbine):
 
@@ -27,33 +28,71 @@ class ActuatorHybridDisk(GenericTurbine):
         self.axial          = self.params["turbines"]["axial"]
         self.force          = self.params["turbines"]["force"]
         self.blade_segments = self.params["turbines"]["blade_segments"]
-
-
-
-
-        self.thrust         = np.ones(self.blade_segments)
-        self.twirl          = np.zeros(self.blade_segments)
-        # self.thrust = [1.000, 1.000, 1.000, 1.000]
-        # self.twirl =  [0.000, 0.000, 0.000, 0.000]
-        # self.thrust = [0.600, 0.700, 1.240, 1.050]
-        # self.twirl =  [0.01, 0.05, 0.10, 0.07]
-        # self.thrust = [0.43824640652668556, 0.5909172230419787, 0.6308489720927284, 0.6648589641278763]
-        # self.twirl =  [0.061621858574383126, 0.1588757152218311, 0.15187482621601978, 0.1256821489866074]
-        self.num_actuator_nodes = len(self.thrust)
+        self.read_turb_data = self.params["turbines"]["read_turb_data"]
     
-    def create_controls(self):
-        self.mx     = Constant(self.x, name="x_{:d}".format(self.index))
-        self.my     = Constant(self.y, name="y_{:d}".format(self.index))
-        self.myaw   = Constant(self.yaw, name="yaw_{:d}".format(self.index))
-        self.maxial = Constant(self.axial, name="axial_{:d}".format(self.index))
-        self.mthrust = []
-        self.mtwirl = []
-        for i in range(self.num_actuator_nodes):
-            self.mthrust.append(Constant(self.thrust[i], name=f"thrust_({self.index},{i})"))
-            self.mtwirl.append(Constant(self.twirl[i], name=f"twirl_({self.index},{i})"))
+    def create_controls(self, initial_call_from_setup=True):
+
+        if initial_call_from_setup:
+            self.mx     = Constant(self.x, name="x_{:d}".format(self.index))
+            self.my     = Constant(self.y, name="y_{:d}".format(self.index))
+            self.myaw   = Constant(self.yaw, name="yaw_{:d}".format(self.index))
+            self.maxial = Constant(self.axial, name="axial_{:d}".format(self.index))
+        else:
+            self.mthrust = []
+            self.mspin = []
+            for i in range(self.blade_segments):
+                self.mthrust.append(Constant(self.thrust[i], name=f"thrust_({self.index},{i})"))
+                self.mspin.append(Constant(self.spin[i], name=f"spin_({self.index},{i})"))
 
         # The control list is very important for extracting information from the optimzation step.
-        self.controls_list = ["x","y","yaw","axial","thrust","twirl"] 
+        self.controls_list = ["x","y","yaw","axial","thrust","spin"] 
+
+    def init_blade_properties(self):
+
+        # Aliasing
+        if isinstance(self.blade_segments,str):  
+            self.fprint(f'Blade segments set to "{self.blade_segments}," using 4 segments by default')
+            self.blade_segments = 4
+        self.num_actuator_nodes = self.blade_segments
+
+        # Import blade data
+        if self.read_turb_data is None:
+            self.fprint('No turbine profile provide, using defaults')
+            # These values are located at the center of the ring
+            self.thrust = np.ones(self.blade_segments)
+            self.spin   = np.zeros(self.blade_segments)
+            # self.thrust = [1.000, 1.000, 1.000, 1.000]
+            # self.spin   = [0.000, 0.000, 0.000, 0.000]
+            # self.thrust = [0.600, 0.700, 1.240, 1.050]
+            # self.spin   = [0.01, 0.05, 0.10, 0.07]
+            # self.thrust = [0.43824640652668556, 0.5909172230419787, 0.6308489720927284, 0.6648589641278763]
+            # self.spin   = [0.061621858574383126, 0.1588757152218311, 0.15187482621601978, 0.1256821489866074]
+        else: 
+            self.fprint('Setting thrust and spin from file \'%s\'' % (self.read_turb_data))
+            actual_turbine_data = np.genfromtxt(self.read_turb_data, delimiter = ',', skip_header = 1)
+            actual_x      = actual_turbine_data[:, 0]
+            actual_thrust = actual_turbine_data[:, 1]
+            actual_spin   = actual_turbine_data[:, 2]
+
+            # Create interpolators for chord, lift, and drag
+            interp_thrust = interp.interp1d(actual_x, actual_thrust)
+            interp_spin   = interp.interp1d(actual_x, actual_spin)
+
+            # Construct the points at which to generate interpolated values
+            interp_points = np.linspace(0.0, 1.0, self.num_actuator_nodes+1)
+
+            # Shift by h/2
+            interp_points = interp_points[0:-1]+1/(2*self.num_actuator_nodes)
+
+            # Generate the interpolated values
+            self.thrust = interp_thrust(interp_points)
+            self.spin   = interp_spin(interp_points)
+            self.fprint(f'Blade locations: {interp_points}',offset=1)
+            self.fprint(f'Thrust Values:   {self.thrust}',offset=1)
+            self.fprint(f'Spin Values:     {self.spin}',offset=1)
+
+        self.create_controls(initial_call_from_setup=False)
+
 
     def build_actuator_disk(self,inflow_angle):
 
@@ -100,8 +139,8 @@ class ActuatorHybridDisk(GenericTurbine):
             F = -0.5*A*C_tprime*self.mthrust[i]
 
             ### Create the rotational force function
-            RF_y = -self.mtwirl[i]*xs[2]/(r)
-            RF_z =  self.mtwirl[i]*xs[1]/(r)
+            RF_y = -self.mspin[i]*xs[2]/(r)
+            RF_z =  self.mspin[i]*xs[1]/(r)
 
             ### Create direction vector
             WTGbase = as_vector((cos(yaw)-RF_y*sin(yaw),sin(yaw)+RF_y*cos(yaw),RF_z))            
@@ -120,12 +159,12 @@ class ActuatorHybridDisk(GenericTurbine):
 
         # ### Build polynomials ###
         # thrust = 0.0
-        # twirl = 0.0
+        # spin = 0.0
         # for i in range(self.num_actuator_nodes):
         #     thrust += self.mthrust[i]*r**i
-        #     twirl  += self.mtwirl[i]*r**i
+        #     spin  += self.mspin[i]*r**i
         # # thrust *= -(r-0.0)*(r-1.0)
-        # # twirl  *= -(r+0.1)*(r-1.1)
+        # # spin  *= -(r+0.1)*(r-1.1)
 
         # ### Create the function that represents the force ###
         # F = -0.5*A*C_tprime*thrust
@@ -134,8 +173,8 @@ class ActuatorHybridDisk(GenericTurbine):
 
 
         # ### Create the rotational force function
-        # RF_y = -twirl*xs[2]/(R*r)
-        # RF_z =  twirl*xs[1]/(R*r)
+        # RF_y = -spin*xs[2]/(R*r)
+        # RF_z =  spin*xs[1]/(R*r)
 
         # ### Create direction vector
         # WTGbase = as_vector((cos(yaw)-RF_y*sin(yaw),sin(yaw)+RF_y*cos(yaw),RF_z))
@@ -173,8 +212,13 @@ class ActuatorHybridDisk(GenericTurbine):
             * Setup a way to get the force density from file
         """
 
-        ### compute the space kernal and radial force
+        ### Store function space ###
         self.fs = fs
+
+        ### Initialize some blade parameters ###
+        self.init_blade_properties()
+
+        ### compute the space kernal and radial force
         self.actuator_disk = self.build_actuator_disk(inflow_angle)
 
         ### Expand the dot product

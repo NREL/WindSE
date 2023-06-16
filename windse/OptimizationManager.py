@@ -460,16 +460,16 @@ class Optimizer(object):
                     self.controls.append(Control(self.farm.turbines[i].mthrust[k]))
                     self.init_vals.append(Constant(float(self.farm.turbines[i].mthrust[k])))
 
-        if "twirl" in self.control_types:
+        if "spin" in self.control_types:
             for i in self.solver.opt_turb_id:
                 # for k in range(self.farm.turbines[0].num_actuator_nodes-1):
                 for k in range(0,self.farm.turbines[0].num_actuator_nodes):
-                    self.control_pointers.append(("twirl",[i,k]))
+                    self.control_pointers.append(("spin",[i,k]))
                     self.indexes[6].append(j)
                     j+=1
-                    self.names.append("twirl_"+repr(i)+"_"+repr(k))
-                    self.controls.append(Control(self.farm.turbines[i].mtwirl[k]))
-                    self.init_vals.append(Constant(float(self.farm.turbines[i].mtwirl[k])))
+                    self.names.append("spin_"+repr(i)+"_"+repr(k))
+                    self.controls.append(Control(self.farm.turbines[i].mspin[k]))
+                    self.init_vals.append(Constant(float(self.farm.turbines[i].mspin[k])))
 
         if "body_force" in self.control_types:
                     self.control_pointers.append(("body_force",[-1,-1]))
@@ -546,7 +546,7 @@ class Optimizer(object):
                     lower_bounds.append(Constant(0.01))
                     upper_bounds.append(Constant(3.00))
 
-        if "twirl" in self.control_types:
+        if "spin" in self.control_types:
             for i in self.solver.opt_turb_id:
                 num_actuator_nodes = self.farm.turbines[i].num_actuator_nodes
                 for k in range(num_actuator_nodes):
