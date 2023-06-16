@@ -420,7 +420,9 @@ class TaylorHoodProblem(GenericProblem):
         self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf,v)*dx 
 
         # Add body force to functional
-        self.F += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
+        if abs(float(self.mbody_force)) >= 1e-14:
+            self.fprint("Using Body Force")
+            self.F += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
 
         if self.use_25d_model:
             if self.dom.dim == 3:
