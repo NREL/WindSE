@@ -797,7 +797,7 @@ class ActuatorLineDolfin(GenericTurbine):
                 
                 # Construct rotation matrices
                 R_blade = self.rot_x(-theta)
-                R_yaw = self.rot_z(self.myaw)
+                R_yaw = self.rot_z(-self.myaw)
                 R_plat = self.rotate_platform(-self.plat_roll, -self.plat_pitch, -self.plat_yaw)
                 
                 # Rotate normal to point in the direction of thrust?

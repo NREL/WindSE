@@ -1106,9 +1106,9 @@ class UnsteadySolver(GenericSolver):
                     self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
                 else:
                     # updated method from dev, is this necessary?
-                    # self.problem.farm.update_turbine_force(self.problem.u_k, self.problem.bd.inflow_angle, self.problem.fs, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
-                    new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
-                    self.problem.tf.assign(new_tf)
+                    self.problem.farm.update_turbine_force(self.problem.u_k, self.problem.bd.inflow_angle, self.problem.fs, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                    # new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                    # self.problem.tf.assign(new_tf)
                 pr.disable()
 
                 # # t2 = time.time()
