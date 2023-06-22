@@ -374,11 +374,12 @@ class SteadySolver(GenericSolver):
                               "maximum_iterations": 5000}
 
             newton_options = {"relaxation_parameter": self.newton_relaxation,
-                              "maximum_iterations": 40,
+                              "maximum_iterations": 150,
                               "linear_solver": "mumps",
+                              "preconditioner": "default",
                               "absolute_tolerance": 1e-6,
                               "relative_tolerance": 1e-5,
-                              "error_on_nonconvergence": True,
+                              "error_on_nonconvergence": False,
                               "krylov_solver": krylov_options}
         
             solver_parameters = {"nonlinear_solver": "newton",
@@ -398,9 +399,9 @@ class SteadySolver(GenericSolver):
                                  "relative_tolerance": 1e-5,
                                  "linear_solver": "mumps",
                                  "preconditioner": "default",
-                                 "maximum_iterations": 40,
-                                 "error_on_nonconvergence": True,
-                                 "line_search": "basic",
+                                 "maximum_iterations": 150,
+                                 "error_on_nonconvergence": False,
+                                 "line_search": "bt", #[basic,bt,cp,l2,nleqerr]
                                  "krylov_solver": krylov_options
                                  }}  
 
@@ -410,7 +411,7 @@ class SteadySolver(GenericSolver):
         ### Start the Solve Process ###
         self.fprint("Solving",special="header")
         start = time.time()
-        
+
         # ### Solve the Baseline Problem ###
         # solve(self.problem.F_sans_tf == 0, self.problem.up_k, self.problem.bd.bcs, solver_parameters=solver_parameters, **self.extra_kwarg)
 
@@ -1105,9 +1106,9 @@ class UnsteadySolver(GenericSolver):
                     self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
                 else:
                     # updated method from dev, is this necessary?
-                    # self.problem.farm.update_turbine_force(self.problem.u_k, self.problem.bd.inflow_angle, self.problem.fs, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
-                    new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
-                    self.problem.tf.assign(new_tf)
+                    self.problem.farm.update_turbine_force(self.problem.u_k, self.problem.bd.inflow_angle, self.problem.fs, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                    # new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                    # self.problem.tf.assign(new_tf)
                 pr.disable()
 
                 # # t2 = time.time()

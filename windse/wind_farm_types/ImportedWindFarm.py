@@ -42,6 +42,9 @@ class ImportedWindFarm(GenericWindFarm):
         self.path = self.params["wind_farm"]["path"]
 
     def compute_parameters(self):
+
+        self.fprint(f"Importing wind_farm: {self.path}")
+
         ### Copy Files to input folder ###
         shutil.copy(self.path,self.params.folder+"input_files/")
 
