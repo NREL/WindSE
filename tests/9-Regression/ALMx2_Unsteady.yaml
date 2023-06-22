@@ -9,7 +9,7 @@ wind_farm:
     path: Input_Data/ALMx2_Unsteady/offset_farms/offset_turbines_4.csv # Path to the wind farm description
 
 turbines:
-    type: dolfin_line
+    type: line
     read_turb_data: Input_Data/ALMx2_Unsteady/nrel_5mw/original.csv
     RD: 126
     rpm: 9.155                     # Rotor revolutions per minute (RPM) | rev/min
