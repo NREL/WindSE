@@ -872,7 +872,7 @@ class UnsteadyProblem(GenericProblem):
         # Define fluid properties
         # FIXME: These should probably be set in params.yaml input filt
         # nu = 1/10000
-        rho = 1
+        rho = 1 # Set as 1 for air or as 1000 for water, kg/m^3
         nu_c = Constant(self.viscosity)
         rho_c = Constant(rho)
 
@@ -976,7 +976,7 @@ class UnsteadyProblem(GenericProblem):
         F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
            + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
-           + inner(grad(self.p_k1), v)*dx \
+           + (1.0/rho_c)*inner(grad(self.p_k1), v)*dx \ # This term is divided by constant density
            - dot(self.tf, v)*dx
 
         self.a1 = lhs(F1)
