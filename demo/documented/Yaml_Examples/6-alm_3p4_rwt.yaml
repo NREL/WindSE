@@ -35,9 +35,15 @@ refine:
     warp_type: split             # create two regions of different node density
     warp_percent: 0.83333333     # percent of cells moved       | -
     warp_height: 260             # move cell below this value   | m
-    refine_custom: [
-        [stream, [  [-80,0,110], 80, 860, 0, 0, 1.5  ]],
-    ]
+    refine_custom:
+        1:
+            type: stream
+            center: [-80, 0, 110]
+            radius: 80
+            length: 860
+            theta: 0
+            pivot_offset: 0
+            expand_factor: 1.5
 function_space:
     type: linear                 # Use linear finite elements for both pressure and velocity
 

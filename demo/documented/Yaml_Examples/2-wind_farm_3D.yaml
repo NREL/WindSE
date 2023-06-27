@@ -61,9 +61,12 @@ refine:
     warp_type: split
     warp_percent: 0.7     # percent of cells moved       | -
     warp_height: 250       # move cell below this value   | m
-    refine_custom: [
-        [box, [  [[-1000,1200],[-200,200],[ 0,200]]  ]]
-    ]
+    refine_custom:
+        1:
+            type: box
+            x_range: [-1000, 1200]
+            y_range: [-200, 200]
+            z_range: [0, 200]
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.25   # turbine radius multiplier    | -
 

@@ -31,9 +31,13 @@ refine:
     warp_type: split
     warp_percent: 0.7
     warp_height: 250 
-    refine_custom: [
-        [box, [  [[-1000,1200],[-400,400],[ 0,200]]  ]],
-    ]
+    refine_custom:
+        1:
+            type: box
+            x_range: [-1000, 1200]
+            y_range: [-400, 400]
+            z_range: [0, 200]
+
     turbine_num: 1      
     turbine_factor: 1.25
 
@@ -57,18 +61,24 @@ solver:
 
 optimization:
     objective_type: 
-        point_blockage_#01:
+        1:
+            type: point_blockage
             location: [-390.0,0.0,110.0]
-        point_blockage_#02:
+        2:
+            type: point_blockage
             location: [0.0,0.0,240.0]
-        box_blockage_#01:
+        3:
+            type: box_blockage
             p0: [-990, -430, 0]
             p1: [-860, 430,  200]
-        box_blockage_#02:
+        4:
+            type: box_blockage
             p0: [-730, -430, 240]
             p1: [730,  430,  370]
-        cyld_kernel_#01:
-            type: upstream
-        cyld_kernel_#02: 
-            type: above
+        5:
+            type: cyld_kernel
+            orientation: upstream
+        6:
+            type: cyld_kernel
+            orientation: above
     save_objective: True
