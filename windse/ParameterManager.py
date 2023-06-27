@@ -28,6 +28,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     import ast
     import difflib
     import inspect 
+    from jsonschema import validate
 
     # set_log_level(LogLevel.CRITICAL)
 
@@ -74,7 +75,38 @@ class Parameters(dict):
         self.current_tab = 0
         self.tagged_output = {}
         self.windse_path = os.path.dirname(os.path.realpath(__file__))
-        self.defaults = yaml.load(open(self.windse_path+"/default_parameters.yaml"),Loader=yaml.SafeLoader)
+
+        def _build_defaults_dict_from_schema(input_dict, defaults_dict={}, path_to_val=[]):
+            for key, val in input_dict.items():
+                path_to_val.append(key)
+                
+                if isinstance(val, dict):
+                    defaults_dict = _build_defaults_dict_from_schema(val,
+                                                                    defaults_dict=defaults_dict,
+                                                                    path_to_val=path_to_val)
+                else:
+                    if "default" in path_to_val:
+                        clean_path_to_val = [p for p in path_to_val if p != "properties"]
+                        clean_path_to_val = clean_path_to_val[:-1]
+                        defaults_key = clean_path_to_val[-1]
+
+                        parent_obj = defaults_dict
+            
+                        for p in clean_path_to_val[:-1]:
+                            parent_obj = parent_obj.setdefault(p, {})
+
+                        parent_obj[defaults_key] = val
+                    
+                path_to_val.pop(-1)
+                
+            return defaults_dict
+
+        path_to_schema_file = os.path.join(self.windse_path, "input_schema.yaml")
+        with open(path_to_schema_file, "r") as fp:
+            self.schema_dict = yaml.safe_load(fp)
+
+        self.defaults = _build_defaults_dict_from_schema(self.schema_dict)
+        # self.defaults = yaml.load(open(self.windse_path+"/default_parameters.yaml"),Loader=yaml.SafeLoader)
 
         ### Update self with the defaults ###
         defaults_bak = copy.deepcopy(self.defaults)
@@ -119,18 +151,25 @@ class Parameters(dict):
                 dic[keys[0]] = value
 
     def CheckParameters(self,updates,defaults,out_string=""):
-        default_keys = defaults.keys()
-        for key in updates.keys():
-            split_key = key.split("_#")[0]
-            if split_key not in default_keys:
-                suggestion = difflib.get_close_matches(key, default_keys, n=1)
-                if suggestion:
-                    raise KeyError(out_string + key + " is not a valid parameter, did you mean: "+suggestion[0])
-                else:
-                    raise KeyError(out_string + key + " is not a valid parameter")
-            elif isinstance(updates[key],dict):
-                in_string =out_string + key + ":"
-                self.CheckParameters(updates[key],defaults[split_key],out_string=in_string)
+
+        testing_json_validation = True
+
+        if testing_json_validation:
+            validate(updates, self.schema_dict)
+
+        else:
+            default_keys = defaults.keys()
+            for key in updates.keys():
+                split_key = key.split("_#")[0]
+                if split_key not in default_keys:
+                    suggestion = difflib.get_close_matches(key, default_keys, n=1)
+                    if suggestion:
+                        raise KeyError(out_string + key + " is not a valid parameter, did you mean: "+suggestion[0])
+                    else:
+                        raise KeyError(out_string + key + " is not a valid parameter")
+                elif isinstance(updates[key],dict):
+                    in_string =out_string + key + ":"
+                    self.CheckParameters(updates[key],defaults[split_key],out_string=in_string)
 
     def RecordUserSupplied(self,yaml_file,defaults):
         user_supplied = {}
@@ -143,16 +182,18 @@ class Parameters(dict):
 
 
         for key in yaml_file.keys():
-            split_key = key.split("_#")[0]
+            split_key = key
             if isinstance(yaml_file[key],dict):
-                sub_supplied = self.RecordUserSupplied(yaml_file[key],defaults[split_key])
+                # if key not in defaults:
+                #     defaults[key] = {}
+                sub_supplied = self.RecordUserSupplied(yaml_file[key], defaults[split_key])
                 user_supplied[split_key] = sub_supplied
             else:
                 user_supplied[split_key] = True
     
         return user_supplied
 
-    def NestedUpdate(self,dic,subdic=None):
+    def NestedUpdate_old(self,dic,subdic=None):
         if subdic is None:
             target_dic = self
         else:
@@ -160,10 +201,25 @@ class Parameters(dict):
 
         for key, value in dic.items():
             if isinstance(value,dict):
-                target_dic[key] = self.NestedUpdate(value,subdic=target_dic[key])
+                target_dic[key] = self.NestedUpdate_old(value,subdic=target_dic[key])
             else:
                 target_dic[key] = value
         return target_dic
+
+    def NestedUpdate(self, input_dict, target={}):
+        for key, val in input_dict.items():
+            if target is None:
+                # In this case, the default value is None, but the user can specify a dictionary
+                target = {}
+            if isinstance(val, dict):
+                nested_level = target.get(key, {})
+                target[key] = self.NestedUpdate(val, target=nested_level)
+
+            else:
+                target[key] = val
+                
+        return target
+
 
     def Load(self, loc,updated_parameters=[]):
         """
@@ -225,7 +281,7 @@ class Parameters(dict):
         elif isinstance(objective_type,dict):
             ### make sure to add in any default values the user may not have set for the objectives 
             for key, value in objective_type.items():
-                objective_split = key.split("_#")[0]
+                objective_split = key#.split("_#")[0]
                 obj_default = obj_funcs.objective_kwargs[objective_split]
                 for k, v in obj_default.items():
                     if k not in value.keys():
@@ -249,7 +305,7 @@ class Parameters(dict):
                 value["kwargs"] = constraints_kw
 
         ### Set the parameters ###
-        self.update(self.NestedUpdate(yaml_file))
+        self.update(self.NestedUpdate(yaml_file, target=self))
         self["optimization"]["objective_type"] = objective_type
         self["optimization"]["constraint_types"] = constraint_types
 
