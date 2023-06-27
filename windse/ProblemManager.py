@@ -288,8 +288,8 @@ class StabilizedProblem(GenericProblem):
         Sx = self.dom.xscale
 
         ### Set the initial guess ###
-        ### (this will become a separate function.)
-        self.up_k.assign(self.bd.u0)
+        u0 = self.bd.u0
+        self.up_k.assign(u0)
 
         # mem0=memory_usage()[0]
         # mem_out, self.tf = memory_usage((self.ComputeTurbineForce,(self.u_k,inflow_angle),{}),max_usage=True,retval=True,max_iterations=1)
@@ -302,7 +302,7 @@ class StabilizedProblem(GenericProblem):
         
         nu = self.viscosity
         vonKarman=0.41
-        eps=Constant(self.params['problem']['stability_eps'])
+        eps=Constant(self.stability_eps)
         eps.rename("eps","eps")
 
         self.fprint("Viscosity:                 {:1.2e}".format(float(self.viscosity)))
@@ -311,20 +311,23 @@ class StabilizedProblem(GenericProblem):
 
         ### Calculate nu_T
         self.nu_T=self.ComputeTurbulenceModel(self.u_k)
-
         # self.nu_T=Constant(0.0)
         self.ReyStress=self.nu_T*grad(self.u_k)
         self.vertKE= self.ReyStress[0,2]*self.u_k[0]
 
         ### Create the functional ###
-        # if self.farm.yaw[0]**2 > 1e-4:
-        #     self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf,v)*dx 
-        # else :
-        # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx# - inner(self.tf,v)*dx 
-        self.F = inner(grad(self.u_k)*self.u_k, v)*dx + Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf,v)*dx 
-        
+        self.F = inner(grad(self.u_k)*self.u_k, v)*dx
+        self.F +=   Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx
+        self.F += - inner(div(v),self.p_k)*dx
+        self.F += - inner(div(self.u_k),q)*dx
+        self.F += - inner(f,v)*dx
+        self.F += - inner(self.tf,v)*dx 
+
+
         # Add body force to functional
-        self.F += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
+        if abs(float(self.mbody_force)) >= 1e-14:
+            self.fprint("Using Body Force")
+            self.F += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
 
         ################ THIS IS A CHEAT ####################\
         if self.use_corrective_force:
@@ -340,14 +343,15 @@ class StabilizedProblem(GenericProblem):
 
         # self.F_sans_tf =  (1.0)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx
         # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf*(self.u_k[0]**2+self.u_k[1]**2),v)*dx 
+        # stab_sans_tf = - eps*inner(grad(q), grad(self.p_k))*dx 
+        # self.F_sans_tf += stab
 
         ### Add in the Stabilizing term ###
-        # stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
-        stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
-        # stab_sans_tf = - eps*inner(grad(q), grad(self.p_k))*dx 
+        if abs(float(eps)) >= 1e-14:
+            self.fprint("Using Stabilization Term")
+            stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
+            self.F += stab
 
-        self.F += stab
-        # self.F_sans_tf += stab
 
         if self.use_25d_model and self.dom.dim == 2 :
             if self.dom.dim == 3:
@@ -416,7 +420,9 @@ class TaylorHoodProblem(GenericProblem):
         self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf,v)*dx 
 
         # Add body force to functional
-        self.F += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
+        if abs(float(self.mbody_force)) >= 1e-14:
+            self.fprint("Using Body Force")
+            self.F += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
 
         if self.use_25d_model:
             if self.dom.dim == 3:

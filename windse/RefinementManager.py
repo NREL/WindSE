@@ -16,6 +16,9 @@ def CreateRefinementList(dom, farm, refine_params):
     RDs = farm.get_rotor_diameters()
     zs  = farm.get_hub_locations()[:,2]
 
+    if refine_custom is not None:
+        refine_list = refine_list+refine_custom
+
     if farm_num > 0:
         bbox = farm.calculate_farm_bounding_box()
 
@@ -89,8 +92,7 @@ def CreateRefinementList(dom, farm, refine_params):
             refine_list.append(["wake",[radius,length,theta,expand_factor,centered]])
 
 
-    if refine_custom is not None:
-        refine_list = refine_list+refine_custom
+
 
     return refine_list
 

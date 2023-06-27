@@ -19,7 +19,7 @@ DomainManager:
   y_max: 1200.0
   z_min: 0.04
   z_max: 640.0
-  volume: 3642050022.6770525
+  volume: 3642212728.995905
   ID_east: 1
   SA_east: 3072000.0000000116
   ID_north: 2
@@ -29,20 +29,20 @@ DomainManager:
   ID_south: 4
   SA_south: 0.0
   ID_bottom: 5
-  SA_bottom: 5796706.396040268
+  SA_bottom: 5796115.099753554
   ID_top: 6
   SA_top: 5760000.000000002
 FunctionSpaceManager:
-  velocity_dofs: 44853
-  pressure_dofs: 14951
-  total_dofs: 59804
+  velocity_dofs: 45294
+  pressure_dofs: 15098
+  total_dofs: 60392
 BoundaryManager:
   min_x: -8.611571875789611e-15
   max_x: 3.8961595105758686
-  avg_x: 3.307545266089668
+  avg_x: 3.262506889092436
   min_y: -1.8254380725383295e-14
   max_y: 8.258884684319451
-  avg_y: 7.011169554699197
+  avg_y: 6.915699448565398
   min_z: 0.0
   max_z: 0.0
   avg_z: 0.0
@@ -51,26 +51,26 @@ BoundaryManager:
   avg_p: 0.0
   min_initial_values: -1.8254380725383295e-14
   max_initial_values: 8.258884684319451
-  avg_initial_values: 2.5796787051972094
+  avg_initial_values: 2.544551584414464
   num_bc: 7
 ProblemManager:
-  int_nu_T: 2.8539845939608215
-  int_tf_x: -0.0002779365732897615
-  int_tf_y: -0.0005891560913058617
+  int_nu_T: 2.8806177793660406
+  int_tf_x: -0.00027792414881562197
+  int_tf_y: -0.0005891297545250167
   int_tf_z: 0.0
 SolverManager:
-  min_x_vel: -4.794036587204811e-94
-  max_x_vel: 4.304920156913332
-  avg_x_vel: 3.5595309892036338
-  min_y_vel: -9.588073174409622e-94
-  max_y_vel: 8.840318313359768
-  avg_y_vel: 7.379667941049328
-  min_z_vel: -0.8105054524180912
-  max_z_vel: 1.0578552325294324
-  avg_z_vel: 7.379667941049328
+  min_x_vel: -2.3970182936024055e-94
+  max_x_vel: 4.295872897543701
+  avg_x_vel: 3.5597621032754994
+  min_y_vel: -1.9176146348819244e-93
+  max_y_vel: 8.840632979897398
+  avg_y_vel: 7.378783684160393
+  min_z_vel: -0.81075177672211
+  max_z_vel: 1.165159169260199
+  avg_z_vel: 7.378783684160393
 OptimizationManager:
   n_controls: 9
-  obj_value0: 3.234354826182652
+  obj_value0: 3.278577555059076
   val0_x_0: -295.80877608508325
   val0_y_0: -582.0048466205284
   val0_x_1: 562.9306831248141
@@ -80,12 +80,12 @@ OptimizationManager:
   val0_yaw_0: 0.0
   val0_yaw_1: 0.0
   val0_yaw_2: 0.0
-  grad_x_0: 0.002239726868085325
-  grad_y_0: 0.006166698140150768
-  grad_x_1: 0.0005802564093955728
-  grad_y_1: -0.0006759254908303744
-  grad_x_2: -0.0017920636161305491
-  grad_y_2: 0.0009595194934088887
-  grad_yaw_0: -0.08196120164454587
-  grad_yaw_1: -0.23994733500191834
-  grad_yaw_2: -0.2802701281869055
+  grad_x_0: 0.002306452341912633
+  grad_y_0: 0.006652192024597532
+  grad_x_1: 0.0005992295240171848
+  grad_y_1: -0.0006534673049905369
+  grad_x_2: -0.0017321182294521812
+  grad_y_2: 0.0009186324671884385
+  grad_yaw_0: -0.08147507755815256
+  grad_yaw_1: -0.23860891863404043
+  grad_yaw_2: -0.27072724579471064

@@ -43,6 +43,10 @@ class GenericFunctionSpace(object):
         if self.turbine_space == "Quadrature" and (self.turbine_degree != self.quadrature_degree):
             raise ValueError("When using the numpy representation with the 'Quadrature' space, the turbine degree and quadrature degree must be equal.")
 
+        self.extra_kwarg = {}            
+        if self.params.dolfin_adjoint:
+            self.extra_kwarg["annotate"] = False
+
     def SetupSubspaces(self):
         self.V = self.W.sub(0).collapse()
         self.Q = self.W.sub(1).collapse()
@@ -63,6 +67,11 @@ class GenericFunctionSpace(object):
             self.tf_V = FunctionSpace(self.mesh, tf_V, constrained_domain = self.dom.periodic_mapping)
             self.tf_V0 = self.tf_V.sub(0).collapse() 
             self.fprint("Quadrature DOFS: {:d}".format(self.tf_V.dim()))
+
+        # Calculate volume
+        one = Function(self.Q)
+        one.vector()[:] = 1.0
+        self.dom.volume = assemble(one*dx,**self.extra_kwarg)
 
     @no_annotations
     def DebugOutput(self):
