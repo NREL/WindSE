@@ -421,6 +421,7 @@ properties:
           - "2D_disk"
           - "numpy_disk"
           - "disk"
+          - "hybrid_disk"
           - "line"
           - "expr_disk"
           - "dolfin_line"
