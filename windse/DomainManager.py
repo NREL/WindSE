@@ -307,19 +307,19 @@ class GenericDomain(object):
             if self.boundary_subdomains[i] is not None:
                 self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
 
-    def BoxRefine(self,region,expand_factor=1):
+    def BoxRefine(self,x_range,y_range,z_range=[],expand_factor=1):
         refine_start = time.time()
 
         ### Calculate Expanded Region ###
-        x0, x1 = region[0]
-        y0, y1 = region[1]
+        x0, x1 = x_range
+        y0, y1 = y_range
         ex = (expand_factor-1)*(x1-x0)/2.0
         ey = (expand_factor-1)*(y1-y0)/2.0
         en = min(ex,ey)
         x0, x1 = x0-en, x1+en
         y0, y1 = y0-en, y1+en
         if self.dim == 3:
-            z0, z1 = region[2]
+            z0, z1 = z_range
             ez = (expand_factor-1)*(z1-z0)/2.0
             z0, z1 = z0-ez, z1+ez
 
