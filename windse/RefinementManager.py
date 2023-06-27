@@ -16,8 +16,14 @@ def CreateRefinementList(dom, farm, refine_params):
     RDs = farm.get_rotor_diameters()
     zs  = farm.get_hub_locations()[:,2]
 
+    # if refine_custom is not None:
+    #     refine_list = refine_list+refine_custom
+    
     if refine_custom is not None:
-        refine_list = refine_list+refine_custom
+        sorted_refine_custom_keys = sorted(list(refine_custom.keys()))
+
+        for key in sorted_refine_custom_keys:
+            refine_list.append(refine_custom[key])
 
     if farm_num > 0:
         bbox = farm.calculate_farm_bounding_box()
@@ -128,11 +134,6 @@ def CreateRefinementList(dom, farm, refine_params):
                                 "expand_factor": expand_factor,
                                 "centered": centered})
 
-    if refine_custom is not None:
-        sorted_refine_custom_keys = sorted(list(refine_custom.keys()))
-
-        for key in sorted_refine_custom_keys:
-            refine_list.append(refine_custom[key])
 
     return refine_list
 
