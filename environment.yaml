@@ -21,6 +21,7 @@ dependencies:
   - pyyaml
   - scipy=1.7.0
   - slepc
+  - sphinx<7.0.0
   - pip
   - pip:
     - git+https://github.com/blechta/tsfc.git@2018.1.0
