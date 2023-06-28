@@ -47,9 +47,13 @@ refine:
     warp_type: split
     warp_percent: 0.85     # percent of cells moved       | -
     warp_height: 200       # move cell below this value   | m
-    refine_custom: [
-        [cylinder, [  [0,0,0], 700, 250  ]]
-    ]
+    refine_custom:
+        1:
+            type: cylinder
+            center: [0, 0, 0]
+            radius: 700.0
+            height: 250.0
+
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.25   # turbine radius multiplier    | -
     

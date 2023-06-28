@@ -313,7 +313,7 @@ class Optimizer(object):
 
         ### Iterate over remaining objective based constraints
         for key, value in self.constraint_types.items():
-            constraints.append(ObjectiveConstraint(self.solver, self.controls, key, value["target"], value["scale"], value["kwargs"]))
+            constraints.append(ObjectiveConstraint(self.solver, self.controls, key, value))
 
         ### Merge constraints into one since pyadjoint has a bug when handling more than one
         if len(constraints) > 0:
@@ -890,9 +890,18 @@ class MinimumDistanceConstraint(InequalityConstraint):
         return np.array(ieqcons)
 
 class ObjectiveConstraint(InequalityConstraint):
-    def __init__(self, solver, controls, objective_name, target, scale, obj_kwargs):
+    def __init__(self, solver, controls, key, value):
+        if isinstance(key, int):
+            objective_name = value["type"]
+        else:
+            objective_name = key
+
         self.name = objective_name
-        self.objective = obj_funcs.objective_functions[self.name.split("_#")[0]]
+
+        target = value["target"]
+        scale = value["scale"]
+        obj_kwargs = value["kwargs"]
+
         self.target = float(target)
         self.solver = solver
         self.controls = controls

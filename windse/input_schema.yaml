@@ -1,0 +1,1001 @@
+title: WindSE Input Schema
+description: Definitions for a WindSE simulation/optimization
+type: "object"
+additionalProperties: False
+# Conventions
+# - types are always wrapped in quotes, e.g., "string" or "null" vs "string"
+# - the value Null should always be capitalized
+# - Use Null instead of None (and type is always "null")
+# - capitalize True/False as in Python
+# - arrays should be broken down on separate, indented lines under the keyword using "- val..."
+properties:
+  # ================================================================
+  general:
+    type: "object"
+    # description: "a worked out example"
+    # required:
+      # - required_value
+    properties:
+      name:
+        type: 
+          - "string"
+          - "null"
+        description: "The folder name for the current run"
+        default: Null
+      preappend_datetime:
+        type: "boolean"
+        description: "If true, the time and date will be preappened to the output folder"
+        default: False
+      output:
+        type: "array"
+        description: "These are the fields that can be saved during/after the simulation, choices: `mesh`, `initial_guess`, `height`, `turbine_force`, `solution`, `debug`"
+        default:
+          - "solution"
+      output_folder:
+        type: "string"
+        description: "This is the root folder for all the output files"
+        default: "output/"
+      output_type:
+        type: "string"
+        description: "this is the filetype various fields are saved it, choices `pvd`, `xdmf` (note `xdmf` is better for parallel, but `pvd` can be opened during simulation)"
+        default: "pvd"
+      dolfin_adjoint:
+        type: "boolean"
+        description: "If true, this will import dolfin_adjoint which is required for calculating gradients. Must be true for optimizations"
+        default: False
+      debug_mode:
+        type: "boolean"
+        description: "If true, a file, tagged_output.yaml, in the root output folder. used for recursive tests"
+        default: False
+  # ================================================================
+  domain:
+    type: "object"
+    required:
+      - type
+    allOf:
+      - if:
+          properties:
+            type:
+              const: "rectangle"
+        then:
+          required:
+            - x_range
+            - y_range
+            - nx
+            - ny
+      - if:
+          properties:
+            type:
+              const: "box"
+        then:
+          required:
+            - x_range
+            - y_range
+            - z_range
+            - nx
+            - ny
+            - nz
+      - if:
+          properties:
+            type:
+              const: "cylinder"
+        then:
+          required:
+            - z_range
+            - nz
+            - mesh_type
+            - center
+            - radius
+            - nt
+            - res
+            - interpolated
+      - if:
+          properties:
+            type:
+              const: "circle"
+        then:
+          required:
+            - mesh_type
+            - center
+            - radius
+            - nt
+            - res
+      - if:
+          properties:
+            type:
+              const: "imported"
+        then:
+          required:
+            - path
+            - mesh_path
+            - terrain_path
+            - bound_path
+            - filetype
+      - if:
+          properties:
+            type:
+              const: "interpolated"
+        then:
+          required:
+            - terrain_path
+            - interpolated
+            - gaussian
+    properties: 
+      type:
+        type: 
+          - "string"
+          - "null"
+        description: "The type of domain"
+        default: Null
+        enum:
+          - rectangle
+          - box
+          - cylinder
+          - circle
+          - imported
+          - interpolated
+          - Null
+      path:
+        type: 
+          - "string"
+          - "null"
+        description: "The path to all domain files if using imported domain and standard naming"
+        default: Null
+      mesh_path:
+        type: 
+          - "string"
+          - "null"
+        description: "a specific path for the imported mesh file"
+        default: Null
+      terrain_path:
+        type: 
+          - "string"
+          - "null"
+        description: "a specific path for the terrain file if using complex/interpolated terrain"
+        default: Null
+      bound_path:
+        type: 
+          - "string"
+          - "null"
+        description: "a specific path to a MeshFunction file that store the boundary IDs"
+        default: Null
+      filetype:
+        type: "string"
+        description: "The file type for imported domains. Choices: xml, xml.gz, h5"
+        default: "xml.gz"
+      scaled:
+        type: "boolean"
+        description: "Attempt scale the domain to km instead of m. (Extremely experimental, do not use)"
+        default: False
+      ground_reference:
+        type: "number"
+        description: "the z-coordinate of the ground."
+        default: 0.0
+      streamwise_periodic:
+        type: "boolean"
+        description: "sets periodic boundary conditions along the x-direction (Not yet implemented)"
+        default: False
+      spanwise_periodic:
+        type: "boolean"
+        description: "sets periodic boundary conditions along the y-direction (Not yet implemented)"
+        default: False
+      x_range:
+        type: 
+          - "array"
+          - "null"
+        description: "the extents, in meters, of the domain in the streamwise direction"
+        default: Null
+      y_range:
+        type: 
+          - "array"
+          - "null"
+        description: "the extents, in meters, of the domain in the spanwise direction"
+        default: Null
+      z_range:
+        type: 
+          - "array"
+          - "null"
+        description: "the extents, in meters, of the domain in the vertical direction"
+        default: Null
+      nx:
+        type: 
+          - "number"
+          - "null"
+        description: "the number of nodes in the streamwise direction"
+        default: Null
+      ny:
+        type: 
+          - "number"
+          - "null"
+        description: "the number of nodes in the spanwise direction"
+        default: Null
+      nz:
+        type: 
+          - "number"
+          - "null"
+        description: "the number of nodes in the vertical direction"
+        default: Null
+      mesh_type:
+        type: "string"
+        description: "sets how the cylinder/circle domains are meshed. Choices: `mshr`, `elliptic`, `squircular`, `stretch`"
+        default: "mshr"
+      center:
+        type: 
+          - "array"
+          - "null"
+        description: "center of the cylinder/circle domains"
+        default: Null
+      radius:
+        type: 
+          - "number"
+          - "null"
+        description: "radius for the cylinder/circle domains"
+        default: Null
+      nt:
+        type: 
+          - "number"
+          - "null"
+        description: "number of nodes in the theta direction for cylinder/circle domains"
+        default: Null
+      res:
+        type: 
+          - "number"
+          - "null"
+        description: "the mshr resolution for cylinder/circle domains with the mshr mesh_type"
+        default: Null
+      interpolated:
+        type: "boolean"
+        description: "lets you define a terrain_path to have complex domain"
+        default: False
+      analytic:
+        type: "boolean"
+        description: "use an analytic function instead of a terrain_path"
+        default: False
+      gaussian:
+        type: "object"
+        description: "create a gaussian hill analytic complex terrain"
+        properties:
+          center:
+            type:
+              - "array"
+              - "null"
+            description: "center of the hill"
+            default: 
+              - 0.0
+              - 0.0
+          theta:
+            type: "number"
+            description: "rotation of the hill"
+            default: 0.0
+          amp:
+            type: 
+              - "number"
+              - "null"
+            description: "height of the hill"
+            default: Null
+          sigma_x:
+            type: 
+              - "number"
+              - "null"
+            description: "skew in x"
+            default: Null
+          sigma_y:
+            type: 
+              - "number"
+              - "null"
+            description: "skew in y"
+            default: Null
+      plane:
+        type: "object"
+        description: "create a plane analytic complex terrain"
+        properties:
+          intercept:
+            type: "array"
+            description: "z = mx(x-x0)+my(y-y0)+z0"
+            default: 
+              - 0.0
+              - 0.0
+              - 0.0
+          mx:
+            type: 
+              - "number"
+              - "null"
+            description: "x slope"
+            default: Null
+          my:
+            type: 
+              - "number"
+              - "null"
+            description: "y slope"
+            default: Null
+  # ================================================================
+  wind_farm:
+    type: "object"
+    # required:
+      # - required_value
+    properties:
+      type:
+        default: Null
+        type: 
+          - "string"
+          - "null"
+        enum:
+          - "grid"
+          - "random"
+          - "imported"
+          - "empty"
+          - Null
+        description: "type of wind farm (grid, random, imported, empty)"
+      path:
+        default: Null
+        type: 
+          - "string"
+          - "null"
+        description: "location of imported wind farm"
+      display:
+        default: False
+        type: "boolean"
+        description: "If true, then matplotlib with show() the wind farm/chord profiles mid run"
+      ex_x:
+        default: Null
+        type: 
+          - "array"
+          - "null"
+        description: "extents of the farm in the x direction in meters"
+      ex_y:
+        default: Null
+        type: 
+          - "array"
+          - "null"
+        description: "extents of the farm in the y direction in meters"
+      x_spacing:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "x spacing between turbines in meters"
+      y_spacing:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "y spacing between turbines in meters"
+      x_shear:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "x offset between rows in meters"
+      y_shear:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "y offset between columns in meters"
+      min_sep_dist:
+        default: 2
+        type: "number"
+        description: "The minimum separation distance for a random farm, expressed in units of rotor diameter"
+      grid_rows:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "Number of turbines in the y direction"
+      grid_cols:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "number of turbines in the x direction"
+      jitter:
+        default: 0.0
+        type: 
+          - "number"
+          - "boolean"
+        description: "magnitude of random noise added to a gridded wind farm"
+      numturbs:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "total number of turbines"
+      seed:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "seed to fix the randomness between runs"
+  # ================================================================
+  turbines:
+    type: "object"
+    # required:
+      # - required_value
+    properties:
+      type:
+        default: Null
+        type: 
+          - "string"
+          - "null"
+        enum:
+          - "2D_disk"
+          - "numpy_disk"
+          - "disk"
+          - "hybrid_disk"
+          - "line"
+          - "expr_disk"
+          - "dolfin_line"
+          - "disabled"
+        description: "type of representation"
+      HH:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "hub height in meters"
+      RD:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "rotor diameter in meters"
+      thickness:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "thickness of the actuator disk in meters (usually 10% of RD)"
+      yaw:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "yaw of the turbine relative to inflow angle"
+      axial:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "axial induction value for actuator disks"
+      force:
+        default: "sine"
+        type: "string"
+        enum:
+          - "constant"
+          - "sine"
+          - "chord"
+        description: "distribution of force along the radial direction of an actuator disk. choices: constant, sine, ?chord?"
+      rpm:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "rotations per minute for the alm method"
+      read_turb_data:
+        default: Null
+        type: 
+          - "string"
+          - "null"
+        description: "location of alm data"
+      blade_segments:
+        default: "computed"
+        type:
+          - "string"
+          - "number"
+        description: "number of nodes along the rotor radius"
+      use_local_velocity:
+        default: True
+        type: "boolean"
+        description: "use the velocity at the rotor to compute alm forces (otherwise use inflow)"
+      max_chord:
+        default: 1000
+        type: "number"
+        description: "upper limit when optimizing chord"
+      chord_factor:
+        default: 1.0
+        type: "number"
+        description: "This multiplies all the chords by a constant factor, e.g., 2.0 makes a chord that's twice as thick everywhere"
+      gauss_factor:
+        default: 2.0
+        type: "number"
+        description: "This is the factor that gets multiplied by the minimum mesh spacing to set the gaussian width, e.g., gaussian_width = 2.0*dx_min"
+      tip_loss:
+        default: True
+        type: "boolean"
+        description: "Determines whether or not a tip-loss model is used in the calculation of the ALM force (False means no tip loss is modeled)"
+      hub_rad:
+        default: 0.0
+        type: "number"
+        description: "The radius of the hub. If non-zero, actuator nodes will still be placed in the range [0, rotor_radius], but the lift/drag properties in the range [0, hub_rad] will be modified to reflect the blade root"
+      chord_perturb:
+        default: 0.0
+        type: "number"
+        description: "An amount to perturb one of the chord values, used for finite difference gradient calculations"
+      chord_perturb_id:
+        default: 0
+        type: "number"
+        description: "The index of the chord to perturb, used for finite difference gradient calculations"
+      chord_override:
+        default: Null
+        type: 
+          - "string"
+          - "null"
+        description: "The path to a specific chord to use in csv format, e.g., input_data/chord_base.csv"
+      motion_file:
+        default: Null
+        type: 
+          - "string"
+          - "null"
+        description: "Location to the platform motion data"
+      motion_type:
+        default: Null
+        type: 
+          - "array"
+          - "string"
+          - "null"
+        description: "Type of motion to apply can be single string or list of: 'surge', 'sway', 'heave', 'roll', 'pitch', and/or 'yaw'"
+      use_gauss_vel_probe:
+        default: False
+        type: "boolean"
+        description: "Prob velocity at ALM nodes using an gaussian sphere rather than eval()"
+      use_ap_linear_interp:
+        default: False
+        type: "boolean"
+        description: "Uses linear interpolation when building the airfoil polars."
+  # ================================================================
+  refine:
+    type: "object"
+    # required:
+      # - required_value
+    properties:
+      warp_type:
+        default: Null
+        type: 
+          - "string"
+          - "null"
+        enum:
+          - "smooth"
+          - "split"
+        description: "warping will shift the nodes along the z direction concentrating them near the ground. choices: `smooth`, `split`"
+      warp_strength:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "for smooth warps, how aggressively they are moved to the ground"
+      warp_percent:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "for split warps, percentage moved below the warp_heigth"
+      warp_height:
+        default: Null
+        type: 
+          - "number"
+          - "null"
+        description: "for split warps, where the spit happens"
+      farm_num:
+        default: 0
+        type: "number"
+        description: "number of farm level refinements"
+      farm_type:
+        default: "square"
+        type: "string"
+        enum:
+          - "full"
+          - "box"
+          - "cylinder"
+          - "stream"
+        description: "type of farm level refinements. choices: `full`, `box`, `cylinder`, `stream`"
+      farm_factor:
+        default: 1.0
+        type: "number"
+        description: "scaling factor for the size of the refinement"
+      turbine_num:
+        default: 0
+        type: "number"
+        description: "number of turbine level refinements"
+      turbine_type:
+        default: "simple"
+        type: "string"
+        enum:
+          - "sphere"
+          - "simple"
+          - "tear"
+          - "wake"
+        description: "type of turbine refinement. choices: `simple`, `tear`, `wake`"
+      turbine_factor:
+        default: 1.0
+        type: "number"
+        description: "scaling factor for the size of the refinement"
+      refine_custom:
+        default: Null
+        type: 
+          - "object"
+          - "null"
+        description: "allows for a list of custom refine commands"
+      refine_power_calc:
+        default: False
+        type: "boolean"
+        description: "bare minimum refinement around turbines to increase power calculation accuracy"
+  # ================================================================
+  function_space:
+    type: "object"
+    # required:
+      # - required_value
+    properties:
+      type:
+        default: Null
+        type: 
+          - "string"
+          - "null"
+        description: "type of function space"
+      quadrature_degree:
+        default: 6
+        type: "number"
+        description: "used when calculating integrals"
+      turbine_space:
+        default: "Quadrature"
+        type: "string"
+        description: "used with numpy turbine_method, sets the space the turbine are calculate on"
+      turbine_degree:
+        default: 6
+        type: "number"
+        description: "used with numpy turbine_method, sets degree"
+  # ================================================================
+  boundary_conditions:
+    type: "object"
+    # required:
+      # - required_value
+    properties:
+      vel_profile:
+        default: Null
+        type: 
+          - "string"
+          - "null"
+        description: "inflow velocity profile, choices: `uniform`, `power`, `log`, `turbsim`"
+      HH_vel:
+        default: 8.0
+        type: "number"
+        description: "velocity at hub height (m/s) TODO: rename to `ref_vel`"
+      vel_height:
+        default: "HH"
+        type:
+          - "string"
+          - "number"
+        description: "sets the location of the reference velocity"
+      power:
+        default: 0.25
+        type: "number"
+        description: "exponent for the power inflow"
+      k:
+        default: 0.4
+        type: "number"
+        description: "The constant used in the log layer flow"
+      turbsim_path:
+        default: Null
+        type: 
+          - "string"
+          - "null"
+        description: "location for the turbsim inflow data"
+      inflow_angle:
+        default: 0.0
+        type:
+          - "number"
+          - "array"
+        description: "angle of the inflow velocity"
+      boundary_names:
+        type: "object"
+        description: "used for renaming the boundries"
+        properties:
+          east:
+            default: Null
+            type: 
+              - "string"
+              - "null"
+            description: "positive x"
+          north:
+            default: Null
+            type: 
+              - "string"
+              - "null"
+            description: "positive y"
+          west:
+            default: Null
+            type: 
+              - "string"
+              - "null"
+            description: "negative x"
+          south:
+            default: Null
+            type: 
+              - "string"
+              - "null"
+            description: "negative y"
+          bottom:
+            default: Null
+            type: 
+              - "string"
+              - "null"
+            description: "negative z"
+          top:
+            default: Null
+            type: 
+              - "string"
+              - "null"
+            description: "positive z"
+          inflow:
+            default: Null
+            type: 
+              - "string"
+              - "null"
+            description: "inflow, used in cylinder/circle"
+          outflow:
+            default: Null
+            type: 
+              - "string"
+              - "null"
+            description: "outflow, used in cylinder/circle"
+      boundary_types:
+        type: "object"
+        description: "used for changing the boundary types"
+        properties:
+          inflow:
+            default: Null
+            type: 
+              - "array"
+              - "null"
+            description: "list of inflow bc names"
+          no_slip:
+            default: Null
+            type: 
+              - "array"
+              - "null"
+            description: "list of no_slip bc names"
+          free_slip:
+            default: Null
+            type: 
+              - "array"
+              - "null"
+            description: "list of free_slip bc names"
+          no_stress:
+            default: Null
+            type: 
+              - "array"
+              - "null"
+            description: "list of no_stress bc names"
+  # ================================================================
+  problem:
+    # additionalProperties: False
+    type: "object"
+    # required:
+      # - required_value
+    properties:
+      type:
+        default: Null
+        type: 
+          - "string"
+          - "null"
+        description: "type of model"
+      use_25d_model:
+        default: False
+        type: "boolean"
+        description: "break divergence free to entrain momentum from `above` and `below`"
+      viscosity:
+        default: 0.1
+        type: "number"
+        description: "viscosity"
+      lmax:
+        default: 15
+        type: "number"
+        description: "mixing length"
+      turbulence_model:
+        default: "mixing_length"
+        type: "string"
+        description: "turbulence model. Choices: mixing_length, smagorinsky, or None"
+      script_iterator:
+        default: 0
+        type: "number"
+        description: "debugging tool, do not use"
+      use_corrective_force:
+        default: False
+        type: "boolean"
+        description: "add a force to the weak form to allow the inflow to recover"
+      stability_eps:
+        default: 1.0
+        type: "number"
+        description: "stability term to help increase the well-possessedness of the linear mixed formulation"
+      body_force:
+        default: 0.0
+        type: "number"
+        description: "set to a float to add a body force to the functional along the streamwise direction"
+  # ================================================================
+  solver:
+    type: "object"
+    # required:
+      # - required_value
+    properties:
+      type:
+        default: "steady"
+        type: "string"
+        description: "type of solver"
+      pseudo_steady:
+        default: False
+        type: "boolean"
+        description: "used with unsteady solver to create a iterative steady solver."
+      final_time:
+        default: 1.0
+        type: "number"
+        description: "final time of unsteady solve (s)"
+      save_interval:
+        default: 1.0
+        type: "number"
+        description: "how often to save during unsteady solve (s)"
+      num_wind_angles:
+        default: 1
+        type: "number"
+        description: "number of wind angle to sweep through for multiangle solve"
+      endpoint:
+        default: False
+        type: "boolean"
+        description: "include the final wind angle in the sweep"
+      velocity_path:
+        default: Null
+        type: 
+          - "string"
+          - "null"
+        description: "location of inflow velocities for multivelocity"
+      save_power:
+        default: True
+        type: "boolean"
+        description: "save the power data to the data folder"
+      nonlinear_solver:
+        default: "snes"
+        type: "string"
+        description: "type of nonlinear solver. choices: snes, newton"
+      newton_relaxation:
+        default: 1.0
+        type: "number"
+        description: "relaxation parameter (0,1] for newton"
+      cfl_target:
+        default: 0.5
+        type: "number"
+        description: "target cfl number for unsteady solve"
+      cl_iterator:
+        default: 0
+        type: "number"
+        description: "debugging tool, do not use"
+      save_all_timesteps:
+        default: False
+        type: "boolean"
+        description: "Save fields at every time step"
+  # ================================================================
+  optimization:
+    type: "object"
+    # required:
+      # - required_value
+    properties:
+      opt_type:
+        default: "maximize"
+        type: "string"
+        description: "minimize or maximize"
+      control_types:
+        default: Null
+        type: 
+          - "array"
+          - "null"
+        description: "controls to optimize, list of: `layout`, `yaw`, `axial`, `chord`, `lift`, or `drag`"
+      layout_bounds:
+        default: "wind_farm"
+        type: "array"
+        description: "special bound for layout optimizations"
+      objective_type:
+        default: "power"
+        type:
+          - "object"
+          - "string"
+        description: "name of the function to maximize or minimize. look in objective_functions for choices"
+      constraint_types:
+        type: "object"
+        description: "set constraints based on objective_functions. should be a dictionary of dictionaries with additional kws: target, scale, kwargs. default inequality c(m)-target>=0 ==> c(m)>=target"
+        properties:
+          min_dist:
+            type: "object"
+            description: "default constraint for `layout` opts. restricts minimum distance between turbines"
+            properties:
+              target:
+                default: 2
+                type: "number"
+                description: "sets the target for given constraint, in this case sets the minimum distance between turbines to be 2 RD"
+              scale:
+                default: 1
+                type: "number"
+                description: "sets the scale for the constraint, use to match objective magnitude. use -1 to flip constraint to target-c(m)>=0 ==> c(m) <= target"
+              kwargs:
+                default: Null
+                type: 
+                  - "string"
+                  - "null"
+                description: "if constraint is based on an objective function with kwargs, set them here"
+      save_objective:
+        default: False
+        type: "boolean"
+        description: "save the objective do a file in data/"
+      opt_turb_id:
+        default: "all"
+        type: "string"
+        description: "which turbines to optimize, int or list or `all`"
+      record_time:
+        default: 0.0
+        type: "number"
+        description: "when to start recording for unsteady objectives float or `computed`"
+      alm_DELs:
+        type: "object"
+        description: "alm_DELs:"
+        properties:
+          DEL_start_time:
+            default: 0
+            type: "number"
+            description: "DEL_start_time: 0"
+      u_avg_time:
+        default: 0
+        type: "number"
+        description: "when to start averaging velocity for use in objective functions"
+      opt_routine:
+        default: "SLSQP"
+        type: "string"
+        description: "optimization method, choices: SLSQP, L-BFGS-B, OM_SLSQP, SNOPT (requires custom install)"
+      obj_ref:
+        default: 1.
+        type: "number"
+        description: "Sets the value of the objective function that will be treated as 1 by the SNOPT driver"
+      obj_ref0:
+        default: 0.
+        type: "number"
+        description: "Sets the value of the objective function that will be treated as 0 by the SNOPT driver"
+      taylor_test:
+        default: False
+        type: "boolean"
+        description: "Run the taylor test"
+      optimize:
+        default: False
+        type: "boolean"
+        description: "optimize the problem"
+      gradient:
+        default: False
+        type: "boolean"
+        description: "output the gradient"
+      verify_snopt:
+        default: False
+        type: "boolean"
+        description: "use the SNOPT FD gradient verification"
+      check_totals:
+        default: False
+        type: "boolean"
+        description: "check the total derivatives of the problem; optimize must be true as well"
+      hard_scaling_factor:
+        default: 1.0
+        type: "number"
+        description: "A hard-coded scaling factor, objective_value = objective_value*hard_scaling_factor"
+      twist_range:
+        default: 5.0
+        type: "number"
+        description: "The envelope the twist control will be constrained to: baseline +/- twist_range"
+  # ================================================================
+  postprocessing:
+    type: "object"
+    required:
+      - write_floris
+    properties:
+      write_floris:
+        type: 
+          - "array"
+          - "null"
+        default: Null
+        description: "Write specified output variables in a format that FLORIS can use as an input file."
+      write_floris_filename:
+        type: "string"
+        default: "floris_input.yaml"
+        description: "The filename to use when saving the FLORIS inputs."
+

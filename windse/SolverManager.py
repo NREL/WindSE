@@ -240,9 +240,12 @@ class GenericSolver(object):
 
         ### Iterate over objectives ###
         obj_list = [opt_iter, self.iter_val, self.simTime]
-        for objective, obj_kwargs in self.objective_type.items():
-            objective_split = objective.split("_#")[0]
-            objective_func = obj_funcs.objective_functions[objective_split]
+        for key, obj_kwargs in self.objective_type.items():
+            if isinstance(key, int):
+                objective_name = obj_kwargs["type"]
+            else:
+                objective_name = key
+            objective_func = obj_funcs.objective_functions[objective_name]
             args = (self, (self.problem.dom.inflow_angle))
             kwargs = {"first_call": first_call, "annotate": annotate}
             kwargs.update(obj_kwargs)
@@ -260,7 +263,11 @@ class GenericSolver(object):
         else:
             ### Generate the header ###
             header = "Opt_iter, Iter_Val, Time, "
-            for name in self.objective_type.keys():
+            for key, val in self.objective_type.items():
+                if isinstance(key, int):
+                    name = val["type"]
+                else:
+                    name = key
                 header += name + ", "
             header = header[:-2]
 

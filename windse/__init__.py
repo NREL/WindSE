@@ -55,9 +55,11 @@ def initialize(loc,updated_parameters=[]):
     global SteadySolver, IterativeSteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
     from windse.SolverManager import SteadySolver, IterativeSteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
 
-# TODO:
-# document the aoa.csv and other forces file formats
-# add an options to switch from airfoil polars or blade_data.csv maybe a flag to switch between
-# document how bladedata.csv is used i.e. interpolated to the number of blade_segments
-# wake validation?
-# post-processing to get wake data along lines
+    # TODO:
+    # document the aoa.csv and other forces file formats
+    # add an options to switch from airfoil polars or blade_data.csv maybe a flag to switch between
+    # document how bladedata.csv is used i.e. interpolated to the number of blade_segments
+    # wake validation?
+    # post-processing to get wake data along lines
+    global write_to_floris
+    from windse.PostprocessingManager import write_to_floris
