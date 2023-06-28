@@ -30,7 +30,7 @@ name = "cyld_kernel"
 ### Set default keyword argument values ###
 # These must be a dictionary and will be passed in via the kwargs.
 # Leave empty if no argument are needed. 
-keyword_defaults = {'type': 'above', # 'upstream'
+keyword_defaults = {'orientation': 'above', # 'upstream'
                     'radius': 0.5,
                     'length': 3.0,
                     'sharpness': 6,
@@ -46,7 +46,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     formed by intersecting a radial Gaussian and a streamwise Gaussian.
 
     Keyword arguments:
-        type:      The orientation of the Gaussian cylinder, 
+        orientation:      The orientation of the Gaussian cylinder, 
                    "upstream" for Gaussians shifted to measure the velocity
                    directly upstream from each turbine, "above" to orient the
                    Gaussians over the top of each turbine.
@@ -73,9 +73,9 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
         else:
             zs = 0.0
 
-        if kp['type'] == 'upstream':
+        if kp['orientation'] == 'upstream':
             xs = xs + 0.5*kp['length']
-        elif kp['type'] == 'above':
+        elif kp['orientation'] == 'above':
             zs = zs - RD - 0.5*kp['length']
 
         return [xs, ys, zs]
@@ -101,14 +101,14 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
 
             xs = rotate_and_shift_points(x, x0, yaw, kp, RD)
 
-            if kp['type'] == 'upstream':
+            if kp['orientation'] == 'upstream':
                 # Place the cylinders upstream from the rotor aligned with the hub axis
                 ax = xs[0]/(0.5*kp['length'])
                 axial_gaussian = exp(-pow(ax, kp['sharpness']))
                 rad = (xs[1]**2 + xs[2]**2)/kp['radius']**2
                 radial_gaussian = exp(-pow(rad, kp['sharpness']))
 
-            elif kp['type'] == 'above':
+            elif kp['orientation'] == 'above':
                 # Place the cylinders above the rotor aligned with the Z-direction
                 ax = (xs[2])/(0.5*kp['length'])      
                 axial_gaussian = exp(-pow(ax, kp['sharpness']))
