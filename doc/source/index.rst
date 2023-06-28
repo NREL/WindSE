@@ -12,7 +12,8 @@ Welcome to WindSE's documentation!
 
    install
    run
-   params
+   .. params
+   parameters2
    demo
    studies
    api
