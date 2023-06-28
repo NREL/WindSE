@@ -45,6 +45,11 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     ### This parameter allows for refining the mesh functions ###
     parameters["refinement_algorithm"] = "plaza_with_parent_facets"
 
+else:
+    class SubDomain:
+        def __init__(self):
+            pass
+
 class SinglePeriodicBoundary(SubDomain):
 
     def __init__(self,a,b,axis=0):
