@@ -18,12 +18,25 @@ def CreateRefinementList(dom, farm, refine_params):
 
     # if refine_custom is not None:
     #     refine_list = refine_list+refine_custom
-    
+
     if refine_custom is not None:
-        sorted_refine_custom_keys = sorted(list(refine_custom.keys()))
+
+        keys_are_integers = True
+
+        for key in refine_custom.keys():
+            if not isinstance(key, int):
+                keys_are_integers = False
+                break
+
+        if keys_are_integers:
+            sorted_refine_custom_keys = sorted(list(refine_custom.keys()))
+        else:
+            sorted_refine_custom_keys = list(refine_custom.keys())
 
         for key in sorted_refine_custom_keys:
             refine_list.append(refine_custom[key])
+            if not keys_are_integers:
+                refine_list[-1]["type"] = key
 
     if farm_num > 0:
         bbox = farm.calculate_farm_bounding_box()
