@@ -152,24 +152,7 @@ class Parameters(dict):
 
     def CheckParameters(self,updates,defaults,out_string=""):
 
-        testing_json_validation = True
-
-        if testing_json_validation:
-            validate(updates, self.schema_dict)
-
-        else:
-            default_keys = defaults.keys()
-            for key in updates.keys():
-                split_key = key.split("_#")[0]
-                if split_key not in default_keys:
-                    suggestion = difflib.get_close_matches(key, default_keys, n=1)
-                    if suggestion:
-                        raise KeyError(out_string + key + " is not a valid parameter, did you mean: "+suggestion[0])
-                    else:
-                        raise KeyError(out_string + key + " is not a valid parameter")
-                elif isinstance(updates[key],dict):
-                    in_string =out_string + key + ":"
-                    self.CheckParameters(updates[key],defaults[split_key],out_string=in_string)
+        validate(updates, self.schema_dict)
 
     def RecordUserSupplied(self,yaml_file,defaults):
         user_supplied = {}
@@ -184,8 +167,8 @@ class Parameters(dict):
         for key in yaml_file.keys():
             split_key = key
             if isinstance(yaml_file[key],dict):
-                # if key not in defaults:
-                #     defaults[key] = {}
+                if key not in defaults:
+                    defaults[key] = {}
                 sub_supplied = self.RecordUserSupplied(yaml_file[key], defaults[split_key])
                 user_supplied[split_key] = sub_supplied
             else:
@@ -281,23 +264,30 @@ class Parameters(dict):
         elif isinstance(objective_type,dict):
             ### make sure to add in any default values the user may not have set for the objectives 
             for key, value in objective_type.items():
-                objective_split = key#.split("_#")[0]
-                obj_default = obj_funcs.objective_kwargs[objective_split]
+                if isinstance(key, int):
+                    objective_name = value["type"]
+                else:
+                    objective_name = key
+                print(objective_name)
+                obj_default = obj_funcs.objective_kwargs[objective_name]
                 for k, v in obj_default.items():
                     if k not in value.keys():
                         value[k] = v
-
         ### Process the constraints dictionary ###
         for key, value in constraint_types.items():
+            if isinstance(key, int):
+                constraints_name = value["type"]
+            else:
+                constraints_name = key
+
             if "target" not in value.keys():
                 raise ValueError(f"A target needs to be defined for the {key} constraint")
             if "scale" not in value.keys():
                 value["scale"] = 1.0
 
             ### check if the objective function keywords were supplied
-            if key != "min_dist":
-                constraints_split = key.split("_#")[0]
-                constraints_kw_default = obj_funcs.objective_kwargs[constraints_split]
+            if constraints_name != "min_dist":
+                constraints_kw_default = obj_funcs.objective_kwargs[constraints_name]
                 constraints_kw = value.get('kwargs',{})
                 for k, v in constraints_kw_default.items():
                     if k not in constraints_kw.keys():
