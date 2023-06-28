@@ -8,6 +8,7 @@ dependencies:
   - dolfin-adjoint=2019.1.0
   - fenics=2019.1.0=py39*_26
   - hdf5
+  - jsonschema
   - matplotlib
   - memory_profiler
   - mshr

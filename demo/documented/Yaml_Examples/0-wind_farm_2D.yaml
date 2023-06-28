@@ -76,9 +76,11 @@ refine:
     # farm_factor: 1.25       # farm radius multiplier       | -
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.25   # turbine radius multiplier    | -
-    refine_custom: [
-        [box, [  [[-1000,1200],[-200,200]]]  ]
-    ]
+    refine_custom:
+        1:
+            type: box
+            x_range: [-1000, 1200]
+            y_range: [-200, 200]
 function_space:
     type: taylor_hood
 

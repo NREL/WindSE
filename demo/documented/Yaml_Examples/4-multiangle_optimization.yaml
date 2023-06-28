@@ -45,10 +45,12 @@ refine:
     #                      # Description                  | Units
     warp_type: smooth      # percent of cells moved       | -
     warp_strength: 1.2     # percent of cells moved       | -
-    refine_custom: [
-        # [full,[]],
-        [cylinder, [  [0.0,0.0,0.0], 1000, 250  ]]
-    ]
+    refine_custom:
+        1:
+            type: cylinder
+            center: [0, 0, 0]
+            radius: 1000.0
+            height: 250.0
 function_space:
     type: linear
 
