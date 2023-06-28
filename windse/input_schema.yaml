@@ -661,7 +661,9 @@ properties:
         description: "velocity at hub height (m/s) TODO: rename to `ref_vel`"
       vel_height:
         default: "HH"
-        type: "string"
+        type:
+          - "string"
+          - "number"
         description: "sets the location of the reference velocity"
       power:
         default: 0.25
