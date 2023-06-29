@@ -32,10 +32,14 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
     
     if first_call:
         with open(parameters_filename, "w") as fp:
-            fp.write("Parameters\n")
-            fp.write("==========\n")
+            fp.write(".. _param_api:\n")
             fp.write(".. |nbsp| unicode:: U+00A0\n")
             fp.write("  :trim:\n")
+            fp.write("\n")
+            fp.write("Parameters Quick Reference\n")
+            fp.write("==========================\n")
+            fp.write("\n")
+            fp.write("This page is intended to list all of the parameters and a short description of each one.\n")
 
     for key, val in d.items():
         spacer = ""
@@ -118,8 +122,8 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
                 
     return nested, path
 
-
 def build_params_rst_from_schema(path_to_schema_file, path_to_params_rst_file):
+
     with open(path_to_schema_file, "r") as fp:
         schema_dict = yaml.safe_load(fp)
 
@@ -131,6 +135,6 @@ if __name__ == "__main__":
     # Note that these paths should be relative to the root WindSE
     # directory, since that's where the .readthedocs.yaml file is located
     path_to_schema_file = "windse/input_schema.yaml"
-    path_to_params_rst_file="doc/source/parameters.rst"
+    path_to_params_rst_file="doc/source/param_api.rst"
 
     build_params_rst_from_schema(path_to_schema_file, path_to_params_rst_file)
