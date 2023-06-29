@@ -34,17 +34,19 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
         with open(parameters_filename, "w") as fp:
             fp.write("Parameters\n")
             fp.write("==========\n")
-    
+            fp.write(".. |nbsp| unicode:: U+00A0\n")
+            fp.write("  :trim:\n")
+
     for key, val in d.items():
         spacer = ""
         if nested > 1:
             for k in range(nested-1):
                 if k == 0:
-                    spacer += "\|\-\-"
+                    spacer = "\|\-\-"
                 elif k < nested-1:
-                    spacer += " \|\-\-"
+                    spacer = "\| |nbsp| |nbsp| |nbsp| |nbsp|" + spacer
                 
-            spacer += "> "
+            spacer = "|nbsp| |nbsp|" + spacer
 
         path.append(key)
         label = ":".join(path[1:]) # 1: don't print parent object, e.g., "name" not "general:name"
@@ -61,7 +63,7 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
                         fp.write(f"{parent_description}\n\n")
 
                     fp.write(f".. list-table::\n")
-                    fp.write(f"  :widths: 20 15 15 10 40\n")
+                    fp.write(f"  :widths: 25 10 10 10 45\n")
                     fp.write(f"  :header-rows: 1\n\n")
 
                     fp.write(f"  * - Name\n")
@@ -105,7 +107,10 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
             with open(parameters_filename, "a") as fp:
                 fp.write(f"  * - {label}\n")
                 fp.write(f"    - {val['type']}\n")
-                fp.write(f"    - NA\n")
+                if "units" in val:
+                    fp.write(f"    - {val['units']}\n")
+                else:
+                    fp.write(f"    - \-\n")
                 fp.write(f"    - {val['default']}\n")
                 fp.write(f"    - {val['description']}\n")
                 
