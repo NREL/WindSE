@@ -51,6 +51,7 @@ properties:
   # ================================================================
   domain:
     type: "object"
+    description: "Here we set the properties of the computational domain, what shape it is, whether there is terrain present, how to discretize across dimensions, and how to generate the mesh."
     required:
       - type
     allOf:
@@ -340,6 +341,7 @@ properties:
   # ================================================================
   wind_farm:
     type: "object"
+    description: "Assign the values for the wind farm, where it resides in the computational domain, how many turbines, and the turbines' layout and arrangement."
     # required:
       # - required_value
     properties:
@@ -450,6 +452,7 @@ properties:
   # ================================================================
   turbines:
     type: "object"
+    description: "The properties of the turbines themselves, in contrast to ``wind_farm``, these are principally variables that define turbine-level properties, e.g., how the force is modeled and how the turbines are operated."
     # required:
       # - required_value
     properties:
@@ -600,6 +603,7 @@ properties:
   # ================================================================
   refine:
     type: "object"
+    description: "A set of options to control how the original mesh is refined, e.g., across the entire farm extent, locally around turbines, or combinations of options."
     # required:
       # - required_value
     properties:
@@ -685,6 +689,7 @@ properties:
   # ================================================================
   function_space:
     type: "object"
+    description: "The finite element function space and the associated options that will be used to solve the problem."
     # required:
       # - required_value
     properties:
@@ -715,6 +720,7 @@ properties:
   # ================================================================
   boundary_conditions:
     type: "object"
+    description: "These options set the boundaries and velocity/pressure options that will be enforced on the walls of the computational domain."
     # required:
       # - required_value
     properties:
@@ -849,6 +855,7 @@ properties:
   problem:
     # additionalProperties: False
     type: "object"
+    description: "Options to define the problem that will be solved and add/modify different models that can be included, e.g., turbulence."
     # required:
       # - required_value
     properties:
@@ -911,6 +918,7 @@ properties:
   # ================================================================
   solver:
     type: "object"
+    description: "These options control how the solver is executed and what properties are saved during the solution."
     # required:
       # - required_value
     properties:
@@ -986,6 +994,7 @@ properties:
   # ================================================================
   optimization:
     type: "object"
+    description: "These options control how the optimization is carried out, how the objective function is calculated, and what constraints are applied."
     # required:
       # - required_value
     properties:
@@ -1117,6 +1126,7 @@ properties:
   # ================================================================
   postprocessing:
     type: "object"
+    description: "A set of options to control methods executed after the WindSE simulation completes, including formatting outputs for compatibility with downstream coupled codes."
     required:
       - write_floris
     properties:
