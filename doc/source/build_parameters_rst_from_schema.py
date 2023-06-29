@@ -2,6 +2,7 @@ import yaml
 import numpy as np
 import os
 
+
 def _pprint_dict(d, indent=0):
     """Pretty print a dictionary
 
@@ -25,6 +26,7 @@ def _pprint_dict(d, indent=0):
 
         else:
             print(f"{key}: {val}")#" ({type(val)})")
+
 
 def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]):
     
@@ -111,10 +113,19 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
                 
     return nested, path
 
-def build_params_rst_from_schema(path_to_schema_file="windse/input_schema.yaml", path_to_params_rst_file="doc/source/parameters2.rst"):
+
+def build_params_rst_from_schema(path_to_schema_file, path_to_params_rst_file):
     with open(path_to_schema_file, "r") as fp:
         schema_dict = yaml.safe_load(fp)
 
     _, _ = build_simple_dict(schema_dict["properties"], path_to_params_rst_file)
 
-build_params_rst_from_schema()
+
+if __name__ == "__main__":
+
+    # Note that these paths should be relative to the root WindSE
+    # directory, since that's where the .readthedocs.yaml file is located
+    path_to_schema_file = "windse/input_schema.yaml"
+    path_to_params_rst_file="doc/source/parameters.rst"
+
+    build_params_rst_from_schema(path_to_schema_file, path_to_params_rst_file)
