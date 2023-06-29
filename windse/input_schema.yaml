@@ -693,7 +693,11 @@ properties:
         type: 
           - "string"
           - "null"
-        description: "Type of function space."
+        description: "Type of function space, options are ``linear`` or ``taylor_hood``."
+        enum:
+          - "linear"
+          - "taylor_hood"
+          - Null
       quadrature_degree:
         default: 6
         type: "number"
@@ -853,7 +857,14 @@ properties:
         type: 
           - "string"
           - "null"
-        description: "Type of model."
+        description: "Type of model, options are ``stabilized``, ``steady``, ``taylor_hood``, ``iterative_steady``, or ``unsteady``."
+        enum:
+          - "stabilized"
+          - "steady"
+          - "taylor_hood"
+          - "iterative_steady"
+          - "unsteady"
+          - Null
       use_25d_model:
         default: False
         type: "boolean"
@@ -906,7 +917,13 @@ properties:
       type:
         default: "steady"
         type: "string"
-        description: "Type of solver."
+        description: "Type of solver, options are ``steady``, ``iterative_steady``, ``unsteady``, ``multiangle``, or ``imported_inflow``."
+        enum:
+          - "steady"
+          - "iterative_steady"
+          - "unsteady"
+          - "multiangle"
+          - "imported_inflow"
       pseudo_steady:
         default: False
         type: "boolean"
