@@ -32,8 +32,8 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
     
     if first_call:
         with open(parameters_filename, "w") as fp:
-            fp.write("A New Parameters File\n")
-            fp.write("=====================\n")
+            fp.write("Parameters\n")
+            fp.write("==========\n")
     
     for key, val in d.items():
         spacer = ""
