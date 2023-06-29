@@ -12,7 +12,7 @@ properties:
   # ================================================================
   general:
     type: "object"
-    # description: "a worked out example"
+    description: "This section contains options that apply to the run as a whole, where files are stored, the type of study, etc."
     # required:
       # - required_value
     properties:
@@ -171,6 +171,7 @@ properties:
         type: "number"
         description: "the z-coordinate of the ground."
         default: 0.0
+        units: "meter"
       streamwise_periodic:
         type: "boolean"
         description: "sets periodic boundary conditions along the x-direction (Not yet implemented)"
@@ -185,36 +186,42 @@ properties:
           - "null"
         description: "the extents, in meters, of the domain in the streamwise direction"
         default: Null
+        units: "meter"
       y_range:
         type: 
           - "array"
           - "null"
         description: "the extents, in meters, of the domain in the spanwise direction"
         default: Null
+        units: "meter"
       z_range:
         type: 
           - "array"
           - "null"
         description: "the extents, in meters, of the domain in the vertical direction"
         default: Null
+        units: "meter"
       nx:
         type: 
           - "number"
           - "null"
         description: "the number of nodes in the streamwise direction"
         default: Null
+        units: "dimensionless"
       ny:
         type: 
           - "number"
           - "null"
         description: "the number of nodes in the spanwise direction"
         default: Null
+        units: "dimensionless"
       nz:
         type: 
           - "number"
           - "null"
         description: "the number of nodes in the vertical direction"
         default: Null
+        units: "dimensionless"
       mesh_type:
         type: "string"
         description: "sets how the cylinder/circle domains are meshed. Choices: `mshr`, `elliptic`, `squircular`, `stretch`"
@@ -225,24 +232,28 @@ properties:
           - "null"
         description: "center of the cylinder/circle domains"
         default: Null
+        units: "meter"
       radius:
         type: 
           - "number"
           - "null"
         description: "radius for the cylinder/circle domains"
         default: Null
+        units: "meter"
       nt:
         type: 
           - "number"
           - "null"
         description: "number of nodes in the theta direction for cylinder/circle domains"
         default: Null
+        units: "dimensionless"
       res:
         type: 
           - "number"
           - "null"
         description: "the mshr resolution for cylinder/circle domains with the mshr mesh_type"
         default: Null
+        units: "meter"
       interpolated:
         type: "boolean"
         description: "lets you define a terrain_path to have complex domain"
@@ -263,28 +274,33 @@ properties:
             default: 
               - 0.0
               - 0.0
+            units: "meter"
           theta:
             type: "number"
             description: "rotation of the hill"
             default: 0.0
+            units: "radians"
           amp:
             type: 
               - "number"
               - "null"
             description: "height of the hill"
             default: Null
+            units: "meter"
           sigma_x:
             type: 
               - "number"
               - "null"
             description: "skew in x"
             default: Null
+            units: "meter"
           sigma_y:
             type: 
               - "number"
               - "null"
             description: "skew in y"
             default: Null
+            units: "meter"
       plane:
         type: "object"
         description: "create a plane analytic complex terrain"
@@ -296,18 +312,21 @@ properties:
               - 0.0
               - 0.0
               - 0.0
+            units: "meter"
           mx:
             type: 
               - "number"
               - "null"
             description: "x slope"
             default: Null
+            units: "meter/meter"
           my:
             type: 
               - "number"
               - "null"
             description: "y slope"
             default: Null
+            units: "meter/meter"
   # ================================================================
   wind_farm:
     type: "object"
@@ -342,70 +361,82 @@ properties:
           - "array"
           - "null"
         description: "extents of the farm in the x direction in meters"
+        units: "meter"
       ex_y:
         default: Null
         type: 
           - "array"
           - "null"
         description: "extents of the farm in the y direction in meters"
+        units: "meter"
       x_spacing:
         default: Null
         type: 
           - "number"
           - "null"
         description: "x spacing between turbines in meters"
+        units: "meter"
       y_spacing:
         default: Null
         type: 
           - "number"
           - "null"
         description: "y spacing between turbines in meters"
+        units: "meter"
       x_shear:
         default: Null
         type: 
           - "number"
           - "null"
         description: "x offset between rows in meters"
+        units: "meter"
       y_shear:
         default: Null
         type: 
           - "number"
           - "null"
         description: "y offset between columns in meters"
+        units: "meter"
       min_sep_dist:
         default: 2
         type: "number"
         description: "The minimum separation distance for a random farm, expressed in units of rotor diameter"
+        units: "meter"
       grid_rows:
         default: Null
         type: 
           - "number"
           - "null"
         description: "Number of turbines in the y direction"
+        units: "dimensionless"
       grid_cols:
         default: Null
         type: 
           - "number"
           - "null"
         description: "number of turbines in the x direction"
+        units: "dimensionless"
       jitter:
         default: 0.0
         type: 
           - "number"
           - "boolean"
         description: "magnitude of random noise added to a gridded wind farm"
+        units: "meter"
       numturbs:
         default: Null
         type: 
           - "number"
           - "null"
         description: "total number of turbines"
+        units: "dimensionless"
       seed:
         default: Null
         type: 
           - "number"
           - "null"
         description: "seed to fix the randomness between runs"
+        units: "dimensionless"
   # ================================================================
   turbines:
     type: "object"
@@ -433,30 +464,35 @@ properties:
           - "number"
           - "null"
         description: "hub height in meters"
+        units: "meter"
       RD:
         default: Null
         type: 
           - "number"
           - "null"
         description: "rotor diameter in meters"
+        units: "meter"
       thickness:
         default: Null
         type: 
           - "number"
           - "null"
         description: "thickness of the actuator disk in meters (usually 10% of RD)"
+        units: "meter"
       yaw:
         default: Null
         type: 
           - "number"
           - "null"
         description: "yaw of the turbine relative to inflow angle"
+        units: "radians"
       axial:
         default: Null
         type: 
           - "number"
           - "null"
         description: "axial induction value for actuator disks"
+        units: "dimensionless"
       force:
         default: "sine"
         type: "string"
@@ -471,6 +507,7 @@ properties:
           - "number"
           - "null"
         description: "rotations per minute for the alm method"
+        units: "rotations/minute"
       read_turb_data:
         default: Null
         type: 
@@ -483,6 +520,7 @@ properties:
           - "string"
           - "number"
         description: "number of nodes along the rotor radius"
+        units: "dimensionless"
       use_local_velocity:
         default: True
         type: "boolean"
@@ -491,14 +529,17 @@ properties:
         default: 1000
         type: "number"
         description: "upper limit when optimizing chord"
+        units: "meter"
       chord_factor:
         default: 1.0
         type: "number"
         description: "This multiplies all the chords by a constant factor, e.g., 2.0 makes a chord that's twice as thick everywhere"
+        units: "dimensionless"
       gauss_factor:
         default: 2.0
         type: "number"
         description: "This is the factor that gets multiplied by the minimum mesh spacing to set the gaussian width, e.g., gaussian_width = 2.0*dx_min"
+        units: "dimensionless"
       tip_loss:
         default: True
         type: "boolean"
@@ -507,14 +548,17 @@ properties:
         default: 0.0
         type: "number"
         description: "The radius of the hub. If non-zero, actuator nodes will still be placed in the range [0, rotor_radius], but the lift/drag properties in the range [0, hub_rad] will be modified to reflect the blade root"
+        units: "meter"
       chord_perturb:
         default: 0.0
         type: "number"
         description: "An amount to perturb one of the chord values, used for finite difference gradient calculations"
+        units: "meter"
       chord_perturb_id:
         default: 0
         type: "number"
         description: "The index of the chord to perturb, used for finite difference gradient calculations"
+        units: "dimensionless"
       chord_override:
         default: Null
         type: 
@@ -563,22 +607,26 @@ properties:
           - "number"
           - "null"
         description: "for smooth warps, how aggressively they are moved to the ground"
+        units: "dimensionless"
       warp_percent:
         default: Null
         type: 
           - "number"
           - "null"
         description: "for split warps, percentage moved below the warp_heigth"
+        units: "dimensionless"
       warp_height:
         default: Null
         type: 
           - "number"
           - "null"
         description: "for split warps, where the spit happens"
+        units: "meter"
       farm_num:
         default: 0
         type: "number"
         description: "number of farm level refinements"
+        units: "dimensionless"
       farm_type:
         default: "square"
         type: "string"
@@ -592,10 +640,12 @@ properties:
         default: 1.0
         type: "number"
         description: "scaling factor for the size of the refinement"
+        units: "dimensionless"
       turbine_num:
         default: 0
         type: "number"
         description: "number of turbine level refinements"
+        units: "dimensionless"
       turbine_type:
         default: "simple"
         type: "string"
@@ -609,6 +659,7 @@ properties:
         default: 1.0
         type: "number"
         description: "scaling factor for the size of the refinement"
+        units: "dimensionless"
       refine_custom:
         default: Null
         type: 
@@ -635,6 +686,7 @@ properties:
         default: 6
         type: "number"
         description: "used when calculating integrals"
+        units: "dimensionless"
       turbine_space:
         default: "Quadrature"
         type: "string"
@@ -643,6 +695,7 @@ properties:
         default: 6
         type: "number"
         description: "used with numpy turbine_method, sets degree"
+        units: "dimensionless"
   # ================================================================
   boundary_conditions:
     type: "object"
@@ -659,20 +712,24 @@ properties:
         default: 8.0
         type: "number"
         description: "velocity at hub height (m/s) TODO: rename to `ref_vel`"
+        units: "meter"
       vel_height:
         default: "HH"
         type:
           - "string"
           - "number"
         description: "sets the location of the reference velocity"
+        units: "meter"
       power:
         default: 0.25
         type: "number"
         description: "exponent for the power inflow"
+        units: "dimensionless"
       k:
         default: 0.4
         type: "number"
         description: "The constant used in the log layer flow"
+        units: "dimensionless"
       turbsim_path:
         default: Null
         type: 
@@ -685,6 +742,7 @@ properties:
           - "number"
           - "array"
         description: "angle of the inflow velocity"
+        units: "radians"
       boundary_names:
         type: "object"
         description: "used for renaming the boundries"
@@ -786,10 +844,12 @@ properties:
         default: 0.1
         type: "number"
         description: "viscosity"
+        units: "meter^2/second"
       lmax:
         default: 15
         type: "number"
         description: "mixing length"
+        units: "meter"
       turbulence_model:
         default: "mixing_length"
         type: "string"
@@ -798,6 +858,7 @@ properties:
         default: 0
         type: "number"
         description: "debugging tool, do not use"
+        units: "dimensionless"
       use_corrective_force:
         default: False
         type: "boolean"
@@ -806,10 +867,12 @@ properties:
         default: 1.0
         type: "number"
         description: "stability term to help increase the well-possessedness of the linear mixed formulation"
+        units: "dimensionless"
       body_force:
         default: 0.0
         type: "number"
         description: "set to a float to add a body force to the functional along the streamwise direction"
+        units: "kg*meter/second^2"
   # ================================================================
   solver:
     type: "object"
@@ -828,14 +891,17 @@ properties:
         default: 1.0
         type: "number"
         description: "final time of unsteady solve (s)"
+        units: "second"
       save_interval:
         default: 1.0
         type: "number"
         description: "how often to save during unsteady solve (s)"
+        units: "second"
       num_wind_angles:
         default: 1
         type: "number"
         description: "number of wind angle to sweep through for multiangle solve"
+        units: "dimensionless"
       endpoint:
         default: False
         type: "boolean"
@@ -858,14 +924,17 @@ properties:
         default: 1.0
         type: "number"
         description: "relaxation parameter (0,1] for newton"
+        units: "dimensionless"
       cfl_target:
         default: 0.5
         type: "number"
         description: "target cfl number for unsteady solve"
+        units: "dimensionless"
       cl_iterator:
         default: 0
         type: "number"
         description: "debugging tool, do not use"
+        units: "dimensionless"
       save_all_timesteps:
         default: False
         type: "boolean"
@@ -890,6 +959,7 @@ properties:
         default: "wind_farm"
         type: "array"
         description: "special bound for layout optimizations"
+        units: "meter"
       objective_type:
         default: "power"
         type:
@@ -908,10 +978,12 @@ properties:
                 default: 2
                 type: "number"
                 description: "sets the target for given constraint, in this case sets the minimum distance between turbines to be 2 RD"
+                units: "dimensionless"
               scale:
                 default: 1
                 type: "number"
                 description: "sets the scale for the constraint, use to match objective magnitude. use -1 to flip constraint to target-c(m)>=0 ==> c(m) <= target"
+                units: "dimensionless"
               kwargs:
                 default: Null
                 type: 
@@ -930,6 +1002,7 @@ properties:
         default: 0.0
         type: "number"
         description: "when to start recording for unsteady objectives float or `computed`"
+        units: "second"
       alm_DELs:
         type: "object"
         description: "alm_DELs:"
@@ -938,10 +1011,12 @@ properties:
             default: 0
             type: "number"
             description: "DEL_start_time: 0"
+            units: "second"
       u_avg_time:
         default: 0
         type: "number"
         description: "when to start averaging velocity for use in objective functions"
+        units: "second"
       opt_routine:
         default: "SLSQP"
         type: "string"
@@ -950,10 +1025,12 @@ properties:
         default: 1.
         type: "number"
         description: "Sets the value of the objective function that will be treated as 1 by the SNOPT driver"
+        units: "same as objective"
       obj_ref0:
         default: 0.
         type: "number"
         description: "Sets the value of the objective function that will be treated as 0 by the SNOPT driver"
+        units: "same as objective"
       taylor_test:
         default: False
         type: "boolean"
@@ -978,10 +1055,12 @@ properties:
         default: 1.0
         type: "number"
         description: "A hard-coded scaling factor, objective_value = objective_value*hard_scaling_factor"
+        units: "dimensionless"
       twist_range:
         default: 5.0
         type: "number"
         description: "The envelope the twist control will be constrained to: baseline +/- twist_range"
+        units: "radians"
   # ================================================================
   postprocessing:
     type: "object"
