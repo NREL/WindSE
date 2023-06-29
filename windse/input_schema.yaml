@@ -967,7 +967,7 @@ properties:
       newton_relaxation:
         default: 1.0
         type: "number"
-        description: "Relaxation parameter (0, 1] for newton."
+        description: "Relaxation parameter (0, 1] for Newton."
         units: "dimensionless"
       cfl_target:
         default: 0.5
@@ -1045,6 +1045,7 @@ properties:
           - "array"
           - "number"
         description: "Which turbines to optimize, int or list or ``all``."
+        units: "dimensionless"
       record_time:
         default: 0.0
         type: "number"
