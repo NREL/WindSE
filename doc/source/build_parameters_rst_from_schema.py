@@ -36,8 +36,8 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
             fp.write(".. |nbsp| unicode:: U+00A0\n")
             fp.write("  :trim:\n")
             fp.write("\n")
-            fp.write("Parameters Quick Reference\n")
-            fp.write("==========================\n")
+            fp.write("Parameter Table\n")
+            fp.write("===============\n")
             fp.write("\n")
             fp.write("This page is intended to list all of the parameters and a short description of each one.\n")
 
@@ -88,7 +88,7 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
                     fp.write(f"    - \n")
                     fp.write(f"    - \n")
                     fp.write(f"    - \n")
-                    fp.write(f"    - \n")
+                    fp.write(f"    - {val['description']}\n")
                     
             nested, path = build_simple_dict(val["properties"], 
                                        parameters_filename, 

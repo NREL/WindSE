@@ -1,13 +1,16 @@
 .. _param_tips:
 
-Input File Tips & Tricks
-========================
+Additional Notes
+================
 
 This file is intended to supplement the :doc:`param_api` to give more 
 explanation on some of the more involved inputs. 
 
-
 .. contents:: :local:
+
+
+
+.. _imported_domain:
 
 Formatting for Importing a Domain
 ---------------------------------
@@ -43,6 +46,8 @@ Note: If using "h5" file format, the mesh and boundary will be in one file.
 
 
 
+.. _imported_windfarm:
+
 Formatting for Importing a Wind Farm
 ------------------------------------
 
@@ -69,11 +74,23 @@ be used and a warning will be displayed.
 
 
 
+.. _turbine_representation:
+
 Supported Turbine Representation
 --------------------------------
 
-TODO: Describe in details the difference between ``disks``, ``numpy_disks``, ``hybrid_disks``, ``lines``, ``dolfin_lines``, and ``empty``
+.. todo::
+    Describe in details the difference between ``disks``, ``numpy_disks``, ``hybrid_disks``, ``lines``, ``dolfin_lines``, and ``disabled``
 
+There are three types of supported turbine representations:
+    
+    1. ``disks``: Standard actuator disks
+    2. ``hybrid_disks``: Actuator disk build from a series of nested ring allow for more control over the forcing function and include rotation.  
+    3. ``lines``: Standard actuator lines to be used with unsteady simulations. 
+    4. ``disabled``: These still have turbine location data which is useful for mesh refinement but the forcing function is set to zero.
+
+
+.. _mesh_refinement:
 
 Mesh Refinement Options
 -----------------------
@@ -88,53 +105,105 @@ shift the cells smoothly towards the ground based on the strength. A "split"
 warp will attempt to create two regions, a high density region near the 
 ground and a low density region near the top
 
-.. _custom_refine:
+
+
+.. _refine_custom:
+
 Custom Mesh Refinement
 ----------------------
 
-TODO: update for the new structure of ``refine_custom``.
+The ``refine_custom`` option can be used to supply WindSE with a series of
+refinement step that will be performed before the standard "farm" and "turbine"
+refinements. This options is used by supplying a list of refinements in order 
+with the corresponding refinement parameters. Example::
 
+    refine_custom:
+        box:
+            x_range: [-500,500]
+            y_range: [-500,500]
+            z_range: [0,150]
+        cylinder:
+            center: [0, 0, 0]
+            radius: 1000.0
+            height: 250.0
+        simple:
+            radius: 100
 
-To use the "refine_custom" option, define a list of lists where each element defines
-refinement based on a list of parameters. Example::
+The example up above will result in three refinements:
 
-    refine_custom: [
-        [ "full",     [ ]                                 ],
-        [ "full",     [ ]                                 ],
-        [ "box",      [ [[-500,500],[-500,500],[0,150]] ] ],
-        [ "cylinder", [ [0,0,0], 750, 150 ]               ],
-        [ "simple",   [ 100 ]                             ],
-        [ "tear",     [ 50, 0.7853 ]                      ]
-    ]
+    1. A box refinement bounded by: [[-500,500],[-500,500],[0,150]]
+    2. A cylinder centered at origin with radius 750 m and a height of 150 m
+    3. A simple turbine refinement with radius 100 m 
 
-For each refinement, the first option indicates how many time this specific
-refinement will happen. The second option indicates the type of refinement:
-"full", "square", "circle", "farm_circle", "custom". The last option 
-indicates the extent of the refinement. 
+If you want to repeat a specific type of refinement (such as two box refinements),
+you need to start the entry with a number to help differentiate the two refinements. 
+Example::
 
-The example up above will result in five refinements:
+    refine_custom:
+        1:
+            type: box
+            x_range: [-850, 1200]
+            y_range: [-150, 150]
+            z_range: [0, 200]
+        2:
+            type: box
+            x_range: [-800, 1200]
+            y_range: [-100, 100]
+            z_range: [25, 175]
 
-    1. Two full refinements
-    2. One box refinement bounded by: [[-500,500],[-500,500],[0,150]]
-    3. One cylinder centered at origin with radius 750 m and a height of 150 m
-    4. One simple turbine refinement with radius 100 m 
-    5. One teardrop shaped turbine refinement radius 500 m and rotated by 0.7853 rad
+Currently there are 7 types of refinement:
+    
+    1. ``full``: perform a uniform refinement over the full domaint
+    2. ``box``: refine within a box defined by the x, y, z ranges
+    3. ``cylinder``: refine within a cylinder oriented parallel with the z-axis
+    4. ``stream``: refine within a cylinder oriented parallel with the x-axis and rotated by theta around the pivot offset
+    5. ``simple``: for each turbine, refine in a cylinder oriented parallel with the z-axis centered on that turbine
+    6. ``tear``: for each turbine, refine in a tear drop shape mimicking the way that can be rotated by theta centered on that turbine
+    7. ``wake``: for each turbine, refine in a cylinder oriented parallel with the x-axis and rotated by theta centered on that turbine
 
 The syntax for each refinement type is::
 
-        [ "full",     [ ]                                                             ]
-        [ "box",      [ [[x_min,x_max],[y_min,y_max],[z_min,z_max]], expand_factor ]  ]
-        [ "cylinder", [ [c_x,c_y,c_z], radius, height, expand_factor ]                ]
-        [ "stream",   [ [c_x,c_y,c_z], radius, length, theta, offset, expand_factor ] ]
-        [ "simple",   [ radius, expand_factor ]                                       ]
-        [ "tear",     [ radius, theta, expand_factor ]                                ]
-        [ "wake",     [ radius, length, theta, expand_factor ]                        ]
+    refine_custom:
+        full: {}
+        box:
+            x_range: [x_min,x_max]
+            y_range: [y_min,y_max]
+            z_range: [z_min,z_max]
+            expand_factor: <float>
+        cylinder:
+            center: [c_x,c_y,c_z]
+            radius: <float>
+            height: <float>
+            expand_factor: <float>
+        stream: 
+            center: [c_x,c_y,c_z]
+            radius: <float>
+            height: <float>
+            theta: <float>
+            pivot_offset: <float>
+            expand_factor: <float>
+        simple:
+            radius: <float>
+            expand_factor: <float>
+        tear: 
+            radius: <float>
+            theta: <float>
+            expand_factor: <float>
+        wake: 
+            radius: <float>
+            length: <float>
+            theta: <float>
+            expand_factor: <float>
 
 .. note::
-    * For cylinder, the center is the base of the cylinder
-    * For stream, the center is the start of the vertical base and offset indicates the rotation offset
-    * For stream, wake, length is the distance center to the downstream end of the cylinder
-    * For stream, tear, wake, theta rotates the shape around the center
+    * For ``cylinder``, the center is the base of the cylinder
+    * For ``stream``, the center is the start of the vertical base and offset indicates the rotation offset
+    * For ``stream``, wake, length is the distance center to the downstream end of the cylinder
+    * For ``stream``, tear, wake, theta rotates the shape around the center
+
+
+
+.. _custom_boundaries:
 
 Customizing Boundary Conditions
 -------------------------------
@@ -212,49 +281,67 @@ in domain types. This way you can customize the boundary conditions without
 importing a whole new mesh.
 
 
+.. _multi_objectives:
+
 Defining Multiple Objective Functions
 -------------------------------------
 
-TODO: update for the new structure of ``objective_types``.
-TODO: automatically compile list of objective function and their keyword arguments.
+.. todo::
+    automatically compile list of objective function and their keyword arguments.
+    For now, just reference :meth:`windse.objective_functions`.
 
-The ``objective_type`` can be defined in three ways. First as a single string such as::
+The ``objective_type`` can be defined in two ways. First as a single string such as::
 
     optimization:
         objective_type: alm_power 
 
-If the object chosen in this way has any keyword arguments, the defaults will automatically chosen. The second way is as a list of strings like::
-
-
-    optimization:
-        objective_type: ["alm_power", "KE_entrainment", "wake_center"]
-
-Again, the default keyword argument will be used with this method. The final way is as a full dictionary, which allow for setting keyword arguments::
+If the object chosen in this way has any keyword arguments, the defaults will 
+automatically chosen. If you want to use multiple objective, each one need its
+own entry, which allow for setting keyword arguments::
 
     optimization:
-        objective_type:
-            power: {}
-            point_blockage:
+        objective_type: 
+            1:
+                type: point_blockage
+                location: [-390.0,0.0,110.0]
+            2:
+                type: point_blockage
                 location: [0.0,0.0,240.0]
-            plane_blockage_#1:
-                axis: 2
-                thickness: 130
-                center: 240.0
-            plane_blockage_#2:
-                axis: 0
-                thickness: 130
-                center: -320.0
-            cyld_kernel: 
-                type: above
-            mean_point_blockage:
-                z_value: 240
+            3:
+                type: box_blockage
+                p0: [-990, -430, 0]
+                p1: [-860, 430,  200]
+            4:
+                type: box_blockage
+                p0: [-730, -430, 240]
+                p1: [730,  430,  370]
+            5:
+                type: cyld_kernel
+                orientation: upstream
+            6:
+                type: cyld_kernel
+                orientation: above
 
-Notice that since the objective named "power" does not have keyword arguments, an empty dictionary must be passed. For a full list of objective function visit: :meth:`windse.objective_functions`. Notice that we can have multiple version of the same objective by appending the name with "_#" and then a number. This allows us to evaluate objectives of the same type with different keyword arguments. Regardless of the number of objective types listed, currently, only the first one will be used for an optimization. 
+For a full list of objective function visit: :meth:`windse.objective_functions`. Notice that we can have multiple version of the same objective starting the dictionary with an integer. This allows us to evaluate objectives of the same type with different keyword arguments. If, instead, each object was unique, then they could be defined as::
+
+    optimization:
+        objective_type: 
+            point_blockage:
+                location: [-390.0,0.0,110.0]
+            box_blockage:
+                p0: [-990, -430, 0]
+                p1: [-860, 430,  200]
+            cyld_kernel:
+                orientation: upstream
+
+Regardless of the number of objective types listed, currently, only the first one will be used for an optimization. 
+
+
+
+.. _multi_constraints:
 
 Defining Multiple/Custom Constraints
 ------------------------------------
-
-TODO: update for the new structure of ``constraint_types``.
 
 The ``constraint_types`` option is defined in a similar way to the ``objective_type``. By default the minimum distance between turbines is setup::
 

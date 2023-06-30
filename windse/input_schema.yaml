@@ -127,7 +127,7 @@ properties:
         type: 
           - "string"
           - "null"
-        description: "The type of domain, options are ``rectangle``, ``box``, ``cylinder``, ``circle``, ``imported``, or ``interpolated``."
+        description: "The type of domain, options are ``rectangle``, ``box``, ``cylinder``, ``circle``, ``imported``, or ``interpolated``. See :ref:`imported_domain`"
         default: Null
         enum:
           - "rectangle"
@@ -356,7 +356,7 @@ properties:
           - "imported"
           - "empty"
           - Null
-        description: "Type of wind farm, options are ``grid``, ``random``, ``imported``, or ``empty``."
+        description: "Type of wind farm, options are ``grid``, ``random``, ``imported``, or ``empty``. See :ref:`imported_windfarm`"
       path:
         default: Null
         type: 
@@ -471,7 +471,7 @@ properties:
           - "dolfin_line"
           - "disabled"
           - Null
-        description: "Type of representation, options are ``2D_disk``, ``numpy_disk``, ``disk``, ``hybrid_disk``, ``line``, ``expr_disk``, ``dolfin_line``, or ``disabled``."
+        description: "Type of representation, options are ``2D_disk``, ``numpy_disk``, ``disk``, ``hybrid_disk``, ``line``, ``expr_disk``, ``dolfin_line``, or ``disabled``. See :ref:`turbine_representation`"
       HH:
         default: Null
         type: 
@@ -603,7 +603,7 @@ properties:
   # ================================================================
   refine:
     type: "object"
-    description: "A set of options to control how the original mesh is refined, e.g., across the entire farm extent, locally around turbines, or combinations of options."
+    description: "A set of options to control how the original mesh is refined, e.g., across the entire farm extent, locally around turbines, or combinations of options. See :ref:`mesh_refinement`"
     # required:
       # - required_value
     properties:
@@ -681,7 +681,7 @@ properties:
         type: 
           - "object"
           - "null"
-        description: "Allows for a dictionary of custom refine commands."
+        description: "Allows for a dictionary of custom refine commands. See :ref:`refine_custom`"
       refine_power_calc:
         default: False
         type: "boolean"
@@ -773,7 +773,7 @@ properties:
         units: "radians"
       boundary_names:
         type: "object"
-        description: "Used for renaming the boundries."
+        description: "Used for renaming the boundries. See :ref:`custom_boundaries`"
         properties:
           east:
             default: Null
@@ -825,7 +825,7 @@ properties:
             description: "Outflow, used in cylinder/circle."
       boundary_types:
         type: "object"
-        description: "Used for changing the boundary types."
+        description: "Used for changing the boundary types. See :ref:`custom_boundaries`"
         properties:
           inflow:
             default: Null
@@ -1018,10 +1018,10 @@ properties:
         type:
           - "object"
           - "string"
-        description: "Name of the function to maximize or minimize. Look in objective_functions for choices."
+        description: "Name of the function to maximize or minimize. See :ref:`multi_objectives`"
       constraint_types:
         type: "object"
-        description: "Set constraints based on objective_functions. Should be a dictionary of dictionaries with additional kws: target, scale, kwargs. Default inequality c(m)-target>=0 ==> c(m)>=target."
+        description: "Set constraints based on objective_functions. Should be a dictionary of dictionaries with additional kws: target, scale, kwargs. Default inequality c(m)-target>=0 ==> c(m)>=target. See :ref:`multi_constraints`"
         properties:
           min_dist:
             type: "object"

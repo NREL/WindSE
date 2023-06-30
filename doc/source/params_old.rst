@@ -1,7 +1,7 @@
 .. _params:
 
-The Parameter File
-==================
+Legacy Parameter File
+=====================
 
 This is a comprehensive list of all the available parameters. The default values are stored within ``default_parameters.yaml`` located in the windse directory of the python source files. 
 

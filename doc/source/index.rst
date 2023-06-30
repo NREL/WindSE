@@ -7,13 +7,12 @@ Welcome to WindSE's documentation!
 ==================================
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Contents:
 
    install
    run
-   param_api
-   param_tips
+   inputs
    demo
    studies
    api
