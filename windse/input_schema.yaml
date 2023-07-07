@@ -1128,9 +1128,9 @@ properties:
     type: "object"
     description: "A set of options to control methods executed after the WindSE simulation completes, including formatting outputs for compatibility with downstream coupled codes."
     required:
-      - write_floris
+      - write_floris_input
     properties:
-      write_floris:
+      write_floris_input:
         type: 
           - "array"
           - "null"
