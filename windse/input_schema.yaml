@@ -209,23 +209,23 @@ properties:
         units: "meter"
       nx:
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "The number of nodes in the streamwise (x) direction."
+        description: "The integer number of nodes in the streamwise (x) direction."
         default: Null
         units: "dimensionless"
       ny:
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "The number of nodes in the spanwise (y) direction."
+        description: "The integer number of nodes in the spanwise (y) direction."
         default: Null
         units: "dimensionless"
       nz:
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "The number of nodes in the vertical (z) direction."
+        description: "The integer number of nodes in the vertical (z) direction."
         default: Null
         units: "dimensionless"
       mesh_type:
@@ -253,9 +253,9 @@ properties:
         units: "meter"
       nt:
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "Number of nodes in the theta direction for cylinder/circle domains."
+        description: "Integer number of nodes in the theta direction for cylinder/circle domains."
         default: Null
         units: "dimensionless"
       res:
@@ -417,16 +417,16 @@ properties:
       grid_rows:
         default: Null
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "Number of turbines in the y direction."
+        description: "Integer number of turbines in the y direction."
         units: "dimensionless"
       grid_cols:
         default: Null
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "Number of turbines in the x direction."
+        description: "Integer number of turbines in the x direction."
         units: "dimensionless"
       jitter:
         default: 0.0
@@ -438,14 +438,14 @@ properties:
       numturbs:
         default: Null
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "Total number of turbines."
+        description: "Total integer number of turbines."
         units: "dimensionless"
       seed:
         default: Null
         type: 
-          - "number"
+          - "integer"
           - "null"
         description: "Seed to control/prescribe the randomness between runs."
         units: "dimensionless"
@@ -532,8 +532,8 @@ properties:
         default: "computed"
         type:
           - "string"
-          - "number"
-        description: "Number of nodes along the rotor radius."
+          - "integer"
+        description: "Integer number of nodes along the rotor radius."
         units: "dimensionless"
       use_local_velocity:
         default: True
@@ -570,8 +570,8 @@ properties:
         units: "meter"
       chord_perturb_id:
         default: 0
-        type: "number"
-        description: "The index of the chord to perturb, used for finite difference gradient calculations."
+        type: "integer"
+        description: "The integer index of the chord to perturb, used for finite difference gradient calculations."
         units: "dimensionless"
       chord_override:
         default: Null
@@ -640,8 +640,8 @@ properties:
         units: "meter"
       farm_num:
         default: 0
-        type: "number"
-        description: "Number of farm level refinements."
+        type: "integer"
+        description: "Integer number of farm level refinements."
         units: "dimensionless"
       farm_type:
         default: "square"
@@ -659,8 +659,8 @@ properties:
         units: "dimensionless"
       turbine_num:
         default: 0
-        type: "number"
-        description: "Number of turbine level refinements."
+        type: "integer"
+        description: "Integer number of turbine level refinements."
         units: "dimensionless"
       turbine_type:
         default: "simple"
@@ -705,7 +705,7 @@ properties:
           - Null
       quadrature_degree:
         default: 6
-        type: "number"
+        type: "integer"
         description: "Used when calculating integrals, larger values mean a more time-consuming but potentially more accurate calculation."
         units: "dimensionless"
       turbine_space:
@@ -714,7 +714,7 @@ properties:
         description: "Used with numpy turbine_method, sets the space the turbines are calculate on."
       turbine_degree:
         default: 6
-        type: "number"
+        type: "integer"
         description: "Used with numpy turbine_method, sets degree."
         units: "dimensionless"
   # ================================================================
@@ -898,7 +898,7 @@ properties:
           - Null
       script_iterator:
         default: 0
-        type: "number"
+        type: "integer"
         description: "Debugging tool, do not use."
         units: "dimensionless"
       use_corrective_force:
@@ -948,8 +948,8 @@ properties:
         units: "second"
       num_wind_angles:
         default: 1
-        type: "number"
-        description: "Number of wind angles to sweep through for multiangle solve."
+        type: "integer"
+        description: "Integer number of wind angles to sweep through for multiangle solve."
         units: "dimensionless"
       endpoint:
         default: False
@@ -984,7 +984,7 @@ properties:
         units: "dimensionless"
       cl_iterator:
         default: 0
-        type: "number"
+        type: "integer"
         description: "Debugging tool, do not use."
         units: "dimensionless"
       save_all_timesteps:
@@ -1052,7 +1052,7 @@ properties:
         type:
           - "string"
           - "array"
-          - "number"
+          - "integer"
         description: "Which turbines to optimize, int or list or ``all``."
         units: "dimensionless"
       record_time:
