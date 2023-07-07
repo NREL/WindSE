@@ -29,7 +29,7 @@ author = u'Ryan King, Jeffery Allen, Ethan Young, John Jasa'
 # The short X.Y version
 version = u''
 # The full version, including alpha/beta/rc tags
-release = u'2022.09.0'
+release = u'2023.07.01'
 
 
 # -- General configuration ---------------------------------------------------
