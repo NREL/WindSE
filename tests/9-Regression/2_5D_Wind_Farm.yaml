@@ -62,5 +62,5 @@ solver:
     save_power: true
 
 postprocessing:
-    write_floris:
+    write_floris_input:
         - "layout"

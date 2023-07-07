@@ -103,7 +103,7 @@ def run_action(params_loc=None):
         print("Run Complete: {:1.2f} s".format(runtime))
 
     # Begin postprocessing routines
-    data_to_write = params["postprocessing"]["write_floris"]
+    data_to_write = params["postprocessing"]["write_floris_input"]
 
     if data_to_write is not None:
         windse.write_to_floris(data_to_write, solver)

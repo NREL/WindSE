@@ -3,16 +3,17 @@ description: Definitions for a WindSE simulation/optimization
 type: "object"
 additionalProperties: False
 # Conventions
-# - types are always wrapped in quotes, e.g., "string" or "null" vs "string"
-# - the value Null should always be capitalized
-# - Use Null instead of None (and type is always "null")
+# - types are always wrapped in quotes, e.g., "string" or "null" vs string
+# - the value Null should always be capitalized *when it is a value*, as a type, write "null"
+# - Use Null instead of None (type is always "null")
 # - capitalize True/False as in Python
-# - arrays should be broken down on separate, indented lines under the keyword using "- val..."
+# - arrays should be broken down on separate, indented lines under the keyword using "- val."
+# - use double backticks to set off choices for code, e.g., ``turbine_force``
 properties:
   # ================================================================
   general:
     type: "object"
-    # description: "a worked out example"
+    description: "This section contains options that apply to the run as a whole, where files are stored, the type of study, etc."
     # required:
       # - required_value
     properties:
@@ -20,36 +21,37 @@ properties:
         type: 
           - "string"
           - "null"
-        description: "The folder name for the current run"
+        description: "The folder name for the current run."
         default: Null
       preappend_datetime:
         type: "boolean"
-        description: "If true, the time and date will be preappened to the output folder"
+        description: "If true, the time and date will be preappened to the output folder."
         default: False
       output:
         type: "array"
-        description: "These are the fields that can be saved during/after the simulation, choices: `mesh`, `initial_guess`, `height`, `turbine_force`, `solution`, `debug`"
+        description: "These are the fields that can be saved during/after the simulation, one of ``mesh``, ``initial_guess``, ``height``, ``turbine_force``, ``solution``, and ``debug``."
         default:
           - "solution"
       output_folder:
         type: "string"
-        description: "This is the root folder for all the output files"
+        description: "This is the root folder for all the output files."
         default: "output/"
       output_type:
         type: "string"
-        description: "this is the filetype various fields are saved it, choices `pvd`, `xdmf` (note `xdmf` is better for parallel, but `pvd` can be opened during simulation)"
+        description: "This is the filetype various fields are saved in, choices ``pvd``, ``xdmf`` (note ``xdmf`` is better for parallel, but ``pvd`` can be opened during simulation)."
         default: "pvd"
       dolfin_adjoint:
         type: "boolean"
-        description: "If true, this will import dolfin_adjoint which is required for calculating gradients. Must be true for optimizations"
+        description: "If true, this will import dolfin_adjoint which is required for calculating gradients. Must be true for optimizations."
         default: False
       debug_mode:
         type: "boolean"
-        description: "If true, a file, tagged_output.yaml, in the root output folder. used for recursive tests"
+        description: "If true, a file, tagged_output.yaml, is created in the root output folder. Used for unit and regression tests."
         default: False
   # ================================================================
   domain:
     type: "object"
+    description: "Here we set the properties of the computational domain, what shape it is, whether there is terrain present, how to discretize across dimensions, and how to generate the mesh."
     required:
       - type
     allOf:
@@ -125,192 +127,221 @@ properties:
         type: 
           - "string"
           - "null"
-        description: "The type of domain"
+        description: "The type of domain, options are ``rectangle``, ``box``, ``cylinder``, ``circle``, ``imported``, or ``interpolated``. See :ref:`imported_domain`"
         default: Null
         enum:
-          - rectangle
-          - box
-          - cylinder
-          - circle
-          - imported
-          - interpolated
+          - "rectangle"
+          - "box"
+          - "cylinder"
+          - "circle"
+          - "imported"
+          - "interpolated"
           - Null
       path:
         type: 
           - "string"
           - "null"
-        description: "The path to all domain files if using imported domain and standard naming"
+        description: "The path to all domain files if using imported domain and standard naming."
         default: Null
       mesh_path:
         type: 
           - "string"
           - "null"
-        description: "a specific path for the imported mesh file"
+        description: "A specific path for the imported mesh file."
         default: Null
       terrain_path:
         type: 
           - "string"
           - "null"
-        description: "a specific path for the terrain file if using complex/interpolated terrain"
+        description: "A specific path for the terrain file if using complex/interpolated terrain."
         default: Null
       bound_path:
         type: 
           - "string"
           - "null"
-        description: "a specific path to a MeshFunction file that store the boundary IDs"
+        description: "A specific path to a MeshFunction file that stores the boundary IDs."
         default: Null
       filetype:
         type: "string"
-        description: "The file type for imported domains. Choices: xml, xml.gz, h5"
+        description: "The file type for imported domains, options are ``xml``, ``xml.gz``, or ``h5``."
         default: "xml.gz"
+        enum:
+          - "xml.gz"
+          - "xml"
+          - "h5"
       scaled:
         type: "boolean"
-        description: "Attempt scale the domain to km instead of m. (Extremely experimental, do not use)"
+        description: "Attempt scale the domain to km instead of m. (Extremely experimental, do not use)."
         default: False
       ground_reference:
         type: "number"
-        description: "the z-coordinate of the ground."
+        description: "The z-coordinate of the ground."
         default: 0.0
+        units: "meter"
       streamwise_periodic:
         type: "boolean"
-        description: "sets periodic boundary conditions along the x-direction (Not yet implemented)"
+        description: "Sets periodic boundary conditions along the x-direction (Not yet implemented)."
         default: False
       spanwise_periodic:
         type: "boolean"
-        description: "sets periodic boundary conditions along the y-direction (Not yet implemented)"
+        description: "Sets periodic boundary conditions along the y-direction (Not yet implemented)."
         default: False
       x_range:
         type: 
           - "array"
           - "null"
-        description: "the extents, in meters, of the domain in the streamwise direction"
+        description: "The range of the domain in the streamwise direction, e.g., `[x_min, x_max]`."
         default: Null
+        units: "meter"
       y_range:
         type: 
           - "array"
           - "null"
-        description: "the extents, in meters, of the domain in the spanwise direction"
+        description: "The range of the domain in the spanwise direction, e.g., `[y_min, y_max]`."
         default: Null
+        units: "meter"
       z_range:
         type: 
           - "array"
           - "null"
-        description: "the extents, in meters, of the domain in the vertical direction"
+        description: "The range of the domain in the vertical direction, e.g., `[z_min, z_max]`."
         default: Null
+        units: "meter"
       nx:
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "the number of nodes in the streamwise direction"
+        description: "The integer number of nodes in the streamwise (x) direction."
         default: Null
+        units: "dimensionless"
       ny:
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "the number of nodes in the spanwise direction"
+        description: "The integer number of nodes in the spanwise (y) direction."
         default: Null
+        units: "dimensionless"
       nz:
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "the number of nodes in the vertical direction"
+        description: "The integer number of nodes in the vertical (z) direction."
         default: Null
+        units: "dimensionless"
       mesh_type:
         type: "string"
-        description: "sets how the cylinder/circle domains are meshed. Choices: `mshr`, `elliptic`, `squircular`, `stretch`"
+        description: "Sets how the cylinder/circle domains are meshed, options are ``mshr``, ``elliptic``, ``squircular``, or ``stretch``."
         default: "mshr"
+        enum:
+          - "mshr"
+          - "elliptic"
+          - "squircular"
+          - "stretch"
       center:
         type: 
           - "array"
           - "null"
-        description: "center of the cylinder/circle domains"
+        description: "Center of the cylinder/circle domains, e.g., `[x_center, y_center]`."
         default: Null
+        units: "meter"
       radius:
         type: 
           - "number"
           - "null"
-        description: "radius for the cylinder/circle domains"
+        description: "Radius for the cylinder/circle domains."
         default: Null
+        units: "meter"
       nt:
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "number of nodes in the theta direction for cylinder/circle domains"
+        description: "Integer number of nodes in the theta direction for cylinder/circle domains."
         default: Null
+        units: "dimensionless"
       res:
         type: 
           - "number"
           - "null"
-        description: "the mshr resolution for cylinder/circle domains with the mshr mesh_type"
+        description: "The characteristic cell length for cylinder/circle domains generated with the mshr mesh_type."
         default: Null
+        units: "meter"
       interpolated:
         type: "boolean"
-        description: "lets you define a terrain_path to have complex domain"
+        description: "Lets you define a terrain_path to have complex domain."
         default: False
       analytic:
         type: "boolean"
-        description: "use an analytic function instead of a terrain_path"
+        description: "Use an analytic function instead of a terrain_path."
         default: False
       gaussian:
         type: "object"
-        description: "create a gaussian hill analytic complex terrain"
+        description: "Create a gaussian hill analytic complex terrain."
         properties:
           center:
             type:
               - "array"
               - "null"
-            description: "center of the hill"
+            description: "Center of the hill."
             default: 
               - 0.0
               - 0.0
+            units: "meter"
           theta:
             type: "number"
-            description: "rotation of the hill"
+            description: "Rotation of the hill."
             default: 0.0
+            units: "radians"
           amp:
             type: 
               - "number"
               - "null"
-            description: "height of the hill"
+            description: "Height of the hill."
             default: Null
+            units: "meter"
           sigma_x:
             type: 
               - "number"
               - "null"
-            description: "skew in x"
+            description: "Skew in x."
             default: Null
+            units: "meter"
           sigma_y:
             type: 
               - "number"
               - "null"
-            description: "skew in y"
+            description: "Skew in y."
             default: Null
+            units: "meter"
       plane:
         type: "object"
-        description: "create a plane analytic complex terrain"
+        description: "Create a plane analytic complex terrain."
         properties:
           intercept:
             type: "array"
-            description: "z = mx(x-x0)+my(y-y0)+z0"
+            description: "Define a plane with z = mx(x-x0)+my(y-y0)+z0, where intercept = [x0, y0, z0]"
             default: 
               - 0.0
               - 0.0
               - 0.0
+            units: "meter"
           mx:
             type: 
               - "number"
               - "null"
-            description: "x slope"
+            description: "x slope."
             default: Null
+            units: "meter/meter"
           my:
             type: 
               - "number"
               - "null"
-            description: "y slope"
+            description: "y slope."
             default: Null
+            units: "meter/meter"
   # ================================================================
   wind_farm:
     type: "object"
+    description: "Assign the values for the wind farm, where it resides in the computational domain, how many turbines, and the turbines' layout and arrangement."
     # required:
       # - required_value
     properties:
@@ -325,90 +356,103 @@ properties:
           - "imported"
           - "empty"
           - Null
-        description: "type of wind farm (grid, random, imported, empty)"
+        description: "Type of wind farm, options are ``grid``, ``random``, ``imported``, or ``empty``. See :ref:`imported_windfarm`"
       path:
         default: Null
         type: 
           - "string"
           - "null"
-        description: "location of imported wind farm"
+        description: "Location of imported wind farm."
       display:
         default: False
         type: "boolean"
-        description: "If true, then matplotlib with show() the wind farm/chord profiles mid run"
+        description: "If true, then use matplotlib and show() the wind farm/chord profiles mid run."
       ex_x:
         default: Null
         type: 
           - "array"
           - "null"
-        description: "extents of the farm in the x direction in meters"
+        description: "Extents of the farm in the x direction, e.g., [x_min, x_max]."
+        units: "meter"
       ex_y:
         default: Null
         type: 
           - "array"
           - "null"
-        description: "extents of the farm in the y direction in meters"
+        description: "Extents of the farm in the y direction, e.g., [y_min, y_max]."
+        units: "meter"
       x_spacing:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "x spacing between turbines in meters"
+        description: "x spacing between turbines."
+        units: "meter"
       y_spacing:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "y spacing between turbines in meters"
+        description: "y spacing between turbines."
+        units: "meter"
       x_shear:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "x offset between rows in meters"
+        description: "x offset between rows."
+        units: "meter"
       y_shear:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "y offset between columns in meters"
+        description: "y offset between columns."
+        units: "meter"
       min_sep_dist:
         default: 2
         type: "number"
-        description: "The minimum separation distance for a random farm, expressed in units of rotor diameter"
+        description: "The minimum separation distance for a random farm, expressed in units of rotor diameter, e.g., a value of 2 means a min_sep_dist of 2*RD."
+        units: "meter"
       grid_rows:
         default: Null
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "Number of turbines in the y direction"
+        description: "Integer number of turbines in the y direction."
+        units: "dimensionless"
       grid_cols:
         default: Null
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "number of turbines in the x direction"
+        description: "Integer number of turbines in the x direction."
+        units: "dimensionless"
       jitter:
         default: 0.0
         type: 
           - "number"
           - "boolean"
-        description: "magnitude of random noise added to a gridded wind farm"
+        description: "Magnitude of random noise added to a gridded wind farm."
+        units: "meter"
       numturbs:
         default: Null
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "total number of turbines"
+        description: "Total integer number of turbines."
+        units: "dimensionless"
       seed:
         default: Null
         type: 
-          - "number"
+          - "integer"
           - "null"
-        description: "seed to fix the randomness between runs"
+        description: "Seed to control/prescribe the randomness between runs."
+        units: "dimensionless"
   # ================================================================
   turbines:
     type: "object"
+    description: "The properties of the turbines themselves, in contrast to ``wind_farm``, these are principally variables that define turbine-level properties, e.g., how the force is modeled and how the turbines are operated."
     # required:
       # - required_value
     properties:
@@ -426,37 +470,43 @@ properties:
           - "expr_disk"
           - "dolfin_line"
           - "disabled"
-        description: "type of representation"
+          - Null
+        description: "Type of representation, options are ``2D_disk``, ``numpy_disk``, ``disk``, ``hybrid_disk``, ``line``, ``expr_disk``, ``dolfin_line``, or ``disabled``. See :ref:`turbine_representation`"
       HH:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "hub height in meters"
+        description: "Hub height."
+        units: "meter"
       RD:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "rotor diameter in meters"
+        description: "Rotor diameter."
+        units: "meter"
       thickness:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "thickness of the actuator disk in meters (usually 10% of RD)"
+        description: "Thickness of the actuator disk (usually 10% of RD)."
+        units: "meter"
       yaw:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "yaw of the turbine relative to inflow angle"
+        description: "Yaw of the turbine relative to inflow angle."
+        units: "radians"
       axial:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "axial induction value for actuator disks"
+        description: "Axial induction value for actuator disks."
+        units: "dimensionless"
       force:
         default: "sine"
         type: "string"
@@ -464,80 +514,88 @@ properties:
           - "constant"
           - "sine"
           - "chord"
-        description: "distribution of force along the radial direction of an actuator disk. choices: constant, sine, ?chord?"
+        description: "Distribution of force along the radial direction of an actuator disk, options are ``constant``, ``sine``, or ``chord``."
       rpm:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "rotations per minute for the alm method"
+        description: "Rotation specified for the alm method."
+        units: "rotations/minute"
       read_turb_data:
         default: Null
         type: 
           - "string"
           - "null"
-        description: "location of alm data"
+        description: "Path to alm data."
       blade_segments:
         default: "computed"
         type:
           - "string"
-          - "number"
-        description: "number of nodes along the rotor radius"
+          - "integer"
+        description: "Integer number of nodes along the rotor radius."
+        units: "dimensionless"
       use_local_velocity:
         default: True
         type: "boolean"
-        description: "use the velocity at the rotor to compute alm forces (otherwise use inflow)"
+        description: "Use the velocity measured in the rotor plane to compute alm forces (otherwise use inflow)."
       max_chord:
         default: 1000
         type: "number"
-        description: "upper limit when optimizing chord"
+        description: "Upper limit when optimizing chord."
+        units: "meter"
       chord_factor:
         default: 1.0
         type: "number"
-        description: "This multiplies all the chords by a constant factor, e.g., 2.0 makes a chord that's twice as thick everywhere"
+        description: "This multiplies all the chords by a constant factor, e.g., 2.0 makes a chord that is twice as thick everywhere."
+        units: "dimensionless"
       gauss_factor:
         default: 2.0
         type: "number"
-        description: "This is the factor that gets multiplied by the minimum mesh spacing to set the gaussian width, e.g., gaussian_width = 2.0*dx_min"
+        description: "This is the factor that gets multiplied by the minimum mesh spacing to set the gaussian width, e.g., gaussian_width = 2.0*dx_min."
+        units: "dimensionless"
       tip_loss:
         default: True
         type: "boolean"
-        description: "Determines whether or not a tip-loss model is used in the calculation of the ALM force (False means no tip loss is modeled)"
+        description: "Determines whether or not a tip-loss model is used in the calculation of the ALM force (False means no tip loss is modeled)."
       hub_rad:
         default: 0.0
         type: "number"
-        description: "The radius of the hub. If non-zero, actuator nodes will still be placed in the range [0, rotor_radius], but the lift/drag properties in the range [0, hub_rad] will be modified to reflect the blade root"
+        description: "The radius of the hub. If non-zero, actuator nodes will still be placed in the full range [0, rotor_radius], but the lift/drag properties in the range [0, hub_rad] will be modified to reflect the blade root."
+        units: "meter"
       chord_perturb:
         default: 0.0
         type: "number"
-        description: "An amount to perturb one of the chord values, used for finite difference gradient calculations"
+        description: "An amount to perturb one of the chord values, used for finite difference gradient calculations."
+        units: "meter"
       chord_perturb_id:
         default: 0
-        type: "number"
-        description: "The index of the chord to perturb, used for finite difference gradient calculations"
+        type: "integer"
+        description: "The integer index of the chord to perturb, used for finite difference gradient calculations."
+        units: "dimensionless"
       chord_override:
         default: Null
         type: 
           - "string"
           - "null"
-        description: "The path to a specific chord to use in csv format, e.g., input_data/chord_base.csv"
+        description: "The path to a specific chord to use in CSV format, e.g., input_data/chord_base.csv."
       motion_file:
         default: Null
         type: 
           - "string"
           - "null"
-        description: "Location to the platform motion data"
+        description: "Location to the platform motion data."
       motion_type:
         default: Null
         type: 
           - "array"
           - "string"
           - "null"
-        description: "Type of motion to apply can be single string or list of: 'surge', 'sway', 'heave', 'roll', 'pitch', and/or 'yaw'"
+        description: "Type of motion to apply can be single string or list of: 'surge', 'sway', 'heave', 'roll', 'pitch', and/or 'yaw'."
       use_gauss_vel_probe:
         default: False
         type: "boolean"
-        description: "Prob velocity at ALM nodes using an gaussian sphere rather than eval()"
+        description: "Probe velocity at ALM nodes using an gaussian sphere rather than the ``eval()`` function."
       use_ap_linear_interp:
         default: False
         type: "boolean"
@@ -545,6 +603,7 @@ properties:
   # ================================================================
   refine:
     type: "object"
+    description: "A set of options to control how the original mesh is refined, e.g., across the entire farm extent, locally around turbines, or combinations of options. See :ref:`mesh_refinement`"
     # required:
       # - required_value
     properties:
@@ -556,29 +615,34 @@ properties:
         enum:
           - "smooth"
           - "split"
-        description: "warping will shift the nodes along the z direction concentrating them near the ground. choices: `smooth`, `split`"
+          - Null
+        description: "Warping will shift the nodes along the z direction concentrating them near the ground, options are ``smooth`` or ``split``."
       warp_strength:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "for smooth warps, how aggressively they are moved to the ground"
+        description: "For smooth warps, how aggressively they are moved to the ground."
+        units: "dimensionless"
       warp_percent:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "for split warps, percentage moved below the warp_heigth"
+        description: "For split warps, percentage moved below the warp_heigth."
+        units: "dimensionless"
       warp_height:
         default: Null
         type: 
           - "number"
           - "null"
-        description: "for split warps, where the spit happens"
+        description: "For split warps, where the split happens."
+        units: "meter"
       farm_num:
         default: 0
-        type: "number"
-        description: "number of farm level refinements"
+        type: "integer"
+        description: "Integer number of farm level refinements."
+        units: "dimensionless"
       farm_type:
         default: "square"
         type: "string"
@@ -587,15 +651,17 @@ properties:
           - "box"
           - "cylinder"
           - "stream"
-        description: "type of farm level refinements. choices: `full`, `box`, `cylinder`, `stream`"
+        description: "Type of farm level refinements, options are ``full``, ``box``, ``cylinder``, or ``stream``."
       farm_factor:
         default: 1.0
         type: "number"
-        description: "scaling factor for the size of the refinement"
+        description: "Scaling factor for the size of the refinement."
+        units: "dimensionless"
       turbine_num:
         default: 0
-        type: "number"
-        description: "number of turbine level refinements"
+        type: "integer"
+        description: "Integer number of turbine level refinements."
+        units: "dimensionless"
       turbine_type:
         default: "simple"
         type: "string"
@@ -604,24 +670,26 @@ properties:
           - "simple"
           - "tear"
           - "wake"
-        description: "type of turbine refinement. choices: `simple`, `tear`, `wake`"
+        description: "Type of turbine refinement, options are ``sphere``, ``simple``, ``tear``, or ``wake``."
       turbine_factor:
         default: 1.0
         type: "number"
-        description: "scaling factor for the size of the refinement"
+        description: "Scaling factor for the size of the refinement."
+        units: "dimensionless"
       refine_custom:
         default: Null
         type: 
           - "object"
           - "null"
-        description: "allows for a list of custom refine commands"
+        description: "Allows for a dictionary of custom refine commands. See :ref:`refine_custom`"
       refine_power_calc:
         default: False
         type: "boolean"
-        description: "bare minimum refinement around turbines to increase power calculation accuracy"
+        description: "Bare minimum refinement around turbines to increase power calculation accuracy."
   # ================================================================
   function_space:
     type: "object"
+    description: "The finite element function space and the associated options that will be used to solve the problem."
     # required:
       # - required_value
     properties:
@@ -630,22 +698,29 @@ properties:
         type: 
           - "string"
           - "null"
-        description: "type of function space"
+        description: "Type of function space, options are ``linear`` or ``taylor_hood``."
+        enum:
+          - "linear"
+          - "taylor_hood"
+          - Null
       quadrature_degree:
         default: 6
-        type: "number"
-        description: "used when calculating integrals"
+        type: "integer"
+        description: "Used when calculating integrals, larger values mean a more time-consuming but potentially more accurate calculation."
+        units: "dimensionless"
       turbine_space:
         default: "Quadrature"
         type: "string"
-        description: "used with numpy turbine_method, sets the space the turbine are calculate on"
+        description: "Used with numpy turbine_method, sets the space the turbines are calculate on."
       turbine_degree:
         default: 6
-        type: "number"
-        description: "used with numpy turbine_method, sets degree"
+        type: "integer"
+        description: "Used with numpy turbine_method, sets degree."
+        units: "dimensionless"
   # ================================================================
   boundary_conditions:
     type: "object"
+    description: "These options set the boundaries and velocity/pressure options that will be enforced on the walls of the computational domain."
     # required:
       # - required_value
     properties:
@@ -654,121 +729,133 @@ properties:
         type: 
           - "string"
           - "null"
-        description: "inflow velocity profile, choices: `uniform`, `power`, `log`, `turbsim`"
+        description: "Inflow velocity profile, options are ``uniform``, ``power``, ``log``, or ``turbsim``."
+        enum:
+          - "uniform"
+          - "power"
+          - "log"
+          - "turbsim"
+          - Null
       HH_vel:
         default: 8.0
         type: "number"
-        description: "velocity at hub height (m/s) TODO: rename to `ref_vel`"
+        description: "Velocity at hub height TODO: rename to ``ref_vel``."
+        units: "meter/second"
       vel_height:
         default: "HH"
         type:
           - "string"
           - "number"
-        description: "sets the location of the reference velocity"
+        description: "Sets the location of the reference velocity, i.e., the z-level at which ``HH_vel`` will be enforced."
+        units: "meter"
       power:
         default: 0.25
         type: "number"
-        description: "exponent for the power inflow"
+        description: "Exponent for the power inflow."
+        units: "dimensionless"
       k:
         default: 0.4
         type: "number"
-        description: "The constant used in the log layer flow"
+        description: "The constant used in the log layer inflow."
+        units: "dimensionless"
       turbsim_path:
         default: Null
         type: 
           - "string"
           - "null"
-        description: "location for the turbsim inflow data"
+        description: "Location for the turbsim inflow data."
       inflow_angle:
         default: 0.0
         type:
           - "number"
           - "array"
-        description: "angle of the inflow velocity"
+        description: "Angle of the inflow velocity."
+        units: "radians"
       boundary_names:
         type: "object"
-        description: "used for renaming the boundries"
+        description: "Used for renaming the boundries. See :ref:`custom_boundaries`"
         properties:
           east:
             default: Null
             type: 
               - "string"
               - "null"
-            description: "positive x"
+            description: "Positive x."
           north:
             default: Null
             type: 
               - "string"
               - "null"
-            description: "positive y"
+            description: "Positive y."
           west:
             default: Null
             type: 
               - "string"
               - "null"
-            description: "negative x"
+            description: "Negative x."
           south:
             default: Null
             type: 
               - "string"
               - "null"
-            description: "negative y"
+            description: "Negative y."
           bottom:
             default: Null
             type: 
               - "string"
               - "null"
-            description: "negative z"
+            description: "Negative z."
           top:
             default: Null
             type: 
               - "string"
               - "null"
-            description: "positive z"
+            description: "Positive z."
           inflow:
             default: Null
             type: 
               - "string"
               - "null"
-            description: "inflow, used in cylinder/circle"
+            description: "Inflow, used in cylinder/circle."
           outflow:
             default: Null
             type: 
               - "string"
               - "null"
-            description: "outflow, used in cylinder/circle"
+            description: "Outflow, used in cylinder/circle."
       boundary_types:
         type: "object"
-        description: "used for changing the boundary types"
+        description: "Used for changing the boundary types. See :ref:`custom_boundaries`"
         properties:
           inflow:
             default: Null
             type: 
               - "array"
               - "null"
-            description: "list of inflow bc names"
+            description: "List of inflow bc names."
           no_slip:
             default: Null
             type: 
               - "array"
               - "null"
-            description: "list of no_slip bc names"
+            description: "List of no_slip bc names."
           free_slip:
             default: Null
             type: 
               - "array"
               - "null"
-            description: "list of free_slip bc names"
+            description: "List of free_slip bc names."
           no_stress:
             default: Null
             type: 
               - "array"
               - "null"
-            description: "list of no_stress bc names"
+            description: "List of no_stress bc names."
   # ================================================================
   problem:
     # additionalProperties: False
     type: "object"
+    description: "Options to define the problem that will be solved and add/modify different models that can be included, e.g., turbulence."
     # required:
       # - required_value
     properties:
@@ -777,218 +864,273 @@ properties:
         type: 
           - "string"
           - "null"
-        description: "type of model"
+        description: "Type of model, options are ``stabilized``, ``steady``, ``taylor_hood``, ``iterative_steady``, or ``unsteady``."
+        enum:
+          - "stabilized"
+          - "steady"
+          - "taylor_hood"
+          - "iterative_steady"
+          - "unsteady"
+          - Null
       use_25d_model:
         default: False
         type: "boolean"
-        description: "break divergence free to entrain momentum from `above` and `below`"
+        description: "Relax divergence free constraint to entrain momentum from 'above' and 'below'."
       viscosity:
         default: 0.1
         type: "number"
-        description: "viscosity"
+        description: "Kinematic viscosity."
+        units: "meter^2/second"
       lmax:
         default: 15
         type: "number"
-        description: "mixing length"
+        description: "Mixing length."
+        units: "meter"
       turbulence_model:
         default: "mixing_length"
-        type: "string"
-        description: "turbulence model. Choices: mixing_length, smagorinsky, or None"
+        type:
+          - "string"
+          - "null"
+        description: "Turbulence model, options are ``mixing_length``, ``smagorinsky``, or None."
+        enum:
+          - "mixing_length"
+          - "smagorinsky"
+          - Null
       script_iterator:
         default: 0
-        type: "number"
-        description: "debugging tool, do not use"
+        type: "integer"
+        description: "Debugging tool, do not use."
+        units: "dimensionless"
       use_corrective_force:
         default: False
         type: "boolean"
-        description: "add a force to the weak form to allow the inflow to recover"
+        description: "Add a force to the weak form to allow the inflow to recover."
       stability_eps:
         default: 1.0
         type: "number"
-        description: "stability term to help increase the well-possessedness of the linear mixed formulation"
+        description: "Stability term to help increase the well-posedness of the linear mixed formulation."
+        units: "dimensionless"
       body_force:
         default: 0.0
         type: "number"
-        description: "set to a float to add a body force to the functional along the streamwise direction"
+        description: "Set to a float to add a body force to the functional along the streamwise direction."
+        units: "kg*meter/second^2"
   # ================================================================
   solver:
     type: "object"
+    description: "These options control how the solver is executed and what properties are saved during the solution."
     # required:
       # - required_value
     properties:
       type:
         default: "steady"
         type: "string"
-        description: "type of solver"
+        description: "Type of solver, options are ``steady``, ``iterative_steady``, ``unsteady``, ``multiangle``, or ``imported_inflow``."
+        enum:
+          - "steady"
+          - "iterative_steady"
+          - "unsteady"
+          - "multiangle"
+          - "imported_inflow"
       pseudo_steady:
         default: False
         type: "boolean"
-        description: "used with unsteady solver to create a iterative steady solver."
+        description: "Used with unsteady solver to create an iterative steady solver."
       final_time:
         default: 1.0
         type: "number"
-        description: "final time of unsteady solve (s)"
+        description: "Final time of unsteady solve."
+        units: "second"
       save_interval:
         default: 1.0
         type: "number"
-        description: "how often to save during unsteady solve (s)"
+        description: "How often to save during unsteady solve."
+        units: "second"
       num_wind_angles:
         default: 1
-        type: "number"
-        description: "number of wind angle to sweep through for multiangle solve"
+        type: "integer"
+        description: "Integer number of wind angles to sweep through for multiangle solve."
+        units: "dimensionless"
       endpoint:
         default: False
         type: "boolean"
-        description: "include the final wind angle in the sweep"
+        description: "Include the final wind angle in the sweep."
       velocity_path:
         default: Null
         type: 
           - "string"
           - "null"
-        description: "location of inflow velocities for multivelocity"
+        description: "Location of inflow velocities for multivelocity."
       save_power:
         default: True
         type: "boolean"
-        description: "save the power data to the data folder"
+        description: "Save the power data to the data folder."
       nonlinear_solver:
-        default: "snes"
         type: "string"
-        description: "type of nonlinear solver. choices: snes, newton"
+        description: "Type of nonlinear solver, options are ``snes`` or ``newton``."
+        default: "snes"
+        enum:
+          - "snes"
+          - "newton"
       newton_relaxation:
         default: 1.0
         type: "number"
-        description: "relaxation parameter (0,1] for newton"
+        description: "Relaxation parameter (0, 1] for Newton."
+        units: "dimensionless"
       cfl_target:
         default: 0.5
         type: "number"
-        description: "target cfl number for unsteady solve"
+        description: "Target CFL number for unsteady solve."
+        units: "dimensionless"
       cl_iterator:
         default: 0
-        type: "number"
-        description: "debugging tool, do not use"
+        type: "integer"
+        description: "Debugging tool, do not use."
+        units: "dimensionless"
       save_all_timesteps:
         default: False
         type: "boolean"
-        description: "Save fields at every time step"
+        description: "Save fields at every time step."
   # ================================================================
   optimization:
     type: "object"
+    description: "These options control how the optimization is carried out, how the objective function is calculated, and what constraints are applied."
     # required:
       # - required_value
     properties:
       opt_type:
         default: "maximize"
         type: "string"
-        description: "minimize or maximize"
+        description: "Minimize or maximize."
       control_types:
         default: Null
         type: 
           - "array"
           - "null"
-        description: "controls to optimize, list of: `layout`, `yaw`, `axial`, `chord`, `lift`, or `drag`"
+        description: "Controls to optimize, list of: ``layout``, ``yaw``, ``axial``, ``chord``, ``lift``, or ``drag``."
       layout_bounds:
         default: "wind_farm"
         type: "array"
-        description: "special bound for layout optimizations"
+        description: "Special bound for layout optimizations."
+        units: "meter"
       objective_type:
         default: "power"
         type:
           - "object"
           - "string"
-        description: "name of the function to maximize or minimize. look in objective_functions for choices"
+        description: "Name of the function to maximize or minimize. See :ref:`multi_objectives`"
       constraint_types:
         type: "object"
-        description: "set constraints based on objective_functions. should be a dictionary of dictionaries with additional kws: target, scale, kwargs. default inequality c(m)-target>=0 ==> c(m)>=target"
+        description: "Set constraints based on objective_functions. Should be a dictionary of dictionaries with additional kws: target, scale, kwargs. Default inequality c(m)-target>=0 ==> c(m)>=target. See :ref:`multi_constraints`"
         properties:
           min_dist:
             type: "object"
-            description: "default constraint for `layout` opts. restricts minimum distance between turbines"
+            description: "Default constraint for ``layout`` opts. Restricts minimum distance between turbines."
             properties:
               target:
                 default: 2
                 type: "number"
-                description: "sets the target for given constraint, in this case sets the minimum distance between turbines to be 2 RD"
+                description: "Sets the target for given constraint, in this case sets the minimum distance between turbines to be 2 RD."
+                units: "dimensionless"
               scale:
                 default: 1
                 type: "number"
-                description: "sets the scale for the constraint, use to match objective magnitude. use -1 to flip constraint to target-c(m)>=0 ==> c(m) <= target"
+                description: "Sets the scale for the constraint, use to match objective magnitude. Use -1 to flip constraint to target-c(m)>=0 ==> c(m) <= target."
+                units: "dimensionless"
               kwargs:
                 default: Null
                 type: 
                   - "string"
                   - "null"
-                description: "if constraint is based on an objective function with kwargs, set them here"
+                description: "If constraint is based on an objective function with kwargs, set them here."
       save_objective:
         default: False
         type: "boolean"
-        description: "save the objective do a file in data/"
+        description: "Save the objective to a file in data/."
       opt_turb_id:
         default: "all"
-        type: "string"
-        description: "which turbines to optimize, int or list or `all`"
+        type:
+          - "string"
+          - "array"
+          - "integer"
+        description: "Which turbines to optimize, int or list or ``all``."
+        units: "dimensionless"
       record_time:
         default: 0.0
         type: "number"
-        description: "when to start recording for unsteady objectives float or `computed`"
+        description: "When to start recording for unsteady objectives float or ``computed``."
+        units: "second"
       alm_DELs:
         type: "object"
-        description: "alm_DELs:"
+        description: "Alm_DELs:."
         properties:
           DEL_start_time:
             default: 0
             type: "number"
-            description: "DEL_start_time: 0"
+            description: "DEL_start_time: 0."
+            units: "second"
       u_avg_time:
         default: 0
         type: "number"
-        description: "when to start averaging velocity for use in objective functions"
+        description: "When to start averaging velocity for use in objective functions."
+        units: "second"
       opt_routine:
         default: "SLSQP"
         type: "string"
-        description: "optimization method, choices: SLSQP, L-BFGS-B, OM_SLSQP, SNOPT (requires custom install)"
+        description: "Optimization method, options are ``SLSQP``, ``L-BFGS-B``, ``OM_SLSQP``, or ``SNOPT`` (where ``SNOPT`` requires custom install)."
+        enum:
+          - "SLSQP"
+          - "L-BFGS-B"
+          - "OM_SLSQP"
+          - "SNOPT"
       obj_ref:
         default: 1.
         type: "number"
-        description: "Sets the value of the objective function that will be treated as 1 by the SNOPT driver"
+        description: "Sets the value of the objective function that will be treated as 1 by the SNOPT driver."
+        units: "same as objective"
       obj_ref0:
         default: 0.
         type: "number"
-        description: "Sets the value of the objective function that will be treated as 0 by the SNOPT driver"
+        description: "Sets the value of the objective function that will be treated as 0 by the SNOPT driver."
+        units: "same as objective"
       taylor_test:
         default: False
         type: "boolean"
-        description: "Run the taylor test"
+        description: "Run the Taylor test."
       optimize:
         default: False
         type: "boolean"
-        description: "optimize the problem"
+        description: "Optimize the problem."
       gradient:
         default: False
         type: "boolean"
-        description: "output the gradient"
+        description: "Output the gradient."
       verify_snopt:
         default: False
         type: "boolean"
-        description: "use the SNOPT FD gradient verification"
+        description: "Use the SNOPT FD gradient verification."
       check_totals:
         default: False
         type: "boolean"
-        description: "check the total derivatives of the problem; optimize must be true as well"
+        description: "Check the total derivatives of the problem; optimize must be true as well."
       hard_scaling_factor:
         default: 1.0
         type: "number"
-        description: "A hard-coded scaling factor, objective_value = objective_value*hard_scaling_factor"
+        description: "A hard-coded scaling factor, objective_value = objective_value*hard_scaling_factor."
+        units: "dimensionless"
       twist_range:
         default: 5.0
         type: "number"
-        description: "The envelope the twist control will be constrained to: baseline +/- twist_range"
+        description: "The envelope the twist control will be constrained to: baseline +/- twist_range."
+        units: "radians"
   # ================================================================
   postprocessing:
     type: "object"
+    description: "A set of options to control methods executed after the WindSE simulation completes, including formatting outputs for compatibility with downstream coupled codes."
     required:
-      - write_floris
+      - write_floris_input
     properties:
-      write_floris:
+      write_floris_input:
         type: 
           - "array"
           - "null"

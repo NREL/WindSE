@@ -2,6 +2,7 @@ import yaml
 import numpy as np
 import os
 
+
 def _pprint_dict(d, indent=0):
     """Pretty print a dictionary
 
@@ -26,23 +27,30 @@ def _pprint_dict(d, indent=0):
         else:
             print(f"{key}: {val}")#" ({type(val)})")
 
+
 def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]):
     
     if first_call:
         with open(parameters_filename, "w") as fp:
-            fp.write("A New Parameters File\n")
-            fp.write("=====================\n")
-    
+            fp.write(".. _param_api:\n")
+            fp.write(".. |nbsp| unicode:: U+00A0\n")
+            fp.write("  :trim:\n")
+            fp.write("\n")
+            fp.write("Parameter Table\n")
+            fp.write("===============\n")
+            fp.write("\n")
+            fp.write("This page is intended to list all of the parameters and a short description of each one.\n")
+
     for key, val in d.items():
         spacer = ""
         if nested > 1:
             for k in range(nested-1):
                 if k == 0:
-                    spacer += "\|\-\-"
+                    spacer = "\|\-\-"
                 elif k < nested-1:
-                    spacer += " \|\-\-"
+                    spacer = "\| |nbsp| |nbsp| |nbsp| |nbsp|" + spacer
                 
-            spacer += "> "
+            spacer = "|nbsp| |nbsp|" + spacer
 
         path.append(key)
         label = ":".join(path[1:]) # 1: don't print parent object, e.g., "name" not "general:name"
@@ -59,7 +67,7 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
                         fp.write(f"{parent_description}\n\n")
 
                     fp.write(f".. list-table::\n")
-                    fp.write(f"  :widths: 20 15 15 10 40\n")
+                    fp.write(f"  :widths: 25 10 10 10 45\n")
                     fp.write(f"  :header-rows: 1\n\n")
 
                     fp.write(f"  * - Name\n")
@@ -80,7 +88,7 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
                     fp.write(f"    - \n")
                     fp.write(f"    - \n")
                     fp.write(f"    - \n")
-                    fp.write(f"    - \n")
+                    fp.write(f"    - {val['description']}\n")
                     
             nested, path = build_simple_dict(val["properties"], 
                                        parameters_filename, 
@@ -103,7 +111,10 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
             with open(parameters_filename, "a") as fp:
                 fp.write(f"  * - {label}\n")
                 fp.write(f"    - {val['type']}\n")
-                fp.write(f"    - NA\n")
+                if "units" in val:
+                    fp.write(f"    - {val['units']}\n")
+                else:
+                    fp.write(f"    - \-\n")
                 fp.write(f"    - {val['default']}\n")
                 fp.write(f"    - {val['description']}\n")
                 
@@ -111,10 +122,19 @@ def build_simple_dict(d, parameters_filename, first_call=True, nested=0, path=[]
                 
     return nested, path
 
-def build_params_rst_from_schema(path_to_schema_file="windse/input_schema.yaml", path_to_params_rst_file="doc/source/parameters2.rst"):
+def build_params_rst_from_schema(path_to_schema_file, path_to_params_rst_file):
+
     with open(path_to_schema_file, "r") as fp:
         schema_dict = yaml.safe_load(fp)
 
     _, _ = build_simple_dict(schema_dict["properties"], path_to_params_rst_file)
 
-build_params_rst_from_schema()
+
+if __name__ == "__main__":
+
+    # Note that these paths should be relative to the root WindSE
+    # directory, since that's where the .readthedocs.yaml file is located
+    path_to_schema_file = "windse/input_schema.yaml"
+    path_to_params_rst_file="doc/source/param_api.rst"
+
+    build_params_rst_from_schema(path_to_schema_file, path_to_params_rst_file)

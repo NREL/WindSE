@@ -5,7 +5,7 @@ Demos
 Example Parameter Files
 -----------------------
 
-These examples show how to use the parameters file. See :doc:`params` page for more details.
+These examples show how to use the parameters file. See :doc:`param_api` page for more details.
 All of these examples can be run using ``windse run <file>``. Some file require
 inputs, which can be downloaded :download:`here <demos/Yaml_Examples/Input_Data.zip>`.
 
