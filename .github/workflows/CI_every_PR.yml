@@ -6,8 +6,8 @@ on: [pull_request]
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   build:
-    name: CI_every_commit
-    runs-on: ubuntu-latest
+    name: CI_every_PR
+    runs-on: macos-latest
         
     steps:
       - uses: actions/checkout@v2
@@ -17,8 +17,8 @@ jobs:
           miniconda-version: "latest"
           channels: conda-forge
           auto-update-conda: true
-          python-version: 3.8
-      #     environment-file: environment.yml
+          # python-version: 3.8
+          # environment-file: environment.yml
       
       - name: Install test environment
         shell: pwsh # putting in a shell command makes for compile linking problems later
@@ -26,12 +26,28 @@ jobs:
         run: |
           bash ./install.sh test-environment
           conda activate test-environment
+          conda list
         
-      - name: Run all documented demos within WindSE
+      # - name: Run parallel regression tests within WindSE
+      #   shell: pwsh
+      #   run: |
+      #     conda activate test-environment
+      #     pytest -sv --cov=windse tests/test_regression_parallel.py
+
+      # - name: Run parallel regression tests within WindSE
+      #   shell: pwsh
+      #   run: |
+      #     conda activate test-environment
+      #     cd tests/9-Regression
+      #     mpirun -n 2 windse run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
+
+      - name: Run parallel regression tests within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -sv --cov=windse tests/test_demos.py
+          cd tests/9-Regression
+          mpirun -n 2 python -u ../../windse_driver/driver.py run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
+          # mpirun -n 2 python -u ../../windse_driver/driver.py run Floating_ALM.yaml -p general:name:Floating_ALM_np_2 
 
       - name: Run all regression tests within WindSE
         shell: pwsh
@@ -39,11 +55,11 @@ jobs:
           conda activate test-environment
           pytest -sv --cov=windse --cov-append tests/test_regression.py
         
-      - name: Run parallel regression tests within WindSE
+      - name: Run all documented demos within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -sv --cov=windse --cov-append tests/test_regression_parallel.py
+          pytest -sv --cov=windse --cov-append tests/test_demos.py
       
       # Run coveralls
       - name: Run coveralls

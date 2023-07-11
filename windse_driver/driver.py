@@ -84,6 +84,8 @@ def run_action(params_loc=None):
     ### run the solver ###
     solver.Solve()
 
+    problem.farm.finalize_farm()
+
     ### Perform Optimization ###
     if params.performing_opt_calc:
         opt=windse.Optimizer(solver)
@@ -99,6 +101,12 @@ def run_action(params_loc=None):
     runtime = tock-tick
     if params.rank == 0:
         print("Run Complete: {:1.2f} s".format(runtime))
+
+    # Begin postprocessing routines
+    data_to_write = params["postprocessing"]["write_floris_input"]
+
+    if data_to_write is not None:
+        windse.write_to_floris(data_to_write, solver)
 
     params.comm.Barrier()
 

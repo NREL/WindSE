@@ -37,9 +37,9 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     Keyword arguments:
         z_value: z location to evaluate
     '''
-
-    x0 = np.mean(solver.problem.farm.x)
-    y0 = np.mean(solver.problem.farm.y)
+    farm_x, farm_y, farm_z = solver.problem.farm.get_hub_locations().T
+    x0 = np.mean(farm_x)
+    y0 = np.mean(farm_y)
     z0 = float(kwargs.pop("z_value"))
     p0 = np.array([x0,y0,z0])
 

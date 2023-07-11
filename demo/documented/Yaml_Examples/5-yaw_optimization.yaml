@@ -9,10 +9,23 @@ wind_farm:
 
     ####################### Imported Wind Farm #######################
     type: imported                   #                          |
-    path: Input_Data/wind_farm.txt   # location of wind farm    | -
-    force: sine                      # radial force distribution| -
+    path: Input_Data/nrel_5mw/wind_farm.csv   # location of wind farm    | -
     ###################################################################
 
+# The Turbine properties can be overwritten in the wind_farm.csv file
+turbines:
+
+    ######################### Turbine Properties ########################
+    type: disk
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 20.0       # Effective Thickness      | m
+    axial: 0.33           # Axial Induction          | -
+    force: sine           # radial force distribution| -
+
+    # These two are left off because they are supplied in the wind_farm.csv file
+    # HH: 90                # Hub Height               | m
+    # yaw: 0.0              # Yaw                      | rads
+    ###################################################################
 
 
 # Domain Parameters: Uncomment a set to change domain shape
@@ -33,11 +46,17 @@ refine:
     warp_type: split
     warp_percent: 0.85     # percent of cells moved       | -
     warp_height: 200       # move cell below this value   | m
-    refine_custom: [
-        [box, [  [[-850,1200],[-150,150],[ 0,200]]  ]],
-        [box, [  [[-800,1200],[-100,100],[25,175]]  ]],
-        # [box, [  [[-700,1200],  [-75,75],[25,175]]  ]]
-    ]
+    refine_custom:
+        1:
+            type: box
+            x_range: [-850, 1200]
+            y_range: [-150, 150]
+            z_range: [0, 200]
+        2:
+            type: box
+            x_range: [-800, 1200]
+            y_range: [-100, 100]
+            z_range: [25, 175]
 
 function_space:
     type: linear

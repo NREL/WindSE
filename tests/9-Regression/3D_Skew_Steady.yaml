@@ -1,6 +1,6 @@
 # General options
 general: 
-    # name: 3D_Wind_Farm      # Name of the output folder
+    # name: 3D_Box_Steady_Reference      # Name of the output folder
     output: ["mesh","initial_guess","height","turbine_force","solution"]
     dolfin_adjoint: True
     debug_mode: True
@@ -10,20 +10,21 @@ wind_farm:
 
     ######################### Random Wind Farm ########################
     type: random          #                          |
-    numturbs: 9           # number of turbines       | -
+    numturbs: 3           # number of turbines       | -
     ex_x: [-600, 600]     # x-extent of the farm     | m
     ex_y: [-600, 600]     # y-extent of the farm     | m
     seed: 5555555         # random seed for repeats  | -
+    ###################################################################
+
+turbines:
+    type: numpy_disk      # Use actuator Disks       |    
     HH: 90                # Hub Height               | m
     RD: 126.0             # Turbine Diameter         | m
     thickness: 10.5       # Effective Thickness      | m
     yaw: 0.0              # Yaw                      | rads
     axial: 0.33           # Axial Induction          | -
-    turbine_method: numpy # 
-    ###################################################################
 
 
-# Domain Parameters: Uncomment a set to change domain shape
 domain: 
     
     ########################### Box Domain ############################
@@ -35,17 +36,24 @@ domain:
     ny: 10                  # Number of y-nodes     | -
     nz: 5                  # Number of z-nodes      | -
     interpolated: true 
-    terrain_path: Input_Data/skew_terrain.txt
+    terrain_path: Input_Data/3D_Skew_Steady/skew_terrain.txt
     ###################################################################
 
 refine:
     warp_type: split
     warp_percent: 0.7     # percent of cells moved       | -
     warp_height: 250       # move cell below this value   | m
-    refine_custom: [
-        [cylinder, [[0.0,0.0,0.0], 600, 400, 1.5 ]],
-        [simple, [ 80 ]]
-    ]
+    refine_custom:
+        1:
+            type: cylinder
+            center: [0, 0, 0]
+            radius: 600.0
+            height: 400.0
+            expand_factor: 1.5
+        2:
+            type: simple
+            radius: 80
+
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.25   # turbine radius multiplier    | -
 

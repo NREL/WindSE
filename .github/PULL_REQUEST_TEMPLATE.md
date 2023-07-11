@@ -24,4 +24,5 @@ _Put an `x` in the boxes that apply._
 
 - [ ] I have run existing tests which pass locally with my changes
 - [ ] I have added new tests or examples that prove my fix is effective or that my feature works
+- [ ] I have verified my code additions work in parallel
 - [ ] I have added necessary documentation

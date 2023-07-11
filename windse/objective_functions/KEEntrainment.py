@@ -44,8 +44,8 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
 
     solver.fprint("Using Kinetic Energy Entrainment Functional")
     turb_id = solver.opt_turb_id[0]
-    HH = solver.problem.farm.HH[turb_id]
-    R = solver.problem.farm.RD[turb_id]/2.0
+    HH = solver.problem.farm.turbines[turb_id].HH
+    R = solver.problem.farm.turbines[turb_id].RD/2.0
 
     # mark cells in area of interest
     if first_call:
@@ -53,21 +53,23 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
         # solver.KE_objective_markers = MeshFunction("size_t", solver.problem.dom.mesh, solver.problem.dom.mesh.topology().dim()-1)
 
         solver.KE_objective_markers.set_all(0)
-        x0 = min(solver.problem.farm.x)
+        farm_x, farm_y, farm_z = solver.problem.farm.get_hub_locations().T
+        farm_RD = solver.problem.farm.get_rotor_diameters()
+        x0 = min(farm_x)
         x1 = solver.problem.dom.x_range[1]
-        y0 = min(solver.problem.farm.y)-3.0*max(solver.problem.farm.RD)/2.0
-        y1 = max(solver.problem.farm.y)+3.0*max(solver.problem.farm.RD)/2.0
+        y0 = min(farm_y)-3.0*max(farm_RD)/2.0
+        y1 = max(farm_y)+3.0*max(farm_RD)/2.0
         # if ke_location =="tip":
-        #     z0 = min(solver.problem.farm.z)
-        #     z1 = max(solver.problem.farm.z)+max(solver.problem.farm.RD)/2.0
+        #     z0 = min(farm_z)
+        #     z1 = max(farm_z)+max(farm_RD)/2.0
         # elif ke_location == "hub":
-        #     z0 = min(solver.problem.farm.z)-solver.problem.dom.mesh.hmin()*1.0
-        #     z1 = max(solver.problem.farm.z)+solver.problem.dom.mesh.hmin()*1.0
+        #     z0 = min(farm_z)-solver.problem.dom.mesh.hmin()*1.0
+        #     z1 = max(farm_z)+solver.problem.dom.mesh.hmin()*1.0
         # elif ke_location == "rotor":
-        z0_in = min(solver.problem.farm.z) + R - solver.problem.dom.mesh.hmin()*1.0
-        z1_in = max(solver.problem.farm.z) + R + solver.problem.dom.mesh.hmin()*1.0
-        z0_out = min(solver.problem.farm.z) - R - solver.problem.dom.mesh.hmin()*1.0
-        z1_out = max(solver.problem.farm.z) - R + solver.problem.dom.mesh.hmin()*1.0
+        z0_in = min(farm_z) + R - solver.problem.dom.mesh.hmin()*1.0
+        z1_in = max(farm_z) + R + solver.problem.dom.mesh.hmin()*1.0
+        z0_out = min(farm_z) - R - solver.problem.dom.mesh.hmin()*1.0
+        z1_out = max(farm_z) - R + solver.problem.dom.mesh.hmin()*1.0
  
         fluxIn =  CompiledSubDomain("x[0]>x0 && x[0]<x1 && x[1]>y0 && x[1]<y1  && x[2]>z0 && x[2]<z1",x0=x0,x1=x1,y0=y0,y1=y1,z0=z0_in,z1=z1_in)
         fluxOut = CompiledSubDomain("x[0]>x0 && x[0]<x1 && x[1]>y0 && x[1]<y1  && x[2]>z0 && x[2]<z1",x0=x0,x1=x1,y0=y0,y1=y1,z0=z0_out,z1=z1_out)

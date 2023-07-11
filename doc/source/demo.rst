@@ -5,7 +5,7 @@ Demos
 Example Parameter Files
 -----------------------
 
-These examples show how to use the parameters file. See :doc:`params` page for more details.
+These examples show how to use the parameters file. See :doc:`param_api` page for more details.
 All of these examples can be run using ``windse run <file>``. Some file require
 inputs, which can be downloaded :download:`here <demos/Yaml_Examples/Input_Data.zip>`.
 
@@ -15,7 +15,7 @@ inputs, which can be downloaded :download:`here <demos/Yaml_Examples/Input_Data.
 4. :download:`Multi-Angle Simulations <demos/Yaml_Examples/3-multiangle_solve.yaml>`
 5. :download:`Yaw Optimization <demos/Yaml_Examples/5-yaw_optimization.yaml>`
 6. :download:`Multi-Angle Optimization <demos/Yaml_Examples/4-multiangle_optimization.yaml>`
-7. :download:`Actuator Line Method Single-Turbine Simulation <demos/Yaml_Examples/6-alm_turbine.yaml>`
+7. :download:`Actuator Line Method Single-Turbine Simulation <demos/Yaml_Examples/6-alm_3p4_rwt.yaml>`
 
 .. note:: These demos are extremely coarse to lower runtime for automated testing. To get better results, increase the mesh resolution and try different refinements. 
 

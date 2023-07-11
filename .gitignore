@@ -28,3 +28,5 @@ output/
 
 # Ignore compiled python
 *__pycache__*
+*.egg-info*
+

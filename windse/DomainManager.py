@@ -6,6 +6,7 @@ creating different types of domains
 
 import __main__
 import os
+from pyadjoint.tape import no_annotations
 
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
@@ -17,6 +18,7 @@ else:
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
     from mshr import *
+    #from windse.mshr_fake import *
     import copy
     import time
     import warnings
@@ -25,7 +27,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     import numpy as np
     from scipy.interpolate import interp2d, interp1d,RectBivariateSpline
     import shutil
-    from pyadjoint import stop_annotating
+    from pyadjoint.tape import stop_annotating
 
     ### Import the cumulative parameters ###
     from windse import windse_parameters
@@ -42,6 +44,68 @@ if not main_file in ["sphinx-build", "__main__.py"]:
 
     ### This parameter allows for refining the mesh functions ###
     parameters["refinement_algorithm"] = "plaza_with_parent_facets"
+
+else:
+    class SubDomain:
+        def __init__(self):
+            pass
+
+class SinglePeriodicBoundary(SubDomain):
+
+    def __init__(self,a,b,axis=0):
+        super(SinglePeriodicBoundary, self).__init__()
+        self.axis   = axis # 0 for periodic x and 1 for periodic y
+        self.target = a    # location of the primary boundary 
+        self.offset = b-a  # the offset from the primary to the secondary 
+
+    # returns true primary boundary 
+    def inside(self, x, on_boundary):
+        return near(x[self.axis],self.target) and on_boundary
+
+    # this maps the secondary boundary to the primary boundary
+    def map(self, x, y):
+        y[:] = x[:] # Set all equal
+        y[self.axis] = x[self.axis] - self.offset # Modify the value that is periodic
+
+class DoublePeriodicBoundary(SubDomain):
+
+    def __init__(self,x_range,y_range):
+        super(DoublePeriodicBoundary, self).__init__()
+        self.x_range = x_range    # location of the primary boundary 
+        self.y_range = y_range    # location of the primary boundary
+        self.x_offset = x_range[1]-x_range[0]  # the offset from the primary to the secondary 
+        self.y_offset = y_range[1]-y_range[0]  # the offset from the primary to the secondary 
+        self.eps = 1e-4
+
+    # returns true primary boundary 
+    def inside(self, x, on_boundary):
+        on_either  = near(x[0], self.x_range[0],self.eps)  or near(x[1], self.y_range[0],self.eps)
+        on_corner1 = near(x[0], self.x_range[1],self.eps) and near(x[1], self.y_range[0],self.eps)
+        on_corner2 = near(x[0], self.x_range[0],self.eps) and near(x[1], self.y_range[1],self.eps)
+        return (on_either and not (on_corner1 or on_corner2)) and on_boundary
+
+    # this maps the secondary boundary to the primary boundary
+    def map(self, x, y):
+        if near(x[0], self.x_range[1],self.eps) and near(x[1], self.y_range[1],self.eps):
+            y[0] = x[0] - self.x_offset
+            y[1] = x[1] - self.y_offset
+            y[2] = x[2]
+            # print(1)
+        elif near(x[0], self.x_range[1],self.eps):
+            y[0] = x[0] - self.x_offset
+            y[1] = x[1]
+            y[2] = x[2]
+            # print(2)
+        elif near(x[1], self.y_range[1],self.eps):
+            y[0] = x[0]
+            y[1] = x[1] - self.y_offset
+            y[2] = x[2]
+            # print(3)
+        else:
+            y[0] = -1000
+            y[1] = -1000
+            y[2] = -1000
+
 
 
 def Elliptical_Grid(x, y, z, radius):
@@ -87,8 +151,14 @@ def Simple_Stretching(x, y, z, radius):
     z_hat = z
     return [x_hat, y_hat, z_hat]
 
-
-
+def DefaultFinalize(dom):
+    # self.ComputeCellRadius()
+    dom.SetupPeriodicMapping()
+    dom.ComputeGlobalHmin()
+    dom.DebugOutput()
+    dom.finalized = True
+    dom.fprint("")
+    dom.fprint("Domain Finalized")
 
 class GenericDomain(object):
     """
@@ -126,7 +196,11 @@ class GenericDomain(object):
             self.inflow_angle = self.inflow_angle[0]
         self.initial_inflow_angle = self.inflow_angle
 
+        ### Add a space to store periodic boundary conditions ###
+        self.periodic_mapping = None
+        self.bcs_to_remove = []
 
+    @no_annotations
     def DebugOutput(self):
         if self.debug_mode:
             self.tag_output("dim", self.dim)
@@ -238,19 +312,19 @@ class GenericDomain(object):
             if self.boundary_subdomains[i] is not None:
                 self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
 
-    def BoxRefine(self,region,expand_factor=1):
+    def BoxRefine(self,x_range,y_range,z_range=[],expand_factor=1):
         refine_start = time.time()
 
         ### Calculate Expanded Region ###
-        x0, x1 = region[0]
-        y0, y1 = region[1]
+        x0, x1 = x_range
+        y0, y1 = y_range
         ex = (expand_factor-1)*(x1-x0)/2.0
         ey = (expand_factor-1)*(y1-y0)/2.0
         en = min(ex,ey)
         x0, x1 = x0-en, x1+en
         y0, y1 = y0-en, y1+en
         if self.dim == 3:
-            z0, z1 = region[2]
+            z0, z1 = z_range
             ez = (expand_factor-1)*(z1-z0)/2.0
             z0, z1 = z0-ez, z1+ez
 
@@ -390,6 +464,12 @@ class GenericDomain(object):
             # This isn't needed for actual boundary marking, but it helps it pass a test later on
             self.BuildBoundaryMarkers()
 
+        self.my_fs = FunctionSpace
+        self.my_fn = Function
+        # print('After refinement')
+        # Q = FunctionSpace(self.mesh, 'P', 1)
+        # f = Function(Q)
+        # print('finished after refinement')
 
         self.fprint("Original Mesh Vertices: {:d}".format(old_verts))
         self.fprint("Original Mesh Cells:    {:d}".format(old_cells))
@@ -584,7 +664,7 @@ class GenericDomain(object):
 
         .. math::
 
-            z_new = z_0 + (z_1-z_0) \\left( \\frac{z_old-z_0}{z_1-z_0} \\right)^{s}.
+            z_new = z_0 + (z_1-z_0) \\left( \\frac{z_old-z_0}{z_1-z_0} \\right)^{s},
 
         where :math:`z_0` is the ground and :math:`z_1` is the top of the domain.
 
@@ -642,10 +722,21 @@ class GenericDomain(object):
         move_stop = time.time()
         self.fprint("Mesh Moved: {:1.2f} s".format(move_stop-move_start),special="footer")
 
+    def ComputeGlobalHmin(self):
+        '''
+        This function computes the global hmin() value, since the hmin method
+        isn't parallel/global by default. Note that this assumes uniform spacing
+        in the x-, y-, and z- directions
+        '''
+
+        hmin = self.mesh.hmin()/np.sqrt(self.mesh.topology().dim())
+        hmin_global = np.zeros(self.params.num_procs)
+        self.params.comm.Allgather(hmin, hmin_global)
+        self.global_hmin = np.amin(hmin_global)
+
+
     def Finalize(self):
-        # self.ComputeCellRadius()
-        self.finalized = True
-        self.DebugOutput()
+        DefaultFinalize(self)
 
     # def ComputeCellRadius(self):
     #     self.mesh_radius = MeshFunction("double", self.mesh, self.mesh.topology().dim())
@@ -775,6 +866,30 @@ class GenericDomain(object):
             else:
                 return float(self.ground_function(x,y,dx=dx,dy=dy))
 
+    def SetupPeriodicMapping(self):
+        # TODO: account for periodic in refine
+        if self.type not in ["box","rectangle"] and (self.streamwise_periodic or self.spanwise_periodic):
+            raise TypeError("Periodic boundary conditions are only supported for box and rectangle")
+
+        if self.streamwise_periodic and self.spanwise_periodic:
+            self.fprint("Setting up dual periodic boundary mapping")
+            self.periodic_mapping = DoublePeriodicBoundary(self.x_range, self.y_range)
+            self.bcs_to_remove = ["east","west","north","south"]
+
+        elif self.streamwise_periodic:
+            self.fprint("Setting up streamwise periodic boundary mapping")
+            self.periodic_mapping = SinglePeriodicBoundary(self.x_range[0], self.x_range[1], axis=0)
+            self.bcs_to_remove = ["east","west"]
+
+        elif self.spanwise_periodic:
+            self.fprint("Setting up spanwise periodic boundary mapping")
+            self.periodic_mapping = SinglePeriodicBoundary(self.y_range[0], self.y_range[1], axis=1)
+            self.bcs_to_remove = ["north","south"]
+
+        else:
+            self.periodic_mapping = None
+            self.bcs_to_remove = None
+
     def RecomputeBoundaryMarkers(self,inflow_angle):
         raise NotImplementedError("This Domain type does not support nonzero inflow angles.")
 
@@ -848,6 +963,8 @@ class BoxDomain(GenericDomain):
                                "no_slip":   ["bottom"],
                                "free_slip": ["top"],
                                "no_stress": ["east"]}
+
+        self.SetupPeriodicMapping()
 
         ### Generate the boundary markers for boundary conditions ###
         if self.params.num_procs == 1:
@@ -1451,7 +1568,6 @@ class ImportedDomain(GenericDomain):
             hdf5.read(self.boundary_markers, "/boundaries")
         elif self.filetype == "xml.gz":
             self.boundary_markers = MeshFunction("size_t", self.mesh, self.boundary_path)
-        print("Markers Imported")
         self.boundary_names = {"east":1,"north":2,"west":3,"south":4,"bottom":5,"top":6,"inflow":None,"outflow":None}
         self.boundary_types = {"inflow":    ["west","south","north"],
                                "no_slip":   ["bottom"],
@@ -1501,10 +1617,7 @@ class InterpolatedCylinderDomain(CylinderDomain):
 
     def Finalize(self):
         self.Move(self.ground_function)
-        self.finalized = True
-        self.DebugOutput()
-        self.fprint("")
-        self.fprint("Domain Finalized")
+        DefaultFinalize(self)
 
 class InterpolatedBoxDomain(BoxDomain):
     def __init__(self):
@@ -1535,10 +1648,7 @@ class InterpolatedBoxDomain(BoxDomain):
 
     def Finalize(self):
         self.Move(self.ground_function)
-        self.finalized = True
-        self.DebugOutput()
-        self.fprint("")
-        self.fprint("Domain Finalized")
+        DefaultFinalize(self)
 
 
 class PeriodicDomain(BoxDomain):

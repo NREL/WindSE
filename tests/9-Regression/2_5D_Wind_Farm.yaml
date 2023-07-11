@@ -9,8 +9,18 @@ wind_farm:
 
     ####################### Imported Wind Farm #######################
     type: imported                   #                          |
-    path: Input_Data/wind_farm.txt   # location of wind farm    | -
-    force: sine                      # radial force distribution| -
+    path: Input_Data/2_5D_Wind_Farm/wind_farm.csv   # location of wind farm    | -
+    ###################################################################
+
+# The Turbine properties can be overwritten in the wind_farm.csv file
+turbines:
+
+    ######################## Turbine Properties #######################
+    type: 2D_disk
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 12.0       # Effective Thickness      | m
+    axial: 0.25           # Axial Induction          | -
+    force: sine           # radial force distribution| -
     ###################################################################
 
 domain: 
@@ -26,9 +36,12 @@ domain:
 refine:
     turbine_num: 1         # number of turbine refinements| -
     turbine_factor: 1.25   # turbine radius multiplier    | -
-    refine_custom: [
-        [box, [  [[-1000,1200],[-200,200]]]  ]
-    ]
+    refine_custom:
+        1:
+            type: box
+            x_range: [-1000, 1200]
+            y_range: [-200, 200]
+
 function_space:
     type: taylor_hood
 
@@ -47,4 +60,7 @@ solver:
     newton_relaxation: 0.9
     type: steady
     save_power: true
-    power_type: 2d_power
+
+postprocessing:
+    write_floris_input:
+        - "layout"

@@ -1,0 +1,82 @@
+general: 
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: True
+
+wind_farm: 
+    type: grid        
+    grid_rows: 2      
+    grid_cols: 4      
+    ex_x: [-600, 600] 
+    ex_y: [-300, 300] 
+    HH: 90            
+    RD: 126.0         
+    thickness: 20.0   
+    yaw: 0.349        
+    axial: 0.33       
+
+domain: 
+    type: box              
+    x_range: [-1200, 1200] 
+    y_range: [-600, 600]   
+    z_range: [0.04, 640]   
+    nx: 16                 
+    ny: 8                  
+    nz: 8                  
+
+refine:
+    warp_type: split
+    warp_percent: 0.7
+    warp_height: 250 
+    refine_custom: [
+        [box, [  [[-1000,1200],[-400,400],[ 0,200]]  ]],
+    ]
+    turbine_num: 1      
+    turbine_factor: 1.25
+
+
+function_space:
+    type: linear
+
+boundary_conditions:
+    vel_profile: log
+    HH_vel: 8.0
+    k: 0.4
+
+problem:
+    type: stabilized
+    viscosity: 5
+    lmax: 50
+
+solver:
+    type: steady
+    save_power: true
+
+optimization:
+    objective_type: 
+        point_blockage_#01:
+            location: [-390.0,0.0,110.0]
+        point_blockage_#02:
+            location: [0.0,0.0,240.0]
+        box_blockage_#01:
+            p0: [-990, -430, 0]
+            p1: [-860, 430,  200]
+        box_blockage_#02:
+            p0: [-730, -430, 240]
+            p1: [730,  430,  370]
+        cyld_kernel_#01:
+            type: upstream
+        cyld_kernel_#02: 
+            type: above
+        power: {}
+    save_objective: True
+    constraint_types:
+        min_dist:       
+            target: 2   
+            scale:  1.0e-5   
+        power:
+            target: 8000000
+            scale: 1.0e-6
+    control_types: [layout]
+    layout_bounds: [[-600, 600],[-300, 300]] 
+    optimize: True
+    opt_routine: SNOPT

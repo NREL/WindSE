@@ -25,18 +25,20 @@ def initialize(loc,updated_parameters=[]):
 
     windse_parameters.Load(loc,updated_parameters=updated_parameters)
 
-    global BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce, Optimizer#, ReducedFunctional
-    if windse_parameters["general"].get("dolfin_adjoint", False) or main_file in ["sphinx-build", "__main__.py"]:
-        from windse.dolfin_adjoint_helper import BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce#, ReducedFunctional
+    ### Apply dolfin adjoint patches/hacks ###
+    global Optimizer
+    if windse_parameters.dolfin_adjoint:
+        import windse.dolfin_adjoint_helper 
         from windse.OptimizationManager import Optimizer
-    else:
-        from windse.helper_functions import BaseHeight, CalculateDiskTurbineForces, UpdateActuatorLineForce, RadialChordForce
-    
+
+    global mpi_eval
+    from windse.helper_functions import mpi_eval
+
     global BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
     from windse.DomainManager import BoxDomain, CylinderDomain, CircleDomain, RectangleDomain, ImportedDomain, InterpolatedCylinderDomain, InterpolatedBoxDomain, PeriodicDomain
 
     global GridWindFarm, RandomWindFarm, ImportedWindFarm, EmptyWindFarm
-    from windse.WindFarmManager import GridWindFarm, RandomWindFarm, ImportedWindFarm, EmptyWindFarm
+    from windse.wind_farm_types import GridWindFarm, RandomWindFarm, ImportedWindFarm, EmptyWindFarm
 
     global RefineMesh, WarpMesh
     from windse.RefinementManager import RefineMesh, WarpMesh
@@ -53,3 +55,11 @@ def initialize(loc,updated_parameters=[]):
     global SteadySolver, IterativeSteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
     from windse.SolverManager import SteadySolver, IterativeSteadySolver, UnsteadySolver, MultiAngleSolver, TimeSeriesSolver
 
+    # TODO:
+    # document the aoa.csv and other forces file formats
+    # add an options to switch from airfoil polars or blade_data.csv maybe a flag to switch between
+    # document how bladedata.csv is used i.e. interpolated to the number of blade_segments
+    # wake validation?
+    # post-processing to get wake data along lines
+    global write_to_floris
+    from windse.PostprocessingManager import write_to_floris

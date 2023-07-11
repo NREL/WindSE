@@ -30,7 +30,7 @@ name = "cyld_kernel"
 ### Set default keyword argument values ###
 # These must be a dictionary and will be passed in via the kwargs.
 # Leave empty if no argument are needed. 
-keyword_defaults = {'type': 'above', # 'upstream'
+keyword_defaults = {'orientation': 'above', # 'upstream'
                     'radius': 0.5,
                     'length': 3.0,
                     'sharpness': 6,
@@ -46,7 +46,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     formed by intersecting a radial Gaussian and a streamwise Gaussian.
 
     Keyword arguments:
-        type:      The orientation of the Gaussian cylinder, 
+        orientation:      The orientation of the Gaussian cylinder, 
                    "upstream" for Gaussians shifted to measure the velocity
                    directly upstream from each turbine, "above" to orient the
                    Gaussians over the top of each turbine.
@@ -63,7 +63,7 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
                    a good starting point.
     '''
 
-    def rotate_and_shift_points(x, x0, yaw, kp):
+    def rotate_and_shift_points(x, x0, yaw, kp, RD):
 
         xs =  cos(yaw)*(x[0]-x0[0]) + sin(yaw)*(x[1]-x0[1])
         ys = -sin(yaw)*(x[0]-x0[0]) + cos(yaw)*(x[1]-x0[1])
@@ -73,10 +73,10 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
         else:
             zs = 0.0
 
-        if kp['type'] == 'upstream':
+        if kp['orientation'] == 'upstream':
             xs = xs + 0.5*kp['length']
-        elif kp['type'] == 'above':
-            zs = zs - 0.5*kp['length']
+        elif kp['orientation'] == 'above':
+            zs = zs - RD - 0.5*kp['length']
 
         return [xs, ys, zs]
 
@@ -90,26 +90,27 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
         for k in range(solver.problem.farm.numturbs):
 
             # Get a convenience copy of turbine k's location
-            mx = solver.problem.farm.mx[k]
-            my = solver.problem.farm.my[k]
-            mz = solver.problem.farm.mz[k]
+            mx = solver.problem.farm.turbines[k].mx
+            my = solver.problem.farm.turbines[k].my
+            mz = solver.problem.farm.turbines[k].mz
+            RD = solver.problem.farm.turbines[k].RD
             x0 = [mx, my, mz]
 
             # Get a convenience copy of turbine k's yaw
-            yaw = solver.problem.farm.myaw[k]
+            yaw = solver.problem.farm.turbines[k].myaw
 
-            xs = rotate_and_shift_points(x, x0, yaw, kp)
+            xs = rotate_and_shift_points(x, x0, yaw, kp, RD)
 
-            if kp['type'] == 'upstream':
+            if kp['orientation'] == 'upstream':
                 # Place the cylinders upstream from the rotor aligned with the hub axis
                 ax = xs[0]/(0.5*kp['length'])
                 axial_gaussian = exp(-pow(ax, kp['sharpness']))
                 rad = (xs[1]**2 + xs[2]**2)/kp['radius']**2
                 radial_gaussian = exp(-pow(rad, kp['sharpness']))
 
-            elif kp['type'] == 'above':
+            elif kp['orientation'] == 'above':
                 # Place the cylinders above the rotor aligned with the Z-direction
-                ax = xs[2]/(0.5*kp['length'])        
+                ax = (xs[2])/(0.5*kp['length'])      
                 axial_gaussian = exp(-pow(ax, kp['sharpness']))
                 rad = (xs[0]**2 + xs[1]**2)/kp['radius']**2
                 radial_gaussian = exp(-pow(rad, kp['sharpness']))
@@ -123,8 +124,8 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
     # ================================================================
 
     # Modify some of the properties of the kernel
-    kwargs['radius'] *= solver.problem.farm.RD[0]
-    kwargs['length'] *= solver.problem.farm.RD[0]
+    kwargs['radius'] *= solver.problem.farm.turbines[0].RD
+    kwargs['length'] *= solver.problem.farm.turbines[0].RD
 
     kernel_exp, kernel_exp_list = build_cylindrical_kernels(solver, kwargs)
 
@@ -163,10 +164,10 @@ def objective(solver, inflow_angle = 0.0, first_call=False, **kwargs):
             # J_ind = -assemble(sqrt(inner(solver.problem.u_k, solver.problem.u_k))*kernel_exp_list[k]*dx)
             J_ind = assemble(solver.problem.u_k[0]*kernel_exp_list[k]/vol/solver.problem.farm.numturbs*dx)
 
-            mx = solver.problem.farm.mx[k]
-            my = solver.problem.farm.my[k]
-            mz = solver.problem.farm.mz[k]
-            yaw = solver.problem.farm.myaw[k]
+            mx =  solver.problem.farm.turbines[k].mx
+            my =  solver.problem.farm.turbines[k].my
+            mz =  solver.problem.farm.turbines[k].mz
+            yaw = solver.problem.farm.turbines[k].myaw
 
             blockage_array.append([k, mx, my, mz, yaw, J_ind])
 

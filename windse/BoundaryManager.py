@@ -5,6 +5,7 @@ defining the boundary conditions.
 
 import __main__
 import os
+from pyadjoint.tape import no_annotations
 
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
@@ -22,7 +23,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
 
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
-        from dolfin_adjoint import *  
+        from dolfin_adjoint import *
 
     import math 
     from scipy.interpolate import RegularGridInterpolator
@@ -44,9 +45,13 @@ class GenericBoundary(object):
         for key, value in self.params["boundary_conditions"].items():
             setattr(self,key,value)
 
+        self.extra_kwarg = {}            
+        if self.params.dolfin_adjoint:
+            self.extra_kwarg["annotate"] = False
+
         ### get the height to apply the HH_vel ###
         if self.vel_height == "HH":
-            self.vel_height = np.mean(farm.HH)
+            self.vel_height = np.mean(farm.get_hub_locations()[:,2])
         if np.isnan(self.vel_height):
             raise ValueError("Hub Height not defined, likely and EmptyFarm. Please set boundary_conditions:vel_height in config yaml")
 
@@ -58,11 +63,23 @@ class GenericBoundary(object):
         self.zero  = Constant(0.0)
 
         ### Use custom boundary tags if provided ###
-        if self.params.default_bc_names:
+        if not self.params.user_supplied["boundary_conditions"]["boundary_names"]:
             self.boundary_names = self.dom.boundary_names
-        if self.params.default_bc_types:
+        if not self.params.user_supplied["boundary_conditions"]["boundary_types"]:
             self.boundary_types = self.dom.boundary_types
 
+        # Process bc to account for periodic 
+        if self.dom.periodic_mapping is not None:
+            # Disable boundaries that are now periodic [east,west]
+            for key in self.dom.bcs_to_remove:
+                self.boundary_names[key] = None
+
+            # Make sure those boundaries are not doubly set
+            for key,value in self.boundary_types.items():
+                self.boundary_types[key] = [i for i in value if i not in self.dom.bcs_to_remove]
+
+
+    @no_annotations
     def DebugOutput(self):
         if self.debug_mode:
             # Average of the x and y-velocities
@@ -99,7 +116,6 @@ class GenericBoundary(object):
         ### Inflow is always from the front
 
         self.fprint("Applying Boundary Conditions",offset=1)
-
         # If running in parallel, avoid using boundary markers
         if self.params.num_procs > 1:
 
@@ -108,43 +124,44 @@ class GenericBoundary(object):
             self.bcs = []
 
             for bc_type, bc_loc_list in self.boundary_types.items():
-                for bc_loc in bc_loc_list:
+                if bc_loc_list is not None:
+                    for bc_loc in bc_loc_list:
 
-                    # Translate the boundary name, a string, into an integer index:
-                    # East = 0, North = 1, West = 2, South = 3, Bottom = 4, Top = 5
-                    bc_loc_id = self.boundary_names[bc_loc] - 1
+                        # Translate the boundary name, a string, into an integer index:
+                        # East = 0, North = 1, West = 2, South = 3, Bottom = 4, Top = 5
+                        bc_loc_id = self.boundary_names[bc_loc] - 1
 
-                    # Get the correct compiled subdomain based off the location id
-                    bc_domain = self.dom.boundary_subdomains[bc_loc_id]
+                        # Get the correct compiled subdomain based off the location id
+                        bc_domain = self.dom.boundary_subdomains[bc_loc_id]
 
-                    # Append the right type of Dirichlet BC to the list
-                    if bc_type == 'inflow':
-                        self.bcu.append(DirichletBC(self.fs.V, self.bc_velocity, bc_domain))
-                        self.bcs.append(DirichletBC(self.fs.W.sub(0), self.bc_velocity, bc_domain))
+                        # Append the right type of Dirichlet BC to the list
+                        if bc_type == 'inflow':
+                            self.bcu.append(DirichletBC(self.fs.V, self.bc_velocity, bc_domain))
+                            self.bcs.append(DirichletBC(self.fs.W.sub(0), self.bc_velocity, bc_domain))
 
-                    elif bc_type == 'no_slip':
-                        if self.dom.mesh.topology().dim() == 3:
-                            zeros = Constant((0.0, 0.0, 0.0))
-                        elif self.dom.mesh.topology().dim() == 2:
-                            zeros = Constant((0.0, 0.0))
+                        elif bc_type == 'no_slip':
+                            if self.dom.mesh.topology().dim() == 3:
+                                zeros = Constant((0.0, 0.0, 0.0))
+                            elif self.dom.mesh.topology().dim() == 2:
+                                zeros = Constant((0.0, 0.0))
 
-                        self.bcu.append(DirichletBC(self.fs.V, zeros, bc_domain))
-                        self.bcs.append(DirichletBC(self.fs.W.sub(0), zeros, bc_domain))
+                            self.bcu.append(DirichletBC(self.fs.V, zeros, bc_domain))
+                            self.bcs.append(DirichletBC(self.fs.W.sub(0), zeros, bc_domain))
 
-                    elif bc_type == 'free_slip':
-                        # Identify the component/direction normal to this wall
-                        if bc_loc == 'east' or bc_loc == 'west':
-                            norm_comp = 0
-                        elif bc_loc == 'south' or bc_loc == 'north':
-                            norm_comp = 1
-                        elif bc_loc == 'bottom' or bc_loc == 'top':
-                            norm_comp = 2
+                        elif bc_type == 'free_slip':
+                            # Identify the component/direction normal to this wall
+                            if bc_loc == 'east' or bc_loc == 'west':
+                                norm_comp = 0
+                            elif bc_loc == 'south' or bc_loc == 'north':
+                                norm_comp = 1
+                            elif bc_loc == 'bottom' or bc_loc == 'top':
+                                norm_comp = 2
 
-                        self.bcu.append(DirichletBC(self.fs.V.sub(norm_comp), Constant(0.0), bc_domain))
-                        self.bcs.append(DirichletBC(self.fs.W.sub(0).sub(norm_comp), Constant(0.0), bc_domain))
+                            self.bcu.append(DirichletBC(self.fs.V.sub(norm_comp), Constant(0.0), bc_domain))
+                            self.bcs.append(DirichletBC(self.fs.W.sub(0).sub(norm_comp), Constant(0.0), bc_domain))
 
-                    elif bc_type == 'no_stress':
-                        self.bcp.append(DirichletBC(self.fs.Q, Constant(0.0), bc_domain))
+                        elif bc_type == 'no_stress':
+                            self.bcp.append(DirichletBC(self.fs.Q, Constant(0.0), bc_domain))
 
         else:
 
@@ -159,6 +176,7 @@ class GenericBoundary(object):
                         for b in bs:
                             if self.boundary_names[b] in unique_ids:
                                 bcu_eqns.append([self.fs.V, self.fs.W.sub(0), self.bc_velocity, self.boundary_names[b]])
+                                # bcu_eqns.append([self.fs.V, self.fs.W.sub(0), Constant((8.0,0,0)), self.boundary_names[b]])
 
                     elif bc_type == "no_slip":
                         for b in bs:
@@ -218,10 +236,15 @@ class GenericBoundary(object):
         uy_com = np.zeros(length)
         uz_com = np.zeros(length)
 
+        if self.dom.dim == 3:
+            self.inflow_unit_vector = as_vector((cos(inflow_angle),sin(inflow_angle),0.0))
+        else:
+            self.inflow_unit_vector = as_vector((cos(inflow_angle),sin(inflow_angle)))
+
         for i in range(length):
             v = self.HH_vel * self.unit_reference_velocity[i]
-            ux_com[i] = math.cos(inflow_angle)*v
-            uy_com[i] = math.sin(inflow_angle)*v
+            ux_com[i] = self.inflow_unit_vector[0]*v
+            uy_com[i] = self.inflow_unit_vector[1]*v
             if self.dom.dim == 3:
                 uz_com[i] = 0.0   
         return [ux_com,uy_com,uz_com]
@@ -299,10 +322,11 @@ class GenericBoundary(object):
 
     def CalculateHeights(self):
         ### Calculate the distance to the ground for the Q function space ###
-        # self.z_dist_Q = Function(fs.Q)
+
         self.height = Function(self.fs.Q)
         self.depth = Function(self.fs.Q)
         Q_coords = self.fs.Q.tabulate_dof_coordinates()
+        print(f"|    |    Rank {self.params.rank}: N Coords: {len(Q_coords)}, N Dofs: {len(self.height.vector().get_local())}")
         height_vals = self.height.vector()[:]
         for i in range(len(Q_coords)):
             height_vals[i] = self.dom.Ground(Q_coords[i,0],Q_coords[i,1])
@@ -328,8 +352,9 @@ class UniformInflow(GenericBoundary):
         self.fprint("Type: Uniform Inflow")
         for key, values in self.boundary_types.items():
             self.fprint("Boundary Type: {0}, Applied to:".format(key))
-            for value in values:
-                self.fprint(value,offset=1)
+            if values is not None:
+                for value in values:
+                    self.fprint(value,offset=1)
         ### Create the Velocity Function ###
         self.ux = Function(fs.V0)
         self.uy = Function(fs.V1)
@@ -362,8 +387,12 @@ class UniformInflow(GenericBoundary):
 
         ### Create Initial Guess
         self.fprint("Assigning Initial Guess")
-        self.u0 = Function(fs.W)
-        self.fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
+        if self.params["solver"]["type"] == "steady" and self.dom.dim == 3:
+            # We need to have a non-constant initial guess otherwise the nu_T calculation is nan in 3D for steady problems
+            self.u0 = project(Expression(("HH_vel*(x[2]-z0)/(z1-z0)","0","0","0"),degree=1,HH_vel = self.HH_vel, z0 = self.dom.z_range[0],z1 = self.dom.z_range[1], y0 = self.dom.y_range[0],y1 = self.dom.y_range[1]),self.fs.W, solver_type='gmres',preconditioner_type="hypre_amg",**self.extra_kwarg)
+        else:
+            self.u0 = Function(fs.W)
+            self.fs.SolutionAssigner.assign(self.u0,[self.bc_velocity,self.bc_pressure])
 
         ### Setup the boundary Conditions ###
         self.SetupBoundaries()

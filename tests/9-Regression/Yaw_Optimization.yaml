@@ -10,8 +10,11 @@ wind_farm:
 
     ########################## Grid Wind Farm #########################
     type: imported            #                          |
-    path: Input_Data/Yaw_Optimization_Layout.txt
+    path: Input_Data/Yaw_Optimization/Farm_Layout.csv
     ###################################################################
+
+turbines:
+    type: disk
 
 # Domain Parameters: Uncomment a set to change domain shape
 domain: 
@@ -59,7 +62,6 @@ problem:
 solver:
     type: steady
     save_power: true
-    power_type: power
 
 optimization:
     control_types:  [yaw]

@@ -1,0 +1,37 @@
+name: windse_temp
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  # - python=3.7
+  - coveralls
+  - dolfin-adjoint=2019.1.0
+  - fenics=2019.1.0=py39*_26
+  - hdf5
+  - jsonschema
+  - matplotlib
+  - memory_profiler
+  - mshr
+  - openmdao
+  - pandas
+  - pyoptsparse
+  - pytest
+  - pytest-cov
+  - pytest-mpi
+  - pyyaml
+  - scipy=1.7.0
+  - slepc
+  - sphinx<7.0.0
+  - pip
+  - pip:
+    - git+https://github.com/blechta/tsfc.git@2018.1.0
+    - git+https://github.com/blechta/COFFEE.git@2018.1.0
+    - git+https://github.com/blechta/FInAT.git@2018.1.0
+    # - git+https://github.com/firedrakeproject/tsfc.git@Firedrake_20220119.0
+    # - git+https://github.com/coneoproject/COFFEE.git@Firedrake_20220119.0
+    # - git+https://github.com/FInAT/FInAT.git@Firedrake_20220119.0
+    - singledispatch
+    - networkx
+    - pulp
+    - fatpack
+    - -e .

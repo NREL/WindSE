@@ -15,6 +15,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     import sys
     import windse
     import numpy as np
+    # from fenics import FunctionSpace, Function
     
 def DefaultParameters():
     """
@@ -30,6 +31,7 @@ def BlankParameters():
     params["general"] = {}
     params["domain"] = {}
     params["wind_farm"] = {}
+    params["turbines"] = {}
     params["function_space"] = {}
     params["boundary_conditions"] = {}
     params["problem"] = {}
@@ -101,8 +103,7 @@ def BuildDomain(params):
                     "rectangle":windse.RectangleDomain,
                     "cylinder":windse.CylinderDomain,
                     "circle":windse.CircleDomain,
-                    "imported":windse.ImportedDomain,
-                    "periodic":windse.PeriodicDomain}
+                    "imported":windse.ImportedDomain}
     dom = dom_dict[params["domain"]["type"]]()
 
 
@@ -117,6 +118,11 @@ def BuildDomain(params):
         ### warp and refine the mesh
         windse.WarpMesh(dom)
         windse.RefineMesh(dom,farm)
+
+        #print('Calling from driver_function')
+        #Q = dom.my_fs(dom.mesh, 'P', 1)
+        #f = dom.my_fn(Q)
+        #print('finished in driver_function')
 
         ### Finalize the Domain ###
         dom.Finalize()
@@ -210,9 +216,9 @@ def SetupSimulation(params_loc=None):
     problem = BuildProblem(params,dom,farm)
     solver = BuildSolver(params,problem)
 
-    farm.PlotFarm(params["wind_farm"]["display"])
-    if farm.chord is not None:
-        farm.PlotChord(params["wind_farm"]["display"])
+    farm.plot_farm(params["wind_farm"]["display"])
+    if params["turbines"]["type"] == "alm" or params["turbines"]["force"] == "chord":
+        farm.plot_chord(params["wind_farm"]["display"])
 
 
     return params, problem, solver
