@@ -122,6 +122,7 @@ problem:                        # parameters for ProblemManager
     type:          Null             # type of model
     use_25d_model: False            # break divergence free to entrain momentum from "above" and "below"
     viscosity:     0.1              # viscosity
+    density:       1.0              # density
     lmax:          15               # mixing length
     turbulence_model: mixing_length # turbulence model. Choices: mixing_length, smagorinsky, or None
     script_iterator: 0              # debugging tool, do not use
@@ -134,6 +135,7 @@ solver:                         # parameters for the SolverManager
     final_time:        1.0          # final time of unsteady solve (s)
     save_interval:     1.0          # how often to save during unsteady solve (s)
     num_wind_angles:   1            # number of wind angle to sweep through for multiangle solve
+    num_blades:        3            # number of blades for turbine
     endpoint:          False        # include the final wind angle in the sweep
     velocity_path:     Null         # location of inflow velocities for multivelocity
     power_type:        power        # type of power calculation. choices: 2d_power, power, alm_powe
