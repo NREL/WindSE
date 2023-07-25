@@ -1383,7 +1383,7 @@ class UnsteadySolver(GenericSolver):
         yaw = self.problem.farm.yaw[0]
 
         # Set the number of blades in the turbine
-        num_blades = 3
+        num_blades = 3 # Set as 3 by default, num_blades is now an attribute of turbines in the parameter file
 
         # Blade length (turbine radius)
         L = self.problem.farm.radius[0] # For a SWIFT turbine 27 m in diameter
