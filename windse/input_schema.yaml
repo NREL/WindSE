@@ -563,6 +563,11 @@ properties:
         type: "number"
         description: "The radius of the hub. If non-zero, actuator nodes will still be placed in the full range [0, rotor_radius], but the lift/drag properties in the range [0, hub_rad] will be modified to reflect the blade root."
         units: "meter"
+      num_blades:
+        default: 3
+        type: "integer"
+        description: "Integer number of blades for each turbine"
+        units: "dimensionless"
       chord_perturb:
         default: 0.0
         type: "number"
@@ -881,6 +886,11 @@ properties:
         type: "number"
         description: "Kinematic viscosity."
         units: "meter^2/second"
+      density:
+        default: 1.0
+        type: "number"
+        description: "Fluid density"
+        units: "kg/meter^3"
       lmax:
         default: 15
         type: "number"

@@ -202,7 +202,7 @@ class ActuatorDisk(GenericTurbine):
         if self.mchord is not None:
             if self.chord is not None:
                 if self.blade_segments == "computed":
-                    self.num_actuator_nodes = 10 ##### FIX THIS ####
+                    self.num_actuator_nodes = 10 ##### FIX THIS #### # DEBUGGING: self.num_actuator_nodes = int(2.0*self.radius/self.gaussian_width) # FromLine 150 of ActuatorLine.py
                     self.blade_segments = self.num_actuator_nodes
                 else:
                     self.num_actuator_nodes = self.blade_segments
