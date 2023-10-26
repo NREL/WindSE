@@ -79,6 +79,8 @@ class ActuatorLineDolfin(GenericTurbine):
         self.motion_type = self.params["turbines"]["motion_type"]
         self.use_gauss_vel_probe = self.params["turbines"]["use_gauss_vel_probe"]
         self.use_ap_linear_interp = self.params["turbines"]["use_ap_linear_interp"]
+        self.num_blades = self.params["turbines"]["num_blades"]
+        self.density = self.params["problem"]["density"]
 
     def compute_parameters(self):
         pass
@@ -172,8 +174,8 @@ class ActuatorLineDolfin(GenericTurbine):
 
     def init_alm_calc_terms(self):
         # compute turbine radius
-        self.rho = 1.0
-        self.num_blades = 3
+        self.rho = self.density
+        self.num_blades = self.num_blades
         self.radius = 0.5*self.RD
         self.angular_velocity = 2.0*pi*self.rpm/60.0
 
@@ -594,7 +596,7 @@ class ActuatorLineDolfin(GenericTurbine):
                 tip_loss_fac = 1.0
 
             else:
-                loss_exponent = 3.0/2.0*(self.radius-rdim)/(rdim*sin(aoa))
+                loss_exponent = self.num_blades/2.0*(self.radius-rdim)/(rdim*sin(aoa)) # DEBUGGING: 3.0 is changed to self.num_blades
                 acos_arg = exp(-loss_exponent)
         #         acos_arg = np.clip(acos_arg, -1.0, 1.0)
                 tip_loss_fac = 2.0/pi*acos(acos_arg)
@@ -647,6 +649,7 @@ class ActuatorLineDolfin(GenericTurbine):
         w = self.w[actuator_id]
         twist = self.mtwist[actuator_id]
         chord = self.mchord[actuator_id]
+        self.rho = self.density # Density is redefined for calculation of lift and drag
 
         # Build a spherical Gaussian with width eps about point x_0
         self.gauss_kernel[blade_id][actuator_id] = self.build_gauss_kernel_at_point(x_0)

@@ -594,9 +594,10 @@ class UnsteadyProblem(GenericProblem):
         # Define fluid properties
         # FIXME: These should probably be set in params.yaml input filt
         # nu = 1/10000
-        rho = 1
+        rho = self.params["problem"]["density"] # User-defined change
         nu_c = Constant(self.viscosity, name="viscosity")
         rho_c = Constant(rho, name="rho")
+        MISSING_RHO_C = rho_c
 
         # Define time step size (this value is used only for step 1 if adaptive timestepping is used)
         # FIXME: change variable name to avoid confusion within dolfin adjoint
@@ -623,7 +624,7 @@ class UnsteadyProblem(GenericProblem):
         self.u_k1 = Function(self.fs.V, name="u_k1")
         self.u_k2 = Function(self.fs.V, name="u_k2")
 
-        # Seed previous velocity fields with the chosen initial condition
+        # Seed previous velocity fields with the chosen initial condition #DEBUGING: Following lines are commented so that velocity isn't assigned to all nodes
         self.u_k.assign(self.bd.bc_velocity)
         self.u_k1.assign(self.bd.bc_velocity)
         self.u_k2.assign(self.bd.bc_velocity)
@@ -694,12 +695,19 @@ class UnsteadyProblem(GenericProblem):
         #    + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
         #    + dot(nabla_grad(self.p_k1), v)*dx \
         #    - dot(self.tf, v)*dx
+        # Update: density included with pressure term of NS
+        #F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
+        #   + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
+        #   + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
+        #   + inner(grad(self.p_k1), v)*dx \
+        #   - dot(self.tf, v)*dx
 
         F1 = (1.0/self.dt_c)*inner(u - self.u_k1, v)*dx \
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
            + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
-           + inner(grad(self.p_k1), v)*dx \
-           - dot(self.tf, v)*dx
+           + (1.0/MISSING_RHO_C)*inner(grad(self.p_k1), v)*dx \
+           - (1.0/MISSING_RHO_C)*dot(self.tf, v)*dx
+
 
         self.a1 = lhs(F1)
         self.L1 = rhs(F1)
@@ -708,7 +716,8 @@ class UnsteadyProblem(GenericProblem):
         # self.a2 = dot(nabla_grad(p), nabla_grad(q))*dx
         # self.L2 = dot(nabla_grad(self.p_k1), nabla_grad(q))*dx - (1.0/self.dt_c)*div(self.u_k)*q*dx
         self.a2 = inner(grad(p), grad(q))*dx
-        self.L2 = inner(grad(self.p_k1), grad(q))*dx - (1.0/self.dt_c)*div(self.u_k)*q*dx
+        #self.L2 = inner(grad(self.p_k1), grad(q))*dx - (1/self.dt_c)*div(self.u_k)*q*dx
+        self.L2 = inner(grad(self.p_k1), grad(q))*dx - (MISSING_RHO_C/self.dt_c)*div(self.u_k)*q*dx
 
         # phi = p - self.p_k
         # F2 = inner(grad(q), grad(phi))*dx - (1.0/self.dt_c)*div(u_k)*q*dx
@@ -719,7 +728,8 @@ class UnsteadyProblem(GenericProblem):
         # self.a3 = dot(u, v)*dx
         # self.L3 = dot(self.u_k, v)*dx - self.dt_c*dot(nabla_grad(self.p_k - self.p_k1), v)*dx
         self.a3 = inner(u, v)*dx
-        self.L3 = inner(self.u_k, v)*dx - self.dt_c*inner(grad(self.p_k - self.p_k1), v)*dx
+        #self.L3 = inner(self.u_k, v)*dx - self.dt_c*inner(grad(self.p_k - self.p_k1), v)*dx
+        self.L3 = inner(self.u_k, v)*dx - (self.dt_c/MISSING_RHO_C)*inner(grad(self.p_k - self.p_k1), v)*dx
 
         # F3 = inner(u, v)*dx - inner(self.u_k, v)*dx + self.dt_c*inner(phi, v)*dx
         # self.a3 = lhs(F3)
@@ -744,4 +754,3 @@ class UnsteadyProblem(GenericProblem):
 #             self.mcd[k] = Constant(cd[k])
 
 # # ================================================================
-

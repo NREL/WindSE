@@ -133,7 +133,7 @@ class ActuatorLine(GenericTurbine):
         #================================================================
 
         # Set the number of blades in the turbine
-        self.num_blades = 3
+        self.num_blades = self.params["turbines"]["num_blades"]
 
         # Set the spacing pf each blade
         self.theta_0_vec = np.linspace(0.0, 2.0*np.pi, self.num_blades, endpoint = False)
@@ -548,7 +548,7 @@ class ActuatorLine(GenericTurbine):
                     tip_loss_fac[k] = 1.0
 
                 else:
-                    loss_exponent = 3.0/2.0*(self.radius-self.rdim[k])/(self.rdim[k]*np.sin(aoa))
+                    loss_exponent = self.num_blades/2.0*(self.radius-self.rdim[k])/(self.rdim[k]*np.sin(aoa)) #DEBUGGING: 3.0 is changed to self.num_blades for adjusted tip-loss factor
                     acos_arg = np.exp(-loss_exponent)
                     acos_arg = np.clip(acos_arg, -1.0, 1.0)
                     tip_loss_fac[k] = 2.0/np.pi*np.arccos(acos_arg)
@@ -676,11 +676,14 @@ class ActuatorLine(GenericTurbine):
             else:
                 if self.lookup_cl is not None:
                     cl, cd, tip_loss_fac, aoa = self.lookup_lift_and_drag(u_rel, twist, self.blade_unit_vec[blade_id])
-
+            # self.fprint("For blade_id = {4}, the following values come from lookup_lift_and_drag: cl = {0}, cd = {1}, tip_loss_fac = {2}, aoa = {3} \n".format(cl,cd,tip_loss_fac,aoa,blade_id))
             # Calculate the lift and drag forces using the relative velocity magnitude
-            rho = 1.0
+            rho = self.params["problem"]["density"]
             lift = tip_loss_fac*(0.5*cl*rho*chord*self.w*u_rel_mag**2)
             drag = tip_loss_fac*(0.5*cd*rho*chord*self.w*u_rel_mag**2)
+            
+            #self.fprint("For blade_id = {0} with rho = {1}, lift = {2}".format(blade_id,rho,lift)) #DEBUGGING
+            #self.fprint("drag = {}".format(drag)) #DEBUGGING
 
             # Tile the blade coordinates for every mesh point, [numGridPts*ndim x problem.num_actuator_nodes]
             blade_pos_full = np.tile(self.blade_pos[blade_id], (np.shape(self.coords)[0], 1))
@@ -726,19 +729,23 @@ class ActuatorLine(GenericTurbine):
                 elif dfd == 'chord':
                     for j in range(self.ndim):
                         dfd_chord[j::self.ndim, k] += vector_nodal_lift[:, j] + vector_nodal_drag[:, j]
-
+                #self.fprint("Blade_id = {} \n".format(blade_id)) # DEBUGGING
                 # Compute the total force vector [x, y, z] at a single actuator node
                 actuator_lift = lift[k]*lift_unit_vec
+                #self.fprint("actuator_lift = {} \n".format(actuator_lift)) #DEBUGGING
                 actuator_drag = drag[k]*drag_unit_vec
+                #self.fprint("actuator_drag = {} \n".format(actuator_drag)) #DEBUGGING
 
                 # Note: since this will be used to define the force (torque) from fluid -> blade
                 # we reverse the direction that otherwise gives the turbine force from blade -> fluid
                 actuator_force = -(actuator_lift + actuator_drag)
+                #self.fprint("actuator_force = {} \n".format(actuator_force)) #DEBUGGING
                 # actuator_force = -(actuator_lift - actuator_drag)
 
                 # Find the component in the direction tangential to the blade
                 tangential_actuator_force = np.dot(actuator_force, self.blade_unit_vec[blade_id][:, 2])
 
+                #self.fprint("tangential_actuator_force = {} \n".format(tangential_actuator_force)) #DEBUGGING
                 rotor_plane_force = np.dot(actuator_force, self.blade_unit_vec[blade_id])
                 # fx.write('%.5f, ' % (rotor_plane_force[0]))
                 # fy.write('%.5f, ' % (rotor_plane_force[1]))
@@ -767,6 +774,7 @@ class ActuatorLine(GenericTurbine):
             data = np.array(along_blade_quantities[save_val])
 
             nn = self.num_blades*self.num_actuator_nodes
+            # print(data) # DEBUGGING
 
             if np.size(data) == nn:
                 data = data.reshape(1, nn)
@@ -776,6 +784,7 @@ class ActuatorLine(GenericTurbine):
 
             global_save_data = np.zeros((self.params.num_procs, nn))
             self.params.comm.Allgather(data, global_save_data)
+            
             data = np.nanmean(data, axis=0)
 
             if self.first_call_to_alm:
@@ -864,17 +873,24 @@ class ActuatorLine(GenericTurbine):
 
     def finalize_rotor_torque(self):
 
+        # self.fprint("num_procs = {} \n".format(self.params.num_procs)) #DEBUGGING
         data_in_torque = np.zeros(self.params.num_procs)
+        #self.fprint("data_in_torque = {} \n".format(data_in_torque)) #DEBUGGING
         self.params.comm.Gather(self.rotor_torque, data_in_torque, root=0)
+        #self.fprint("Gathered data_in_torque = {} \n".format(data_in_torque)) #DEBUGGING
 
         data_in_torque_count = np.zeros(self.params.num_procs, dtype=int)
+        #self.fprint("data_in_torque_count = {} \n".format(data_in_torque_count)) #DEBUGGING
         self.params.comm.Gather(self.rotor_torque_count, data_in_torque_count, root=0)
+        #self.fprint("Gathered data_in_torque_count = {} \n".format(data_in_torque_count)) #DEBUGGING
 
         if self.params.rank == 0:
             rotor_torque_sum = np.sum(data_in_torque)
+            #self.fprint("rotor_torque_sum = {} \n".format(rotor_torque_sum)) #DEBUG
             rotor_torque_count_sum = np.sum(data_in_torque_count)
-
-            # This removes the possibility of a power being doubled or tripled
+            #self.fprint("rotor_torque_count_sum = {} \n".format(rotor_torque_count_sum)) #DEBUG
+ 
+           # This removes the possibility of a power being doubled or tripled
             # if multiple ranks include this turbine and therefore calculate a torque
             self.rotor_torque = rotor_torque_sum/rotor_torque_count_sum
 
@@ -913,6 +929,7 @@ class ActuatorLine(GenericTurbine):
 
         # Call the function to build the complete mpi_u_fluid array
         self.get_u_fluid_at_alm_nodes(u)
+        #self.fprint("mpi_u_fluid = {}".format(self.mpi_u_fluid)) # DEBUGGING
 
         # Call the ALM function for this turbine
         if update:

@@ -1467,13 +1467,13 @@ class UnsteadySolver(GenericSolver):
         #================================================================
 
         # Set the density
-        rho = 1.0
+        rho = self.params["problem"]["density"]
 
         # Set the hub height
         hub_height = self.problem.farm.HH[0] # For a SWIFT turbine
 
         # Get the hub-height velocity
-        u_inf = 8.0
+        u_inf = 8.0 # DEBUGGING: This variable is set to a constant number. Is this right?
 
         # Set the rotational speed of the turbine
         RPM = 15.0
@@ -1482,7 +1482,7 @@ class UnsteadySolver(GenericSolver):
         yaw = self.problem.farm.yaw[0]
 
         # Set the number of blades in the turbine
-        num_blades = 3
+        num_blades = self.params["turbines"]["num_blades"]
 
         # Blade length (turbine radius)
         L = self.problem.farm.radius[0] # For a SWIFT turbine 27 m in diameter
@@ -1502,7 +1502,7 @@ class UnsteadySolver(GenericSolver):
         # print(self.problem.farm.radius)
 
         # Discretize each blade into separate nodes
-        num_actuator_nodes = 10
+        num_actuator_nodes = 10 # self.params["turbines"]["blade_segments"] # DEBUGGING: This variable is updated to be a user-defined parameter
 
         #================================================================
         # Set Derived Constants
@@ -1666,7 +1666,7 @@ class UnsteadySolver(GenericSolver):
         coords = np.copy(coords[0::self.problem.dom.dim, :])
 
         # Set up the turbine geometry
-        num_blades = 3
+        num_blades = self.params["turbines"]["num_blades"]
         theta_vec = np.linspace(0, 2.0*np.pi, num_blades+1)
         theta_vec = theta_vec[0:num_blades]
 
@@ -1676,7 +1676,7 @@ class UnsteadySolver(GenericSolver):
         cl = 1.0
         cd = 2.0
 
-        rho = 1
+        rho = self.params["problem"]["density"]
 
         u_inf = 8
 
@@ -1687,7 +1687,7 @@ class UnsteadySolver(GenericSolver):
         c = L/20
 
         # Number of blade evaluation sections
-        num_actuator_nodes = 50
+        num_actuator_nodes = 50 # self.params["turbines"]["blade_segments"] # DEBUGGING: Hard-coded parameter changed to user-defined parameter
         rdim = np.linspace(0, L, num_actuator_nodes)
         zdim = 0.0 + np.zeros(num_actuator_nodes)
         xblade = np.vstack((np.zeros(num_actuator_nodes), rdim, zdim))
