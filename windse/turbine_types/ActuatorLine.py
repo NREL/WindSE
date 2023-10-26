@@ -744,8 +744,8 @@ class ActuatorLine(GenericTurbine):
 
                 # Find the component in the direction tangential to the blade
                 tangential_actuator_force = np.dot(actuator_force, self.blade_unit_vec[blade_id][:, 2])
-                #self.fprint("tangential_actuator_force = {} \n".format(tangential_actuator_force)) #DEBUGGING
 
+                #self.fprint("tangential_actuator_force = {} \n".format(tangential_actuator_force)) #DEBUGGING
                 rotor_plane_force = np.dot(actuator_force, self.blade_unit_vec[blade_id])
                 # fx.write('%.5f, ' % (rotor_plane_force[0]))
                 # fy.write('%.5f, ' % (rotor_plane_force[1]))
@@ -775,6 +775,7 @@ class ActuatorLine(GenericTurbine):
 
             nn = self.num_blades*self.num_actuator_nodes
             # print(data) # DEBUGGING
+
             if np.size(data) == nn:
                 data = data.reshape(1, nn)
             else:
@@ -888,8 +889,8 @@ class ActuatorLine(GenericTurbine):
             #self.fprint("rotor_torque_sum = {} \n".format(rotor_torque_sum)) #DEBUG
             rotor_torque_count_sum = np.sum(data_in_torque_count)
             #self.fprint("rotor_torque_count_sum = {} \n".format(rotor_torque_count_sum)) #DEBUG
-
-            # This removes the possibility of a power being doubled or tripled
+ 
+           # This removes the possibility of a power being doubled or tripled
             # if multiple ranks include this turbine and therefore calculate a torque
             self.rotor_torque = rotor_torque_sum/rotor_torque_count_sum
 
