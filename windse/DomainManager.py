@@ -1,12 +1,14 @@
 """
-The DomainManager submodule contains the various classes used for 
+The DomainManager submodule contains the various classes used for
 creating different types of domains
 
 """
 
 import __main__
 import os
+from zlib import Z_DEFAULT_COMPRESSION
 from pyadjoint.tape import no_annotations
+from pprint import pprint
 
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
@@ -35,7 +37,7 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
-        
+
     ### This import improves the plotter functionality on Mac ###
     if platform == 'darwin':
         import matplotlib
@@ -55,10 +57,10 @@ class SinglePeriodicBoundary(SubDomain):
     def __init__(self,a,b,axis=0):
         super(SinglePeriodicBoundary, self).__init__()
         self.axis   = axis # 0 for periodic x and 1 for periodic y
-        self.target = a    # location of the primary boundary 
-        self.offset = b-a  # the offset from the primary to the secondary 
+        self.target = a    # location of the primary boundary
+        self.offset = b-a  # the offset from the primary to the secondary
 
-    # returns true primary boundary 
+    # returns true primary boundary
     def inside(self, x, on_boundary):
         return near(x[self.axis],self.target) and on_boundary
 
@@ -71,13 +73,13 @@ class DoublePeriodicBoundary(SubDomain):
 
     def __init__(self,x_range,y_range):
         super(DoublePeriodicBoundary, self).__init__()
-        self.x_range = x_range    # location of the primary boundary 
+        self.x_range = x_range    # location of the primary boundary
         self.y_range = y_range    # location of the primary boundary
-        self.x_offset = x_range[1]-x_range[0]  # the offset from the primary to the secondary 
-        self.y_offset = y_range[1]-y_range[0]  # the offset from the primary to the secondary 
+        self.x_offset = x_range[1]-x_range[0]  # the offset from the primary to the secondary
+        self.y_offset = y_range[1]-y_range[0]  # the offset from the primary to the secondary
         self.eps = 1e-4
 
-    # returns true primary boundary 
+    # returns true primary boundary
     def inside(self, x, on_boundary):
         on_either  = near(x[0], self.x_range[0],self.eps)  or near(x[1], self.y_range[0],self.eps)
         on_corner1 = near(x[0], self.x_range[1],self.eps) and near(x[1], self.y_range[0],self.eps)
@@ -232,7 +234,7 @@ class GenericDomain(object):
 
     def Plot(self):
         """
-        This function plots the domain using matplotlib and saves the 
+        This function plots the domain using matplotlib and saves the
         output to output/.../plots/mesh.pdf
         """
 
@@ -395,7 +397,7 @@ class GenericDomain(object):
         self.Refine(cell_f)
 
         refine_stop = time.time()
-        self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")  
+        self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
     def StreamRefine(self,center,radius,length,theta=0,pivot_offset=0,expand_factor=1):
         refine_start = time.time()
@@ -443,7 +445,7 @@ class GenericDomain(object):
         self.Refine(cell_f)
 
         refine_stop = time.time()
-        self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")  
+        self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
     def Refine(self, cellmarkers=None):
 
@@ -503,15 +505,15 @@ class GenericDomain(object):
     #         num (int): the number of times to refine
 
     #     :Keyword Arguments:
-    #         * **region** (*list*): 
+    #         * **region** (*list*):
     #                             for square region use: [[xmin,xmax],[ymin,ymax],[zmin,zmax]]
     #                             for circle region use: [[radius],[c_x,c_y],[zmin,zmax]]
-    #         * **region_type** (*str*): Either "circle" or "square" 
-    #         * **cell_markers** (*:meth:dolfin.mesh.MeshFunction*): A cell function marking which cells to refine 
+    #         * **region_type** (*str*): Either "circle" or "square"
+    #         * **cell_markers** (*:meth:dolfin.mesh.MeshFunction*): A cell function marking which cells to refine
     #     """
     #     refine_start = time.time()
 
-    #     ### Print some useful stats 
+    #     ### Print some useful stats
     #     self.fprint("Starting Mesh Refinement",special="header")
     #     if cell_markers is not None:
     #         self.fprint("Region Type: {0}".format("cell_markers"))
@@ -585,7 +587,7 @@ class GenericDomain(object):
     #                         cells_marked += 1
     #             self.fprint("Cells Marked for Refinement: {:d}".format(cells_marked))
 
-            
+
     #         ### If neither a region or cell markers were provided, Refine everwhere ###
     #         else:
     #             cell_f = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),True)
@@ -604,15 +606,15 @@ class GenericDomain(object):
     #         if num>1:
     #             step_stop = time.time()
     #             self.fprint("Step {:d} of {:d} Finished: {:1.2f} s".format(i+1,num,step_stop-step_start), special="footer")
-        
+
     #     refine_stop = time.time()
     #     self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
 
     def WarpSplit(self,h,s):
         """
-        This function warps the mesh to shift more cells towards the ground. 
-        is achieved by spliting the domain in two and moving the cells so 
+        This function warps the mesh to shift more cells towards the ground.
+        is achieved by spliting the domain in two and moving the cells so
         that a percentage of them are below the split.
 
         Args:
@@ -659,7 +661,7 @@ class GenericDomain(object):
 
     def WarpSmooth(self,s):
         """
-        This function warps the mesh to shift more cells towards the ground. 
+        This function warps the mesh to shift more cells towards the ground.
         The cells are shifted based on the function:
 
         .. math::
@@ -710,7 +712,7 @@ class GenericDomain(object):
         self.bmesh.coordinates()[:,1]=y_hd
         self.bmesh.coordinates()[:,2]=z_hd
         self.bmesh.bounding_box_tree().build(self.bmesh)
-        
+
         self.fprint("Moving Mesh to New Boundary Using ALE")
         ### The way dolfin_adjoint overwrites ALE.move is destructive so we have to use a work around
         if self.params.dolfin_adjoint:
@@ -897,12 +899,12 @@ class GenericDomain(object):
 class BoxDomain(GenericDomain):
     """
     A box domain is simply a 3D rectangular prism. This box is defined
-    by 6 parameters in the param.yaml file. 
+    by 6 parameters in the param.yaml file.
 
     Example:
         In the yaml file define::
 
-            domain: 
+            domain:
                 #                      # Description           | Units
                 x_range: [-2500, 2500] # x-range of the domain | m
                 y_range: [-2500, 2500] # y-range of the domain | m
@@ -911,7 +913,7 @@ class BoxDomain(GenericDomain):
                 ny: 10                 # Number of y-nodes     | -
                 nz: 2                  # Number of z-nodes     | -
 
-        This will produce a box with corner points (-2500,-2500,0.04) 
+        This will produce a box with corner points (-2500,-2500,0.04)
         to (2500,2500,630). The mesh will have *nx* nodes in the *x*-direction,
         *ny* in the *y*-direction, and *nz* in the *z*-direction.
     """
@@ -936,10 +938,131 @@ class BoxDomain(GenericDomain):
         ### Create mesh ###
         mesh_start = time.time()
         self.fprint("")
-        self.fprint("Generating Mesh")
-        start = Point(self.x_range[0], self.y_range[0], self.z_range[0])
-        stop  = Point(self.x_range[1], self.y_range[1], self.z_range[1])
-        self.mesh = BoxMesh(start, stop, self.nx, self.ny, self.nz)
+        if self.mesh_type == "gmsh":
+
+            # only dependencies for the gmsh case
+            import gmsh
+            import meshio
+            import tempfile
+
+            # start up gmsh model
+            gmsh.initialize(sys.argv)
+            gmsh.model.add("boxmesh")
+
+            # true extents
+            Lx_true = self.x_range[1] - self.x_range[0]
+            Ly_true = self.y_range[1] - self.y_range[0]
+            Lz_true = self.z_range[1] - self.z_range[0]
+
+            # either do stretching to preserve
+            stretch_anisotropic = True # TODO: turn into an input param
+            if stretch_anisotropic:
+                Lx_prime = 1.0
+                Ly_prime = self.ny/self.nx
+                Lz_prime = self.nz/self.nx
+            else:
+                Lx_prime = Lx_true
+                Ly_prime = Ly_true
+                Lz_prime = Lz_true
+
+            # create points that constitute box's lower surface
+            pt_bx000 = gmsh.model.geo.addPoint(
+                self.x_range[0]/Lx_true*Lx_prime,
+                self.y_range[0]/Ly_true*Ly_prime,
+                self.z_range[0]/Lz_true*Lz_prime,
+            )
+            pt_bx100 = gmsh.model.geo.addPoint(
+                self.x_range[1]/Lx_true*Lx_prime,
+                self.y_range[0]/Ly_true*Ly_prime,
+                self.z_range[0]/Lz_true*Lz_prime,
+            )
+            pt_bx010 = gmsh.model.geo.addPoint(
+                self.x_range[0]/Lx_true*Lx_prime,
+                self.y_range[1]/Ly_true*Ly_prime,
+                self.z_range[0]/Lz_true*Lz_prime,
+            )
+            pt_bx110 = gmsh.model.geo.addPoint(
+                self.x_range[1]/Lx_true*Lx_prime,
+                self.y_range[1]/Ly_true*Ly_prime,
+                self.z_range[0]/Lz_true*Lz_prime,
+            )
+
+            # create lines of box's lower surface
+            ln_bx000 = gmsh.model.geo.addLine(pt_bx000, pt_bx100)
+            ln_bx001 = gmsh.model.geo.addLine(pt_bx100, pt_bx110)
+            ln_bx010 = gmsh.model.geo.addLine(pt_bx010, pt_bx110)
+            ln_bx011 = gmsh.model.geo.addLine(pt_bx000, pt_bx010)
+
+            # create curve loop for lower surface
+            cl_bx0 = gmsh.model.geo.addCurveLoop(
+                [ln_bx000, ln_bx001, -ln_bx010, -ln_bx011]
+            )
+            # create plane surface
+            ps_bx0 = gmsh.model.geo.addPlaneSurface([cl_bx0])
+
+            bx_simple = gmsh.model.geo.extrude(
+                [(2, ps_bx0)],
+                0.0,
+                0.0,
+                (self.z_range[1] - self.z_range[0])/Lz_true*Lz_prime
+            )
+
+            # synchronize the geometry
+            gmsh.model.geo.synchronize()
+
+            # characteristic length based on regular tetrahedron volume formula
+            lc_mean = (
+                6*np.sqrt(2)
+                *(Lx_prime/self.nx)
+                *(Ly_prime/self.ny)
+                *(Lz_prime/self.nz)
+            )**(1/3)
+            # set the mesh size to the characteristic length
+            gmsh.model.mesh.setSize(gmsh.model.getEntities(0), lc_mean)
+
+            # generate and output
+            gmsh.model.mesh.generate(3)
+
+            # # DEBUG!!!!!!
+            # # get element counts!
+            # elemTypes, elemTags, elemNodeTags = gmsh.model.mesh.getElements()
+            # numElem = sum(len(i) for i in elemTags)
+            # print(f"\nelement target: {self.nx*self.ny*self.nz}; actual: {numElem}\n\n")
+            # # END DEBUG!!!!!!
+
+            # create a temporary directory to hold mesh IO files for conversion
+            with tempfile.TemporaryDirectory() as dir_for_meshes:
+
+                # # DEBUG!!!!!
+                # print("temporary dir created:", dir_for_meshes)
+                # # END DEBUG!!!!!
+
+                # write and finalize gmsh
+                gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
+                gmsh.finalize() # don't need it anymore!
+
+                # use meshio to convert from gmsh to dolfin xml file
+                mesh_meshio = meshio.read(os.path.join(dir_for_meshes, "dummy.msh"))
+                meshio.write(
+                    os.path.join(dir_for_meshes, "dummy.xml"),
+                    mesh_meshio,
+                    file_format="dolfin-xml",
+                )
+                self.mesh = dolfin.cpp.mesh.Mesh(
+                    os.path.join(dir_for_meshes, "dummy.xml")
+                )
+
+            # stretch the coordinates back to the physical dimensions (now with the
+            # specified aspect ratios)
+            self.mesh.coordinates()[:,0] = self.mesh.coordinates()[:,0]*Lx_true/Lx_prime
+            self.mesh.coordinates()[:,1] = self.mesh.coordinates()[:,1]*Ly_true/Ly_prime
+            self.mesh.coordinates()[:,2] = self.mesh.coordinates()[:,2]*Lz_true/Lz_prime
+
+        else:
+            self.fprint("Generating Mesh")
+            start = Point(self.x_range[0], self.y_range[0], self.z_range[0])
+            stop  = Point(self.x_range[1], self.y_range[1], self.z_range[1])
+            self.mesh = BoxMesh(start, stop, self.nx, self.ny, self.nz)
 
         # box = Box(start,stop)
         # self.mesh = generate_mesh(box,self.nx)
@@ -992,7 +1115,7 @@ class BoxDomain(GenericDomain):
         north_id   = self.boundary_names["north"]
         west_id    = self.boundary_names["west"]
         south_id   = self.boundary_names["south"]
-        
+
         ### Set up the baseline (angle=0) order ###
         cardinal_ids = [east_id,north_id,west_id,south_id]
         diagonal_ids = [outflow_id,outflow_id,inflow_id,inflow_id]
@@ -1010,7 +1133,7 @@ class BoxDomain(GenericDomain):
         ### Get a list of all wall facets ###
         wall_facets = []
         for i in cardinal_ids:
-            wall_facets += self.boundary_markers.where_equal(i) 
+            wall_facets += self.boundary_markers.where_equal(i)
 
         ### Iterate through facets remarking as prescribed by new_order ###
         for facet_id in wall_facets:
@@ -1032,22 +1155,22 @@ class BoxDomain(GenericDomain):
 
 class CylinderDomain(GenericDomain):
     """
-    A cylinder domain is a cylinder that is centered a c0 and has radius r. 
-    This domain is defined by 6 parameters in the param.yaml file. The 
+    A cylinder domain is a cylinder that is centered a c0 and has radius r.
+    This domain is defined by 6 parameters in the param.yaml file. The
     center of the cylinder is assumed to be the z-axis.
 
     Example:
         In the yaml file define::
 
-            domain: 
+            domain:
                 #                      # Description           | Units
                 z_range: [0.04, 630]   # z-range of the domain | m
                 radius: 2500           # radius of base circle | m
                 nt: 100                # Number of radial nodes| -
                 nz: 10                 # Number of z nodes     | -
 
-        This will produce a upright cylinder centered at (0.0,0.0) with a 
-        radius of 2500 m and extends from z=0.04 to 630 m. The mesh will 
+        This will produce a upright cylinder centered at (0.0,0.0) with a
+        radius of 2500 m and extends from z=0.04 to 630 m. The mesh will
         have *nx* nodes in the *x*-direction, *ny* in the *y*-direction, and
         *nz* in the *z*-direction.
     """
@@ -1107,7 +1230,7 @@ class CylinderDomain(GenericDomain):
             x = self.mesh.coordinates()[:,0]
             y = self.mesh.coordinates()[:,1]
             z = self.mesh.coordinates()[:,2]
-            
+
             self.fprint("Morphing Mesh")
             if self.mesh_type == "elliptic":
                 x_hat, y_hat, z_hat = Elliptical_Grid(x, y, z, self.radius)
@@ -1253,7 +1376,7 @@ class CircleDomain(GenericDomain):
             self.mesh = refine(self.mesh)
             x = self.mesh.coordinates()[:,0]
             y = self.mesh.coordinates()[:,1]
-            
+
             self.fprint("Morphing Mesh")
             if self.mesh_type == "elliptic":
                 x_hat, y_hat, z_hat = Elliptical_Grid(x, y, 0, self.radius)
@@ -1352,19 +1475,19 @@ class CircleDomain(GenericDomain):
 class RectangleDomain(GenericDomain):
     """
     A rectangle domain is simply a 2D rectangle. This mesh is defined
-    by 4 parameters in the param.yaml file. 
+    by 4 parameters in the param.yaml file.
 
     Example:
         In the yaml file define::
 
-            domain: 
+            domain:
                 #                      # Description           | Units
                 x_range: [-2500, 2500] # x-range of the domain | m
                 y_range: [-2500, 2500] # y-range of the domain | m
                 nx: 10                 # Number of x-nodes     | -
                 ny: 10                 # Number of y-nodes     | -
 
-        This will produce a rectangle with corner points (-2500,-2500) 
+        This will produce a rectangle with corner points (-2500,-2500)
         to (2500,2500). The mesh will have *nx* nodes in the *x*-direction,
         and *ny* in the *y*-direction.
 
@@ -1431,7 +1554,7 @@ class RectangleDomain(GenericDomain):
         north_id   = self.boundary_names["north"]
         west_id    = self.boundary_names["west"]
         south_id   = self.boundary_names["south"]
-        
+
         ### Set up the baseline (angle=0) order ###
         cardinal_ids = [east_id,north_id,west_id,south_id]
         diagonal_ids = [outflow_id,outflow_id,inflow_id,inflow_id]
@@ -1449,7 +1572,7 @@ class RectangleDomain(GenericDomain):
         ### Get a list of all wall facets ###
         wall_facets = []
         for i in cardinal_ids:
-            wall_facets += self.boundary_markers.where_equal(i) 
+            wall_facets += self.boundary_markers.where_equal(i)
 
         ### Iterate through facets remarking as prescribed by new_order ###
         for facet_id in wall_facets:
@@ -1472,23 +1595,23 @@ class RectangleDomain(GenericDomain):
 class ImportedDomain(GenericDomain):
     """
     This class generates a domain from imported files. This mesh is defined
-    by 2 parameters in the param.yaml file. 
+    by 2 parameters in the param.yaml file.
 
     Example:
         In the yaml file define::
 
-            domain: 
+            domain:
                 path: "Mesh_data/"
                 filetype: "xml.gz"
 
         The supported filetypes are "xml.gz" and "h5". For "xml.gz" 3 files are
-        required: 
+        required:
 
             * mesh.xml.gz - this contains the mesh in a format dolfin can handle
             * boundaries.xml.gz - this contains the facet markers that define where the boundaries are
-            * topology.txt - this contains the data for the ground topology. 
+            * topology.txt - this contains the data for the ground topology.
                 It assumes that the coordinates are from a uniform mesh.
-                It contains three column: x, y, z. The x and y columns contain 
+                It contains three column: x, y, z. The x and y columns contain
                 just the unique values. The z column contains the ground values
                 for every combination of x and y. The first row must be the number
                 of points in the x and y direction. Here is an example for z=x+y/10::

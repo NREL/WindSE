@@ -18,7 +18,7 @@ properties:
       # - required_value
     properties:
       name:
-        type: 
+        type:
           - "string"
           - "null"
         description: "The folder name for the current run."
@@ -122,9 +122,9 @@ properties:
             - terrain_path
             - interpolated
             - gaussian
-    properties: 
+    properties:
       type:
-        type: 
+        type:
           - "string"
           - "null"
         description: "The type of domain, options are ``rectangle``, ``box``, ``cylinder``, ``circle``, ``imported``, or ``interpolated``. See :ref:`imported_domain`"
@@ -138,25 +138,25 @@ properties:
           - "interpolated"
           - Null
       path:
-        type: 
+        type:
           - "string"
           - "null"
         description: "The path to all domain files if using imported domain and standard naming."
         default: Null
       mesh_path:
-        type: 
+        type:
           - "string"
           - "null"
         description: "A specific path for the imported mesh file."
         default: Null
       terrain_path:
-        type: 
+        type:
           - "string"
           - "null"
         description: "A specific path for the terrain file if using complex/interpolated terrain."
         default: Null
       bound_path:
-        type: 
+        type:
           - "string"
           - "null"
         description: "A specific path to a MeshFunction file that stores the boundary IDs."
@@ -187,42 +187,42 @@ properties:
         description: "Sets periodic boundary conditions along the y-direction (Not yet implemented)."
         default: False
       x_range:
-        type: 
+        type:
           - "array"
           - "null"
         description: "The range of the domain in the streamwise direction, e.g., `[x_min, x_max]`."
         default: Null
         units: "meter"
       y_range:
-        type: 
+        type:
           - "array"
           - "null"
         description: "The range of the domain in the spanwise direction, e.g., `[y_min, y_max]`."
         default: Null
         units: "meter"
       z_range:
-        type: 
+        type:
           - "array"
           - "null"
         description: "The range of the domain in the vertical direction, e.g., `[z_min, z_max]`."
         default: Null
         units: "meter"
       nx:
-        type: 
+        type:
           - "integer"
           - "null"
         description: "The integer number of nodes in the streamwise (x) direction."
         default: Null
         units: "dimensionless"
       ny:
-        type: 
+        type:
           - "integer"
           - "null"
         description: "The integer number of nodes in the spanwise (y) direction."
         default: Null
         units: "dimensionless"
       nz:
-        type: 
+        type:
           - "integer"
           - "null"
         description: "The integer number of nodes in the vertical (z) direction."
@@ -237,29 +237,30 @@ properties:
           - "elliptic"
           - "squircular"
           - "stretch"
+          - "gmsh"
       center:
-        type: 
+        type:
           - "array"
           - "null"
         description: "Center of the cylinder/circle domains, e.g., `[x_center, y_center]`."
         default: Null
         units: "meter"
       radius:
-        type: 
+        type:
           - "number"
           - "null"
         description: "Radius for the cylinder/circle domains."
         default: Null
         units: "meter"
       nt:
-        type: 
+        type:
           - "integer"
           - "null"
         description: "Integer number of nodes in the theta direction for cylinder/circle domains."
         default: Null
         units: "dimensionless"
       res:
-        type: 
+        type:
           - "number"
           - "null"
         description: "The characteristic cell length for cylinder/circle domains generated with the mshr mesh_type."
@@ -282,7 +283,7 @@ properties:
               - "array"
               - "null"
             description: "Center of the hill."
-            default: 
+            default:
               - 0.0
               - 0.0
             units: "meter"
@@ -292,21 +293,21 @@ properties:
             default: 0.0
             units: "radians"
           amp:
-            type: 
+            type:
               - "number"
               - "null"
             description: "Height of the hill."
             default: Null
             units: "meter"
           sigma_x:
-            type: 
+            type:
               - "number"
               - "null"
             description: "Skew in x."
             default: Null
             units: "meter"
           sigma_y:
-            type: 
+            type:
               - "number"
               - "null"
             description: "Skew in y."
@@ -319,20 +320,20 @@ properties:
           intercept:
             type: "array"
             description: "Define a plane with z = mx(x-x0)+my(y-y0)+z0, where intercept = [x0, y0, z0]"
-            default: 
+            default:
               - 0.0
               - 0.0
               - 0.0
             units: "meter"
           mx:
-            type: 
+            type:
               - "number"
               - "null"
             description: "x slope."
             default: Null
             units: "meter/meter"
           my:
-            type: 
+            type:
               - "number"
               - "null"
             description: "y slope."
@@ -347,7 +348,7 @@ properties:
     properties:
       type:
         default: Null
-        type: 
+        type:
           - "string"
           - "null"
         enum:
@@ -359,7 +360,7 @@ properties:
         description: "Type of wind farm, options are ``grid``, ``random``, ``imported``, or ``empty``. See :ref:`imported_windfarm`"
       path:
         default: Null
-        type: 
+        type:
           - "string"
           - "null"
         description: "Location of imported wind farm."
@@ -369,42 +370,42 @@ properties:
         description: "If true, then use matplotlib and show() the wind farm/chord profiles mid run."
       ex_x:
         default: Null
-        type: 
+        type:
           - "array"
           - "null"
         description: "Extents of the farm in the x direction, e.g., [x_min, x_max]."
         units: "meter"
       ex_y:
         default: Null
-        type: 
+        type:
           - "array"
           - "null"
         description: "Extents of the farm in the y direction, e.g., [y_min, y_max]."
         units: "meter"
       x_spacing:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "x spacing between turbines."
         units: "meter"
       y_spacing:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "y spacing between turbines."
         units: "meter"
       x_shear:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "x offset between rows."
         units: "meter"
       y_shear:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "y offset between columns."
@@ -416,35 +417,35 @@ properties:
         units: "meter"
       grid_rows:
         default: Null
-        type: 
+        type:
           - "integer"
           - "null"
         description: "Integer number of turbines in the y direction."
         units: "dimensionless"
       grid_cols:
         default: Null
-        type: 
+        type:
           - "integer"
           - "null"
         description: "Integer number of turbines in the x direction."
         units: "dimensionless"
       jitter:
         default: 0.0
-        type: 
+        type:
           - "number"
           - "boolean"
         description: "Magnitude of random noise added to a gridded wind farm."
         units: "meter"
       numturbs:
         default: Null
-        type: 
+        type:
           - "integer"
           - "null"
         description: "Total integer number of turbines."
         units: "dimensionless"
       seed:
         default: Null
-        type: 
+        type:
           - "integer"
           - "null"
         description: "Seed to control/prescribe the randomness between runs."
@@ -458,7 +459,7 @@ properties:
     properties:
       type:
         default: Null
-        type: 
+        type:
           - "string"
           - "null"
         enum:
@@ -474,35 +475,35 @@ properties:
         description: "Type of representation, options are ``2D_disk``, ``numpy_disk``, ``disk``, ``hybrid_disk``, ``line``, ``expr_disk``, ``dolfin_line``, or ``disabled``. See :ref:`turbine_representation`"
       HH:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "Hub height."
         units: "meter"
       RD:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "Rotor diameter."
         units: "meter"
       thickness:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "Thickness of the actuator disk (usually 10% of RD)."
         units: "meter"
       yaw:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "Yaw of the turbine relative to inflow angle."
         units: "radians"
       axial:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "Axial induction value for actuator disks."
@@ -517,14 +518,14 @@ properties:
         description: "Distribution of force along the radial direction of an actuator disk, options are ``constant``, ``sine``, or ``chord``."
       rpm:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "Rotation specified for the alm method."
         units: "rotations/minute"
       read_turb_data:
         default: Null
-        type: 
+        type:
           - "string"
           - "null"
         description: "Path to alm data."
@@ -575,19 +576,19 @@ properties:
         units: "dimensionless"
       chord_override:
         default: Null
-        type: 
+        type:
           - "string"
           - "null"
         description: "The path to a specific chord to use in CSV format, e.g., input_data/chord_base.csv."
       motion_file:
         default: Null
-        type: 
+        type:
           - "string"
           - "null"
         description: "Location to the platform motion data."
       motion_type:
         default: Null
-        type: 
+        type:
           - "array"
           - "string"
           - "null"
@@ -609,7 +610,7 @@ properties:
     properties:
       warp_type:
         default: Null
-        type: 
+        type:
           - "string"
           - "null"
         enum:
@@ -619,21 +620,21 @@ properties:
         description: "Warping will shift the nodes along the z direction concentrating them near the ground, options are ``smooth`` or ``split``."
       warp_strength:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "For smooth warps, how aggressively they are moved to the ground."
         units: "dimensionless"
       warp_percent:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "For split warps, percentage moved below the warp_heigth."
         units: "dimensionless"
       warp_height:
         default: Null
-        type: 
+        type:
           - "number"
           - "null"
         description: "For split warps, where the split happens."
@@ -678,7 +679,7 @@ properties:
         units: "dimensionless"
       refine_custom:
         default: Null
-        type: 
+        type:
           - "object"
           - "null"
         description: "Allows for a dictionary of custom refine commands. See :ref:`refine_custom`"
@@ -695,7 +696,7 @@ properties:
     properties:
       type:
         default: Null
-        type: 
+        type:
           - "string"
           - "null"
         description: "Type of function space, options are ``linear`` or ``taylor_hood``."
@@ -726,7 +727,7 @@ properties:
     properties:
       vel_profile:
         default: Null
-        type: 
+        type:
           - "string"
           - "null"
         description: "Inflow velocity profile, options are ``uniform``, ``power``, ``log``, or ``turbsim``."
@@ -760,7 +761,7 @@ properties:
         units: "dimensionless"
       turbsim_path:
         default: Null
-        type: 
+        type:
           - "string"
           - "null"
         description: "Location for the turbsim inflow data."
@@ -777,49 +778,49 @@ properties:
         properties:
           east:
             default: Null
-            type: 
+            type:
               - "string"
               - "null"
             description: "Positive x."
           north:
             default: Null
-            type: 
+            type:
               - "string"
               - "null"
             description: "Positive y."
           west:
             default: Null
-            type: 
+            type:
               - "string"
               - "null"
             description: "Negative x."
           south:
             default: Null
-            type: 
+            type:
               - "string"
               - "null"
             description: "Negative y."
           bottom:
             default: Null
-            type: 
+            type:
               - "string"
               - "null"
             description: "Negative z."
           top:
             default: Null
-            type: 
+            type:
               - "string"
               - "null"
             description: "Positive z."
           inflow:
             default: Null
-            type: 
+            type:
               - "string"
               - "null"
             description: "Inflow, used in cylinder/circle."
           outflow:
             default: Null
-            type: 
+            type:
               - "string"
               - "null"
             description: "Outflow, used in cylinder/circle."
@@ -829,25 +830,25 @@ properties:
         properties:
           inflow:
             default: Null
-            type: 
+            type:
               - "array"
               - "null"
             description: "List of inflow bc names."
           no_slip:
             default: Null
-            type: 
+            type:
               - "array"
               - "null"
             description: "List of no_slip bc names."
           free_slip:
             default: Null
-            type: 
+            type:
               - "array"
               - "null"
             description: "List of free_slip bc names."
           no_stress:
             default: Null
-            type: 
+            type:
               - "array"
               - "null"
             description: "List of no_stress bc names."
@@ -861,7 +862,7 @@ properties:
     properties:
       type:
         default: Null
-        type: 
+        type:
           - "string"
           - "null"
         description: "Type of model, options are ``stabilized``, ``steady``, ``taylor_hood``, ``iterative_steady``, or ``unsteady``."
@@ -957,7 +958,7 @@ properties:
         description: "Include the final wind angle in the sweep."
       velocity_path:
         default: Null
-        type: 
+        type:
           - "string"
           - "null"
         description: "Location of inflow velocities for multivelocity."
@@ -1004,7 +1005,7 @@ properties:
         description: "Minimize or maximize."
       control_types:
         default: Null
-        type: 
+        type:
           - "array"
           - "null"
         description: "Controls to optimize, list of: ``layout``, ``yaw``, ``axial``, ``chord``, ``lift``, or ``drag``."
@@ -1039,7 +1040,7 @@ properties:
                 units: "dimensionless"
               kwargs:
                 default: Null
-                type: 
+                type:
                   - "string"
                   - "null"
                 description: "If constraint is based on an objective function with kwargs, set them here."
@@ -1131,7 +1132,7 @@ properties:
       - write_floris_input
     properties:
       write_floris_input:
-        type: 
+        type:
           - "array"
           - "null"
         default: Null
