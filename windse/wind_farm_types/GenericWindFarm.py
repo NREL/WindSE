@@ -4,14 +4,14 @@ import numpy as np
 import time, os
 from . import MeshFunction, cells, project, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters, Form, File
 import matplotlib.pyplot as plt
-from pyadjoint.tape import stop_annotating 
+from pyadjoint.tape import stop_annotating
 from pyadjoint import AdjFloat
 
 class GenericWindFarm(object):
     """
     A GenericWindFarm contains on the basic functions and attributes required by all wind farm objects.
-    
-    Args: 
+
+    Args:
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
     def __init__(self, dom):
@@ -44,7 +44,7 @@ class GenericWindFarm(object):
             self.control_types = self.params["optimization"]["control_types"]
             self.optimizing = True
 
-        ### extra_kwargs will reduce overhead on operations that we don't want dolfin_adjoint to track 
+        ### extra_kwargs will reduce overhead on operations that we don't want dolfin_adjoint to track
         self.extra_kwarg = {}
         if self.params.dolfin_adjoint:
             self.extra_kwarg["annotate"] = False
@@ -61,9 +61,9 @@ class GenericWindFarm(object):
     def setup(self):
         """
         This function builds the wind farm as well as sets up the turbines
-        """  
-        self.load_parameters()      
-        self.compute_parameters()      
+        """
+        self.load_parameters()
+        self.compute_parameters()
         self.fprint("Number of Turbines: {:d}".format(self.numturbs))
         self.fprint("Type of Turbines: {}".format(self.turbine_type))
         self.initial_turbine_locations = self.initialize_turbine_locations()
@@ -72,18 +72,18 @@ class GenericWindFarm(object):
         self.setup_turbines()
         self.fprint("Turbines Set up",special="footer")
 
-        self.debug_output() 
+        self.debug_output()
 
     def load_parameters(self):
         """
         This function will parse the parameters from the yaml file
-        """  
+        """
         raise NotImplementedError(type(self))
 
     def compute_parameters(self):
         """
         This function will compute any additional parameters
-        """  
+        """
         raise NotImplementedError(type(self))
 
     def initialize_turbine_locations():
@@ -139,7 +139,7 @@ class GenericWindFarm(object):
 
     def calculate_farm_bounding_box(self):
         """
-        This functions takes into consideration the turbine locations, diameters, 
+        This functions takes into consideration the turbine locations, diameters,
         and hub heights to create lists that describe the extent of the windfarm.
         These lists are append to the parameters object.
         """
@@ -147,7 +147,7 @@ class GenericWindFarm(object):
         RD = self.get_rotor_diameters()
         ground = self.get_ground_heights()
 
-        ### Locate the extreme turbines ### 
+        ### Locate the extreme turbines ###
         x_min = np.argmin(x)
         x_max = np.argmax(x)
         y_min = np.argmin(y)
@@ -159,12 +159,12 @@ class GenericWindFarm(object):
         self.ex_x = [x[x_min]-RD[x_min]/2.0,x[x_max]+RD[x_max]/2.0]
         self.ex_y = [y[y_min]-RD[y_min]/2.0,y[y_max]+RD[y_max]/2.0]
         self.ex_z = [min(ground),z[z_max]+RD[z_max]/2.0]
-        
+
         return [self.ex_x,self.ex_y,self.ex_z]
 
     def update_heights(self):
         """
-        updates the hub height for all turbines in farm 
+        updates the hub height for all turbines in farm
         """
         for turb in self.turbines:
             turb.calculate_heights()
@@ -233,9 +233,9 @@ class GenericWindFarm(object):
             # self.fprint(f"Final project tf2")
             # tf2 = project(sum(tf2_proj),fs.V)
             # self.fprint(f"Final project tf3")
-            # tf3 = project(sum(tf3_proj),fs.V) 
+            # tf3 = project(sum(tf3_proj),fs.V)
 
-            # create the final turbine force          
+            # create the final turbine force
             return tf1*u[0]**2+tf2*u[1]**2+tf3*u[0]*u[1]
         else:
             # do the normal loop
@@ -263,7 +263,7 @@ class GenericWindFarm(object):
 
     def update_controls(self):
         """
-        iterates over the controls list assigns self.<name> to the control, self.m<name> 
+        iterates over the controls list assigns self.<name> to the control, self.m<name>
         """
         for turb in self.turbines:
             turb.update_controls()
@@ -311,7 +311,7 @@ class GenericWindFarm(object):
                     J = assemble(val*dx)
                 else:
                     J = val
-                    
+
                 J_list[i+2] = J
 
         J_list[-1]=sum(J_list[2:])
@@ -479,10 +479,10 @@ class GenericWindFarm(object):
         elif isinstance(objective_value,(list,np.ndarray)):
             plt.title("Objective Value: {: 5.6f}".format(sum(objective_value)))
         else:
-            plt.title("Objective Value: {: 5.6f}".format(float(objective_value))) 
-        plt.xlabel("Blade Span")      
+            plt.title("Objective Value: {: 5.6f}".format(float(objective_value)))
+        plt.xlabel("Blade Span")
         plt.ylabel("Chord")
-        plt.legend()      
+        plt.legend()
 
         plt.savefig(file_string, transparent=True)
 
@@ -494,7 +494,7 @@ class GenericWindFarm(object):
     def save_functions(self,val=0):
         """
         This function call the prepare_saved_functions from each turbine, combines the functions and saves them.
-        It then check to see if it can save the function out right and if not it projects. 
+        It then check to see if it can save the function out right and if not it projects.
         "val" can be the time, or angle, its just the iterator for saving mulitple steps
         Note: this function is way over engineered!
         """
@@ -520,7 +520,7 @@ class GenericWindFarm(object):
             # Note: this is overkill
             if not hasattr(func,"_cpp_object"):
 
-                # choose an appropriate function space 
+                # choose an appropriate function space
                 if func.geometric_dimension() == 1:
                     FS = self.fs.Q
                 else:
@@ -534,7 +534,7 @@ class GenericWindFarm(object):
                 self.func_files.append(out_file)
             else:
                 self.params.Save(func, func_name,subfolder="functions/",val=val,file=self.func_files[i])
-        
+
         # Flip the flag!
         self.func_first_save = False
 
@@ -605,7 +605,7 @@ class GenericWindFarm(object):
     ########################################################################################################
     ############## It would be smart to eventually move these to a separate refinement module ##############
     ########################################################################################################
- 
+
     def SimpleRefine(self,radius,expand_factor=1):
         if self.numturbs == 0:
             return
@@ -618,10 +618,16 @@ class GenericWindFarm(object):
 
         ### Create the cell markers ###
         cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
-        
+
         ### Get Dimension ###
         n = self.numturbs
         d = self.dom.dim
+
+        # DEBUG!!!!!
+        print(f"numturbs: {n}")
+        print(f"dom dim: {d}")
+        print(f"turb_locs: {self.get_hub_locations()}")
+        # END DEBUG!!!!!
 
         ### Get Turbine Coordinates ###
         turb_locs = self.get_hub_locations()
@@ -640,6 +646,11 @@ class GenericWindFarm(object):
             y = pt[1::d]
             if d == 3:
                 z = pt[2::d]
+
+            # DEBUG!!!!!
+            print("cell vertex coords:")
+            print(cell.get_vertex_coordinates())
+            # END DEBUG!!!!!
 
             ### Find the minimum distance for each turbine with the vertices ###
             x_diff = np.power(np.subtract.outer(x,turb_x),2.0)
@@ -770,7 +781,7 @@ class GenericWindFarm(object):
 
         ### Create the cell markers ###
         cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
-        
+
         ### Get Dimension ###
         n = self.numturbs
         d = self.dom.dim
@@ -869,7 +880,7 @@ class GenericWindFarm(object):
 
         ### Create the cell markers ###
         cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
-        
+
         ### Get Dimension ###
         n = self.numturbs
         d = self.dom.dim
@@ -880,7 +891,7 @@ class GenericWindFarm(object):
         turb_y = turb_locs[:,1]
         if self.dom.dim == 3:
             turb_z = turb_locs[:,2]
-            
+
 
         self.fprint("Marking Near Turbine")
         mark_start = time.time()
@@ -918,4 +929,3 @@ class GenericWindFarm(object):
         refine_stop = time.time()
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
-        

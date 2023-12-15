@@ -936,6 +936,8 @@ class BoxDomain(GenericDomain):
         ### Create mesh ###
         mesh_start = time.time()
         self.fprint("")
+        self.fprint("Generating Mesh")
+
         if self.mesh_type == "gmsh":
 
             # only dependencies for the gmsh case
@@ -1031,10 +1033,6 @@ class BoxDomain(GenericDomain):
             # create a temporary directory to hold mesh IO files for conversion
             with tempfile.TemporaryDirectory() as dir_for_meshes:
 
-                # # DEBUG!!!!!
-                # print("temporary dir created:", dir_for_meshes)
-                # # END DEBUG!!!!!
-
                 # write and finalize gmsh
                 gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
                 gmsh.finalize() # don't need it anymore!
@@ -1057,7 +1055,6 @@ class BoxDomain(GenericDomain):
             self.mesh.coordinates()[:,2] = self.mesh.coordinates()[:,2]*Lz_true/Lz_prime
 
         else:
-            self.fprint("Generating Mesh")
             start = Point(self.x_range[0], self.y_range[0], self.z_range[0])
             stop  = Point(self.x_range[1], self.y_range[1], self.z_range[1])
             self.mesh = BoxMesh(start, stop, self.nx, self.ny, self.nz)
@@ -1509,9 +1506,124 @@ class RectangleDomain(GenericDomain):
         mesh_start = time.time()
         self.fprint("")
         self.fprint("Generating Mesh")
-        start = Point(self.x_range[0], self.y_range[0])
-        stop  = Point(self.x_range[1], self.y_range[1])
-        self.mesh = RectangleMesh(start, stop, self.nx, self.ny)
+
+        if self.mesh_type == "gmsh":
+
+            # only dependencies for the gmsh case
+            import gmsh
+            import meshio
+            import tempfile
+
+            # start up gmsh model
+            gmsh.initialize(sys.argv)
+            gmsh.model.add("rectmesh")
+
+            # true extents
+            Lx_true = self.x_range[1] - self.x_range[0]
+            Ly_true = self.y_range[1] - self.y_range[0]
+
+            # either do stretching to preserve
+            stretch_anisotropic = True # TODO: turn into an input param
+            if stretch_anisotropic:
+                Lx_prime = 1.0
+                Ly_prime = self.ny/self.nx
+            else:
+                Lx_prime = Lx_true
+                Ly_prime = Ly_true
+
+            # create points that constitute box's lower surface
+            pt_bx000 = gmsh.model.geo.addPoint(
+                self.x_range[0]/Lx_true*Lx_prime,
+                self.y_range[0]/Ly_true*Ly_prime,
+                0.0,
+            )
+            pt_bx100 = gmsh.model.geo.addPoint(
+                self.x_range[1]/Lx_true*Lx_prime,
+                self.y_range[0]/Ly_true*Ly_prime,
+                0.0,
+            )
+            pt_bx010 = gmsh.model.geo.addPoint(
+                self.x_range[0]/Lx_true*Lx_prime,
+                self.y_range[1]/Ly_true*Ly_prime,
+                0.0,
+            )
+            pt_bx110 = gmsh.model.geo.addPoint(
+                self.x_range[1]/Lx_true*Lx_prime,
+                self.y_range[1]/Ly_true*Ly_prime,
+                0.0,
+            )
+
+            # create lines of box's lower surface
+            ln_bx000 = gmsh.model.geo.addLine(pt_bx000, pt_bx100)
+            ln_bx001 = gmsh.model.geo.addLine(pt_bx100, pt_bx110)
+            ln_bx010 = gmsh.model.geo.addLine(pt_bx010, pt_bx110)
+            ln_bx011 = gmsh.model.geo.addLine(pt_bx000, pt_bx010)
+
+            # create curve loop for lower surface
+            cl_bx0 = gmsh.model.geo.addCurveLoop(
+                [ln_bx000, ln_bx001, -ln_bx010, -ln_bx011]
+            )
+            # create plane surface
+            ps_bx0 = gmsh.model.geo.addPlaneSurface([cl_bx0])
+
+            # synchronize the geometry
+            gmsh.model.geo.synchronize()
+
+            # characteristic length based on regular tetrahedron volume formula
+            lc_mean = np.sqrt(4/np.sqrt(3)*(Lx_prime/self.nx)*(Ly_prime/self.ny))
+            # set the mesh size to the characteristic length
+            gmsh.model.mesh.setSize(gmsh.model.getEntities(0), lc_mean)
+
+            # generate and output
+            gmsh.model.mesh.generate(2)
+
+            # # DEBUG!!!!!!
+            # # get element counts!
+            # elemTypes, elemTags, elemNodeTags = gmsh.model.mesh.getElements()
+            # numElem = sum(len(i) for i in elemTags)
+            # print(f"\nelement target: {self.nx*self.ny}; actual: {numElem}\n\n")
+            # # END DEBUG!!!!!!
+
+            # create a temporary directory to hold mesh IO files for conversion
+            with tempfile.TemporaryDirectory() as dir_for_meshes:
+
+                # write and finalize gmsh
+                gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
+                gmsh.finalize() # don't need it anymore!
+
+                # use meshio to convert from gmsh to dolfin xml file
+                mesh_meshio = meshio.read(os.path.join(dir_for_meshes, "dummy.msh"))
+
+                # flatten to 2D
+                assert np.all(np.isclose(mesh_meshio.points[0,2], mesh_meshio.points[:,2]))
+                mesh_meshio.points = mesh_meshio.points[:,0:2]
+
+                meshio.write(
+                    os.path.join(dir_for_meshes, "dummy.xml"),
+                    mesh_meshio,
+                    file_format="dolfin-xml",
+                )
+                self.mesh = dolfin.cpp.mesh.Mesh(
+                    os.path.join(dir_for_meshes, "dummy.xml")
+                )
+
+            # flatten xml to 2D mesh
+            coords = self.mesh.coordinates()
+            coords = coords[:,0:2]
+            print(f"coords.size: {coords.size}")
+
+            # stretch the coordinates back to the physical dimensions (now with the
+            # specified aspect ratios)
+            self.mesh.coordinates()[:,0] = self.mesh.coordinates()[:,0]*Lx_true/Lx_prime
+            self.mesh.coordinates()[:,1] = self.mesh.coordinates()[:,1]*Ly_true/Ly_prime
+
+            # raise NotImplementedException("not working yet! -cfrontin")
+
+        else:
+            start = Point(self.x_range[0], self.y_range[0])
+            stop  = Point(self.x_range[1], self.y_range[1])
+            self.mesh = RectangleMesh(start, stop, self.nx, self.ny)
+
         self.bmesh = BoundaryMesh(self.mesh,"exterior")
         mesh_stop = time.time()
         self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
