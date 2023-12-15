@@ -623,12 +623,6 @@ class GenericWindFarm(object):
         n = self.numturbs
         d = self.dom.dim
 
-        # DEBUG!!!!!
-        print(f"numturbs: {n}")
-        print(f"dom dim: {d}")
-        print(f"turb_locs: {self.get_hub_locations()}")
-        # END DEBUG!!!!!
-
         ### Get Turbine Coordinates ###
         turb_locs = self.get_hub_locations()
         turb_x = turb_locs[:,0]
@@ -646,11 +640,6 @@ class GenericWindFarm(object):
             y = pt[1::d]
             if d == 3:
                 z = pt[2::d]
-
-            # DEBUG!!!!!
-            print("cell vertex coords:")
-            print(cell.get_vertex_coordinates())
-            # END DEBUG!!!!!
 
             ### Find the minimum distance for each turbine with the vertices ###
             x_diff = np.power(np.subtract.outer(x,turb_x),2.0)
