@@ -6,9 +6,7 @@ creating different types of domains
 
 import __main__
 import os
-from zlib import Z_DEFAULT_COMPRESSION
 from pyadjoint.tape import no_annotations
-from pprint import pprint
 
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
