@@ -1023,13 +1023,6 @@ class BoxDomain(GenericDomain):
             # generate and output
             gmsh.model.mesh.generate(3)
 
-            # # DEBUG!!!!!!
-            # # get element counts!
-            # elemTypes, elemTags, elemNodeTags = gmsh.model.mesh.getElements()
-            # numElem = sum(len(i) for i in elemTags)
-            # print(f"\nelement target: {self.nx*self.ny*self.nz}; actual: {numElem}\n\n")
-            # # END DEBUG!!!!!!
-
             # create a temporary directory to hold mesh IO files for conversion
             with tempfile.TemporaryDirectory() as dir_for_meshes:
 
@@ -1045,7 +1038,7 @@ class BoxDomain(GenericDomain):
                     file_format="dolfin-xml",
                 )
                 self.mesh = dolfin.cpp.mesh.Mesh(
-                    os.path.join(dir_for_meshes, "dummy.xml")
+                    os.path.join(dir_for_meshes, "dummy.xml"),
                 )
 
             # stretch the coordinates back to the physical dimensions (now with the
@@ -1610,15 +1603,11 @@ class RectangleDomain(GenericDomain):
             # flatten xml to 2D mesh
             coords = self.mesh.coordinates()
             coords = coords[:,0:2]
-            print(f"coords.size: {coords.size}")
 
             # stretch the coordinates back to the physical dimensions (now with the
             # specified aspect ratios)
             self.mesh.coordinates()[:,0] = self.mesh.coordinates()[:,0]*Lx_true/Lx_prime
             self.mesh.coordinates()[:,1] = self.mesh.coordinates()[:,1]*Ly_true/Ly_prime
-
-            # raise NotImplementedException("not working yet! -cfrontin")
-
         else:
             start = Point(self.x_range[0], self.y_range[0])
             stop  = Point(self.x_range[1], self.y_range[1])
