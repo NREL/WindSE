@@ -27,7 +27,7 @@ jobs:
           bash ./install.sh test-environment
           conda activate test-environment
           pip install gmsh
-          conda install meshio
+          pip install meshio
           conda list
 
       # - name: Run parallel regression tests within WindSE
