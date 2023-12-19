@@ -26,7 +26,7 @@ jobs:
         run: |
           bash ./install.sh test-environment
           conda activate test-environment
-          conda install gmsh
+          pip install gmsh
           conda list
 
       # - name: Run parallel regression tests within WindSE
@@ -54,14 +54,12 @@ jobs:
         shell: pwsh
         run: |
           conda activate test-environment
-          conda install gmsh
           pytest -sv --cov=windse --cov-append tests/test_regression.py
 
       - name: Run all documented demos within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
-          conda install gmsh
           pytest -sv --cov=windse --cov-append tests/test_demos.py
 
       # Run coveralls
