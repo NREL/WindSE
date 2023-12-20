@@ -1205,6 +1205,79 @@ class CylinderDomain(GenericDomain):
             # self.mesh.coordinates()[:,2] = z
             # self.mesh.bounding_box_tree().build(self.mesh)
 
+        elif self.mesh_type == "gmsh":
+            self.fprint("Generating Mesh Using gmsh")
+
+            # only dependencies for the gmsh case
+            import gmsh
+            import meshio
+            import tempfile
+
+            # start up gmsh model
+            gmsh.initialize(sys.argv)
+            gmsh.model.add("circmesh")
+            factory = gmsh.model.occ
+
+            # true extents
+            R_true = self.radius
+            Lz_true = self.z_range[1] - self.z_range[0]
+
+            stretch_anisotropic = True # TODO: turn into an input param
+            if stretch_anisotropic:
+                R_prime = 1.0
+                Lz_prime = 2*np.pi*self.nz/self.nt
+
+                lc_mean = Lz_prime/self.nz
+            else:
+                raise NotImplementedError("logic for ignoring scaling not implemented. -cfrontin")
+
+            # set up the geometry
+            x_circ = 0.0
+            y_circ = 0.0
+            z_circ = 0.0 # self.z_range[0]
+
+            # create a circle in the horizon plane
+            ln_circ = factory.addCircle(x_circ, y_circ, z_circ, R_prime)
+            cl_circ = factory.addCurveLoop([ln_circ])
+            ps_circ = factory.addPlaneSurface([cl_circ])
+
+            geom_cyl = factory.extrude([(2, ps_circ)], 0.0, 0.0, Lz_prime)
+
+            # synchronize the geometry
+            factory.synchronize()
+
+            # set the mesh size
+            gmsh.model.mesh.setSize(gmsh.model.getEntities(0), lc_mean)
+
+            # generate and output
+            gmsh.model.mesh.generate(3)
+            # gmsh.write("dummy.msh") # DEBUG!!!!!
+
+            # create a temporary directory to hold mesh IO files for conversion
+            with tempfile.TemporaryDirectory() as dir_for_meshes:
+
+                # write and finalize gmsh
+                gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
+                gmsh.finalize() # don't need it anymore!
+
+                # use meshio to convert from gmsh to dolfin xml file
+                mesh_meshio = meshio.read(os.path.join(dir_for_meshes, "dummy.msh"))
+
+                meshio.write(
+                    os.path.join(dir_for_meshes, "dummy.xml"),
+                    mesh_meshio,
+                    file_format="dolfin-xml",
+                )
+                self.mesh = dolfin.cpp.mesh.Mesh(
+                    os.path.join(dir_for_meshes, "dummy.xml")
+                )
+
+            # stretch the coordinates back to the physical dimensions (now with the
+            # specified aspect ratios)
+            self.mesh.coordinates()[:,0] = self.mesh.coordinates()[:,0]*R_true/R_prime + self.center[0]
+            self.mesh.coordinates()[:,1] = self.mesh.coordinates()[:,1]*R_true/R_prime + self.center[1]
+            self.mesh.coordinates()[:,2] = self.mesh.coordinates()[:,2]*Lz_true/Lz_prime + self.z_range[0]
+
         else:
             self.fprint("Generating Box Mesh")
 
@@ -1248,9 +1321,13 @@ class CylinderDomain(GenericDomain):
         self.fprint("")
         self.fprint("Marking Boundaries")
         outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1])
-        inflow  = CompiledSubDomain("nx*(x[0]-c0)+ny*(x[1]-c1)<=0  && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
+        inflow  = CompiledSubDomain("nx*(x[0]-c0)+ny*(x[1]-c1)<=0 && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
         top     = CompiledSubDomain("near(x[2], z1, tol) && on_boundary",z1 = self.z_range[1],tol = 1e-10)
         bottom  = CompiledSubDomain("near(x[2], z0, tol) && on_boundary",z0 = self.z_range[0],tol = 1e-10)
+        # outflow = CompiledSubDomain("x[2] > z0 && x[2] < z1 && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1])
+        # inflow  = CompiledSubDomain("x[2] > z0 && x[2] < z1 && nx*(x[0]-c0)+ny*(x[1]-c1)<=0 && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
+        # top     = CompiledSubDomain("near(x[2], z1, tol) && on_boundary",z1 = self.z_range[1],tol = 1e-10)
+        # bottom  = CompiledSubDomain("near(x[2], z0, tol) && on_boundary",z0 = self.z_range[0],tol = 1e-10)
         self.boundary_subdomains = [None,None,None,None,outflow,inflow,bottom,top]
         self.boundary_names = {"west":None,"east":None,"south":None,"north":None,"bottom":7,"top":8,"inflow":6,"outflow":5}
         self.boundary_types = {"inflow":          ["inflow"],
@@ -1351,6 +1428,65 @@ class CircleDomain(GenericDomain):
             ### Create Mesh ###
             mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
             self.mesh = generate_mesh(mshr_circle,self.res)
+
+        elif self.mesh_type == "gmsh":
+            self.fprint("Generating Mesh Using gmsh")
+
+            # only dependencies for the gmsh case
+            import gmsh
+            import meshio
+            import tempfile
+
+            # start up gmsh model
+            gmsh.initialize(sys.argv)
+            gmsh.model.add("circmesh")
+            factory = gmsh.model.occ
+
+            # use arc division to set characteristic length on the horizon
+            lc_mean = 2*np.pi*self.radius/self.nt
+
+            # set up the geometry
+            x_circ = self.center[0]
+            y_circ = self.center[1]
+            z_circ = 0.0
+
+            # create the circle in the horizon plane
+            ln_circ = factory.addCircle(x_circ, y_circ, z_circ, self.radius)
+            cl_circ = factory.addCurveLoop([ln_circ])
+            ps_circ = factory.addPlaneSurface([cl_circ])
+
+            # synchronize the geometry
+            factory.synchronize()
+
+            # set the mesh size
+            gmsh.model.mesh.setSize(gmsh.model.getEntities(0), lc_mean)
+
+            # generate and output
+            gmsh.model.mesh.generate(2)
+
+            # create a temporary directory to hold mesh IO files for conversion
+            with tempfile.TemporaryDirectory() as dir_for_meshes:
+
+                # write and finalize gmsh
+                gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
+                gmsh.finalize() # don't need it anymore!
+
+                # use meshio to convert from gmsh to dolfin xml file
+                mesh_meshio = meshio.read(os.path.join(dir_for_meshes, "dummy.msh"))
+
+                # flatten to 2D
+                assert np.all(np.isclose(mesh_meshio.points[0,2], mesh_meshio.points[:,2]))
+                mesh_meshio.points = mesh_meshio.points[:,0:2]
+
+                # write the dolfin file, and then finally re-load it into dolfin
+                meshio.write(
+                    os.path.join(dir_for_meshes, "dummy.xml"),
+                    mesh_meshio,
+                    file_format="dolfin-xml",
+                )
+                self.mesh = dolfin.cpp.mesh.Mesh(
+                    os.path.join(dir_for_meshes, "dummy.xml")
+                )
 
         else:
             self.fprint("Generating Rectangle Mesh")
@@ -1570,13 +1706,6 @@ class RectangleDomain(GenericDomain):
             # generate and output
             gmsh.model.mesh.generate(2)
 
-            # # DEBUG!!!!!!
-            # # get element counts!
-            # elemTypes, elemTags, elemNodeTags = gmsh.model.mesh.getElements()
-            # numElem = sum(len(i) for i in elemTags)
-            # print(f"\nelement target: {self.nx*self.ny}; actual: {numElem}\n\n")
-            # # END DEBUG!!!!!!
-
             # create a temporary directory to hold mesh IO files for conversion
             with tempfile.TemporaryDirectory() as dir_for_meshes:
 
@@ -1599,10 +1728,6 @@ class RectangleDomain(GenericDomain):
                 self.mesh = dolfin.cpp.mesh.Mesh(
                     os.path.join(dir_for_meshes, "dummy.xml")
                 )
-
-            # flatten xml to 2D mesh
-            coords = self.mesh.coordinates()
-            coords = coords[:,0:2]
 
             # stretch the coordinates back to the physical dimensions (now with the
             # specified aspect ratios)
