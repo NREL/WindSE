@@ -1320,10 +1320,25 @@ class CylinderDomain(GenericDomain):
         mark_start = time.time()
         self.fprint("")
         self.fprint("Marking Boundaries")
-        outflow = CompiledSubDomain("on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1])
-        inflow  = CompiledSubDomain("nx*(x[0]-c0)+ny*(x[1]-c1)<=0 && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
-        top     = CompiledSubDomain("near(x[2], z1, tol) && on_boundary",z1 = self.z_range[1],tol = 1e-10)
-        bottom  = CompiledSubDomain("near(x[2], z0, tol) && on_boundary",z0 = self.z_range[0],tol = 1e-10)
+        outflow = CompiledSubDomain(
+            "on_boundary",
+            nx=nom_x, ny=nom_y,
+            z0=self.z_range[0], z1=self.z_range[1],
+        )
+        inflow  = CompiledSubDomain(
+            "nx*(x[0]-c0)+ny*(x[1]-c1)<=0 && on_boundary",
+            nx=nom_x, ny=nom_y,
+            z0=self.z_range[0], z1=self.z_range[1],
+            c0=self.center[0], c1=self.center[1],
+        )
+        top     = CompiledSubDomain(
+            "near(x[2], z1, tol) && on_boundary",
+            z1=self.z_range[1], tol=1e-10
+        )
+        bottom  = CompiledSubDomain(
+            "near(x[2], z0, tol) && on_boundary",
+            z0=self.z_range[0], tol=1e-10,
+        )
         # outflow = CompiledSubDomain("x[2] > z0 && x[2] < z1 && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1])
         # inflow  = CompiledSubDomain("x[2] > z0 && x[2] < z1 && nx*(x[0]-c0)+ny*(x[1]-c1)<=0 && on_boundary", nx=nom_x, ny=nom_y, z0 = self.z_range[0], z1 = self.z_range[1], c0=self.center[0], c1=self.center[1])
         # top     = CompiledSubDomain("near(x[2], z1, tol) && on_boundary",z1 = self.z_range[1],tol = 1e-10)
@@ -1438,7 +1453,7 @@ class CircleDomain(GenericDomain):
             import tempfile
 
             # start up gmsh model
-            gmsh.initialize(sys.argv)
+            gmsh.initialize()
             gmsh.model.add("circmesh")
             factory = gmsh.model.occ
 
