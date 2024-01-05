@@ -1037,9 +1037,7 @@ class BoxDomain(GenericDomain):
                     mesh_meshio,
                     file_format="dolfin-xml",
                 )
-                self.mesh = dolfin.cpp.mesh.Mesh(
-                    os.path.join(dir_for_meshes, "dummy.xml"),
-                )
+                self.mesh = Mesh(os.path.join(dir_for_meshes, "dummy.xml"))
 
             # stretch the coordinates back to the physical dimensions (now with the
             # specified aspect ratios)
@@ -1268,9 +1266,7 @@ class CylinderDomain(GenericDomain):
                     mesh_meshio,
                     file_format="dolfin-xml",
                 )
-                self.mesh = dolfin.cpp.mesh.Mesh(
-                    os.path.join(dir_for_meshes, "dummy.xml")
-                )
+                self.mesh = Mesh(os.path.join(dir_for_meshes, "dummy.xml"))
 
             # stretch the coordinates back to the physical dimensions (now with the
             # specified aspect ratios)
@@ -1499,9 +1495,7 @@ class CircleDomain(GenericDomain):
                     mesh_meshio,
                     file_format="dolfin-xml",
                 )
-                self.mesh = dolfin.cpp.mesh.Mesh(
-                    os.path.join(dir_for_meshes, "dummy.xml")
-                )
+                self.mesh = Mesh(os.path.join(dir_for_meshes, "dummy.xml"))
 
         else:
             self.fprint("Generating Rectangle Mesh")
@@ -1740,9 +1734,7 @@ class RectangleDomain(GenericDomain):
                     mesh_meshio,
                     file_format="dolfin-xml",
                 )
-                self.mesh = dolfin.cpp.mesh.Mesh(
-                    os.path.join(dir_for_meshes, "dummy.xml")
-                )
+                self.mesh = Mesh(os.path.join(dir_for_meshes, "dummy.xml"))
 
             # stretch the coordinates back to the physical dimensions (now with the
             # specified aspect ratios)
