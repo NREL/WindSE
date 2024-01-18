@@ -946,7 +946,7 @@ class BoxDomain(GenericDomain):
             import tempfile
 
             # start up gmsh model
-            gmsh.initialize(sys.argv)
+            gmsh.initialize()
             gmsh.model.add("boxmesh")
 
             # true extents
@@ -1212,7 +1212,7 @@ class CylinderDomain(GenericDomain):
             import tempfile
 
             # start up gmsh model
-            gmsh.initialize(sys.argv)
+            gmsh.initialize()
             gmsh.model.add("circmesh")
             factory = gmsh.model.occ
 
@@ -1653,7 +1653,7 @@ class RectangleDomain(GenericDomain):
             import tempfile
 
             # start up gmsh model
-            gmsh.initialize(sys.argv)
+            gmsh.initialize()
             gmsh.model.add("rectmesh")
 
             # true extents
