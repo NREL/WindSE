@@ -17,8 +17,6 @@ else:
 ### This checks if we are just doing documentation ###
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
-    from mshr import *
-    #from windse.mshr_fake import *
     import copy
     import time
     import warnings
@@ -1186,15 +1184,19 @@ class CylinderDomain(GenericDomain):
         mesh_start = time.time()
         self.fprint("")
         if self.mesh_type == "mshr":
+
+            import mshr
+            #from windse.mshr_fake import *
+
             self.fprint("Generating Mesh Using mshr")
 
             ### Create Mesh ###
             # mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
             # mshr_domain = Extrude2D(mshr_circle,self.z_range[1]-self.z_range[0])
-            top    = Point(self.center[0],self.center[1],self.z_range[1])
-            bottom = Point(self.center[0],self.center[1],self.z_range[0])
-            mshr_domain = Cylinder(top,bottom,self.radius,self.radius,self.nt)
-            self.mesh = generate_mesh(mshr_domain,self.res)
+            top    = mshr.Point(self.center[0],self.center[1],self.z_range[1])
+            bottom = mshr.Point(self.center[0],self.center[1],self.z_range[0])
+            mshr_domain = mshr.Cylinder(top,bottom,self.radius,self.radius,self.nt)
+            self.mesh = mshr.generate_mesh(mshr_domain,self.res)
             # self.mesh = refine(self.mesh)
             # self.mesh = refine(self.mesh)
             # self.mesh = refine(self.mesh)
@@ -1434,11 +1436,14 @@ class CircleDomain(GenericDomain):
         self.fprint("")
         if self.mesh_type == "mshr":
 
+            import mshr
+            #from windse.mshr_fake import *
+
             self.fprint("Generating Mesh Using mshr")
 
             ### Create Mesh ###
-            mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
-            self.mesh = generate_mesh(mshr_circle,self.res)
+            mshr_circle = mshr.Circle(mshr.Point(self.center[0],self.center[1]), self.radius, self.nt)
+            self.mesh = mshr.generate_mesh(mshr_circle,self.res)
 
         elif self.mesh_type == "gmsh":
             self.fprint("Generating Mesh Using gmsh")
