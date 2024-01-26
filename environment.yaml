@@ -3,15 +3,15 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  # - python=3.7
+  - python=3.10
+  - mpich=4.0.3
   - coveralls
   - dolfin-adjoint=2019.1.0
-  - fenics=2019.1.0=py39*_26
+  - fenics
   - hdf5
   - jsonschema
   - matplotlib
   - memory_profiler
-  - mshr
   - openmdao
   - pandas
   - pyoptsparse
@@ -19,7 +19,7 @@ dependencies:
   - pytest-cov
   - pytest-mpi
   - pyyaml
-  - scipy=1.7.0
+  - scipy
   - slepc
   - sphinx<7.0.0
   - pip
@@ -34,4 +34,6 @@ dependencies:
     - networkx
     - pulp
     - fatpack
+    - gmsh
+    - meshio
     - -e .

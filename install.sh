@@ -1,7 +1,10 @@
 #!/bin/bash 
 
 ### Run this to use conda in the script
-source $(conda info --base)/etc/profile.d/conda.sh
+# source $(conda info --base)/etc/profile.d/conda.sh
+# conda config --add channels conda-forge
+# conda update -n base --all
+# conda install -n base mamba
 
 # ### Create the Environment
 # conda create -y --name $1
@@ -20,4 +23,4 @@ source $(conda info --base)/etc/profile.d/conda.sh
 # ### Install editible version of WindSE
 # pip install -e .
 
-conda env create --name ${1} --file environment.yaml
+mamba env create --name ${1} --file environment.yaml
