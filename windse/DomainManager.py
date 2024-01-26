@@ -1433,12 +1433,12 @@ class CircleDomain(GenericDomain):
         self.fprint("")
         if self.mesh_type == "mshr":
             raise NotImplementedError("Mshr is no longer supported, use gmsh instead.")
-
             # self.fprint("Generating Mesh Using mshr")
 
             # ### Create Mesh ###
             # mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
             # self.mesh = generate_mesh(mshr_circle,self.res)
+
 
         elif self.mesh_type == "gmsh":
             self.fprint("Generating Mesh Using gmsh")
