@@ -3,7 +3,7 @@ from typing import Generic
 from . import GenericTurbine
 
 # import dolfin functions
-from . import Constant, SpatialCoordinate, as_vector, cos, sin, exp, sqrt, dot, assemble, dx
+from . import Constant, SpatialCoordinate, as_vector, cos, sin, exp, ln, sqrt, dot, assemble, dx
 
 from . import ActuatorDisk
 
@@ -25,18 +25,23 @@ class ActuatorDiskSimplePowerCurve(GenericTurbine):
         self.yaw       = self.params["turbines"]["yaw"]
         self.thickness = self.params["turbines"]["thickness"]
         self.axial     = -1 # needed for generic turbine
-        self.CTprime0  = self.params["turbines"]["CTprime0"]
         self.CPprime0  = self.params["turbines"]["CPprime0"]
-        self.Vrated    = self.params["turbines"]["Vrated"]
+        self.CTprime0  = self.params["turbines"]["CTprime0"]
+        self.Prated    = self.params["turbines"]["Prated"]
+        self.Trated    = self.params["turbines"]["Trated"]
         self.force     = self.params["turbines"]["force"]
 
     def create_controls(self):
-        self.mx     = Constant(self.x, name="x_{:d}".format(self.index))
-        self.my     = Constant(self.y, name="y_{:d}".format(self.index))
-        self.myaw   = Constant(self.yaw, name="yaw_{:d}".format(self.index))
+        self.mx        = Constant(self.x, name="x_{:d}".format(self.index))
+        self.my        = Constant(self.y, name="y_{:d}".format(self.index))
+        self.myaw      = Constant(self.yaw, name="yaw_{:d}".format(self.index))
+        self.mCPprime0 = Constant(self.CPprime0, name="CPprime0_{:d}".format(self.index))
+        self.mCTprime0 = Constant(self.CTprime0, name="CTprime0_{:d}".format(self.index))
+        self.mPrated   = Constant(self.Prated, name="Prated_{:d}".format(self.index))
+        self.mTrated   = Constant(self.Trated, name="Trated_{:d}".format(self.index))
 
         # The control list is very important for extracting information from the optimzation step.
-        self.controls_list = ["x","y","yaw"]
+        self.controls_list = ["x","y","yaw","CPprime0","CTprime0","Prated","Trated"]
 
     def build_actuator_disk(self,inflow_angle):
 
@@ -45,7 +50,8 @@ class ActuatorDiskSimplePowerCurve(GenericTurbine):
         yaw = self.myaw+inflow_angle
         W = self.thickness*1.0
         R = self.RD/2.0
-        C_tprime0 = self.CTprime0
+        CPprime0 = self.mCTprime0
+        CTprime0 = self.mCPprime0
         x=SpatialCoordinate(self.dom.mesh)
 
         ### Set up some dim dependent values ###
@@ -80,7 +86,7 @@ class ActuatorDiskSimplePowerCurve(GenericTurbine):
             # self._setup_chord_force()
             # chord = self.mchord[i]
             # force = self.radial_chord_force(r,chord)
-        F = -0.5*A*C_tprime0*force
+        F = -0.5*A*CPprime0*force
 
         ### Calculate normalization constant ###
         volNormalization = T_norm*D_norm*W*R**(self.dom.dim-1)
@@ -135,14 +141,47 @@ class ActuatorDiskSimplePowerCurve(GenericTurbine):
         self.tf3 = self.actuator_disk * 2.0 * cos(yaw) * sin(yaw)
 
         # compute power curve adjustment as a function of velocity
-        CTprime0 = self.CTprime0
-        Vrated = self.Vrated
-        beta_smooth = 4.0*CTprime0
+        CPprime0 = self.mCPprime0
+        CTprime0 = self.mCTprime0
+        Prated = self.mPrated
+        Trated = self.mTrated
+        Vrated = Prated*CTprime0/(Trated*CPprime0)
+        A = np.pi/4.0*self.RD**2.0
+        Vps = sqrt(2*Prated/(A*Vrated*CPprime0))
+
+        # precompute key values
+        beta_smooth = 16.0
         vel_magnitude = sqrt(u[0]**2 + u[1]**2 + u[2]**2)
-        CTp_factor = (
-            exp(-beta_smooth) + (Vrated**3/vel_magnitude**3)*exp(-beta_smooth*Vrated**3/vel_magnitude**3)
-        )/(
-            exp(-beta_smooth) + exp(-beta_smooth*Vrated**3/vel_magnitude**3)
+
+        f0 = (0.5*A*vel_magnitude**3)/1e6
+        f1 = (0.5*A*vel_magnitude**3)*CTprime0/1e6
+        f2 = (0.5*A*vel_magnitude**3)*CTprime0*Vps**2/vel_magnitude**2/1e6
+        f3 = (0.5*A*vel_magnitude**3)*CTprime0*Vps**2*Vrated/vel_magnitude**3/1e6
+
+        # smooth twice: one in power space and one in coefficient space
+
+        # # first attempt: boltzmann operator
+        # # first blend: smoothmin Region II.5 and Region III power
+        # blend1 = 1.0*(
+        #     f2*exp(-beta_smooth*f2) + f3*exp(-beta_smooth*f3)
+        # )/(
+        #     exp(-beta_smooth*f2) + exp(-beta_smooth*f3)
+        # )
+        #
+        # # second blend: smoothmin Region II and first blend coefficient
+        # CTp_factor = (
+        #     f1/f0*exp(-beta_smooth*f1/f0) + blend1/f0*exp(-beta_smooth*blend1/f0)
+        # )/(
+        #     exp(-beta_smooth*f1/f0) + exp(-beta_smooth*blend1/f0)
+        # )
+
+        # second attempt: mellowmax operator
+        # first blend: smoothmin Region II.5 and Region III power
+        blend1 = -1.0/beta_smooth*ln(exp(-beta_smooth*f2) + exp(-beta_smooth*f3))
+
+        # second blend: smoothmin Region II and first blend coefficient
+        CTp_factor = -1.0/beta_smooth*ln(
+            exp(-beta_smooth*f1/f0) + exp(-beta_smooth*blend1/f0)
         )
 
         ### Compose full turbine force
@@ -155,7 +194,7 @@ class ActuatorDiskSimplePowerCurve(GenericTurbine):
 
     def power(self, u, inflow_angle):
         # adjust for turbine inefficiency
-        return self.CPprime0/self.CTprime0*dot(-self.tf,u)/1.0e6
+        return self.mCPprime0/self.mCTprime0*dot(-self.tf,u)/1.0e6
 
     def power_gradient(self):
         pass
