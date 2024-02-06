@@ -152,6 +152,7 @@ class ActuatorDiskSimplePowerCurve(GenericTurbine):
         # precompute key values
         beta_smooth = 16.0
         vel_magnitude = sqrt(u[0]**2 + u[1]**2 + u[2]**2)
+        # vel_magnitude = vel_magnitude((self.mx, self.my, self.HH)) # DEBUG!!!!!
 
         f0 = (0.5*A*vel_magnitude**3)/1e6
         f1 = (0.5*A*vel_magnitude**3)*CTprime0/1e6
@@ -182,7 +183,7 @@ class ActuatorDiskSimplePowerCurve(GenericTurbine):
         # second blend: smoothmin Region II and first blend coefficient
         CTp_factor = -1.0/beta_smooth*ln(
             exp(-beta_smooth*f1/f0) + exp(-beta_smooth*blend1/f0)
-        )
+        )/CTprime0
 
         ### Compose full turbine force
         self.tf = CTp_factor*(self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1])
