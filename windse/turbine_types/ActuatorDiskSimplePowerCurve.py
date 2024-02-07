@@ -50,8 +50,8 @@ class ActuatorDiskSimplePowerCurve(GenericTurbine):
         yaw = self.myaw+inflow_angle
         W = self.thickness*1.0
         R = self.RD/2.0
-        CPprime0 = self.mCTprime0
-        CTprime0 = self.mCPprime0
+        CTprime0 = self.mCTprime0
+        # CPprime0 = self.mCPprime0
         x=SpatialCoordinate(self.dom.mesh)
 
         ### Set up some dim dependent values ###
@@ -86,7 +86,7 @@ class ActuatorDiskSimplePowerCurve(GenericTurbine):
             # self._setup_chord_force()
             # chord = self.mchord[i]
             # force = self.radial_chord_force(r,chord)
-        F = -0.5*A*CPprime0*force
+        F = -0.5*A*CTprime0*force
 
         ### Calculate normalization constant ###
         volNormalization = T_norm*D_norm*W*R**(self.dom.dim-1)
@@ -152,12 +152,11 @@ class ActuatorDiskSimplePowerCurve(GenericTurbine):
         # precompute key values
         beta_smooth = 16.0
         vel_magnitude = sqrt(u[0]**2 + u[1]**2 + u[2]**2)
-        # vel_magnitude = vel_magnitude((self.mx, self.my, self.HH)) # DEBUG!!!!!
 
         f0 = (0.5*A*vel_magnitude**3)/1e6
         f1 = (0.5*A*vel_magnitude**3)*CTprime0/1e6
-        f2 = (0.5*A*vel_magnitude**3)*CTprime0*Vps**2/vel_magnitude**2/1e6
-        f3 = (0.5*A*vel_magnitude**3)*CTprime0*Vps**2*Vrated/vel_magnitude**3/1e6
+        f2 = (0.5*A*vel_magnitude**3)*CTprime0*Vps**2/(vel_magnitude**2)/1e6
+        f3 = (0.5*A*vel_magnitude**3)*CTprime0*Vps**2*Vrated/(vel_magnitude**3)/1e6
 
         # smooth twice: one in power space and one in coefficient space
 
