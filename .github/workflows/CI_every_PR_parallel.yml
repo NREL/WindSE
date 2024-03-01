@@ -1,4 +1,4 @@
-name: CI_every_PR
+name: CI_every_PR_parallel
 
 # We run CI on push commits on all branches
 on: [pull_request]
