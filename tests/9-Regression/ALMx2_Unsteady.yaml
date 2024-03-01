@@ -1,6 +1,6 @@
 general:
     # name: "alm_original"
-    output: ["initial_guess","height","turbine_force","solution"]
+    output: ["initial_guess","height","turbine_force","solution","mesh"]
     # dolfin_adjoint: True
     debug_mode: True
 

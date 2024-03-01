@@ -449,6 +449,18 @@ properties:
           - "null"
         description: "Seed to control/prescribe the randomness between runs."
         units: "dimensionless"
+      use_local_tf_dx:
+        default: True
+        type: 
+          - "boolean"
+        description: "A flag to assemble the tf using a local dx measure for each turbine."
+        units: "dimensionless"
+      local_dx_scaling:
+        default: 2.5
+        type: 
+          - "number"
+        description: "Controls how big the local domain integration is in rotor diameters."
+        units: "dimensionless"
   # ================================================================
   turbines:
     type: "object"

@@ -2,7 +2,7 @@ from windse import windse_parameters
 from windse.turbine_types import turbine_dict
 import numpy as np
 import time, os
-from . import MeshFunction, cells, project, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters, Form, File
+from . import MeshFunction, CompiledSubDomain, Measure, cells, project, inner, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters, Form, File
 import matplotlib.pyplot as plt
 from pyadjoint.tape import stop_annotating 
 from pyadjoint import AdjFloat
@@ -28,6 +28,8 @@ class GenericWindFarm(object):
 
         # Load any global parameter
         self.farm_type = self.params["wind_farm"]["type"]
+        self.local_dx_scaling = self.params["wind_farm"]["local_dx_scaling"]
+        self.use_local_tf_dx = self.params["wind_farm"]["use_local_tf_dx"]
         self.turbine_type = self.params["turbines"]["type"]
 
         # Set any global flags
@@ -51,7 +53,6 @@ class GenericWindFarm(object):
 
         ### Set the number of turbine when there are just too many and we need to project before solving
         self.too_many_turbines = 60
-
 
         # Setup the wind farm (eventually this will happen outside the init)
         self.fprint(f"Generating {self.name}",special="header")
@@ -169,97 +170,187 @@ class GenericWindFarm(object):
         for turb in self.turbines:
             turb.calculate_heights()
 
-    def compute_turbine_force(self,u,inflow_angle,fs,**kwargs):
+    def compute_turbine_force(self,u,v,inflow_angle,fs,**kwargs):
         """
         Iterates over the turbines and adds up the turbine forces
         """
-        # store the function space
+        # store the function space for later use
         self.fs = fs
 
-        # compute tf!!!
-        # TODO: make this more robust
-        if self.numturbs > self.too_many_turbines and "disk" in self.turbine_type:
-            # evenly distribute the number of turbine per project
-            n_groups = int((((self.numturbs-1)-((self.numturbs-1)%self.too_many_turbines))+self.too_many_turbines)/self.too_many_turbines)
-            split_value = round(self.numturbs/n_groups)
+        # create a list of turbine forces and integration domain
+        self.tf_list = []
 
-            print(f"Oh dear, there are just too many turbines (>={self.too_many_turbines}). I'm just going to collect them into {n_groups} groups of around {split_value} turbines each and then project.")
+        # Create a cell function that will be used to store the subdomains
+        self.turbine_subdomains = MeshFunction("size_t", self.dom.mesh, self.dom.mesh.topology().dim())
+        self.turbine_subdomains.set_all(0)
 
-            # init loop values
-            tf1_proj = []
-            tf2_proj = []
-            tf3_proj = []
+        # Iterate over each turbine to build its individual subdomain
+        for turb in self.turbines:
+            self.tf_list.append(turb.turbine_force(u,inflow_angle,fs,**kwargs))
+
+            # the subdomain is a sphere centered at the hub of the turbine with a height of scaling*RD and diameter of scaling*RD
+
+            if self.dom.dim == 3:
+                subdomain_marker = CompiledSubDomain("(x[0]-x0)*(x[0]-x0)+(x[1]-y0)*(x[1]-y0)+(x[2]-HH)*(x[2]-HH)<=r*r",r=self.local_dx_scaling*turb.RD/2.0, HH=turb.z, x0=turb.x, y0=turb.y)
+            else:
+                subdomain_marker = CompiledSubDomain("(x[0]-x0)*(x[0]-x0)+(x[1]-y0)*(x[1]-y0)<=r*r",r=self.local_dx_scaling*turb.RD/2.0, x0=turb.x, y0=turb.y)
+
+
+            # add the subdomain to the marker
+            subdomain_marker.mark(self.turbine_subdomains,turb.index+1)
+
+
+        # create a measure for the turbines
+        self.local_dx = Measure('dx', subdomain_data=self.turbine_subdomains)
+
+        # check if the number of turbines might trigger a python recursion error.    
+        if self.numturbs > self.too_many_turbines:
+            final_tf_list, final_local_dx = self.compress_turbine_function(u)
+        else:
+            final_tf_list = self.tf_list
+            final_local_dx = self.local_dx
+
+        # Combine the force and dx to create a single tf term
+        if self.use_local_tf_dx:
+            tf_term = 0
+            for i in range(len(final_tf_list)):
+                tf_term += inner(final_tf_list[i],v)*final_local_dx(i+1)
+
+        # use the full domain of integration if local is not requested
+        else:
+            tf_term = inner(sum(final_tf_list),v)*dx
+
+        return tf_term
+
+    def compress_turbine_function(self, u):
+        """
+        used to assemble the turbine force in chunks to avoid recursion errors
+        """
+
+        # evenly distribute the number of turbine per project
+        n_groups = int((((self.numturbs-1)-((self.numturbs-1)%self.too_many_turbines))+self.too_many_turbines)/self.too_many_turbines)
+        split_value = round(self.numturbs/n_groups)
+        print(f"Oh dear, there are just too many turbines (>={self.too_many_turbines}). I'm just going to collect them into {n_groups} groups of around {split_value} turbines each and then project.")
+
+        # init loop values
+        combined_tf_list = []
+        combined_dx_tf_list = []
+        counter = 0
+        group = 1
+        
+        # Create a cell function that will be used to store the subdomains
+        temp_subdomain = MeshFunction("size_t", self.dom.mesh, self.dom.mesh.topology().dim())
+        temp_subdomain.set_all(0)
+
+        # disks need to be treated specially due to how tf is convoluted with u
+        if "disk" in self.turbine_type:
+
+            # init combined tf
             tf1 = 0
             tf2 = 0
             tf3 = 0
-            counter = 0
-            group = 1
+
+
             # sum and project tf parts
             for turb in self.turbines:
-                turb.turbine_force(u,inflow_angle,fs,**kwargs)
+
+                # get the turbine parts
                 tf1 += turb.tf1
                 tf2 += turb.tf2
                 tf3 += turb.tf3
+
+                # the subdomain is a sphere centered at the hub of the turbine with a height of scaling*RD and diameter of scaling*RD
+                if self.dom.dim == 3:
+                    subdomain_marker = CompiledSubDomain("(x[0]-x0)*(x[0]-x0)+(x[1]-y0)*(x[1]-y0)+(x[2]-HH)*(x[2]-HH)<=r*r",r=self.local_dx_scaling*turb.RD/2.0, HH=turb.z, x0=turb.x, y0=turb.y)
+                else:
+                    subdomain_marker = CompiledSubDomain("(x[0]-x0)*(x[0]-x0)+(x[1]-y0)*(x[1]-y0)<=r*r",r=self.local_dx_scaling*turb.RD/2.0, x0=turb.x, y0=turb.y)                
+
+                # add the subdomain to the marker
+                subdomain_marker.mark(temp_subdomain,group)
+
+                # once we have collected the maximum number of turbines, combine them an reset the sums
                 if counter >= split_value:
                     self.fprint(f"Projecting tf1 for group {group}")
-                    tf1_proj.append(project(tf1,fs.V,solver_type='gmres',preconditioner_type="hypre_amg"))
+                    proj_tf1 = project(tf1,fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
                     self.fprint(f"Projecting tf2 for group {group}")
-                    tf2_proj.append(project(tf2,fs.V,solver_type='gmres',preconditioner_type="hypre_amg"))
+                    proj_tf2 = project(tf2,fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
                     self.fprint(f"Projecting tf3 for group {group}")
-                    tf3_proj.append(project(tf3,fs.V,solver_type='gmres',preconditioner_type="hypre_amg"))
+                    proj_tf3 = project(tf3,fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
+                    combined_tf_list.append(proj_tf1*u[0]**2+proj_tf2*u[1]**2+proj_tf3*u[0]*u[1])
+                    
+                    # reset loop values
                     tf1 = 0
                     tf2 = 0
                     tf3 = 0
                     counter = 0
                     group += 1
+                    temp_subdomain = MeshFunction("size_t", self.dom.mesh, self.dom.mesh.topology().dim())
+                    temp_subdomain.set_all(0)
+
                 else:
                     counter += 1
 
+            # project the final turbine group
             self.fprint(f"Projecting tf1 for group {group}")
-            tf1_proj.append(project(tf1,fs.V,solver_type='gmres',preconditioner_type="hypre_amg"))
+            proj_tf1 = project(tf1,fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
             self.fprint(f"Projecting tf2 for group {group}")
-            tf2_proj.append(project(tf2,fs.V,solver_type='gmres',preconditioner_type="hypre_amg"))
+            proj_tf2 = project(tf2,fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
             self.fprint(f"Projecting tf3 for group {group}")
-            tf3_proj.append(project(tf3,fs.V,solver_type='gmres',preconditioner_type="hypre_amg"))
+            proj_tf3 = project(tf3,fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
+            combined_tf_list.append(proj_tf1*u[0]**2+proj_tf2*u[1]**2+proj_tf3*u[0]*u[1])
 
+            # create a measure for the final turbine group
+            final_local_dx.append(Measure('dx', subdomain_data=temp_subdomain))
 
-            # do one more sum and project
-            tf1 = sum(tf1_proj)
-            tf2 = sum(tf2_proj)
-            tf3 = sum(tf3_proj)
-
-            # self.fprint(f"Final project tf1")
-            # tf1 = project(sum(tf1_proj),fs.V)
-            # self.fprint(f"Final project tf2")
-            # tf2 = project(sum(tf2_proj),fs.V)
-            # self.fprint(f"Final project tf3")
-            # tf3 = project(sum(tf3_proj),fs.V) 
-
-            # create the final turbine force          
-            return tf1*u[0]**2+tf2*u[1]**2+tf3*u[0]*u[1]
+        # combine turbine for every other style of turbine
         else:
-            # do the normal loop
+
+            # init combined tf
             tf = 0
+
+            # sum and project tf parts
             for turb in self.turbines:
-                tf += turb.turbine_force(u,inflow_angle,fs,**kwargs)
-            return tf
 
-        # T = 0
-        # dt = 0.5
-        # max_its = 20
-        # tf_file = File("output/float_demo/pitch_tf.pvd")
-        # for i in range(max_its):
-        #     print(f"Generating TF at time: {T} s")
-        #     tf = 0
-        #     for turb in self.turbines:
-        #         tf += turb.turbine_force(u,inflow_angle,fs,simTime=T)
-        #     tf = project(tf,fs.V,solver_type='cg',preconditioner_type="hypre_amg")
-        #     tf.rename("tf","tf")
-        #     tf_file << (tf,T)
-        #     T += dt
+                # get the turbine parts
+                tf += turb.tf
 
-        # exit()
-        # return tf
+                # the subdomain is a sphere centered at the hub of the turbine with a height of scaling*RD and diameter of scaling*RD
+                if self.dom.dim == 3:
+                    subdomain_marker = CompiledSubDomain("(x[0]-x0)*(x[0]-x0)+(x[1]-y0)*(x[1]-y0)+(x[2]-HH)*(x[2]-HH)<=r*r",r=self.local_dx_scaling*turb.RD/2.0, HH=turb.z, x0=turb.x, y0=turb.y)
+                else:
+                    subdomain_marker = CompiledSubDomain("(x[0]-x0)*(x[0]-x0)+(x[1]-y0)*(x[1]-y0)<=r*r",r=self.local_dx_scaling*turb.RD/2.0, x0=turb.x, y0=turb.y)
+                               
+                # add the subdomain to the marker
+                subdomain_marker.mark(temp_subdomain,group)
+
+                # once we have collected the maximum number of turbines, combine them an reset the sums
+                if counter >= split_value:
+                    self.fprint(f"Projecting tf for group {group}")
+                    proj_tf = project(tf,fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
+                    combined_tf_list.append(proj_tf)
+
+                    # create a measure for this turbine group
+                    combined_dx_tf_list.append(Measure('dx', subdomain_data=temp_subdomain))
+                    
+                    # reset loop values
+                    tf = 0
+                    counter = 0
+                    group += 1
+                    temp_subdomain = MeshFunction("size_t", self.dom.mesh, self.dom.mesh.topology().dim())
+                    temp_subdomain.set_all(0)
+                else:
+                    counter += 1
+
+            # project the final turbine group
+            self.fprint(f"Projecting tf for group {group}")
+            proj_tf = project(tf,fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
+            combined_tf_list.append(proj_tf)
+
+            # create a measure for the final turbine group
+            final_local_dx.append(Measure('dx', subdomain_data=temp_subdomain))
+
+        # create the final turbine force          
+        return combined_tf_list, final_local_dx
 
     def update_controls(self):
         """
@@ -283,11 +374,18 @@ class GenericWindFarm(object):
         ### Build the integrand
         val = 0
         for turb in self.turbines:
-            val += turb.power(u, inflow_angle)
+            temp = turb.power(u, inflow_angle)
+            if not isinstance(val,(float,AdjFloat)):
+                if self.use_local_tf_dx:
+                    val += temp*self.local_dx(turb.index+1)
+                else:
+                    val += temp*dx
+            else:
+                val += temp
 
         ### Assemble if needed
         if not isinstance(val,(float,AdjFloat)):
-            J = assemble(val*dx)
+            J = assemble(val)
         else:
             J = val
 
@@ -308,7 +406,10 @@ class GenericWindFarm(object):
 
                 ### Assemble if needed
                 if not isinstance(val,(float,AdjFloat)):
-                    J = assemble(val*dx)
+                    if self.use_local_tf_dx:
+                        J = assemble(val*self.local_dx(turb.index+1))
+                    else:
+                        J = assemble(val*dx)
                 else:
                     J = val
                     
@@ -501,11 +602,11 @@ class GenericWindFarm(object):
 
         # gather functions
         func_list = []
-        if self.numturbs>=self.too_many_turbines:
-            print(f"Oh dear, there are just too many turbines (>={self.too_many_turbines}). Saving turbine function is disabled.")
-        else:
-            for turb in self.turbines:
-                func_list = turb.prepare_saved_functions(func_list)
+        # if self.numturbs>=self.too_many_turbines:
+        #     print(f"Oh dear, there are just too many turbines (>={self.too_many_turbines}). Saving turbine function is disabled.")
+        # else:
+        for turb in self.turbines:
+            func_list = turb.prepare_saved_functions(func_list)
 
         # prepare to store file pointer if needed
         if self.func_first_save:
@@ -535,6 +636,12 @@ class GenericWindFarm(object):
             else:
                 self.params.Save(func, func_name,subfolder="functions/",val=val,file=self.func_files[i])
         
+        # save the farm level turbine subdomain function
+        if self.func_first_save:
+            self.subdomain_file = self.params.Save(self.turbine_subdomains,"turbine_subdomains",subfolder="mesh/",val=val,filetype="pvd")
+        else:
+            self.params.Save(self.turbine_subdomains,"turbine_subdomains",subfolder="mesh/",val=val,file=self.subdomain_file,filetype="pvd")
+
         # Flip the flag!
         self.func_first_save = False
 

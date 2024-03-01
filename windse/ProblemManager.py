@@ -79,12 +79,32 @@ class GenericProblem(object):
             else:
                 e1 = Constant((1,0)); e2 = Constant((0,1));
 
-            int_tf_x = assemble(inner(self.tf,e1)*dx)/self.dom.volume
+            if self.farm.use_local_tf_dx:
+                int_tf_x = 0
+                int_tf_y = 0
+                int_tf_z = 0
+                for i in range(len(self.farm.tf_list)):
+                    tf = self.farm.tf_list[i]
+                    local_dx = self.farm.local_dx(i+1)
+
+                    int_tf_x += assemble(inner(tf,e1)*local_dx)/self.dom.volume
+                    int_tf_y += assemble(inner(tf,e2)*local_dx)/self.dom.volume
+                    if self.dom.dim == 3:
+                        int_tf_z += assemble(inner(tf,e3)*local_dx)/self.dom.volume
+            else:
+                tf = 0
+                for i in range(len(self.farm.tf_list)):
+                    tf += self.farm.tf_list[i]
+
+                int_tf_x = assemble(inner(tf,e1)*dx)/self.dom.volume
+                int_tf_y = assemble(inner(tf,e2)*dx)/self.dom.volume
+                if self.dom.dim == 3:
+                    int_tf_z = assemble(inner(tf,e3)*dx)/self.dom.volume
+
             self.tag_output("int_tf_x", int_tf_x)
-            int_tf_y = assemble(inner(self.tf,e2)*dx)/self.dom.volume
             self.tag_output("int_tf_y", int_tf_y)
+
             if self.dom.dim == 3:
-                int_tf_z = assemble(inner(self.tf,e3)*dx)/self.dom.volume
                 self.tag_output("int_tf_z", int_tf_z)
 
                 if self.farm.turbine_type == 'line':
@@ -110,25 +130,29 @@ class GenericProblem(object):
                     self.tag_output("num_actuator_nodes", np.mean(num_actuator_nodes))
                 
 
-    def ComputeTurbineForce(self,u,inflow_angle,**kwargs):
+    def ComputeTurbineForceTerm(self,u,v,inflow_angle,**kwargs):
         tf_start = time.time()
         self.fprint("Calculating Turbine Force",special="header")
 
-        ### Compute the relative yaw angle ###
+        # Compute the relative yaw angle
         if inflow_angle is None:
             inflow_angle = self.dom.inflow_angle
 
         self.fprint('Computing turbine forces using %s' % (self.farm.turbine_type.upper()))
 
-        ### Create the turbine force function ###
+        # Create a list of turbine force function and domain of integration for each turbine
         if self.farm.turbine_type == "disabled" or self.farm.numturbs == 0:
-            tf = Function(self.fs.V)
+
+            # if there are no turbine return an zero force term
+            tf_term = Function(self.fs.V)*dx
         else:
-            tf = self.farm.compute_turbine_force(u,inflow_angle,self.fs,**kwargs)
+
+            # compute tf and dx for each turbine
+            tf_term = self.farm.compute_turbine_force(u,v,inflow_angle,self.fs,**kwargs)
 
         tf_stop = time.time()
         self.fprint("Turbine Force Calculated: {:1.2f} s".format(tf_stop-tf_start),special="footer")
-        return tf
+        return tf_term
 
     def ComputeTurbulenceModel(self, u):
         self.fprint(f"Using Turbulence Model: {self.turbulence_model}")
@@ -294,7 +318,15 @@ class StabilizedProblem(GenericProblem):
         # mem0=memory_usage()[0]
         # mem_out, self.tf = memory_usage((self.ComputeTurbineForce,(self.u_k,inflow_angle),{}),max_usage=True,retval=True,max_iterations=1)
         # self.fprint("Memory Used:  {:1.2f} MB".format(mem_out-mem0))
-        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
+        tf_term = self.ComputeTurbineForceTerm(self.u_k,v,inflow_angle)
+
+        # set_log_level(LogLevel.DEBUG)
+        # tic = time.time()
+        # assemble(turbine_force_term)
+        # toc = time.time()
+        # print(f"assemble time: {toc-tic} s")
+        # exit()
+
 
         ### These constants will be moved into the params file ###
         f = Constant((0.0,)*self.dom.dim)
@@ -321,7 +353,7 @@ class StabilizedProblem(GenericProblem):
         self.F += - inner(div(v),self.p_k)*dx
         self.F += - inner(div(self.u_k),q)*dx
         self.F += - inner(f,v)*dx
-        self.F += - inner(self.tf,v)*dx 
+        self.F += - tf_term 
 
 
         # Add body force to functional
@@ -414,10 +446,16 @@ class TaylorHoodProblem(GenericProblem):
         self.nu_T=self.ComputeTurbulenceModel(self.u_k)
 
         ### Create the turbine force ###
-        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
+        tf_term = self.ComputeTurbineForceTerm(self.u_k,v,inflow_angle)
 
         ### Create the functional ###
-        self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf,v)*dx 
+        self.F = inner(grad(self.u_k)*self.u_k, v)*dx
+        self.F +=   (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx
+        self.F += - inner(div(v),self.p_k)*dx
+        self.F += - inner(div(self.u_k),q)*dx
+        self.F += - inner(f,v)*dx
+        self.F += - tf_term 
+
 
         # Add body force to functional
         if abs(float(self.mbody_force)) >= 1e-14:
@@ -512,7 +550,7 @@ class IterativeSteady(GenericProblem):
         # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
         # self.tf = Function(self.fs.V)
 
-        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle)
+        tf_term = self.ComputeTurbineForceTerm(self.u_k,v,inflow_angle)
         # self.u_k.assign(self.bd.bc_velocity)
 
         # self.u_k2.vector()[:] = 0.0
@@ -523,7 +561,7 @@ class IterativeSteady(GenericProblem):
         # Solve for u_hat, a velocity estimate which doesn't include pressure gradient effects
         F1 = inner(dot(self.u_k, nabla_grad(u)), v)*dx \
            + (nu+self.nu_T)*inner(grad(u), grad(v))*dx \
-           - inner(self.tf, v)*dx 
+           - tf_term 
 
         # Add body force to functional
         F1 += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
@@ -543,7 +581,7 @@ class IterativeSteady(GenericProblem):
         # Solve for u_star, a predicted velocity which includes the pressure gradient
         F3 = inner(dot(self.u_k, nabla_grad(u)), v)*dx \
            + (nu+self.nu_T)*inner(grad(u), grad(v))*dx \
-           - inner(self.tf, v)*dx \
+           - tf_term \
            + inner(grad(self.p_k), v)*dx \
            + self.dt_1*inner(u - self.u_k, v)*dx
 
@@ -666,7 +704,8 @@ class UnsteadyProblem(GenericProblem):
         # self.tf = self.farm.TurbineForce(self.fs, self.dom.mesh, self.u_k2)
         # self.tf = Function(self.fs.V)
 
-        self.tf = self.ComputeTurbineForce(self.u_k,inflow_angle,simTime=0.0,simTime_prev=None, dt=self.dt)
+        tf_term = self.ComputeTurbineForceTerm(self.u_k,v,inflow_angle,simTime=0.0,simTime_prev=None, dt=self.dt)
+
         self.u_k.assign(self.bd.bc_velocity)
 
         # Only the actuator lines point "upstream" against the flow
@@ -699,7 +738,7 @@ class UnsteadyProblem(GenericProblem):
            + inner(dot(U_AB, nabla_grad(U_CN)), v)*dx \
            + (nu_c+self.nu_T)*inner(grad(U_CN), grad(v))*dx \
            + inner(grad(self.p_k1), v)*dx \
-           - dot(self.tf, v)*dx
+           - tf_term
 
         self.a1 = lhs(F1)
         self.L1 = rhs(F1)
