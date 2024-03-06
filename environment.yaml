@@ -4,6 +4,7 @@ channels:
   - defaults
 dependencies:
   - python=3.10
+  - mpich=4.1.2=hd33e60e_101
   # - mpich=4.0.3
   - coveralls
   - dolfin-adjoint=2019.1.0
