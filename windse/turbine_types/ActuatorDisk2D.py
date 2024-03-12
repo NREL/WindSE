@@ -13,8 +13,6 @@ class ActuatorDisk2D(ActuatorDisk):
     def power(self, u, inflow_angle):
         x=SpatialCoordinate(self.dom.mesh)
 
-        print("here")
-
         mx = self.mx
         my = self.my
         mz = self.mz

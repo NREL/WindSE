@@ -450,7 +450,7 @@ properties:
         description: "Seed to control/prescribe the randomness between runs."
         units: "dimensionless"
       use_local_tf_dx:
-        default: True
+        default: False
         type: 
           - "boolean"
         description: "A flag to assemble the tf using a local dx measure for each turbine."

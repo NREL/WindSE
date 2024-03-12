@@ -205,7 +205,7 @@ class GenericWindFarm(object):
 
         # check if the number of turbines might trigger a python recursion error.    
         if self.numturbs > self.too_many_turbines:
-            final_tf_list, final_local_dx = self.compress_turbine_function(u)
+            final_tf_list, final_local_dx = self.compress_turbine_function(u,fs)
         else:
             final_tf_list = self.tf_list
             final_local_dx = self.local_dx
@@ -222,7 +222,7 @@ class GenericWindFarm(object):
 
         return tf_term
 
-    def compress_turbine_function(self, u):
+    def compress_turbine_function(self, u, fs):
         """
         used to assemble the turbine force in chunks to avoid recursion errors
         """
@@ -234,7 +234,7 @@ class GenericWindFarm(object):
 
         # init loop values
         combined_tf_list = []
-        combined_dx_tf_list = []
+        final_local_dx = []
         counter = 0
         group = 1
         
@@ -284,8 +284,6 @@ class GenericWindFarm(object):
                     tf3 = 0
                     counter = 0
                     group += 1
-                    temp_subdomain = MeshFunction("size_t", self.dom.mesh, self.dom.mesh.topology().dim())
-                    temp_subdomain.set_all(0)
 
                 else:
                     counter += 1
@@ -300,7 +298,7 @@ class GenericWindFarm(object):
             combined_tf_list.append(proj_tf1*u[0]**2+proj_tf2*u[1]**2+proj_tf3*u[0]*u[1])
 
             # create a measure for the final turbine group
-            final_local_dx.append(Measure('dx', subdomain_data=temp_subdomain))
+            final_local_dx = Measure('dx', subdomain_data=temp_subdomain)
 
         # combine turbine for every other style of turbine
         else:
@@ -328,9 +326,6 @@ class GenericWindFarm(object):
                     self.fprint(f"Projecting tf for group {group}")
                     proj_tf = project(tf,fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
                     combined_tf_list.append(proj_tf)
-
-                    # create a measure for this turbine group
-                    combined_dx_tf_list.append(Measure('dx', subdomain_data=temp_subdomain))
                     
                     # reset loop values
                     tf = 0
@@ -347,7 +342,7 @@ class GenericWindFarm(object):
             combined_tf_list.append(proj_tf)
 
             # create a measure for the final turbine group
-            final_local_dx.append(Measure('dx', subdomain_data=temp_subdomain))
+            final_local_dx = Measure('dx', subdomain_data=temp_subdomain)
 
         # create the final turbine force          
         return combined_tf_list, final_local_dx
@@ -401,7 +396,6 @@ class GenericWindFarm(object):
         J_list[1]=simTime
         with stop_annotating():
             for i,turb in enumerate(self.turbines):
-
                 val = turb.power(u,inflow_angle)
 
                 ### Assemble if needed
@@ -599,6 +593,10 @@ class GenericWindFarm(object):
         "val" can be the time, or angle, its just the iterator for saving mulitple steps
         Note: this function is way over engineered!
         """
+
+        if self.numturbs >= self.too_many_turbines:
+            print(f"Oh dear, there are just too many turbines so saving the turbine force is disabled")
+            return
 
         # gather functions
         func_list = []

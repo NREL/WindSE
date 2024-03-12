@@ -416,6 +416,9 @@ class TaylorHoodProblem(GenericProblem):
     def __init__(self,domain,windfarm,function_space,boundary_conditions):
         super(TaylorHoodProblem, self).__init__(domain,windfarm,function_space,boundary_conditions)
 
+
+        self.first_loop = True
+
         ### Create Functional ###
         self.ComputeFunctional(self.dom.inflow_angle)
         self.DebugOutput()
@@ -426,41 +429,53 @@ class TaylorHoodProblem(GenericProblem):
         ### These constants will be moved into the params file ###
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
-        eps=Constant(0.01)
+        eps=Constant(0.000001)
         nu = self.viscosity
 
 
         self.fprint("Viscosity:         {:1.2e}".format(float(self.viscosity)))
         self.fprint("Max Mixing Length: {:1.2e}".format(float(self.lmax)))
 
+
         ### Create the test/trial/functions ###
-        self.up_k = Function(self.fs.W)
-        self.u_k,self.p_k = split(self.up_k)
-        v,q = TestFunctions(self.fs.W)
+        self.v,self.q = TestFunctions(self.fs.W)
 
         ### Set the initial guess ###
         ### (this will become a separate function.)
+        # if self.first_loop:
+        #     self.up_k = Function(self.fs.W)
+        #     self.up_k.assign(self.bd.u0)
+        #     self.first_loop = False
+        # else:
+        #     temp_up = self.up_k.copy()
+        self.up_k = Function(self.fs.W)
         self.up_k.assign(self.bd.u0)
+        self.u_k,self.p_k = split(self.up_k)
 
         ### Calculate nu_T
         self.nu_T=self.ComputeTurbulenceModel(self.u_k)
 
         ### Create the turbine force ###
-        tf_term = self.ComputeTurbineForceTerm(self.u_k,v,inflow_angle)
+        tf_term = self.ComputeTurbineForceTerm(self.u_k,self.v,inflow_angle)
 
         ### Create the functional ###
-        self.F = inner(grad(self.u_k)*self.u_k, v)*dx
-        self.F +=   (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx
-        self.F += - inner(div(v),self.p_k)*dx
-        self.F += - inner(div(self.u_k),q)*dx
-        self.F += - inner(f,v)*dx
+        self.F = inner(grad(self.u_k)*self.u_k, self.v)*dx
+        self.F +=   (nu+self.nu_T)*inner(grad(self.u_k), grad(self.v))*dx
+        self.F += - inner(div(self.v),self.p_k)*dx
+        self.F += - inner(div(self.u_k),self.q)*dx
+        # self.F += - inner(f,v)*dx
         self.F += - tf_term 
 
+        # ### Add in the Stabilizing term ###
+        # if abs(float(eps)) >= 1e-14:
+        #     self.fprint("Using Stabilization Term")
+        #     stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
+        #     self.F += stab
 
         # Add body force to functional
         if abs(float(self.mbody_force)) >= 1e-14:
             self.fprint("Using Body Force")
-            self.F += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
+            self.F += inner(-self.mbody_force*self.bd.inflow_unit_vector,self.v)*dx
 
         if self.use_25d_model:
             if self.dom.dim == 3:
@@ -471,9 +486,9 @@ class TaylorHoodProblem(GenericProblem):
             dvdy = Dx(self.u_k[1], 1)
 
             if inflow_angle is None:
-                term25 = dvdy*q*dx
+                term25 = dvdy*self.q*dx
             else:
-                term25 = (abs(sin(inflow_angle))*dudx*q + abs(cos(inflow_angle))*dvdy*q)*dx
+                term25 = (abs(sin(inflow_angle))*dudx*self.q + abs(cos(inflow_angle))*dvdy*self.q)*dx
 
             self.F -= term25
 
