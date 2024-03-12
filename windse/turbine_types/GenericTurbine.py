@@ -5,7 +5,7 @@ if windse_parameters.dolfin_adjoint:
     from windse.blocks import blockify, BaseHeightBlock
 
 # import dolfin functions
-from . import cos, sin, Constant
+from . import cos, sin, Constant, MeshFunction, CompiledSubDomain, Measure
 
 # Other imports
 import warnings

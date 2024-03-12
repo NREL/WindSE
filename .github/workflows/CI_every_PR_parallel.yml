@@ -1,4 +1,4 @@
-name: CI_every_PR
+name: CI_every_PR_parallel
 
 # We run CI on push commits on all branches
 on: [pull_request]
@@ -6,7 +6,7 @@ on: [pull_request]
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   build:
-    name: CI_every_PR
+    name: CI_every_PR_parallel
     runs-on: macos-latest
         
     steps:
@@ -41,31 +41,10 @@ jobs:
       #     cd tests/9-Regression
       #     mpirun -n 2 windse run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
 
-      # - name: Run parallel regression tests within WindSE
-      #   shell: pwsh
-      #   run: |
-      #     conda activate test-environment
-      #     cd tests/9-Regression
-      #     mpirun -n 2 python -u ../../windse_driver/driver.py run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
-      #     # mpirun -n 2 python -u ../../windse_driver/driver.py run Floating_ALM.yaml -p general:name:Floating_ALM_np_2 
-
-      - name: Run all regression tests within WindSE
+      - name: Run parallel regression tests within WindSE
         shell: pwsh
         run: |
           conda activate test-environment
-          pytest -sv --cov=windse --cov-append tests/test_regression.py
-        
-      - name: Run all documented demos within WindSE
-        shell: pwsh
-        run: |
-          conda activate test-environment
-          pytest -sv --cov=windse --cov-append tests/test_demos.py
-      
-      # Run coveralls
-      - name: Run coveralls
-        shell: pwsh
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          conda activate test-environment
-          coveralls --service=github
+          cd tests/9-Regression
+          mpirun -n 2 python -u ../../windse_driver/driver.py run ALM_Unsteady.yaml -p general:name:ALM_Unsteady_np_2 
+          # mpirun -n 2 python -u ../../windse_driver/driver.py run Floating_ALM.yaml -p general:name:Floating_ALM_np_2 
