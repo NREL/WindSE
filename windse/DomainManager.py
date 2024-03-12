@@ -1027,13 +1027,13 @@ class BoxDomain(GenericDomain):
                 dir_for_meshes = tempfile.TemporaryDirectory()
 
                 # write and finalize gmsh
-                gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
+                gmsh.write(os.path.join(dir_for_meshes.name, "dummy.msh"))
                 gmsh.finalize() # don't need it anymore!
 
                 # use meshio to convert from gmsh to dolfin xml file
-                mesh_meshio = meshio.read(os.path.join(dir_for_meshes, "dummy.msh"))
+                mesh_meshio = meshio.read(os.path.join(dir_for_meshes.name, "dummy.msh"))
                 meshio.write(
-                    os.path.join(dir_for_meshes, "dummy.xml"),
+                    os.path.join(dir_for_meshes.name, "dummy.xml"),
                     mesh_meshio,
                     file_format="dolfin-xml",
                 )
