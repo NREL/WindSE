@@ -1267,14 +1267,14 @@ class CylinderDomain(GenericDomain):
                 dir_for_meshes = tempfile.TemporaryDirectory()
 
                 # write and finalize gmsh
-                gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
+                gmsh.write(os.path.join(dir_for_meshes.name, "dummy.msh"))
                 gmsh.finalize() # don't need it anymore!
 
                 # use meshio to convert from gmsh to dolfin xml file
-                mesh_meshio = meshio.read(os.path.join(dir_for_meshes, "dummy.msh"))
+                mesh_meshio = meshio.read(os.path.join(dir_for_meshes.name, "dummy.msh"))
 
                 meshio.write(
-                    os.path.join(dir_for_meshes, "dummy.xml"),
+                    os.path.join(dir_for_meshes.name, "dummy.xml"),
                     mesh_meshio,
                     file_format="dolfin-xml",
                 )
@@ -1503,11 +1503,11 @@ class CircleDomain(GenericDomain):
                 dir_for_meshes = tempfile.TemporaryDirectory()
 
                 # write and finalize gmsh
-                gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
+                gmsh.write(os.path.join(dir_for_meshes.name, "dummy.msh"))
                 gmsh.finalize() # don't need it anymore!
 
                 # use meshio to convert from gmsh to dolfin xml file
-                mesh_meshio = meshio.read(os.path.join(dir_for_meshes, "dummy.msh"))
+                mesh_meshio = meshio.read(os.path.join(dir_for_meshes.name, "dummy.msh"))
 
                 # flatten to 2D
                 assert np.all(np.isclose(mesh_meshio.points[0,2], mesh_meshio.points[:,2]))
@@ -1515,7 +1515,7 @@ class CircleDomain(GenericDomain):
 
                 # write the dolfin file, and then finally re-load it into dolfin
                 meshio.write(
-                    os.path.join(dir_for_meshes, "dummy.xml"),
+                    os.path.join(dir_for_meshes.name, "dummy.xml"),
                     mesh_meshio,
                     file_format="dolfin-xml",
                 )
@@ -1754,18 +1754,18 @@ class RectangleDomain(GenericDomain):
                 dir_for_meshes = tempfile.TemporaryDirectory()
 
                 # write and finalize gmsh
-                gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
+                gmsh.write(os.path.join(dir_for_meshes.name, "dummy.msh"))
                 gmsh.finalize() # don't need it anymore!
 
                 # use meshio to convert from gmsh to dolfin xml file
-                mesh_meshio = meshio.read(os.path.join(dir_for_meshes, "dummy.msh"))
+                mesh_meshio = meshio.read(os.path.join(dir_for_meshes.name, "dummy.msh"))
 
                 # flatten to 2D
                 assert np.all(np.isclose(mesh_meshio.points[0,2], mesh_meshio.points[:,2]))
                 mesh_meshio.points = mesh_meshio.points[:,0:2]
 
                 meshio.write(
-                    os.path.join(dir_for_meshes, "dummy.xml"),
+                    os.path.join(dir_for_meshes.name, "dummy.xml"),
                     mesh_meshio,
                     file_format="dolfin-xml",
                 )
