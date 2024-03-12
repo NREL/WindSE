@@ -1,0 +1,83 @@
+# General options
+general: 
+    # name: 3D_Wind_Farm      # Name of the output folder
+    output: ["mesh","initial_guess","height","turbine_force","solution"]
+    dolfin_adjoint: True
+    debug_mode: True
+
+# Wind Farm Parameters:
+wind_farm: 
+
+    ########################## Grid Wind Farm #########################
+    type: grid            #                          |
+    grid_rows: 2          # Number of rows           | -
+    grid_cols: 4          # Number of columns        | -
+    ex_x: [-600, 600]     # x-extent of the farm     | m
+    ex_y: [-300, 300]     # y-extent of the farm     | m
+    use_local_tf_dx: True
+    local_dx_scaling: 2.5
+    ###################################################################
+
+turbines:
+    type: disk            # Use actuator Disks       |    
+    HH: 90                # Hub Height               | m
+    RD: 126.0             # Turbine Diameter         | m
+    thickness: 20.0       # Effective Thickness      | m
+    yaw: 0.349            # Yaw                      | rads
+    axial: 0.33           # Axial Induction          | -
+
+domain: 
+    
+    ########################### Box Domain ############################
+    type: box              #                       |
+    x_range: [-1200, 1200] # x-range of the domain | m
+    y_range: [-600, 600] # y-range of the domain | m
+    z_range: [0.04, 640]   # z-range of the domain | m
+    nx: 16                 # Number of x-nodes     | -
+    ny: 8                  # Number of y-nodes     | -
+    nz: 8                  # Number of z-nodes      | -
+    ###################################################################
+
+refine:
+    warp_type: split
+    warp_percent: 0.7     # percent of cells moved       | -
+    warp_height: 250       # move cell below this value   | m
+    refine_custom:
+        1:
+            type: box
+            x_range: [-1000,1200]
+            y_range: [-400, 400]
+            z_range: [0, 200]
+
+    turbine_num: 1         # number of turbine refinements| -
+    turbine_factor: 1.25   # turbine radius multiplier    | -
+
+function_space:
+    type: linear
+
+boundary_conditions:
+    vel_profile: log
+    HH_vel: 8.0
+    k: 0.4
+    # inflow_angle: 1.13
+    ######## Uncomment to test out custom BCs for BoxDomain ##########
+    boundary_types:
+        inflow: ["west"]
+        no_stress: ["east"]
+        free_slip: ["top","north","south"]
+        no_slip: ["bottom"]
+    ##################################################################
+
+problem:
+    type: stabilized
+    viscosity: 5
+    lmax: 50
+
+solver:
+    type: steady
+    save_power: true
+
+optimization:
+    control_types: [layout,yaw]
+    layout_bounds: [[-720, 720],[-450, 450]] 
+    gradient: True

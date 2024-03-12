@@ -110,6 +110,9 @@ def run_action(params_loc=None):
 
     params.comm.Barrier()
 
+
+    dolfin.list_timings(dolfin.TimingClear.clear, [dolfin.TimingType.wall])
+
     return runtime
 
 def mesh_action(params_loc=None):

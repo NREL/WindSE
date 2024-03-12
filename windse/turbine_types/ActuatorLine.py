@@ -944,7 +944,7 @@ class ActuatorLine(GenericTurbine):
             ys=self.my,
             zs=self.mz)
 
-        self.power_dolfin = assemble(1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)*dx)
+        self.power_dolfin = 1e-6*dot(-self.tf*self.angular_velocity, self.cyld_expr)
         self.power_numpy = 1e-6*self.rotor_torque*self.angular_velocity
 
         # print("in turb.poweer()",self.power_dolfin, self.power_numpy)
@@ -959,7 +959,7 @@ class ActuatorLine(GenericTurbine):
                 [self.tf,"turbine_force"]
             ]
         else:
-            func_list[1][0] += self.tf
+            func_list[0][0] += self.tf
 
         return func_list
 

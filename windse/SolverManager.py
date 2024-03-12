@@ -878,8 +878,8 @@ class UnsteadySolver(GenericSolver):
             self.problem.bd.SaveInitialGuess(val=self.iter_val)
         if "height" in self.params.output and self.problem.dom.dim == 3:
             self.problem.bd.SaveHeight(val=self.iter_val)
-        # if "turbine_force" in self.params.output:
-        #     self.problem.farm.SaveTurbineForce(val=self.iter_val)
+        if "turbine_force" in self.params.output:
+            self.problem.farm.save_functions(val=self.iter_val)
 
         self.fprint("Finished",special="footer")
 
@@ -1110,9 +1110,9 @@ class UnsteadySolver(GenericSolver):
                 # t1 = time.time()
                 pr.enable()
                 if 'dolfin' in self.problem.farm.turbines[0].type:
-                    self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                    self.problem.ComputeTurbineForceTerm(self.problem.u_k, TestFunction(self.problem.fs.V), self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
                 else:
-                    # updated method from dev, is this necessary?
+                    # updated method from dev, is this necessary? this may not work if there are self.farm.too_many_turbines
                     self.problem.farm.update_turbine_force(self.problem.u_k, self.problem.bd.inflow_angle, self.problem.fs, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
                     # new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
                     # self.problem.tf.assign(new_tf)
@@ -1316,10 +1316,10 @@ class UnsteadySolver(GenericSolver):
                     self.problem.tf_save.vector()[:] = self.problem.tf_save.vector()[:] + fun.tf.vector()[:]
         else:
             if hasattr(self.problem,"tf_save"):
-                self.problem.tf_save = project(self.problem.tf, self.problem.fs.V, solver_type='cg')
+                self.problem.tf_save = project(sum(self.problem.farm.tf_list), self.problem.fs.V, solver_type='cg')
             else:
                 self.problem.tf_save = Function(self.problem.fs.V)
-                self.problem.tf_save = project(self.problem.tf, self.problem.fs.V, solver_type='cg')
+                self.problem.tf_save = project(sum(self.problem.farm.tf_list), self.problem.fs.V, solver_type='cg')
 
 
         if self.first_save:
