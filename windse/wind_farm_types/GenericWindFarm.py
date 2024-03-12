@@ -370,7 +370,7 @@ class GenericWindFarm(object):
         val = 0
         for turb in self.turbines:
             temp = turb.power(u, inflow_angle)
-            if not isinstance(val,(float,AdjFloat)):
+            if not isinstance(temp,(float,AdjFloat)):
                 if self.use_local_tf_dx:
                     val += temp*self.local_dx(turb.index+1)
                 else:
