@@ -938,104 +938,115 @@ class BoxDomain(GenericDomain):
 
         if self.mesh_type == "gmsh":
 
-            # only dependencies for the gmsh case
-            import gmsh
-            import meshio
-            import tempfile
+            if (self.params.rank == 0):
 
-            # start up gmsh model
-            gmsh.initialize()
-            gmsh.model.add("boxmesh")
+                # only dependencies for the gmsh case
+                import gmsh
+                import meshio
+                import tempfile
 
-            # true extents
-            Lx_true = self.x_range[1] - self.x_range[0]
-            Ly_true = self.y_range[1] - self.y_range[0]
-            Lz_true = self.z_range[1] - self.z_range[0]
+                # start up gmsh model
+                gmsh.initialize()
+                gmsh.model.add("boxmesh")
 
-            # either do stretching to preserve
-            stretch_anisotropic = True # TODO: turn into an input param
-            if stretch_anisotropic:
-                Lx_prime = 1.0
-                Ly_prime = self.ny/self.nx
-                Lz_prime = self.nz/self.nx
-            else:
-                Lx_prime = Lx_true
-                Ly_prime = Ly_true
-                Lz_prime = Lz_true
+                # true extents
+                Lx_true = self.x_range[1] - self.x_range[0]
+                Ly_true = self.y_range[1] - self.y_range[0]
+                Lz_true = self.z_range[1] - self.z_range[0]
 
-            # create points that constitute box's lower surface
-            pt_bx000 = gmsh.model.geo.addPoint(
-                self.x_range[0]/Lx_true*Lx_prime,
-                self.y_range[0]/Ly_true*Ly_prime,
-                self.z_range[0]/Lz_true*Lz_prime,
-            )
-            pt_bx100 = gmsh.model.geo.addPoint(
-                self.x_range[1]/Lx_true*Lx_prime,
-                self.y_range[0]/Ly_true*Ly_prime,
-                self.z_range[0]/Lz_true*Lz_prime,
-            )
-            pt_bx010 = gmsh.model.geo.addPoint(
-                self.x_range[0]/Lx_true*Lx_prime,
-                self.y_range[1]/Ly_true*Ly_prime,
-                self.z_range[0]/Lz_true*Lz_prime,
-            )
-            pt_bx110 = gmsh.model.geo.addPoint(
-                self.x_range[1]/Lx_true*Lx_prime,
-                self.y_range[1]/Ly_true*Ly_prime,
-                self.z_range[0]/Lz_true*Lz_prime,
-            )
+                # either do stretching to preserve
+                stretch_anisotropic = True # TODO: turn into an input param
+                if stretch_anisotropic:
+                    Lx_prime = 1.0
+                    Ly_prime = self.ny/self.nx
+                    Lz_prime = self.nz/self.nx
+                else:
+                    Lx_prime = Lx_true
+                    Ly_prime = Ly_true
+                    Lz_prime = Lz_true
 
-            # create lines of box's lower surface
-            ln_bx000 = gmsh.model.geo.addLine(pt_bx000, pt_bx100)
-            ln_bx001 = gmsh.model.geo.addLine(pt_bx100, pt_bx110)
-            ln_bx010 = gmsh.model.geo.addLine(pt_bx010, pt_bx110)
-            ln_bx011 = gmsh.model.geo.addLine(pt_bx000, pt_bx010)
+                # create points that constitute box's lower surface
+                pt_bx000 = gmsh.model.geo.addPoint(
+                    self.x_range[0]/Lx_true*Lx_prime,
+                    self.y_range[0]/Ly_true*Ly_prime,
+                    self.z_range[0]/Lz_true*Lz_prime,
+                )
+                pt_bx100 = gmsh.model.geo.addPoint(
+                    self.x_range[1]/Lx_true*Lx_prime,
+                    self.y_range[0]/Ly_true*Ly_prime,
+                    self.z_range[0]/Lz_true*Lz_prime,
+                )
+                pt_bx010 = gmsh.model.geo.addPoint(
+                    self.x_range[0]/Lx_true*Lx_prime,
+                    self.y_range[1]/Ly_true*Ly_prime,
+                    self.z_range[0]/Lz_true*Lz_prime,
+                )
+                pt_bx110 = gmsh.model.geo.addPoint(
+                    self.x_range[1]/Lx_true*Lx_prime,
+                    self.y_range[1]/Ly_true*Ly_prime,
+                    self.z_range[0]/Lz_true*Lz_prime,
+                )
 
-            # create curve loop for lower surface
-            cl_bx0 = gmsh.model.geo.addCurveLoop(
-                [ln_bx000, ln_bx001, -ln_bx010, -ln_bx011]
-            )
-            # create plane surface
-            ps_bx0 = gmsh.model.geo.addPlaneSurface([cl_bx0])
+                # create lines of box's lower surface
+                ln_bx000 = gmsh.model.geo.addLine(pt_bx000, pt_bx100)
+                ln_bx001 = gmsh.model.geo.addLine(pt_bx100, pt_bx110)
+                ln_bx010 = gmsh.model.geo.addLine(pt_bx010, pt_bx110)
+                ln_bx011 = gmsh.model.geo.addLine(pt_bx000, pt_bx010)
 
-            bx_simple = gmsh.model.geo.extrude(
-                [(2, ps_bx0)],
-                0.0,
-                0.0,
-                (self.z_range[1] - self.z_range[0])/Lz_true*Lz_prime
-            )
+                # create curve loop for lower surface
+                cl_bx0 = gmsh.model.geo.addCurveLoop(
+                    [ln_bx000, ln_bx001, -ln_bx010, -ln_bx011]
+                )
+                # create plane surface
+                ps_bx0 = gmsh.model.geo.addPlaneSurface([cl_bx0])
 
-            # synchronize the geometry
-            gmsh.model.geo.synchronize()
+                bx_simple = gmsh.model.geo.extrude(
+                    [(2, ps_bx0)],
+                    0.0,
+                    0.0,
+                    (self.z_range[1] - self.z_range[0])/Lz_true*Lz_prime
+                )
 
-            # characteristic length based on regular tetrahedron volume formula
-            lc_mean = (
-                6*np.sqrt(2)
-                *(Lx_prime/self.nx)
-                *(Ly_prime/self.ny)
-                *(Lz_prime/self.nz)
-            )**(1/3)
-            # set the mesh size to the characteristic length
-            gmsh.model.mesh.setSize(gmsh.model.getEntities(0), lc_mean)
+                # synchronize the geometry
+                gmsh.model.geo.synchronize()
 
-            # generate and output
-            gmsh.model.mesh.generate(3)
+                # characteristic length based on regular tetrahedron volume formula
+                lc_mean = (
+                    6*np.sqrt(2)
+                    *(Lx_prime/self.nx)
+                    *(Ly_prime/self.ny)
+                    *(Lz_prime/self.nz)
+                )**(1/3)
+                # set the mesh size to the characteristic length
+                gmsh.model.mesh.setSize(gmsh.model.getEntities(0), lc_mean)
 
-            # create a temporary directory to hold mesh IO files for conversion
-            with tempfile.TemporaryDirectory() as dir_for_meshes:
+                # generate and output
+                gmsh.model.mesh.generate(3)
+
+                # create a temporary directory to hold mesh IO files for conversion
+                dir_for_meshes = tempfile.TemporaryDirectory()
 
                 # write and finalize gmsh
-                gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
+                gmsh.write(os.path.join(dir_for_meshes.name, "dummy.msh"))
                 gmsh.finalize() # don't need it anymore!
 
                 # use meshio to convert from gmsh to dolfin xml file
-                mesh_meshio = meshio.read(os.path.join(dir_for_meshes, "dummy.msh"))
+                mesh_meshio = meshio.read(os.path.join(dir_for_meshes.name, "dummy.msh"))
                 meshio.write(
-                    os.path.join(dir_for_meshes, "dummy.xml"),
+                    os.path.join(dir_for_meshes.name, "dummy.xml"),
                     mesh_meshio,
                     file_format="dolfin-xml",
                 )
-                self.mesh = Mesh(os.path.join(dir_for_meshes, "dummy.xml"))
+
+            # broadcast the temporary directory for shared use
+            dirname_for_meshes = self.params.comm.bcast(dir_for_meshes.name, root=0)
+
+            # load the xml into windse
+            self.mesh = Mesh(os.path.join(dirname_for_meshes, "dummy.xml"))
+
+            # delete the temporary directory
+            if self.params.rank == 0:
+                dir_for_meshes.cleanup()
 
             # stretch the coordinates back to the physical dimensions (now with the
             # specified aspect ratios)
@@ -1205,67 +1216,78 @@ class CylinderDomain(GenericDomain):
         elif self.mesh_type == "gmsh":
             self.fprint("Generating Mesh Using gmsh")
 
-            # only dependencies for the gmsh case
-            import gmsh
-            import meshio
-            import tempfile
+            if (self.params.rank == 0):
 
-            # start up gmsh model
-            gmsh.initialize()
-            gmsh.model.add("circmesh")
-            factory = gmsh.model.occ
+                # only dependencies for the gmsh case
+                import gmsh
+                import meshio
+                import tempfile
 
-            # true extents
-            R_true = self.radius
-            Lz_true = self.z_range[1] - self.z_range[0]
+                # start up gmsh model
+                gmsh.initialize()
+                gmsh.model.add("circmesh")
+                factory = gmsh.model.occ
 
-            stretch_anisotropic = True # TODO: turn into an input param
-            if stretch_anisotropic:
-                R_prime = 1.0
-                Lz_prime = 2*np.pi*self.nz/self.nt
+                # true extents
+                R_true = self.radius
+                Lz_true = self.z_range[1] - self.z_range[0]
 
-                lc_mean = Lz_prime/self.nz
-            else:
-                raise NotImplementedError("logic for ignoring scaling not implemented. -cfrontin")
+                stretch_anisotropic = True # TODO: turn into an input param
+                if stretch_anisotropic:
+                    R_prime = 1.0
+                    Lz_prime = 2*np.pi*self.nz/self.nt
 
-            # set up the geometry
-            x_circ = 0.0
-            y_circ = 0.0
-            z_circ = 0.0 # self.z_range[0]
+                    lc_mean = Lz_prime/self.nz
+                else:
+                    raise NotImplementedError("logic for ignoring scaling not implemented. -cfrontin")
 
-            # create a circle in the horizon plane
-            ln_circ = factory.addCircle(x_circ, y_circ, z_circ, R_prime)
-            cl_circ = factory.addCurveLoop([ln_circ])
-            ps_circ = factory.addPlaneSurface([cl_circ])
+                # set up the geometry
+                x_circ = 0.0
+                y_circ = 0.0
+                z_circ = 0.0 # self.z_range[0]
 
-            geom_cyl = factory.extrude([(2, ps_circ)], 0.0, 0.0, Lz_prime)
+                # create a circle in the horizon plane
+                ln_circ = factory.addCircle(x_circ, y_circ, z_circ, R_prime)
+                cl_circ = factory.addCurveLoop([ln_circ])
+                ps_circ = factory.addPlaneSurface([cl_circ])
 
-            # synchronize the geometry
-            factory.synchronize()
+                geom_cyl = factory.extrude([(2, ps_circ)], 0.0, 0.0, Lz_prime)
 
-            # set the mesh size
-            gmsh.model.mesh.setSize(gmsh.model.getEntities(0), lc_mean)
+                # synchronize the geometry
+                factory.synchronize()
 
-            # generate and output
-            gmsh.model.mesh.generate(3)
-            # gmsh.write("dummy.msh") # DEBUG!!!!!
+                # set the mesh size
+                gmsh.model.mesh.setSize(gmsh.model.getEntities(0), lc_mean)
 
-            # create a temporary directory to hold mesh IO files for conversion
-            with tempfile.TemporaryDirectory() as dir_for_meshes:
+                # generate and output
+                gmsh.model.mesh.generate(3)
+                # gmsh.write("dummy.msh") # DEBUG!!!!!
+
+                # create a temporary directory to hold mesh IO files for conversion
+                dir_for_meshes = tempfile.TemporaryDirectory()
 
                 # write and finalize gmsh
-                gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
+                gmsh.write(os.path.join(dir_for_meshes.name, "dummy.msh"))
                 gmsh.finalize() # don't need it anymore!
 
                 # use meshio to convert from gmsh to dolfin xml file
-                mesh_meshio = meshio.read(os.path.join(dir_for_meshes, "dummy.msh"))
+                mesh_meshio = meshio.read(os.path.join(dir_for_meshes.name, "dummy.msh"))
 
                 meshio.write(
-                    os.path.join(dir_for_meshes, "dummy.xml"),
+                    os.path.join(dir_for_meshes.name, "dummy.xml"),
                     mesh_meshio,
                     file_format="dolfin-xml",
                 )
-                self.mesh = Mesh(os.path.join(dir_for_meshes, "dummy.xml"))
+
+            # broadcast the temporary directory for shared use
+            dirname_for_meshes = self.params.comm.bcast(dir_for_meshes.name, root=0)
+
+            # load the xml into windse
+            self.mesh = Mesh(os.path.join(dirname_for_meshes, "dummy.xml"))
+
+            # delete the temporary directory
+            if self.params.rank == 0:
+                dir_for_meshes.cleanup()
 
             # stretch the coordinates back to the physical dimensions (now with the
             # specified aspect ratios)
@@ -1443,47 +1465,49 @@ class CircleDomain(GenericDomain):
         elif self.mesh_type == "gmsh":
             self.fprint("Generating Mesh Using gmsh")
 
-            # only dependencies for the gmsh case
-            import gmsh
-            import meshio
-            import tempfile
+            if (self.params.rank == 0):
 
-            # start up gmsh model
-            gmsh.initialize()
-            gmsh.model.add("circmesh")
-            factory = gmsh.model.occ
+                # only dependencies for the gmsh case
+                import gmsh
+                import meshio
+                import tempfile
 
-            # use arc division to set characteristic length on the horizon
-            lc_mean = 2*np.pi*self.radius/self.nt
+                # start up gmsh model
+                gmsh.initialize()
+                gmsh.model.add("circmesh")
+                factory = gmsh.model.occ
 
-            # set up the geometry
-            x_circ = self.center[0]
-            y_circ = self.center[1]
-            z_circ = 0.0
+                # use arc division to set characteristic length on the horizon
+                lc_mean = 2*np.pi*self.radius/self.nt
 
-            # create the circle in the horizon plane
-            ln_circ = factory.addCircle(x_circ, y_circ, z_circ, self.radius)
-            cl_circ = factory.addCurveLoop([ln_circ])
-            ps_circ = factory.addPlaneSurface([cl_circ])
+                # set up the geometry
+                x_circ = self.center[0]
+                y_circ = self.center[1]
+                z_circ = 0.0
 
-            # synchronize the geometry
-            factory.synchronize()
+                # create the circle in the horizon plane
+                ln_circ = factory.addCircle(x_circ, y_circ, z_circ, self.radius)
+                cl_circ = factory.addCurveLoop([ln_circ])
+                ps_circ = factory.addPlaneSurface([cl_circ])
 
-            # set the mesh size
-            gmsh.model.mesh.setSize(gmsh.model.getEntities(0), lc_mean)
+                # synchronize the geometry
+                factory.synchronize()
 
-            # generate and output
-            gmsh.model.mesh.generate(2)
+                # set the mesh size
+                gmsh.model.mesh.setSize(gmsh.model.getEntities(0), lc_mean)
 
-            # create a temporary directory to hold mesh IO files for conversion
-            with tempfile.TemporaryDirectory() as dir_for_meshes:
+                # generate and output
+                gmsh.model.mesh.generate(2)
+
+                # create a temporary directory to hold mesh IO files for conversion
+                dir_for_meshes = tempfile.TemporaryDirectory()
 
                 # write and finalize gmsh
-                gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
+                gmsh.write(os.path.join(dir_for_meshes.name, "dummy.msh"))
                 gmsh.finalize() # don't need it anymore!
 
                 # use meshio to convert from gmsh to dolfin xml file
-                mesh_meshio = meshio.read(os.path.join(dir_for_meshes, "dummy.msh"))
+                mesh_meshio = meshio.read(os.path.join(dir_for_meshes.name, "dummy.msh"))
 
                 # flatten to 2D
                 assert np.all(np.isclose(mesh_meshio.points[0,2], mesh_meshio.points[:,2]))
@@ -1491,11 +1515,20 @@ class CircleDomain(GenericDomain):
 
                 # write the dolfin file, and then finally re-load it into dolfin
                 meshio.write(
-                    os.path.join(dir_for_meshes, "dummy.xml"),
+                    os.path.join(dir_for_meshes.name, "dummy.xml"),
                     mesh_meshio,
                     file_format="dolfin-xml",
                 )
-                self.mesh = Mesh(os.path.join(dir_for_meshes, "dummy.xml"))
+
+            # broadcast the temporary directory for shared use
+            dirname_for_meshes = self.params.comm.bcast(dir_for_meshes.name, root=0)
+
+            # load the xml into windse
+            self.mesh = Mesh(os.path.join(dirname_for_meshes, "dummy.xml"))
+
+            # delete the temporary directory
+            if self.params.rank == 0:
+                dir_for_meshes.cleanup()
 
         else:
             self.fprint("Generating Rectangle Mesh")
@@ -1647,94 +1680,105 @@ class RectangleDomain(GenericDomain):
 
         if self.mesh_type == "gmsh":
 
-            # only dependencies for the gmsh case
-            import gmsh
-            import meshio
-            import tempfile
+            if (self.params.rank == 0):
 
-            # start up gmsh model
-            gmsh.initialize()
-            gmsh.model.add("rectmesh")
+                # only dependencies for the gmsh case
+                import gmsh
+                import meshio
+                import tempfile
 
-            # true extents
-            Lx_true = self.x_range[1] - self.x_range[0]
-            Ly_true = self.y_range[1] - self.y_range[0]
+                # start up gmsh model
+                gmsh.initialize()
+                gmsh.model.add("rectmesh")
 
-            # either do stretching to preserve
-            stretch_anisotropic = True # TODO: turn into an input param
-            if stretch_anisotropic:
-                Lx_prime = 1.0
-                Ly_prime = self.ny/self.nx
-            else:
-                Lx_prime = Lx_true
-                Ly_prime = Ly_true
+                # true extents
+                Lx_true = self.x_range[1] - self.x_range[0]
+                Ly_true = self.y_range[1] - self.y_range[0]
 
-            # create points that constitute box's lower surface
-            pt_bx000 = gmsh.model.geo.addPoint(
-                self.x_range[0]/Lx_true*Lx_prime,
-                self.y_range[0]/Ly_true*Ly_prime,
-                0.0,
-            )
-            pt_bx100 = gmsh.model.geo.addPoint(
-                self.x_range[1]/Lx_true*Lx_prime,
-                self.y_range[0]/Ly_true*Ly_prime,
-                0.0,
-            )
-            pt_bx010 = gmsh.model.geo.addPoint(
-                self.x_range[0]/Lx_true*Lx_prime,
-                self.y_range[1]/Ly_true*Ly_prime,
-                0.0,
-            )
-            pt_bx110 = gmsh.model.geo.addPoint(
-                self.x_range[1]/Lx_true*Lx_prime,
-                self.y_range[1]/Ly_true*Ly_prime,
-                0.0,
-            )
+                # either do stretching to preserve
+                stretch_anisotropic = True # TODO: turn into an input param
+                if stretch_anisotropic:
+                    Lx_prime = 1.0
+                    Ly_prime = self.ny/self.nx
+                else:
+                    Lx_prime = Lx_true
+                    Ly_prime = Ly_true
 
-            # create lines of box's lower surface
-            ln_bx000 = gmsh.model.geo.addLine(pt_bx000, pt_bx100)
-            ln_bx001 = gmsh.model.geo.addLine(pt_bx100, pt_bx110)
-            ln_bx010 = gmsh.model.geo.addLine(pt_bx010, pt_bx110)
-            ln_bx011 = gmsh.model.geo.addLine(pt_bx000, pt_bx010)
+                # create points that constitute box's lower surface
+                pt_bx000 = gmsh.model.geo.addPoint(
+                    self.x_range[0]/Lx_true*Lx_prime,
+                    self.y_range[0]/Ly_true*Ly_prime,
+                    0.0,
+                )
+                pt_bx100 = gmsh.model.geo.addPoint(
+                    self.x_range[1]/Lx_true*Lx_prime,
+                    self.y_range[0]/Ly_true*Ly_prime,
+                    0.0,
+                )
+                pt_bx010 = gmsh.model.geo.addPoint(
+                    self.x_range[0]/Lx_true*Lx_prime,
+                    self.y_range[1]/Ly_true*Ly_prime,
+                    0.0,
+                )
+                pt_bx110 = gmsh.model.geo.addPoint(
+                    self.x_range[1]/Lx_true*Lx_prime,
+                    self.y_range[1]/Ly_true*Ly_prime,
+                    0.0,
+                )
 
-            # create curve loop for lower surface
-            cl_bx0 = gmsh.model.geo.addCurveLoop(
-                [ln_bx000, ln_bx001, -ln_bx010, -ln_bx011]
-            )
-            # create plane surface
-            ps_bx0 = gmsh.model.geo.addPlaneSurface([cl_bx0])
+                # create lines of box's lower surface
+                ln_bx000 = gmsh.model.geo.addLine(pt_bx000, pt_bx100)
+                ln_bx001 = gmsh.model.geo.addLine(pt_bx100, pt_bx110)
+                ln_bx010 = gmsh.model.geo.addLine(pt_bx010, pt_bx110)
+                ln_bx011 = gmsh.model.geo.addLine(pt_bx000, pt_bx010)
 
-            # synchronize the geometry
-            gmsh.model.geo.synchronize()
+                # create curve loop for lower surface
+                cl_bx0 = gmsh.model.geo.addCurveLoop(
+                    [ln_bx000, ln_bx001, -ln_bx010, -ln_bx011]
+                )
+                # create plane surface
+                ps_bx0 = gmsh.model.geo.addPlaneSurface([cl_bx0])
 
-            # characteristic length based on regular tetrahedron volume formula
-            lc_mean = np.sqrt(4/np.sqrt(3)*(Lx_prime/self.nx)*(Ly_prime/self.ny))
-            # set the mesh size to the characteristic length
-            gmsh.model.mesh.setSize(gmsh.model.getEntities(0), lc_mean)
+                # synchronize the geometry
+                gmsh.model.geo.synchronize()
 
-            # generate and output
-            gmsh.model.mesh.generate(2)
+                # characteristic length based on regular tetrahedron volume formula
+                lc_mean = np.sqrt(4/np.sqrt(3)*(Lx_prime/self.nx)*(Ly_prime/self.ny))
+                # set the mesh size to the characteristic length
+                gmsh.model.mesh.setSize(gmsh.model.getEntities(0), lc_mean)
 
-            # create a temporary directory to hold mesh IO files for conversion
-            with tempfile.TemporaryDirectory() as dir_for_meshes:
+                # generate and output
+                gmsh.model.mesh.generate(2)
+
+                # create a temporary directory to hold mesh IO files for conversion
+                dir_for_meshes = tempfile.TemporaryDirectory()
 
                 # write and finalize gmsh
-                gmsh.write(os.path.join(dir_for_meshes, "dummy.msh"))
+                gmsh.write(os.path.join(dir_for_meshes.name, "dummy.msh"))
                 gmsh.finalize() # don't need it anymore!
 
                 # use meshio to convert from gmsh to dolfin xml file
-                mesh_meshio = meshio.read(os.path.join(dir_for_meshes, "dummy.msh"))
+                mesh_meshio = meshio.read(os.path.join(dir_for_meshes.name, "dummy.msh"))
 
                 # flatten to 2D
                 assert np.all(np.isclose(mesh_meshio.points[0,2], mesh_meshio.points[:,2]))
                 mesh_meshio.points = mesh_meshio.points[:,0:2]
 
                 meshio.write(
-                    os.path.join(dir_for_meshes, "dummy.xml"),
+                    os.path.join(dir_for_meshes.name, "dummy.xml"),
                     mesh_meshio,
                     file_format="dolfin-xml",
                 )
-                self.mesh = Mesh(os.path.join(dir_for_meshes, "dummy.xml"))
+
+            # broadcast the temporary directory for shared use
+            dirname_for_meshes = self.params.comm.bcast(dir_for_meshes.name, root=0)
+
+            # load the xml into windse
+            self.mesh = Mesh(os.path.join(dirname_for_meshes, "dummy.xml"))
+
+            # delete the temporary directory
+            if self.params.rank == 0:
+                dir_for_meshes.cleanup()
 
             # stretch the coordinates back to the physical dimensions (now with the
             # specified aspect ratios)
