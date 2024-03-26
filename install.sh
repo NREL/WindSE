@@ -8,7 +8,7 @@ env_name=$1
 source $(conda info --base)/etc/profile.d/conda.sh
 
 ### Create the Environment with mamba
-conda create -y --n ${env_name} -c conda_forge python=3.9 mamba
+conda create -y --name ${env_name} -c conda_forge python=3.9 mamba
 conda activate ${env_name}
 
 # ### Install conda-forge dependencies 
@@ -25,4 +25,4 @@ conda activate ${env_name}
 # pip install -e .
 
 ### Install dependencies from environment
-mamba env update -p ${conda_base_path}/envs/${env_name} --f environment.yaml --prune 
+mamba env update --prefix ${conda_base_path}/envs/${env_name} --file environment.yaml --prune 
