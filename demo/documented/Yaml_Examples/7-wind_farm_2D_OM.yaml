@@ -61,7 +61,6 @@ domain:
     radius: 1500            # x-range of the domain | m
     center: [0.0, 0.0]      # y-range of the domain | m
     nt: 20                  # segments around circle| -
-    res: 40                 # resolution for gmsh   | -
     ###################################################################
 
 

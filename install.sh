@@ -1,14 +1,15 @@
 #!/bin/bash 
 
 ### Run this to use conda in the script
-# source $(conda info --base)/etc/profile.d/conda.sh
-conda config --add channels conda-forge
-conda update -n base --all
-conda install -n base mamba
+source $(conda info --base)/etc/profile.d/conda.sh
 
-# ### Create the Environment
-# conda create -y --name $1
-# conda activate $1
+### Create the Environment
+conda create -y --name $1 python=3.9
+conda activate $1
+
+### Install mamba which will speed up the rest of the installs
+conda config --add channels conda-forge
+conda install -y mamba
 
 # ### Install conda-forge dependencies 
 # conda install -y -c conda-forge fenics=2019.1.0=py38_9 dolfin-adjoint matplotlib scipy=1.4.1 slepc mshr hdf5 pyyaml memory_profiler pytest pytest-cov pytest-mpi coveralls pandas
@@ -23,4 +24,5 @@ conda install -n base mamba
 # ### Install editible version of WindSE
 # pip install -e .
 
-mamba env create --name ${1} --file environment.yaml
+### Install dependencies from environment
+mamba env update --file environment.yaml --prune 

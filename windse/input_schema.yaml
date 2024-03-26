@@ -89,7 +89,6 @@ properties:
             - center
             - radius
             - nt
-            - res
             - interpolated
       - if:
           properties:
@@ -101,7 +100,6 @@ properties:
             - center
             - radius
             - nt
-            - res
       - if:
           properties:
             type:
@@ -259,13 +257,6 @@ properties:
         description: "Integer number of nodes in the theta direction for cylinder/circle domains."
         default: Null
         units: "dimensionless"
-      res:
-        type:
-          - "number"
-          - "null"
-        description: "The characteristic cell length for cylinder/circle domains generated with the mshr mesh_type."
-        default: Null
-        units: "meter"
       interpolated:
         type: "boolean"
         description: "Lets you define a terrain_path to have complex domain."
