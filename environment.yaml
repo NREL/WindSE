@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.9
+  - python=3.9 #3.10 causes CI to hang in parallel
   - mpich
   # - mpich=4.1.2=hd33e60e_101
   # - mpich=4.0.3
