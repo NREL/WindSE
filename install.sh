@@ -1,15 +1,15 @@
 #!/bin/bash 
 
+### Create some names
+conda_base_path=$(conda info --base)
+env_name=$1
+
 ### Run this to use conda in the script
 source $(conda info --base)/etc/profile.d/conda.sh
 
-### Create the Environment
-conda create -y --name $1 python=3.9
-conda activate $1
-
-### Install mamba which will speed up the rest of the installs
-conda config --add channels conda-forge
-conda install -y mamba
+### Create the Environment with mamba
+conda create -y --n ${env_name} -c conda_forge python=3.9 mamba
+conda activate ${env_name}
 
 # ### Install conda-forge dependencies 
 # conda install -y -c conda-forge fenics=2019.1.0=py38_9 dolfin-adjoint matplotlib scipy=1.4.1 slepc mshr hdf5 pyyaml memory_profiler pytest pytest-cov pytest-mpi coveralls pandas
@@ -25,4 +25,4 @@ conda install -y mamba
 # pip install -e .
 
 ### Install dependencies from environment
-mamba env update --file environment.yaml --prune 
+mamba env update -p ${conda_base_path}/envs/${env_name} --f environment.yaml --prune 

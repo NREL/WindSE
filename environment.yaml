@@ -1,3 +1,4 @@
+name: windse_temp
 channels:
   - conda-forge
   - defaults
