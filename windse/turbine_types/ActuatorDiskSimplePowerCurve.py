@@ -1,40 +1,47 @@
 # import windse function
+from typing import Generic
 from . import GenericTurbine
 
 # import dolfin functions
-from . import Constant, SpatialCoordinate, as_vector, cos, sin, exp, sqrt, dot, project, assemble, dx
+from . import Constant, SpatialCoordinate, as_vector, cos, sin, exp, ln, sqrt, dot, assemble, dx
 
+from . import ActuatorDisk
 
-# import other modules
 import numpy as np
 from scipy.special import gamma
 
-class ActuatorDisk(GenericTurbine):
+class ActuatorDiskSimplePowerCurve(GenericTurbine):
 
-    def __init__(self, i,x,y,dom,imported_params=None):
+    def __init__(self, i, x, y, dom, imported_params=None):
         # Define the acceptable column of an wind_farm.csv imput file
-        self.yaml_inputs = ["HH", "RD", "yaw", "thickness", "axial", "force"]
+        self.yaml_inputs = ["HH", "RD", "yaw", "thickness", "CTprime0", "CPprime0", "Vrated", "force"]
 
         # Init turbine
-        super(ActuatorDisk, self).__init__(i,x,y,dom,imported_params)
-
+        super(ActuatorDiskSimplePowerCurve, self).__init__(i,x,y,dom,imported_params)
 
     def load_parameters(self):
         self.HH        = self.params["turbines"]["HH"]
         self.RD        = self.params["turbines"]["RD"]
         self.yaw       = self.params["turbines"]["yaw"]
         self.thickness = self.params["turbines"]["thickness"]
-        self.axial     = self.params["turbines"]["axial"]
+        self.axial     = -1 # needed for generic turbine
+        self.CPprime0  = self.params["turbines"]["CPprime0"]
+        self.CTprime0  = self.params["turbines"]["CTprime0"]
+        self.Prated    = self.params["turbines"]["Prated"]
+        self.Trated    = self.params["turbines"]["Trated"]
         self.force     = self.params["turbines"]["force"]
 
     def create_controls(self):
-        self.mx     = Constant(self.x, name="x_{:d}".format(self.index))
-        self.my     = Constant(self.y, name="y_{:d}".format(self.index))
-        self.myaw   = Constant(self.yaw, name="yaw_{:d}".format(self.index))
-        self.maxial = Constant(self.axial, name="axial_{:d}".format(self.index))
+        self.mx        = Constant(self.x, name="x_{:d}".format(self.index))
+        self.my        = Constant(self.y, name="y_{:d}".format(self.index))
+        self.myaw      = Constant(self.yaw, name="yaw_{:d}".format(self.index))
+        self.mCPprime0 = Constant(self.CPprime0, name="CPprime0_{:d}".format(self.index))
+        self.mCTprime0 = Constant(self.CTprime0, name="CTprime0_{:d}".format(self.index))
+        self.mPrated   = Constant(self.Prated, name="Prated_{:d}".format(self.index))
+        self.mTrated   = Constant(self.Trated, name="Trated_{:d}".format(self.index))
 
         # The control list is very important for extracting information from the optimzation step.
-        self.controls_list = ["x","y","yaw","axial"]
+        self.controls_list = ["x","y","yaw","CPprime0","CTprime0","Prated","Trated"]
 
     def build_actuator_disk(self,inflow_angle):
 
@@ -43,8 +50,8 @@ class ActuatorDisk(GenericTurbine):
         yaw = self.myaw+inflow_angle
         W = self.thickness*1.0
         R = self.RD/2.0
-        ma = self.maxial
-        C_tprime = 4*ma/(1-ma)
+        CTprime0 = self.mCTprime0
+        # CPprime0 = self.mCPprime0
         x=SpatialCoordinate(self.dom.mesh)
 
         ### Set up some dim dependent values ###
@@ -75,10 +82,11 @@ class ActuatorDisk(GenericTurbine):
         elif self.force == "sine":
             force = (r*sin(np.pi*r)+0.5)/S_norm
         elif self.force == "chord":
-            self._setup_chord_force()
-            chord = self.mchord[i]
-            force = self.radial_chord_force(r,chord)
-        F = -0.5*A*C_tprime*force
+            raise NotImplementedError("not implemented! -cfrontin")
+            # self._setup_chord_force()
+            # chord = self.mchord[i]
+            # force = self.radial_chord_force(r,chord)
+        F = -0.5*A*CTprime0*force
 
         ### Calculate normalization constant ###
         volNormalization = T_norm*D_norm*W*R**(self.dom.dim-1)
@@ -132,8 +140,52 @@ class ActuatorDisk(GenericTurbine):
         self.tf2 = self.actuator_disk * sin(yaw)**2
         self.tf3 = self.actuator_disk * 2.0 * cos(yaw) * sin(yaw)
 
+        # compute power curve adjustment as a function of velocity
+        CPprime0 = self.mCPprime0
+        CTprime0 = self.mCTprime0
+        Prated = self.mPrated
+        Trated = self.mTrated
+        Vrated = Prated*CTprime0/(Trated*CPprime0)
+        A = np.pi/4.0*self.RD**2.0
+        Vps = sqrt(2*Prated/(A*Vrated*CPprime0))
+
+        # precompute key values
+        beta_smooth = 16.0
+        vel_magnitude = sqrt(u[0]**2 + u[1]**2 + u[2]**2)
+
+        f0 = (0.5*A*vel_magnitude**3)/1e6
+        f1 = (0.5*A*vel_magnitude**3)*CTprime0/1e6
+        f2 = (0.5*A*vel_magnitude**3)*CTprime0*Vps**2/(vel_magnitude**2)/1e6
+        f3 = (0.5*A*vel_magnitude**3)*CTprime0*Vps**2*Vrated/(vel_magnitude**3)/1e6
+
+        # smooth twice: one in power space and one in coefficient space
+
+        # # first attempt: boltzmann operator
+        # # first blend: smoothmin Region II.5 and Region III power
+        # blend1 = 1.0*(
+        #     f2*exp(-beta_smooth*f2) + f3*exp(-beta_smooth*f3)
+        # )/(
+        #     exp(-beta_smooth*f2) + exp(-beta_smooth*f3)
+        # )
+        #
+        # # second blend: smoothmin Region II and first blend coefficient
+        # CTp_factor = (
+        #     f1/f0*exp(-beta_smooth*f1/f0) + blend1/f0*exp(-beta_smooth*blend1/f0)
+        # )/(
+        #     exp(-beta_smooth*f1/f0) + exp(-beta_smooth*blend1/f0)
+        # )
+
+        # second attempt: mellowmax operator
+        # first blend: smoothmin Region II.5 and Region III power
+        blend1 = -1.0/beta_smooth*ln(exp(-beta_smooth*f2) + exp(-beta_smooth*f3))
+
+        # second blend: smoothmin Region II and first blend coefficient
+        CTp_factor = -1.0/beta_smooth*ln(
+            exp(-beta_smooth*f1/f0) + exp(-beta_smooth*blend1/f0)
+        )/CTprime0
+
         ### Compose full turbine force
-        self.tf = self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1]
+        self.tf = CTp_factor*(self.tf1*u[0]**2+self.tf2*u[1]**2+self.tf3*u[0]*u[1])
 
         return self.tf
 
@@ -141,7 +193,8 @@ class ActuatorDisk(GenericTurbine):
         pass
 
     def power(self, u, inflow_angle):
-        return dot(-self.tf,u)/1.0e6
+        # adjust for turbine inefficiency
+        return self.mCPprime0/self.mCTprime0*dot(-self.tf,u)/1.0e6
 
     def power_gradient(self):
         pass
@@ -157,86 +210,3 @@ class ActuatorDisk(GenericTurbine):
             func_list[1][0] += self.tf
 
         return func_list
-
-
-
-
-
-
-
-
-
-    #### These two chord based functions are still very experimental
-    def radial_chord_force(r,chord):
-
-        cx = np.linspace(-0.1,1.25,len(chord))
-        # cx = np.insert(cx,0,-0.1)
-        # cx = np.insert(cx,len(cx),1.1)
-        # chord = [0.0] + chord + [0.0]
-
-        # chord = np.array(chord,dtype=float)
-        # print(chord)
-        # r = np.linspace(-0.1,1.25,1000)
-
-        force = 0
-        int_force = 0
-        for i in range(len(chord)):
-            Li = 1.0
-            for j in range(len(chord)):
-                if i!=j:
-                    Li *= (r - cx[j])/(cx[i]-cx[j])
-
-            force += chord[i]*Li
-            if i !=0:
-                int_force += (cx[i]-cx[i-1])*(chord[i]+chord[i-1])/2.0
-
-        # plt.plot(r,force)
-        # plt.scatter(cx,chord)
-        # plt.show()
-        # exit()
-
-        return force/int_force
-
-    def _setup_chord_force(self):
-        ### this section of code is a hack to get "chord"-type disk representation ###
-        if self.mchord is not None:
-            if self.chord is not None:
-                if self.blade_segments == "computed":
-                    self.num_actuator_nodes = 10 ##### FIX THIS ####
-                    self.blade_segments = self.num_actuator_nodes
-                else:
-                    self.num_actuator_nodes = self.blade_segments
-
-                if self.read_turb_data:
-                    print('Num blade segments: ', self.num_actuator_nodes)
-                    turb_data = self.params["wind_farm"]["read_turb_data"]
-                    self.fprint('Setting chord from file \'%s\'' % (turb_data))
-                    actual_turbine_data = np.genfromtxt(turb_data, delimiter = ',', skip_header = 1)
-                    actual_x = actual_turbine_data[:, 0]
-                    actual_chord = self.chord_factor*actual_turbine_data[:, 1]
-                    chord_interp = interp.interp1d(actual_x, actual_chord)
-                    interp_points = np.linspace(0.0, 1.0, self.blade_segments)
-                    # Generate the interpolated values
-                    self.chord = chord_interp(interp_points)
-                else:
-                    self.chord = np.ones(self.blade_segments)
-            self.num_actuator_nodes = self.blade_segments
-            self.baseline_chord = copy.copy(self.chord)
-
-            self.cl = np.ones(self.blade_segments)
-            self.cd = np.ones(self.blade_segments)
-            self.mcl = []
-            self.mcd = []
-            self.mchord = []
-            for i in range(self.numturbs):
-                self.mcl.append([])
-                self.mcd.append([])
-                self.mchord.append([])
-                for j in range(self.blade_segments):
-                    self.mcl[i].append(Constant(self.cl[j]))
-                    self.mcd[i].append(Constant(self.cd[j]))
-                    self.mchord[i].append(Constant(self.chord[j]))
-            self.cl = np.array(self.mcl,dtype=float)
-            self.cd = np.array(self.mcd,dtype=float)
-            self.chord = np.array(self.mchord,dtype=float)
-

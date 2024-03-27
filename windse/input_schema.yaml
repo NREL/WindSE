@@ -469,6 +469,7 @@ properties:
           - "2D_disk"
           - "numpy_disk"
           - "disk"
+          - "power_disk"
           - "hybrid_disk"
           - "line"
           - "expr_disk"

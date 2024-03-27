@@ -2,7 +2,7 @@
 The OptimizationManager submodule contains all the required function for
 optimizing via dolfin-adjoint. To use dolfin-adjoin set::
 
-    general: 
+    general:
         dolfin_adjoint: True
 
 in the param.yaml file.
@@ -21,7 +21,7 @@ if hasattr(__main__,"__file__"):
     main_file = os.path.basename(__main__.__file__)
 else:
     main_file = "ipython"
-    
+
 ### This checks if we are just doing documentation ###
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
@@ -47,46 +47,46 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     import matplotlib.pyplot as plt
 else:
     InequalityConstraint = object
-    
+
 import openmdao.api as om
 
 
 class ObjComp(om.ExplicitComponent):
     """
     OpenMDAO component to wrap the objective computation from dolfin.
-    
+
     Specifically, we use the J and dJ (function and Jacobian) methods
     to compute the function value and derivative values as needed by the
-    OpenMDAO optimizers.    
+    OpenMDAO optimizers.
     """
     def initialize(self):
         self.options.declare('initial_DVs', types=np.ndarray)
         self.options.declare('J', types=object)
         self.options.declare('dJ', types=object)
         self.options.declare('callback', types=object)
-        
+
     def setup(self):
         self.add_input('DVs', val=self.options['initial_DVs'])
         self.add_output('obj', val=0.)
 
         self.declare_partials('*', '*')
-        
+
     def compute(self, inputs, outputs):
         m = list(inputs['DVs'])
         computed_output = self.options['J'](m)
         outputs['obj'] = computed_output
         self.options['callback'](m)
-        
+
     def compute_partials(self, inputs, partials):
         m = list(inputs['DVs'])
         jac = self.options['dJ'](m)
         partials['obj', 'DVs'] = jac
-        
-        
+
+
 class ConsComp(om.ExplicitComponent):
     """
     OpenMDAO component to wrap the constraint computation.
-    
+
     A small wrapper used on the fenics methods for computing constraint
     and Jacobian values using the OpenMDAO syntax.
     """
@@ -95,26 +95,26 @@ class ConsComp(om.ExplicitComponent):
         self.options.declare('J', types=object)
         self.options.declare('dJ', types=object)
         self.options.declare('con_name', types=str)
-        
+
     def setup(self):
         self.con_name = self.options["con_name"]
         self.add_input('DVs', val=self.options['initial_DVs'])
-        
+
         output = self.options['J'](self.options['initial_DVs'])
         self.add_output(self.con_name, val=output)
 
         self.declare_partials('*', '*')
-        
+
     def compute(self, inputs, outputs):
         m = list(inputs['DVs'])
         computed_output = self.options['J'](m)
         outputs[self.con_name] = computed_output
-        
+
     def compute_partials(self, inputs, partials):
         m = list(inputs['DVs'])
         jac = self.options['dJ'](m)
         partials[self.con_name, 'DVs'] = jac
-        
+
 
 def gather(m):
     """
@@ -126,13 +126,13 @@ def gather(m):
         return m._ad_to_list(m)
     else:
         return m  # Assume it is gathered already
-    
+
 def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
     """
     Custom optimization wrapper to use OpenMDAO optimizers with dolfin-adjoint.
-    
+
     Follows the API as defined by dolfin-adjoint.
-    
+
     Parameters
     ----------
     J : object
@@ -146,30 +146,30 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
         Function to compute the Hessian at a design point (not used).
     bounds : array
         Array of lower and upper bound values for the design variables.
-        
+
     Returns
     -------
     DVs : array
         The optimal design variable values.
     """
-    
+
     # build the model
     prob = om.Problem(model=om.Group())
-    
+
     if 'callback' in kwargs:
         callback = kwargs['callback']
     else:
         callback = None
 
     prob.model.add_subsystem('obj_comp', ObjComp(initial_DVs=initial_DVs, J=J, dJ=dJ, callback=callback), promotes=['*'])
-    
+
     constraint_types = []
     if 'constraints' in kwargs:
         constraints = kwargs['constraints']
-        
+
         if not isinstance(constraints, list):
             constraints = [constraints]
-        
+
         for idx, c in enumerate(constraints):
             if isinstance(c, InequalityConstraint):
                 typestr = "ineq"
@@ -183,13 +183,13 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
                 return [gather(y) for y in out]
 
             constraint_types.append(typestr)
-            
+
             con_name = f'con_{idx}'
             prob.model.add_subsystem(f'cons_comp_{idx}', ConsComp(initial_DVs=initial_DVs, J=c.function, dJ=jac, con_name=con_name), promotes=['*'])
-    
+
     lower_bounds = bounds[:, 0]
     upper_bounds = bounds[:, 1]
-    
+
     # set up the optimization
     if 'SLSQP' in kwargs['opt_routine']:
         prob.driver = om.ScipyOptimizeDriver()
@@ -200,30 +200,30 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
         folder_output = kwargs["options"]["folder"]
         prob.driver.opt_settings["Summary file"] = os.path.join(folder_output, "SNOPT_summary.out")
         prob.driver.opt_settings["Print file"] = os.path.join(folder_output, "SNOPT_print.out")
-        
+
         if kwargs["options"]["verify_snopt"]:
             prob.driver.opt_settings["Verify level"] = 0
         else:
             prob.driver.opt_settings["Verify level"] = -1
-            
+
         # prob.driver.opt_settings["Major iterations limit"] = 3
 
     prob.model.add_design_var('DVs', lower=lower_bounds, upper=upper_bounds)
     prob.model.add_objective('obj', ref=kwargs["options"]["obj_ref"], ref0=kwargs["options"]["obj_ref0"])
-    
+
     for idx, constraint_type in enumerate(constraint_types):
         con_name = f'con_{idx}'
         if constraint_type == "eq":
             prob.model.add_constraint(con_name, equals=0.)
         else:
             # Inequality means it's positive from scipy and dolfin
-            prob.model.add_constraint(con_name, lower=0.)            
+            prob.model.add_constraint(con_name, lower=0.)
 
 
     prob.setup()
-    
+
     prob.set_val('DVs', initial_DVs)
-    
+
     # Optional debugging step to check the total derivatives
     if kwargs["options"]["check_totals"]:
         prob.run_model()
@@ -232,15 +232,15 @@ def om_wrapper(J, initial_DVs, dJ, H, bounds, **kwargs):
     else:
         # Run the optimization
         prob.run_driver()
-    
+
     # Return the optimal design variables
     return(prob['DVs'])
 
 class Optimizer(object):
     """
     A GenericProblem contains on the basic functions required by all problem objects.
-    
-    Args: 
+
+    Args:
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
     def __init__(self, solver):
@@ -271,15 +271,15 @@ class Optimizer(object):
             else:
                 self.layout_bounds = np.array([[0,0],[0,0]])
             self.layout_bounds = self.layout_bounds*self.xscale
-            
+
         self.iteration = 0
 
         self.fprint("Setting Up Optimizer",special="header")
-        
+
         self.fprint("Controls: {0}".format(self.control_types))
         self.CreateControls()
- 
-        
+
+
         self.fprint("Define Bounds")
         self.CreateBounds()
 
@@ -307,7 +307,7 @@ class Optimizer(object):
             min_dist_dict = self.constraint_types.pop("min_dist")
             if "layout" in self.control_types:
                 x_inds = self.indexes[0]
-                y_inds = self.indexes[1] 
+                y_inds = self.indexes[1]
                 RD = np.max(self.farm.get_rotor_diameters())
                 constraints.append(MinimumDistanceConstraint(x_inds, y_inds, min_dist_dict["target"]*RD, min_dist_dict["scale"]))
 
@@ -340,7 +340,7 @@ class Optimizer(object):
                 if hasattr(self,"gradients"):
                     for i, d in enumerate(self.gradients):
                         self.tag_output("grad_"+self.names[i],float(d))
-                
+
                 ### TODO: Output taylor convergence data
                 if hasattr(self,"conv_rate"):
                     pass
@@ -362,7 +362,7 @@ class Optimizer(object):
         self.Jcurrent = self.J
 
     def ReducedFunctionalCallback(self, j, m):
-        self.Jcurrent = j 
+        self.Jcurrent = j
 
     def CreateControls(self):
 
@@ -370,7 +370,7 @@ class Optimizer(object):
         self.controls = []
         self.control_pointers = []
         self.names = []
-        self.indexes = [[],[],[],[],[],[],[],[]]
+        self.indexes = [[],[],[],[],[],[],[],[],[],[],[],[]]
         self.init_vals = []
         j = 0
 
@@ -407,6 +407,36 @@ class Optimizer(object):
                 self.controls.append(Control(self.farm.turbines[i].maxial))
                 self.control_pointers.append(("axial",i))
                 self.init_vals.append(Constant(float(self.farm.turbines[i].maxial)))
+
+        if "power_curve" in self.control_types:
+            for i in self.solver.opt_turb_id:
+                self.indexes[8].append(j)
+                j+=1
+                self.names.append("Prated_"+repr(i))
+                self.controls.append(Control(self.farm.turbines[i].mPrated))
+                self.control_pointers.append(("Prated",i))
+                self.init_vals.append(Constant(float(self.farm.turbines[i].mPrated)))
+
+                self.indexes[9].append(j)
+                j+=1
+                self.names.append("Trated_"+repr(i))
+                self.controls.append(Control(self.farm.turbines[i].mTrated))
+                self.control_pointers.append(("Trated",i))
+                self.init_vals.append(Constant(float(self.farm.turbines[i].mTrated)))
+
+                self.indexes[10].append(j)
+                j+=1
+                self.names.append("CPprime0_"+repr(i))
+                self.controls.append(Control(self.farm.turbines[i].mCPprime0))
+                self.control_pointers.append(("CPprime0",i))
+                self.init_vals.append(Constant(float(self.farm.turbines[i].mCPprime0)))
+
+                self.indexes[11].append(j)
+                j+=1
+                self.names.append("CTprime0_"+repr(i))
+                self.controls.append(Control(self.farm.turbines[i].mCTprime0))
+                self.control_pointers.append(("CTprime0",i))
+                self.init_vals.append(Constant(float(self.farm.turbines[i].mCTprime0)))
 
         if "lift" in self.control_types:
             for i in self.solver.opt_turb_id:
@@ -569,7 +599,7 @@ class Optimizer(object):
         capture_memory = False
         if capture_memory:
             mem_out, der = memory_usage(self.Jhat.derivative,max_usage=True,retval=True,max_iterations=1)
-        else: 
+        else:
             mem_out = 2*mem0
             der = self.Jhat.derivative()
 
@@ -666,7 +696,7 @@ class Optimizer(object):
             else:
                 m_old.append(float(getattr(self.farm.turbines[index],control_name)))
         # print(m_new)
-        # print(type(m_new))            
+        # print(type(m_new))
         if self.problem.params.rank == 0:
             if self.iteration == 0:
 
@@ -706,7 +736,7 @@ class Optimizer(object):
             self.params.Save(u,"velocity",subfolder="OptSeries/",val=self.iteration,file=self.velocity_file)
             self.params.Save(p,"pressure",subfolder="OptSeries/",val=self.iteration,file=self.pressure_file)
             # self.params.Save(tf,"tf",subfolder="OptSeries/",val=self.iteration,file=self.tf_file)
-    
+
     @no_annotations
     def OptPrintFunction(self,m,test=None):
         if test is not None:
@@ -723,8 +753,8 @@ class Optimizer(object):
             self.problem.farm.plot_farm(filename="wind_farm_step_"+repr(self.iteration),objective_value=self.Jcurrent)
 
         # if "chord" in self.control_types:
-        #     c_lower = np.array(self.bounds[0])[self.indexes[6]] 
-        #     c_upper = np.array(self.bounds[1])[self.indexes[6]] 
+        #     c_lower = np.array(self.bounds[0])[self.indexes[6]]
+        #     c_upper = np.array(self.bounds[1])[self.indexes[6]]
         #     self.problem.farm.plot_chord(filename="chord_step_"+repr(self.iteration),objective_value=self.Jcurrent,bounds=[c_lower,c_upper])
 
         self.DebugOutput(self.iteration, m)
@@ -761,7 +791,7 @@ class Optimizer(object):
             options["verify_snopt"] = self.verify_snopt
         if hasattr(self, 'check_totals'):
             options["check_totals"] = self.check_totals
-        
+
         if self.opt_type == "minimize":
             opt_function = minimize
         elif self.opt_type == "maximize":
@@ -769,14 +799,14 @@ class Optimizer(object):
         else:
             raise ValueError(f"Unknown optimization type: {self.opt_type}")
 
-        ### optimize 
+        ### optimize
         if "SNOPT" in self.opt_routine or "OM_SLSQP" in self.opt_routine:
             m_opt=opt_function(self.Jhat, method="Custom", tol=1.0e-8, options = options, constraints = self.merged_constraint, bounds = self.bounds, callback = self.OptPrintFunction, algorithm=om_wrapper, opt_routine=self.opt_routine)
         else:
             m_opt=opt_function(self.Jhat, method=self.opt_routine, tol=1.0e-8, options = options, constraints = self.merged_constraint, bounds = self.bounds, callback = self.OptPrintFunction)
 
         self.m_opt = m_opt
-        
+
         if self.num_controls == 1:
             self.m_opt = [self.m_opt]
         self.OptPrintFunction(self.m_opt)
@@ -791,7 +821,7 @@ class Optimizer(object):
         # if "axial" in self.control_types:
         #     new_values["a"]   = m_f[self.indexes[3]]
         # self.problem.farm.UpdateControls(**new_values)
-        
+
         # self.fprint("Solving With New Values")
         # self.solver.Solve()
 
@@ -800,7 +830,7 @@ class Optimizer(object):
         return self.m_opt
 
     def TaylorTest(self):
-        
+
         self.fprint("Beginning Taylor Test",special="header")
 
         h = []
@@ -962,5 +992,5 @@ class MergedConstraint(InequalityConstraint):
         out = np.empty((0,len(m)))
         for con in self.constraint_list:
             out = np.vstack((out, con.jacobian(m)))
-            
+
         return out
