@@ -89,7 +89,7 @@ class LinearFunctionSpace(GenericFunctionSpace):
     def __init__(self,dom):
         super(LinearFunctionSpace, self).__init__(dom)
 
-        # trick the mesh to working?
+        # # trick the mesh to working?
         # dummy = MeshFunction('bool', self.mesh, self.mesh.geometry().dim(),False)
         # print("before:", self.mesh.num_entities_global(0))
         # self.mesh = refine(self.mesh,dummy)
