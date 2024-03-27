@@ -18,8 +18,8 @@ wind_farm:
     type: grid            #                          |
     grid_rows: 1          # Number of rows           | -
     grid_cols: 2          # Number of columns        | -
-    ex_x: [-882, 882]     # x-extent of the farm     | m
-    ex_y: [-882, 882]     # y-extent of the farm     | m
+    ex_x: [-720, 720]     # x-extent of the farm     | m
+    ex_y: [-720, 720]     # y-extent of the farm     | m
     jitter: 0            # Randomly perturb turbines| m
     seed: 8675309         # random seed for repeats  | -
     ##################################################################
@@ -61,7 +61,6 @@ domain:
     radius: 1500            # x-range of the domain | m
     center: [0.0, 0.0]      # y-range of the domain | m
     nt: 20                  # segments around circle| -
-    res: 10                 # resolution for mshr   | -
     ###################################################################
 
 

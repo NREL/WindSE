@@ -64,7 +64,6 @@ domain:
     radius: 1200            # x-range of the domain | m
     center: [0.0, 0.0]      # y-range of the domain | m
     nt: 62                  # segments around circle| -
-    res: 50                 # resolution for mshr   | -
     # ###################################################################
 
 
