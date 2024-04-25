@@ -28,6 +28,7 @@ jobs:
         shell: pwsh # putting in a shell command makes for compile linking problems later
         # (if you use the shell here, cannot use 'compiler' package, but mpi only seems to work with it)
         run: |
+          conda install -n base mamba
           bash ./install.sh test-environment
           conda activate test-environment
           conda list
