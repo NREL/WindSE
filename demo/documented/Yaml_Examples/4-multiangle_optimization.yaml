@@ -21,7 +21,7 @@ turbines:
     HH: 80                # Hub Height               | m
     RD: 80.0              # Turbine Diameter         | m
     thickness: 20         # Effective Thickness      | m
-    yaw: 0.0              # Yaw                      | rads
+    yaw: 0.0              # Yaw                      | degs
     axial: 0.33           # Axial Induction          | -
 
 # Domain Constants for a Box Domain

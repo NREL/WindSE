@@ -43,7 +43,7 @@ turbines:
 
     # These two are left off because they are supplied in the wind_farm.csv file
     # HH: 90                # Hub Height               | m
-    # yaw: 0.0              # Yaw                      | rads
+    # yaw: 0.0              # Yaw                      | degs
     ###################################################################
 
 # Domain Parameters: Uncomment a set to change domain shape

@@ -663,7 +663,7 @@ class GenericWindFarm(object):
         ### Get quantities ###
         x, y, z = self.get_hub_locations().T
         HH = z-self.get_ground_heights()
-        yaw = self.get_yaw_angles()
+        yaw = np.degrees(self.get_yaw_angles())
         RD = self.get_rotor_diameters()
 
         ### Might not need these anymore

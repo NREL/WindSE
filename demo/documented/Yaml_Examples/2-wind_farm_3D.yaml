@@ -23,7 +23,7 @@ turbines:
 
     # These two are left off because they are supplied in the wind_farm.csv file
     # HH: 90                # Hub Height               | m
-    # yaw: 0.0              # Yaw                      | rads
+    # yaw: 0.0              # Yaw                      | degs
     ###################################################################
 
 # Domain Parameters: Uncomment a set to change domain shape
@@ -78,7 +78,7 @@ boundary_conditions:
     vel_profile: log
     HH_vel: 8.0
     k: 0.4
-    inflow_angle: 1.13
+    inflow_angle: 285.0
     ######### Uncomment to test out custom BCs for BoxDomain ##########
     # boundary_types:
     #     inflow: ["west"]

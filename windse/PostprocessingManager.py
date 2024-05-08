@@ -81,7 +81,7 @@ def write_to_floris(data_to_write, solver):
 
         yaws = solver.problem.farm.get_yaw_angles()
 
-        floris_dict["farm"]["yaw"] = yaws
+        floris_dict["farm"]["yaw"] = np.degrees(yaws)
 
     # Generate the full path to the FLORIS file
     path_to_floris_file = os.path.join(solver.params.folder,

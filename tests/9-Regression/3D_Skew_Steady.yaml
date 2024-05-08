@@ -21,7 +21,7 @@ turbines:
     HH: 90                # Hub Height               | m
     RD: 126.0             # Turbine Diameter         | m
     thickness: 10.5       # Effective Thickness      | m
-    yaw: 0.0              # Yaw                      | rads
+    yaw: 0.0              # Yaw                      | degs
     axial: 0.33           # Axial Induction          | -
 
 
@@ -64,7 +64,7 @@ boundary_conditions:
     vel_profile: log
     HH_vel: 8.0
     k: 0.4
-    inflow_angle: 1.13
+    inflow_angle: 205.256
 
 problem:
     type: stabilized

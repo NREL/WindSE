@@ -203,6 +203,13 @@ The syntax for each refinement type is::
 
 
 
+.. _inflow_angle:
+
+Defining Inflow Angle
+---------------------
+
+The inflow angle is defined in the meteorological sense with units of degrees. This means an inflow angle of 0 will result in wind blowing from the north to the south. Increasing the inflow angle will rotate the wind clockwise (i.e. 90 degrees corresponds to wind blowing from the east and moving west). The default value of 270 degrees, which corresponds to wind blowing from the west to the east. 
+
 .. _custom_boundaries:
 
 Customizing Boundary Conditions

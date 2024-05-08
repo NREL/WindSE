@@ -23,7 +23,7 @@ turbines:
     HH: 90                # Hub Height               | m
     RD: 126.0             # Turbine Diameter         | m
     thickness: 20.0       # Effective Thickness      | m
-    yaw: 0.0              # Yaw                      | rads
+    yaw: 0.0              # Yaw                      | degs
     axial: 0.33           # Axial Induction          | -
 
 # Domain Parameters: Uncomment a set to change domain shape
@@ -64,7 +64,7 @@ boundary_conditions:
     vel_profile: log
     HH_vel: 8.0
     k: 0.4
-    inflow_angle: [1.34,5.04,3]
+    inflow_angle: [45,115,3]
     boundary_types:
         inflow: ["west"]
         no_stress: ["east"]

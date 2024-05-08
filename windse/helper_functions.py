@@ -9,6 +9,30 @@ if windse_parameters.dolfin_adjoint:
     from windse.blocks import blockify, MpiEvalBlock, UflEvalBlock
     from pyadjoint.overloaded_type import create_overloaded_object
 
+def meteor_to_math(angle):
+    '''
+    this function converts an angle from the meteorological convention to the math convention.
+    0   -> 270
+    90  -> 180
+    180 -> 90
+    270 -> 0
+    Additionally the input is in degrees and the output is in radians. 
+
+    '''
+    return np.radians(270.0-angle)
+
+def math_to_meteor(angle):
+    '''
+    this function converts an angle from the math convention to the meteorological convention.
+    0   -> 270
+    90  -> 180
+    180 -> 90
+    270 -> 0
+    Additionally the input is in radians and the output is in degrees. 
+
+    '''
+    return 270.0-np.degrees(angle)
+
 def ufl_eval(form, print_statement=None):
     '''
     This function converts complex ufl forms to floats

@@ -592,6 +592,11 @@ class Optimizer(object):
             # d_format = np.float64(d)
             # self.params.comm.Gather(d_format, d_global, root=0)
             # d_sum = np.sum(d_global)
+
+            if "yaw" in self.names[i]:
+                ctl_val = np.degrees(ctl_val)
+                d = d*np.pi/180
+
             d_out = '%12s: %12.5e, %22.15e' % (self.names[i], ctl_val, d)
 
             # print('Rank %d, %s' % (self.params.rank, d_out))
@@ -630,6 +635,8 @@ class Optimizer(object):
 
         self.fprint("Next Control Values",special="header")
         for i, val in enumerate(m):
+            if "yaw" in self.names[i]:
+                val = np.degrees(float(val))
             self.fprint(self.names[i] +": " +repr(float(val)))
         self.fprint("",special="footer")
 
@@ -666,7 +673,13 @@ class Optimizer(object):
             else:
                 m_old.append(float(getattr(self.farm.turbines[index],control_name)))
         # print(m_new)
-        # print(type(m_new))            
+        # print(type(m_new)) 
+
+        for i in range(len(m_new)):
+            if "yaw" in self.names[i]:
+                m_new[i] = np.degrees(float(m_new[i]))
+                m_old[i] = np.degrees(float(m_old[i]))
+
         if self.problem.params.rank == 0:
             if self.iteration == 0:
 

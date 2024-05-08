@@ -359,7 +359,7 @@ This section will define all the parameters for the wind farm::
 | ``RD``                 | The rotor diameter                            | all                | None     | m           |
 |                        |                                               |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
-| ``yaw``                | | Determines the yaw of all turbines. Yaw is  | all                | None     | rad         |
+| ``yaw``                | | Determines the yaw of all turbines. Yaw is  | all                | None     | degs        |
 |                        | | relative to the wind inflow direction       |                    |          |             |
 +------------------------+-----------------------------------------------+--------------------+----------+-------------+
 | ``thickness``          | The effective thickness of the rotor disk     | | "disk" or disk   | None     | m           |

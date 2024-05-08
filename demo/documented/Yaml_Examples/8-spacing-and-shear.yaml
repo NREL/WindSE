@@ -26,7 +26,7 @@ turbines:
     HH: 90                # Hub Height               | m
     RD: 126.0             # Turbine Diameter         | m
     thickness: 12.0       # Effective Thickness      | m
-    yaw: 0.0              # Yaw                      | rads
+    yaw: 0.0              # Yaw                      | degs
     axial: 0.25           # Axial Induction          | -
 
 # Domain Parameters: Uncomment a set to change domain shape

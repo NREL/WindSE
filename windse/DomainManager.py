@@ -30,6 +30,9 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     ### Import the cumulative parameters ###
     from windse import windse_parameters
 
+    ### Import some helper functions
+    from windse.helper_functions import meteor_to_math
+
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
@@ -187,11 +190,16 @@ class GenericDomain(object):
         self.ground_reference = self.ground_reference*self.xscale
 
         ### Get the initial wind direction ###
-        self.inflow_angle = self.params["boundary_conditions"]["inflow_angle"]
-        if self.inflow_angle is None:
-            self.inflow_angle = 0.0
-        elif isinstance(self.inflow_angle,list):
-            self.inflow_angle = self.inflow_angle[0]
+        self.raw_inflow_angle = self.params["boundary_conditions"]["inflow_angle"]
+        if self.raw_inflow_angle is None:
+            inflow_angle = 270.0 # default inflow angle is from west to east
+        elif isinstance(self.raw_inflow_angle,list):
+            inflow_angle = self.raw_inflow_angle[0]
+        else:
+            inflow_angle = self.raw_inflow_angle
+        print(inflow_angle)
+        self.inflow_angle = meteor_to_math(inflow_angle)
+        print(self.inflow_angle)
         self.initial_inflow_angle = self.inflow_angle
 
         ### Add a space to store periodic boundary conditions ###

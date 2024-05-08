@@ -98,7 +98,7 @@ class ActuatorHybridDisk(GenericTurbine):
 
         ### Alias useful values ###
         x0 = [self.mx,self.my,self.mz]
-        yaw = self.myaw+inflow_angle
+        yaw = self.myaw+self.inflow_angle
         W = self.thickness*1.0
         R = self.RD/2.0
         ma = self.maxial
@@ -214,6 +214,7 @@ class ActuatorHybridDisk(GenericTurbine):
 
         ### Store function space ###
         self.fs = fs
+        self.inflow_angle.assign(inflow_angle)
 
         ### Initialize some blade parameters ###
         self.init_blade_properties()
@@ -222,7 +223,7 @@ class ActuatorHybridDisk(GenericTurbine):
         self.actuator_disk = self.build_actuator_disk(inflow_angle)
 
         ### Expand the dot product
-        yaw = self.myaw+inflow_angle
+        yaw = self.myaw+self.inflow_angle
         self.tf1 = self.actuator_disk * cos(yaw)**2
         self.tf2 = self.actuator_disk * sin(yaw)**2
         self.tf3 = self.actuator_disk * 2.0 * cos(yaw) * sin(yaw)

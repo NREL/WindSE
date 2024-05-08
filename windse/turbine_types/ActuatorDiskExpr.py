@@ -117,10 +117,11 @@ class ActuatorDiskExpr(ActuatorDisk):
         """
 
         ### compute the space kernal and radial force
-        self.actuator_disk = self.build_actuator_disk(inflow_angle)
+        self.inflow_angle.assign(inflow_angle)
+        self.actuator_disk = self.build_actuator_disk(self.inflow_angle)
 
         ### Expand the dot product
-        yaw = self.myaw+inflow_angle
+        yaw = self.myaw+self.inflow_angle
         tf1 = self.actuator_disk * cos(yaw)**2
         tf2 = self.actuator_disk * sin(yaw)**2
         tf3 = self.actuator_disk * 2.0 * cos(yaw) * sin(yaw)

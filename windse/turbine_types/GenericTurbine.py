@@ -35,6 +35,7 @@ class GenericTurbine(object):
         self.x = x
         self.y = y
         self.imported_params = imported_params
+        self.inflow_angle = Constant(0.0)
 
         # blockify custom functions so dolfin adjoint can track them
         if self.params.performing_opt_calc:
@@ -49,6 +50,7 @@ class GenericTurbine(object):
         """  
         self.load_parameters()
         self.update_parameters_from_file()
+        self.convert_yaw()
         self.compute_parameters()      
         self.create_controls()
         self.calculate_heights()
@@ -86,6 +88,11 @@ class GenericTurbine(object):
 
                 # update the parameter
                 setattr(self,column_header,val)
+
+    def convert_yaw(self):
+        if hasattr(self,"yaw"):
+            self.yaw = np.radians(self.yaw)
+
 
     def compute_parameters(self):
         """

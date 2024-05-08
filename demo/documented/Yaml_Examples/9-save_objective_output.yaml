@@ -15,7 +15,7 @@ turbines:
     HH: 90            
     RD: 126.0         
     thickness: 20.0   
-    yaw: 0.349        
+    yaw: 20.0        
     axial: 0.33       
 
 domain: 

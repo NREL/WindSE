@@ -44,6 +44,7 @@ class GenericBoundary(object):
         ### Update attributes based on params file ###
         for key, value in self.params["boundary_conditions"].items():
             setattr(self,key,value)
+        del self.inflow_angle # remove inflow angle from bc because domain owns it.
 
         self.extra_kwarg = {}            
         if self.params.dolfin_adjoint:

@@ -76,7 +76,7 @@ the rotor diameter to ensure all turbines including the rotors are located
 within the extents. The rest of the parameters determine the physical 
 properties of the turbines:
 
-  * ``yaw``: The yaw of the turbines where 0 is perpendicular to an East to West inflow.
+  * ``yaw``: The yaw of the turbines where 0 is perpendicular to inflow.
   * ``axial``: The axial induction
   * ``HH``: The hub height relative to the ground
   * ``RD``: The rotor diameter

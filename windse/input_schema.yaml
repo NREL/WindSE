@@ -503,7 +503,7 @@ properties:
           - "number"
           - "null"
         description: "Yaw of the turbine relative to inflow angle."
-        units: "radians"
+        units: "degrees"
       axial:
         default: Null
         type:
@@ -769,12 +769,12 @@ properties:
           - "null"
         description: "Location for the turbsim inflow data."
       inflow_angle:
-        default: 0.0
+        default: 270.0
         type:
           - "number"
           - "array"
-        description: "Angle of the inflow velocity."
-        units: "radians"
+        description: "Angle of the inflow velocity. See :ref:`inflow_angle`"
+        units: "degrees"
       boundary_names:
         type: "object"
         description: "Used for renaming the boundries. See :ref:`custom_boundaries`"

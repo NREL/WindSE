@@ -29,6 +29,9 @@ if not main_file in ["sphinx-build", "__main__.py"]:
     ### Import the cumulative parameters ###
     from windse import windse_parameters
 
+    ### Import some helper functions
+    from windse.helper_functions import meteor_to_math, math_to_meteor
+
     ### Check if we need dolfin_adjoint ###
     if windse_parameters.dolfin_adjoint:
         from dolfin_adjoint import *
@@ -1110,11 +1113,11 @@ class UnsteadySolver(GenericSolver):
                 # t1 = time.time()
                 pr.enable()
                 if 'dolfin' in self.problem.farm.turbines[0].type:
-                    self.problem.ComputeTurbineForceTerm(self.problem.u_k, TestFunction(self.problem.fs.V), self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                    self.problem.ComputeTurbineForceTerm(self.problem.u_k, TestFunction(self.problem.fs.V), self.problem.dom.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
                 else:
                     # updated method from dev, is this necessary? this may not work if there are self.farm.too_many_turbines
-                    self.problem.farm.update_turbine_force(self.problem.u_k, self.problem.bd.inflow_angle, self.problem.fs, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
-                    # new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.bd.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                    self.problem.farm.update_turbine_force(self.problem.u_k, self.problem.dom.inflow_angle, self.problem.fs, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
+                    # new_tf = self.problem.ComputeTurbineForce(self.problem.u_k, self.problem.dom.inflow_angle, simTime=self.simTime, simTime_prev=self.simTime_prev, dt=self.problem.dt)
                     # self.problem.tf.assign(new_tf)
                 pr.disable()
 
@@ -1128,7 +1131,7 @@ class UnsteadySolver(GenericSolver):
                 # # self.problem.alm_power_sum += self.problem.alm_power*self.problem.dt
                 # # self.problem.alm_power_average = self.problem.alm_power_sum/self.simTime
 
-                # self.problem.alm_power_dolfin = self.problem.farm.compute_power(self.problem.u_k, self.problem.bd.inflow_angle)
+                # self.problem.alm_power_dolfin = self.problem.farm.compute_power(self.problem.u_k, self.problem.dom.inflow_angle)
                 # output_str = 'Rotor Power (dolfin, solver): %s MW' % (self.problem.alm_power_dolfin/1.0e6)
                 # self.fprint(output_str)
 
@@ -2041,27 +2044,28 @@ class MultiAngleSolver(SteadySolver):
         if self.params["domain"]["type"] in ["imported"]:
             raise ValueError("Cannot use a Multi-Angle Solver with an "+self.params["domain"]["type"]+" domain.")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
-        if self.problem.bd.inflow_angle is None:
+        if self.problem.dom.raw_inflow_angle is None:
             self.wind_range = [0, 2.0*np.pi,self.num_wind_angles]
-        elif isinstance(self.problem.bd.inflow_angle,list):
-            if len(self.problem.bd.inflow_angle)==3:
-                self.wind_range = self.problem.bd.inflow_angle
+        elif isinstance(self.problem.dom.raw_inflow_angle,list):
+            if len(self.problem.dom.raw_inflow_angle)==3:
+                self.wind_range = self.problem.dom.raw_inflow_angle
             else:
-                self.wind_range = [self.problem.bd.inflow_angle[0],self.problem.bd.inflow_angle[1],self.num_wind_angles]
+                self.wind_range = [self.problem.dom.raw_inflow_angle[0],self.problem.dom.raw_inflow_angle[1],self.num_wind_angles]
         else:
-            self.wind_range = [self.problem.bd.inflow_angle,self.problem.bd.inflow_angle+2.0*np.pi,self.num_wind_angles]
+            self.wind_range = [self.problem.dom.raw_inflow_angle,self.problem.dom.raw_inflow_angle+2.0*np.pi,self.num_wind_angles]
 
         self.angles = np.linspace(*self.wind_range,endpoint=self.endpoint)
+        self.angles = meteor_to_math(self.angles)
         # self.angles += self.angle_offset
 
     def Solve(self):
         for i, theta in enumerate(self.angles):
             self.fprint("Performing Solve {:d} of {:d}".format(i+1,len(self.angles)),special="header")
-            self.fprint("Wind Angle: "+repr(theta))
+            self.fprint("Wind Angle: "+repr(math_to_meteor(theta)))
             if i > 0 or not near(theta,self.problem.dom.inflow_angle):
                 self.problem.dom.inflow_angle = theta
                 self.ChangeWindAngle(theta)
-            self.iter_val = theta
+            self.iter_val = math_to_meteor(theta)
             self.orignal_solve()
             self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
 

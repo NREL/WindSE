@@ -20,7 +20,7 @@ class ActuatorDisk2D(ActuatorDisk):
         W = self.thickness*1.0
         R = self.RD/2.0 
         ma = self.maxial
-        yaw = self.myaw+inflow_angle
+        yaw = self.myaw+self.inflow_angle
         A = np.pi*R**2.0
         C_tprime = 4*ma/(1-ma)
         C_pprime = 0.45/(1-ma)**3
