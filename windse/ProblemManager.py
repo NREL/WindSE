@@ -143,8 +143,13 @@ class GenericProblem(object):
         # Create a list of turbine force function and domain of integration for each turbine
         if self.farm.turbine_type == "disabled" or self.farm.numturbs == 0:
 
-            # if there are no turbine return an zero force term
-            tf_term = Function(self.fs.V)*dx
+            # initialize turbine force
+            self.farm.compute_turbine_force(u,v,inflow_angle,self.fs,**kwargs)
+
+            # but set the turbine force term to zero
+            v, q = TestFunctions(self.fs.W)
+            tf_term = inner(Function(self.fs.V), v)*dx
+
         else:
 
             # compute tf and dx for each turbine
