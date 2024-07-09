@@ -1126,23 +1126,12 @@ class BoxDomain(GenericDomain):
         ### Count the number of pi/2 sections in the new inflow_angle ###
         turns = inflow_angle/(pi/2)
 
-        # ### New order ###
-        # tol = 1e-3
-        # if turns % 1 <= tol: # we are at a cardinal direction
-        #     new_order = np.roll(cardinal_ids,int(turns))
-        # else:
-        #     new_order = np.roll(diagonal_ids,int(turns))
-
         ### New order ###
         tol = 1e-3
         if turns % 1 <= tol: # we are at a cardinal direction
-            new_order = np.roll(cardinal_ids,int(np.sign(turns)*np.ceil(abs(turns))))
+            new_order = np.roll(cardinal_ids,int(turns))
         else:
-            new_order = np.roll(diagonal_ids,int(np.sign(turns)*np.ceil(abs(turns))))
-
-
-
-
+            new_order = np.roll(diagonal_ids,int(turns))
 
         ### Get a list of all wall facets ###
         wall_facets = []
