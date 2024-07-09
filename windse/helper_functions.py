@@ -21,10 +21,10 @@ def meteor_to_math(angle):
     '''
     new_angle =np.radians(270.0-angle)
 
-    if new_angle<0:
-        new_angle+=2*np.pi
-    if new_angle>2*np.pi:
-        new_angle-=2*np.pi
+    # Clamp between 0 and 2pi
+    new_angle = (new_angle < 0)                                      * (new_angle + 2*np.pi) \
+              + np.logical_and(new_angle >= 0, new_angle <= 2*np.pi) * (new_angle)           \
+              + (new_angle > 2*np.pi)                                * (new_angle - 2*np.pi) 
 
     return new_angle
 
@@ -40,10 +40,10 @@ def math_to_meteor(angle):
     '''
     new_angle =270.0-np.degrees(angle)
 
-    if new_angle<0:
-        new_angle+=360
-    if new_angle>360:
-        new_angle-=360
+    # Clamp between 0 and 360
+    new_angle = (new_angle < 0)                                  * (new_angle + 360) \
+              + np.logical_and(new_angle >= 0, new_angle <= 360) * (new_angle)       \
+              + (new_angle > 360)                                * (new_angle - 360)    
         
     return new_angle
 
