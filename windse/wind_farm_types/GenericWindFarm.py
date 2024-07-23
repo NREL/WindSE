@@ -635,10 +635,11 @@ class GenericWindFarm(object):
                 self.params.Save(func, func_name,subfolder="functions/",val=val,file=self.func_files[i])
         
         # save the farm level turbine subdomain function
-        if self.func_first_save:
-            self.subdomain_file = self.params.Save(self.turbine_subdomains,"turbine_subdomains",subfolder="mesh/",val=val,filetype="pvd")
-        else:
-            self.params.Save(self.turbine_subdomains,"turbine_subdomains",subfolder="mesh/",val=val,file=self.subdomain_file,filetype="pvd")
+        if self.numturbs > 0:
+            if self.func_first_save:
+                self.subdomain_file = self.params.Save(self.turbine_subdomains,"turbine_subdomains",subfolder="mesh/",val=val,filetype="pvd")
+            else:
+                self.params.Save(self.turbine_subdomains,"turbine_subdomains",subfolder="mesh/",val=val,file=self.subdomain_file,filetype="pvd")
 
         # Flip the flag!
         self.func_first_save = False

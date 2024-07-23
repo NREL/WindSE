@@ -769,7 +769,7 @@ properties:
           - "null"
         description: "Location for the turbsim inflow data."
       inflow_angle:
-        default: 270.0
+        default: Null
         type:
           - "number"
           - "array"
