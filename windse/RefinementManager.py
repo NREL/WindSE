@@ -35,8 +35,8 @@ def CreateRefinementList(dom, farm, refine_params):
 
         for key in sorted_refine_custom_keys:
             refine_list.append(refine_custom[key])
-            if not keys_are_integers:
-                refine_list[-1]["type"] = key
+            # if not keys_are_integers:
+            #     refine_list[-1]["type"] = key
 
     if farm_num > 0:
         bbox = farm.calculate_farm_bounding_box()
@@ -95,7 +95,8 @@ def CreateRefinementList(dom, farm, refine_params):
                                     "theta": theta,
                                     "pivot_offset": pivot_offset,
                                     "expand_factor": expand_factor})
-
+            else:
+                raise ValueError(f"unknown farm refine: {farm_type}")
     if turbine_num > 0 and farm.numturbs > 0:
         for i in range(turbine_num,0,-1):
             expand_factor = (turbine_factor)**(i)
@@ -133,6 +134,8 @@ def CreateRefinementList(dom, farm, refine_params):
                                     "radius": radius,
                                     "theta": theta,
                                     "expand_factor": expand_factor})
+            else:
+                raise ValueError(f"unknown turbine refine: {turbine_type}")
 
         if refine_power_calc:
             radius = max(RDs)
@@ -146,7 +149,6 @@ def CreateRefinementList(dom, farm, refine_params):
                                 "theta": theta,
                                 "expand_factor": expand_factor,
                                 "centered": centered})
-
 
     return refine_list
 

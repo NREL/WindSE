@@ -2,7 +2,7 @@ from windse import windse_parameters
 from windse.turbine_types import turbine_dict
 import numpy as np
 import time, os
-from . import MeshFunction, CompiledSubDomain, Measure, cells, project, inner, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters, Form, File
+from . import MeshFunction, CompiledSubDomain, Measure, cells, project, inner, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters, Form, File, Function
 import matplotlib.pyplot as plt
 from pyadjoint.tape import stop_annotating 
 from pyadjoint import AdjFloat
@@ -199,6 +199,10 @@ class GenericWindFarm(object):
             # add the subdomain to the marker
             subdomain_marker.mark(self.turbine_subdomains,turb.index+1)
 
+        # handle the case where there are no turbines
+        if self.numturbs == 0:
+            print("testing")
+            self.tf_list = [Function(self.fs.V),]
 
         # create a measure for the turbines
         self.local_dx = Measure('dx', subdomain_data=self.turbine_subdomains)
@@ -218,6 +222,7 @@ class GenericWindFarm(object):
 
         # use the full domain of integration if local is not requested
         else:
+            # print(sum(final_tf_list))
             tf_term = inner(sum(final_tf_list),v)*dx
 
         return tf_term

@@ -109,6 +109,7 @@ def BuildDomain(params):
 
     #### Build Farm
     farm_dict = {"grid":windse.GridWindFarm,
+                 "trap":windse.TrapWindFarm,
                  "random":windse.RandomWindFarm,
                  "imported":windse.ImportedWindFarm,
                  "empty":windse.EmptyWindFarm}

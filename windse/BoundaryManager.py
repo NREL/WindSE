@@ -79,6 +79,92 @@ class GenericBoundary(object):
             for key,value in self.boundary_types.items():
                 self.boundary_types[key] = [i for i in value if i not in self.dom.bcs_to_remove]
 
+        self.u_bk  = Function(self.fs.V)
+        self.bf_bk = Function(self.fs.V)
+        self.u_bg  = Function(self.fs.V)
+        if self.use_bk_force == True:
+            print("doing this thing")
+            x = SpatialCoordinate(self.dom.mesh)
+
+            # get the location of the neighboring farm
+            farm_RD = 130
+            farm_offset_x = farm_RD*24
+            farm_offset_y = farm_RD*6
+
+            # setup coeffs for either a body force or velocity 
+            # bk_func_type = "velocity_perturbation"
+            # bk_func_type = "body_force"
+            if self.bk_func_type == "body_force":
+                gauss_coeffs = [
+                    [
+                        [0,   0, 6, 6, 0.03, 1.0, 1.0, 1.0],
+                    ],
+                ]
+            elif self.bk_func_type == "velocity_perturbation":
+                gauss_coeffs = [
+                    [
+                        [-11,   0, 17, 22, -0.87, 1.0, 1.0, 0.25],
+                        [ 8,  -10, 25, 30,  0.49, 1.0, 1.0, 0.3],
+                        [ 8,   10, 25, 30,  0.49, 1.0, 1.0, 0.3],
+                        [ 30,   0, 35,  7, -1.0, 4.0, 4.0, 1.0],
+                    ],
+                    [
+                        [-3,  7, 17, 15,  0.6, 1.0, 1.0, 0.5],
+                        [-3, -7, 17, 15, -0.6, 1.0, 1.0, 0.5],
+                        [26,  7, 25, 11,  -0.3, 1.0, 1.0, 0.25],
+                        [26, -7, 25, 11,   0.3, 1.0, 1.0, 0.25],
+                    ],
+                ]
+                # gauss_coeffs = [
+                #     [
+                #         [ -6,   0,  7,  9, -0.1, 1.0, 1.0, 1.0],
+                #         [  9, -20, 12, 12,  0.1, 1.0, 1.0, 1.0],
+                #         [  9,  20, 12, 12,  0.1, 1.0, 1.0, 1.0],
+                #         [ 15,   0, 15,  9, -0.1, 3.0, 3.0, 1.0],
+                #     ],
+                #     [
+                #         [10,  7, 15, 15,  1.0, 1.0, 1.0, 1.0],
+                #         [10, -7, 15, 15, -1.0, 1.0, 1.0, 1.0],
+                #         [18,  7, 15, 15, -1.0, 1.0, 1.0, 1.0],
+                #         [18, -7, 15, 15,  1.0, 1.0, 1.0, 1.0],
+                #     ],
+                # ]
+            else:
+                raise ValueError(f"unknown type of blockage approximation: {self.bk_func_type}")
+
+            # loop over coeff to build gauss functions
+            bk_func = [0,0,0]
+            for i in range(len(gauss_coeffs)):
+                comp_coeffs = gauss_coeffs[i]
+
+                for j in range(len(comp_coeffs)):
+                    val = comp_coeffs[j]
+                    x0 = farm_RD*val[0] + farm_offset_x
+                    y0 = farm_RD*val[1] + farm_offset_y
+                    xs = farm_RD*val[2]
+                    ys = farm_RD*val[3]
+                    am =         val[4]
+                    px =         val[5]
+                    py =         val[6]
+                    po =         val[7]
+                    bk_func[i] += 1.0*am*exp(-( (((x[0]-x0)/xs)**2)**px + (((x[1]-y0)/ys)**2)**py )**po  )
+
+                bk_func[i] *= exp(-((x[2]-90)/63)**2)
+
+            # project the force to the velocity function space
+            bk_func = as_vector(bk_func)
+
+            if self.bk_func_type == "body_force":
+                self.bf_bk = project(-bk_func,self.fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
+                trash = self.params.Save(self.bf_bk,"bk_func",subfolder="functions/")
+            elif self.bk_func_type == "velocity_perturbation":
+                self.u_bk = project(-bk_func,self.fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
+                trash = self.params.Save(self.u_bk,"bk_func",subfolder="functions/")
+
+
+
+
+
 
     @no_annotations
     def DebugOutput(self):
@@ -157,9 +243,8 @@ class GenericBoundary(object):
                                 norm_comp = 1
                             elif bc_loc == 'bottom' or bc_loc == 'top':
                                 norm_comp = 2
-
-                            self.bcu.append(DirichletBC(self.fs.V.sub(norm_comp), Constant(0.0), bc_domain))
-                            self.bcs.append(DirichletBC(self.fs.W.sub(0).sub(norm_comp), Constant(0.0), bc_domain))
+                            self.bcu.append(DirichletBC(self.fs.V.sub(norm_comp), self.u_bk, bc_domain))
+                            self.bcs.append(DirichletBC(self.fs.W.sub(0).sub(norm_comp), self.u_bk, bc_domain))
 
                         elif bc_type == 'no_stress':
                             self.bcp.append(DirichletBC(self.fs.Q, Constant(0.0), bc_domain))
@@ -200,7 +285,9 @@ class GenericBoundary(object):
                                 facet_normal = test_facet.normal().array()
                                 field_id = int(np.argmin(abs(abs(facet_normal)-1.0)))
 
-                                bcu_eqns.append([self.fs.V.sub(field_id), self.fs.W.sub(0).sub(field_id), self.zero, boundary_id])
+                                temp = self.u_bk.split(deepcopy=True)[field_id]
+                                temp.vector()[:] *= -0.5
+                                bcu_eqns.append([self.fs.V.sub(field_id), self.fs.W.sub(0).sub(field_id), temp, boundary_id])
 
                     elif bc_type == "no_stress":
                         for b in bs:
@@ -474,6 +561,10 @@ class PowerInflow(GenericBoundary):
             self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy,self.uz])
         else:
             self.fs.VelocityAssigner.assign(self.bc_velocity,[self.ux,self.uy])
+
+        ### Adjust by blockage function ###
+        self.bc_velocity.vector()[:] -= self.u_bk.vector()[:]
+
 
         ### Create Pressure Boundary Function
         self.bc_pressure = Function(self.fs.Q)

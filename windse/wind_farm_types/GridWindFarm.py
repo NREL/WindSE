@@ -59,7 +59,8 @@ class GridWindFarm(GenericWindFarm):
         if self.ex_x is None:
             x_dist = self.x_spacing * (self.grid_cols - 1)
             y_dist = self.y_spacing * (self.grid_rows - 1)
-            self.ex_x = [0., x_dist + 2 * self.radius]
+            # self.ex_x = [0., x_dist + 2 * self.radius]
+            self.ex_x = [-x_dist / 2 - self.radius, x_dist / 2 + self.radius]
             self.ex_y = [-y_dist / 2 - self.radius, y_dist / 2 + self.radius]
         else:
             self.ex_x   = [self.ex_x[0] + self.radius, self.ex_x[1] - self.radius]
