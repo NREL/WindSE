@@ -83,13 +83,14 @@ class GenericBoundary(object):
         self.bf_bk = Function(self.fs.V)
         self.u_bg  = Function(self.fs.V)
         if self.use_bk_force == True:
-            print("doing this thing")
+            self.fprint(f"Applying Mock Block: {self.bk_func_type}")
+            self.fprint(f"Neighbor Offset: {self.neighbor_offset}")
             x = SpatialCoordinate(self.dom.mesh)
 
             # get the location of the neighboring farm
-            farm_RD = 130
-            farm_offset_x = farm_RD*24
-            farm_offset_y = farm_RD*6
+            farm_RD = np.mean(farm.get_rotor_diameters())
+            farm_offset_x = farm_RD*self.neighbor_offset[0]
+            farm_offset_y = farm_RD*self.neighbor_offset[1]
 
             # setup coeffs for either a body force or velocity 
             # bk_func_type = "velocity_perturbation"
@@ -97,22 +98,22 @@ class GenericBoundary(object):
             if self.bk_func_type == "body_force":
                 gauss_coeffs = [
                     [
-                        [0,   0, 6, 6, 0.03, 1.0, 1.0, 1.0],
+                        [0,   0, 6, 6, 0.04, 1.0, 1.0, 1.0],
                     ],
                 ]
             elif self.bk_func_type == "velocity_perturbation":
                 gauss_coeffs = [
                     [
-                        [-11,   0, 17, 22, -0.87, 1.0, 1.0, 0.25],
-                        [ 8,  -10, 25, 30,  0.49, 1.0, 1.0, 0.3],
-                        [ 8,   10, 25, 30,  0.49, 1.0, 1.0, 0.3],
-                        [ 30,   0, 35,  7, -1.0, 4.0, 4.0, 1.0],
+                        [-11,   0, 17, 22, -0.87*1.5, 1.0, 1.0, 0.25],
+                        [ 8,  -10, 25, 30,  0.49*1.5, 1.0, 1.0, 0.3],
+                        [ 8,   10, 25, 30,  0.49*1.5, 1.0, 1.0, 0.3],
+                        [ 30,   0, 35,  7,  -1.0*1.5, 4.0, 4.0, 1.0],
                     ],
                     [
-                        [-3,  7, 17, 15,  0.6, 1.0, 1.0, 0.5],
-                        [-3, -7, 17, 15, -0.6, 1.0, 1.0, 0.5],
-                        [26,  7, 25, 11,  -0.3, 1.0, 1.0, 0.25],
-                        [26, -7, 25, 11,   0.3, 1.0, 1.0, 0.25],
+                        [-3,  7, 17, 15,   0.6*1.5, 1.0, 1.0, 0.5],
+                        [-3, -7, 17, 15,  -0.6*1.5, 1.0, 1.0, 0.5],
+                        [26,  7, 25, 11,  -0.3*1.5, 1.0, 1.0, 0.25],
+                        [26, -7, 25, 11,   0.3*1.5, 1.0, 1.0, 0.25],
                     ],
                 ]
                 # gauss_coeffs = [
@@ -149,7 +150,7 @@ class GenericBoundary(object):
                     po =         val[7]
                     bk_func[i] += 1.0*am*exp(-( (((x[0]-x0)/xs)**2)**px + (((x[1]-y0)/ys)**2)**py )**po  )
 
-                bk_func[i] *= exp(-((x[2]-90)/63)**2)
+                bk_func[i] *= exp(-((x[2]-self.vel_height)/(farm_RD/2))**2)
 
             # project the force to the velocity function space
             bk_func = as_vector(bk_func)

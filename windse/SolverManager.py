@@ -229,6 +229,7 @@ class GenericSolver(object):
             "simTime": self.simTime
         }
         out = self.problem.farm.save_power(self.problem.u_k,self.problem.dom.inflow_angle, **kwargs)
+        self.fprint(f"Total Power: {out}")
         return out
 
 

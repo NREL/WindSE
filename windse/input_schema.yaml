@@ -921,6 +921,15 @@ properties:
           - "body_force"
           - "velocity_perturbation"
           - Null
+      neighbor_offset:
+        default: [0,0]
+        type:
+          - "object"
+        description: "location in rotor diameters of the neighboring farm"
+        enum:
+          - "body_force"
+          - "velocity_perturbation"
+          - Null
       viscosity:
         default: 0.1
         type: "number"

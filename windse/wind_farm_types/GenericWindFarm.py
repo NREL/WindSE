@@ -425,6 +425,7 @@ class GenericWindFarm(object):
             self.power_first_save = False
         else:
             self.params.save_csv("power_data",data=[J_list],subfolder=self.params.folder+"data/",mode='a')
+        return J_list[-1]
 
     def debug_output(self):
         """
