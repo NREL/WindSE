@@ -1,0 +1,163 @@
+Using parameter location: 2-wind_farm_3D.yaml
+Loading: 2-wind_farm_3D.yaml
+Parameter Check Passed
+
+General Parameter Information
+|    
+|    Run Name: 3D_Wind_Farm
+|    Run Time Stamp: 2025/02/11_14:48:36
+|    Output Folder: output/3D_Wind_Farm/
+|    
+Parameters Setup
+285.0
+6.021385919380437
+
+Generating Box Domain
+|    
+|    X Range: [-1200.00,  1200.00]
+|    Y Range: [-600.00,  600.00]
+|    Z Range: [ 0.04,  640.00]
+|    
+|    Generating Mesh
+|    Mesh Generated: 0.14 s
+|    
+|    Marking Boundaries
+|    
+|    Remarking Boundaries
+|    Boundaries Marked: 0.02 s
+|    Boundaries Marked: 0.05 s
+|    
+Initial Domain Setup
+
+Generating Imported Farm
+|    
+|    Importing wind_farm: Input_Data/nrel_5mw/wind_farm.csv
+|    Number of Turbines: 3
+|    Type of Turbines: disk
+|    
+|    Setting Up Turbines: 
+|    |    
+|    |    Turbine Hub 0: (-882.00000,  0.00000,  90.00000)
+|    |    Turbine Hub 1: ( 0.00000,  0.00000,  90.00000)
+|    |    Turbine Hub 2: ( 882.00000,  0.00000,  90.00000)
+|    |    
+|    Turbines Set up
+|    
+Imported Farm Generated
+
+Starting Mesh Warping
+|    
+|    Height of Split:     250.00 m
+|    Percent below Split: 70.00%
+|    Moving Nodes
+|    
+Warping Finished: 0.10 s
+
+Refining Mesh Step 1 of 2
+|    
+|    
+|    Starting Box Refinement
+|    |    
+|    |    X Range: [-1000.00,  1200.00]
+|    |    Y Range: [-200.00,  200.00]
+|    |    Z Range: [ 0.00,  200.00]
+|    |    Marking Cells
+|    |    Refining Mesh
+|    |    Original Mesh Vertices: 17730
+|    |    Original Mesh Cells:    100189
+|    |    New Mesh Vertices:      119769
+|    |    New Mesh Cells:         702582
+|    |    
+|    Mesh Refinement Finished: 3.52 s
+|    
+Step 1 of 2 Finished: 3.52 s
+
+Refining Mesh Step 2 of 2
+|    
+|    
+|    Cylinder Refinement Near Turbines
+|    |    
+|    |    Marking Near Turbine
+|    |    Marking Finished: 16.39 s
+|    |    Refining Mesh
+|    |    Original Mesh Vertices: 119769
+|    |    Original Mesh Cells:    702582
+|    |    New Mesh Vertices:      555536
+|    |    New Mesh Cells:         3292454
+|    |    
+|    Mesh Refinement Finished: 30.14 s
+|    
+Step 2 of 2 Finished: 30.15 s
+
+Domain Finalized
+
+Creating Function Space
+|    
+|    Velocity DOFS:   1666608
+|    Pressure DOFS:   555536
+|    Total DOFS:      2222144
+|    Min Mesh Radius: 3.09163 m
+|    Max Mesh Radius: 368.25389 m
+|    Min Mesh rmin: 0.22523 m
+|    Max Mesh rmax: 36.14499 m
+|    
+Function Spaces Created: 65.76 s
+
+Setting Up Boundary Conditions
+|    
+|    Type: Power Law Inflow
+|    Boundary Type: inflow, Applied to:
+|    |    west
+|    |    south
+|    |    north
+|    Boundary Type: no_slip, Applied to:
+|    |    bottom
+|    Boundary Type: free_slip, Applied to:
+|    |    top
+|    Boundary Type: no_stress, Applied to:
+|    |    east
+|    
+|    Computing Distance to Ground
+|    |    Rank 0: N Coords: 555536, N Dofs: 555536
+|    Computing Velocity Vector
+|    Assigning Initial Guess
+|    |    Applying Boundary Conditions
+|    |    Boundary Conditions Applied
+|    
+|    
+Boundary Condition Setup
+
+Setting Up Stabilized Problem
+|    
+|    
+|    Calculating Turbine Force
+|    |    
+|    |    Computing turbine forces using DISK
+|    |    
+|    Turbine Force Calculated: 0.53 s
+|    Viscosity:                 5.00e+00
+|    Max Mixing Length:         5.00e+01
+|    Stabilization Coefficient: 1.00e+00
+|    Using Turbulence Model: mixing_length
+|    Using Stabilization Term
+|    
+Stabilized Problem Setup
+
+Saving Input Data
+|    
+|    Saving: mesh
+|    Saving: boundary_mesh
+|    Saving: facets
+|    Saving: u0
+|    Saving: p0
+|    Saving: height
+|    Saving: depth
+
+Abort(-1) on node 0 (rank 0 in comm 0): application called MPI_Abort(MPI_COMM_WORLD, -1) - process 0
+Abort(811174031): Fatal error in internal_Finalize: Other MPI error, error stack:
+internal_Finalize(48858).........: MPI_Finalize failed
+MPII_Finalize(421)...............: 
+MPID_Finalize(775)...............: 
+MPIDI_OFI_mpi_finalize_hook(1081): 
+flush_send_queue(1040)...........: 
+MPIDI_OFI_handle_cq_error(793)...: OFI poll failed (ofi_events.c:793:MPIDI_OFI_handle_cq_error:Input/output error)

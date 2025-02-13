@@ -944,7 +944,46 @@ class BoxDomain(GenericDomain):
         self.fprint("")
         self.fprint("Generating Mesh")
 
-        if self.mesh_type == "gmsh":
+        if self.mesh_type == "aeromesh":
+            from dolfin import XDMFFile
+
+            filename = 'out.xdmf'
+            filename_boundary = 'out_boundary.xdmf'
+            mesh = Mesh()
+
+            with XDMFFile(filename) as infile:
+                infile.read(mesh)
+
+            mvc = MeshValueCollection("size_t", mesh, mesh.topology().dim() - 1)
+            with XDMFFile(filename_boundary) as infile:
+                infile.read(mvc, "facet_tags")
+            mf = MeshFunction("size_t", mesh, mvc)
+
+            # boundary = MeshFunction('size_t', mesh, mesh.topology().dim() - 1)
+
+            self.mesh = mesh
+            self.boundary_markers = mf
+
+            self.bmesh = BoundaryMesh(self.mesh,"exterior")
+            east    = CompiledSubDomain("near(x[0], x1, tol) && on_boundary",x1 = self.x_range[1], tol = 1e-10)
+            north   = CompiledSubDomain("near(x[1], y1, tol) && on_boundary",y1 = self.y_range[1], tol = 1e-10)
+            west    = CompiledSubDomain("near(x[0], x0, tol) && on_boundary",x0 = self.x_range[0], tol = 1e-10)
+            south   = CompiledSubDomain("near(x[1], y0, tol) && on_boundary",y0 = self.y_range[0], tol = 1e-10)
+            bottom  = CompiledSubDomain("near(x[2], z0, tol) && on_boundary",z0 = self.z_range[0], tol = 1e-10)
+            top     = CompiledSubDomain("near(x[2], z1, tol) && on_boundary",z1 = self.z_range[1], tol = 1e-10)
+            self.boundary_subdomains = [east,north,west,south,bottom,top]
+            self.boundary_names = {"east":1,"north":2,"west":3,"south":4,"bottom":5,"top":6,"inflow":None,"outflow":None}
+            self.boundary_types = {"inflow":    ["west","south","north"],
+                                "no_slip":   ["bottom"],
+                                "free_slip": ["top"],
+                                "no_stress": ["east"]}
+
+            mesh_stop = time.time()
+            self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
+
+            return
+        
+        elif self.mesh_type == "gmsh":
 
             if (self.params.rank == 0):
 

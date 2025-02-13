@@ -236,6 +236,7 @@ properties:
           - "squircular"
           - "stretch"
           - "gmsh"
+          - "aeromesh"
       center:
         type:
           - "array"

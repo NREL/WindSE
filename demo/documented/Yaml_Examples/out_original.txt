@@ -1,0 +1,231 @@
+Using parameter location: 2-wind_farm_3D.yaml
+Loading: 2-wind_farm_3D.yaml
+Parameter Check Passed
+
+General Parameter Information
+|    
+|    Run Name: 3D_Wind_Farm
+|    Run Time Stamp: 2025/02/11_14:46:58
+|    Output Folder: output/3D_Wind_Farm/
+|    
+Parameters Setup
+285.0
+6.021385919380437
+
+Generating Box Domain
+|    
+|    X Range: [-1200.00,  1200.00]
+|    Y Range: [-600.00,  600.00]
+|    Z Range: [ 0.04,  640.00]
+|    
+|    Generating Mesh
+|    Mesh Generated: 0.01 s
+|    
+|    Marking Boundaries
+|    
+|    Remarking Boundaries
+|    Boundaries Marked: 0.01 s
+|    Boundaries Marked: 0.03 s
+|    
+Initial Domain Setup
+
+Generating Imported Farm
+|    
+|    Importing wind_farm: Input_Data/nrel_5mw/wind_farm.csv
+|    Number of Turbines: 3
+|    Type of Turbines: disk
+|    
+|    Setting Up Turbines: 
+|    |    
+|    |    Turbine Hub 0: (-882.00000,  0.00000,  90.00000)
+|    |    Turbine Hub 1: ( 0.00000,  0.00000,  90.00000)
+|    |    Turbine Hub 2: ( 882.00000,  0.00000,  90.00000)
+|    |    
+|    Turbines Set up
+|    
+Imported Farm Generated
+
+Starting Mesh Warping
+|    
+|    Height of Split:     250.00 m
+|    Percent below Split: 70.00%
+|    Moving Nodes
+|    
+Warping Finished: 0.01 s
+
+Refining Mesh Step 1 of 2
+|    
+|    
+|    Starting Box Refinement
+|    |    
+|    |    X Range: [-1000.00,  1200.00]
+|    |    Y Range: [-200.00,  200.00]
+|    |    Z Range: [ 0.00,  200.00]
+|    |    Marking Cells
+|    |    Refining Mesh
+|    |    Original Mesh Vertices: 2541
+|    |    Original Mesh Cells:    12000
+|    |    New Mesh Vertices:      7035
+|    |    New Mesh Cells:         37070
+|    |    
+|    Mesh Refinement Finished: 0.21 s
+|    
+Step 1 of 2 Finished: 0.21 s
+
+Refining Mesh Step 2 of 2
+|    
+|    
+|    Cylinder Refinement Near Turbines
+|    |    
+|    |    Marking Near Turbine
+|    |    Marking Finished: 0.74 s
+|    |    Refining Mesh
+|    |    Original Mesh Vertices: 7035
+|    |    Original Mesh Cells:    37070
+|    |    New Mesh Vertices:      19683
+|    |    New Mesh Cells:         109318
+|    |    
+|    Mesh Refinement Finished: 1.09 s
+|    
+Step 2 of 2 Finished: 1.09 s
+
+Domain Finalized
+
+Creating Function Space
+|    
+|    Velocity DOFS:   59049
+|    Pressure DOFS:   19683
+|    Total DOFS:      78732
+|    Min Mesh Radius: 43.35544 m
+|    Max Mesh Radius: 213.77558 m
+|    Min Mesh rmin: 3.23244 m
+|    Max Mesh rmax: 25.54170 m
+|    
+Function Spaces Created: 1.61 s
+
+Setting Up Boundary Conditions
+|    
+|    Type: Power Law Inflow
+|    Boundary Type: inflow, Applied to:
+|    |    west
+|    |    south
+|    |    north
+|    Boundary Type: no_slip, Applied to:
+|    |    bottom
+|    Boundary Type: free_slip, Applied to:
+|    |    top
+|    Boundary Type: no_stress, Applied to:
+|    |    east
+|    
+|    Computing Distance to Ground
+|    |    Rank 0: N Coords: 19683, N Dofs: 19683
+|    Computing Velocity Vector
+|    Assigning Initial Guess
+|    |    Applying Boundary Conditions
+|    |    Boundary Conditions Applied
+|    
+|    
+Boundary Condition Setup
+
+Setting Up Stabilized Problem
+|    
+|    
+|    Calculating Turbine Force
+|    |    
+|    |    Computing turbine forces using DISK
+|    |    
+|    Turbine Force Calculated: 0.02 s
+|    Viscosity:                 5.00e+00
+|    Max Mixing Length:         5.00e+01
+|    Stabilization Coefficient: 1.00e+00
+|    Using Turbulence Model: mixing_length
+|    Using Stabilization Term
+|    
+Stabilized Problem Setup
+
+Saving Input Data
+|    
+|    Saving: mesh
+|    Saving: boundary_mesh
+|    Saving: facets
+|    Saving: u0
+|    Saving: p0
+|    Saving: height
+|    Saving: depth
+|    Saving: actuator_disk
+|    Saving: turbine_force
+|    Saving: turbine_subdomains
+|    
+Finished
+Solving with snes
+
+Solving
+|    
+No Jacobian form specified for nonlinear variational problem.
+Differentiating residual form F to obtain Jacobian J = F'.
+Solving nonlinear variational problem.
+  0 SNES Function norm 4.013532878318e+05 
+  1 SNES Function norm 1.602691085829e+05 
+  2 SNES Function norm 2.786887242913e+04 
+  3 SNES Function norm 2.424459154211e+03 
+  4 SNES Function norm 6.547776264937e+01 
+  5 SNES Function norm 1.959824451638e-01 
+  PETSc SNES solver converged in 5 iterations with convergence reason CONVERGED_FNORM_RELATIVE.
+|    
+Solve Complete: 39.69 s
+
+Projecting Reynolds Stress
+
+Saving Solution
+|    
+|    Saving: velocity
+|    Saving: pressure
+|    Saving: eddy_viscosity
+|    Saving: Reynolds_stresses
+|    Saving: Vertical KE
+|    
+Finished
+[MPI_AVG] Summary of timings      |   reps    wall avg    wall tot
+------------------------------------------------------------------
+Apply (PETScMatrix)               |     11    0.002767    0.030437
+Apply (PETScVector)               |    108  7.4822e-06  0.00080808
+Assemble cells                    |      4     0.21532     0.86129
+Assemble system                   |     27      1.3936      37.627
+Build BoxMesh                     |      1  0.00058397  0.00058397
+Build sparsity                    |     11     0.54763       6.024
+Compute SCOTCH graph re-ordering  |     10    0.011436     0.11436
+Compute connectivity 2-1          |      2    0.015506    0.031011
+Compute connectivity 2-3          |      3   0.0029689   0.0089068
+Compute entities dim = 1          |      2    0.017641    0.035283
+Compute entities dim = 2          |      3    0.037606     0.11282
+Computed shared mesh entities     |      2   6.256e-06  1.2512e-05
+Delete sparsity                   |     11   2.308e-06  2.5388e-05
+DirichletBC compute bc            |     66  0.00063947    0.042205
+DirichletBC init facets           |     66  1.2775e-05  0.00084313
+Init dof vector                   |     20  0.00085215    0.017043
+Init dofmap                       |     10     0.14123      1.4123
+Init dofmap from UFC dofmap       |     10   0.0099411    0.099411
+Init tensor                       |     11   0.0013826    0.015208
+Krylov solver                     |      5     0.23801        1.19
+Number distributed mesh entities  |     10    2.08e-06    2.08e-05
+PETSc Krylov solver               |      5     0.23797      1.1899
+PLAZA: Enforce rules              |      2   0.0019615    0.003923
+PLAZA: Face long edge             |      2    0.034453    0.068907
+PLAZA: Get tetrahedra             |  18039  1.9623e-06    0.035397
+PLAZA: map parent-child facets    |      2     0.12222     0.24445
+PLAZA: refine                     |      2     0.21831     0.43662
+SCOTCH: call SCOTCH_graphBuild    |     10  1.5166e-05  0.00015166
+SCOTCH: call SCOTCH_graphOrder    |     10   0.0082996    0.082996
+SNES solver execution             |      1      39.606      39.606
+SNES solver init                  |      1       2.485       2.485
+Solving linear system             |      5     0.24303      1.2151
+Write mesh to PVD/VTK file        |      2    0.088784     0.17757
+Run Complete: 61.55 s
+
+Abort(811174031): Fatal error in internal_Finalize: Other MPI error, error stack:
+internal_Finalize(48858).........: MPI_Finalize failed
+MPII_Finalize(421)...............: 
+MPID_Finalize(775)...............: 
+MPIDI_OFI_mpi_finalize_hook(1081): 
+flush_send_queue(1040)...........: 
+MPIDI_OFI_handle_cq_error(793)...: OFI poll failed (ofi_events.c:793:MPIDI_OFI_handle_cq_error:Input/output error)

@@ -625,6 +625,10 @@ class GenericWindFarm(object):
                 else:
                     FS = self.fs.V
                 # project onto the function space
+                # from dolfin import Function
+                # func = Function(FS)
+                # func = project(func,FS,**self.extra_kwarg)
+                
                 func = project(func,FS,solver_type='cg',preconditioner_type="hypre_amg",**self.extra_kwarg)
 
             # save, if first time, store the file location pointers
