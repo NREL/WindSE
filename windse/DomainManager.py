@@ -14,6 +14,178 @@ if hasattr(__main__,"__file__"):
 else:
     main_file = "ipython"
 
+def toAeroMesh(params):
+    import pandas as pd
+    import numpy as np
+    import math
+
+    def getAspects(pdelta, z, warp_height, warp_percent, nx, nz):
+        dx = (pdelta[1] - pdelta[0]) / nx if type(pdelta) is list else pdelta / nx
+
+        dz_top = (z[1] - warp_height) / ((1 - warp_percent) * nz)
+        dz_bot = (warp_height - z[0]) / (warp_percent * nz)
+
+        aspect_top = dx / dz_top
+        aspect_bot = dx / dz_bot
+
+        return aspect_bot, aspect_top
+
+    domain_out = {'domain': {}}
+    dtype = params['domain']['type']
+
+    ### Domain Params
+    if dtype == 'box':
+        domain_out['domain']['x_range'] = params['domain']['x_range']
+        domain_out['domain']['y_range'] = params['domain']['y_range']
+        domain_out['domain']['z_range'] = params['domain'].get('z_range')
+
+        nx = params['domain']['nx']
+        ny = params['domain']['ny']
+
+        x_sum = abs( domain_out['domain']['x_range'][1]) + abs( domain_out['domain']['x_range'][0])
+        y_sum = abs(domain_out['domain']['y_range'][1]) + abs(domain_out['domain']['y_range'][0])
+
+        ### Refine Params (upstream, downstream later)
+        domain_out['rotor_distance'] = params['turbines']['RD']
+        domain_out['background_length_scale'] = min(x_sum / nx, y_sum / ny)
+        domain_out['farm_length_scale'] = domain_out['background_length_scale'] / 2
+        domain_out['turbine_length_scale'] = domain_out['farm_length_scale'] / 2
+
+    elif dtype == 'cylinder':
+        domain_out['domain']['radius'] = params['domain']['radius']
+        domain_out['domain']['center'] = params['domain']['center']
+        domain_out['domain']['z_range'] = params['domain'].get('z_range')
+
+        domain_out['background_length_scale'] = params['domain']['res'] * 4
+        domain_out['farm_length_scale'] = domain_out['background_length_scale'] / 2
+        domain_out['turbine_length_scale'] = domain_out['farm_length_scale'] / 2
+        domain_out['rotor_distance'] = params['turbines']['RD']
+
+        nx = params['domain']['nt']
+
+
+    refine_custom = {}
+    for refinement in params['refine']['refine_custom']:
+        refine_custom[refinement] = {
+            'type': params['refine']['refine_custom'][refinement]['type'],
+            'x_range': params['refine']['refine_custom'][refinement]['x_range'],
+            'y_range': params['refine']['refine_custom'][refinement]['y_range'],
+            'length_scale': domain_out['farm_length_scale']
+        }
+        if params['refine']['refine_custom'][refinement].get('z_range') is not None:
+            refine_custom[refinement]['height'] = params['refine']['refine_custom'][refinement].get('z_range')
+    refine_custom['num_refines'] = len(params['refine']['refine_custom'])
+
+    refine_out = {
+        'domain': domain_out['domain'],
+        'refine': {
+            'global_scale': 1,
+            'background_length_scale': domain_out['background_length_scale'],
+            'turbine': {
+                'threshold_rotor_distance': domain_out['rotor_distance']
+            }
+        },
+        'refine_custom': refine_custom
+    }
+
+    farm_type = params['wind_farm']['type']
+
+    if farm_type == 'imported':
+        turbine_csv = params['wind_farm']['path']
+        data = pd.read_csv(turbine_csv)
+        data.columns = data.columns.str.strip()
+
+        for i, turbine in data.iterrows():
+            target = refine_out['refine']['turbine']
+            target[i + 1] = {
+                'x': float(turbine['x']),
+                'y':  float(turbine['y'])
+            }
+        target['num_turbines'] = i + 1
+
+    elif farm_type == 'grid':
+        seed = params['wind_farm']['seed']
+        rows = params['wind_farm']['grid_rows']
+        cols = params['wind_farm']['grid_cols']
+
+        ex_x = params['wind_farm']['ex_x']
+        ex_y = params['wind_farm']['ex_y']
+
+        xtot = abs(ex_x[1]) + abs(ex_x[0])
+        ytot = abs(ex_y[1]) + abs(ex_y[0])
+
+        x_increment = int(xtot / cols)
+        y_increment = int(ytot / rows)
+
+        jitter = params['wind_farm']['jitter']
+
+        i = 0
+        np.random.seed(seed)
+        for row_coord in range(ex_y[0], ex_y[1], y_increment):
+            for col_coord in range(ex_x[0], ex_x[1], x_increment):
+                target = refine_out['refine']['turbine']
+                perterb_x = np.random.random() * 50
+                perterb_y = np.random.random() * 50
+                target[i] = {
+                    'x': col_coord + perterb_x,
+                    'y': row_coord + perterb_y
+                }
+                i += 1
+        target['num_turbines'] = i
+    else:
+        seed = params['wind_farm']['seed']
+        ex_x = params['wind_farm']['ex_x']
+        ex_y = params['wind_farm']['ex_y']
+        num_turbines = params['wind_farm']['numturbs']
+
+        np.random.seed(seed)
+        coordsX = np.random.uniform(ex_x[0], ex_x[1], (num_turbines))
+        coordsY = np.random.uniform(ex_y[0], ex_y[1], (num_turbines))
+
+        for i, pair in enumerate(zip(coordsX, coordsY)):
+            target = refine_out['refine']['turbine']
+            target[i] = {
+                'x': pair[0],
+                'y': pair[1]
+            }
+        target['num_turbines'] = num_turbines
+
+    domain = refine_out['domain']
+    refine = refine_out['refine']
+
+    refine['turbine']['length_scale'] = domain_out['turbine_length_scale']
+    refine['farm'] = {}
+    refine['farm']['type'] = 'none'
+    refine['farm']['length_scale'] = domain_out['turbine_length_scale']
+    refine['turbine']['type'] = 'circle'
+    refine['turbine']['threshold_upstream_distance'] = 60
+    refine['turbine']['threshold_downstream_distance'] = 270
+    domain['dimension'] = 2
+    refine_out['filetype'] = 'xdmf'
+
+    height = domain_out['domain']['z_range']
+    if height is not None:
+        refine_out['domain']['z_range'] = height
+        domain['dimension'] = 3
+
+        aspect_threshold = params['refine']['warp_height']
+        nz = params['domain']['nz']
+        percent = params['refine']['warp_percent']
+
+        if dtype == 'box':
+            planar_delta = domain_out['domain']['x_range']
+        else:
+            planar_delta = domain_out['domain']['radius'] * 2 * math.pi
+
+        aspect_bot, aspect_top = getAspects(planar_delta, height, 
+                                            aspect_threshold, percent, nx, nz)
+        
+        domain['aspect_distance'] = aspect_threshold
+        domain['aspect_ratio'] = aspect_bot
+        domain['upper_aspect_ratio'] = aspect_top
+
+    return refine_out
+
 ### This checks if we are just doing documentation ###
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
@@ -946,9 +1118,12 @@ class BoxDomain(GenericDomain):
 
         if self.mesh_type == "aeromesh":
             from dolfin import XDMFFile
+            import meshio
 
             filename = 'out.xdmf'
             filename_boundary = 'out_boundary.xdmf'
+            aeroParams = toAeroMesh(self.params)
+            print(aeroParams)
             mesh = Mesh()
 
             with XDMFFile(filename) as infile:
@@ -959,25 +1134,21 @@ class BoxDomain(GenericDomain):
                 infile.read(mvc, "facet_tags")
             mf = MeshFunction("size_t", mesh, mvc)
 
-            # boundary = MeshFunction('size_t', mesh, mesh.topology().dim() - 1)
 
             self.mesh = mesh
             self.boundary_markers = mf
 
             self.bmesh = BoundaryMesh(self.mesh,"exterior")
-            east    = CompiledSubDomain("near(x[0], x1, tol) && on_boundary",x1 = self.x_range[1], tol = 1e-10)
-            north   = CompiledSubDomain("near(x[1], y1, tol) && on_boundary",y1 = self.y_range[1], tol = 1e-10)
-            west    = CompiledSubDomain("near(x[0], x0, tol) && on_boundary",x0 = self.x_range[0], tol = 1e-10)
-            south   = CompiledSubDomain("near(x[1], y0, tol) && on_boundary",y0 = self.y_range[0], tol = 1e-10)
-            bottom  = CompiledSubDomain("near(x[2], z0, tol) && on_boundary",z0 = self.z_range[0], tol = 1e-10)
-            top     = CompiledSubDomain("near(x[2], z1, tol) && on_boundary",z1 = self.z_range[1], tol = 1e-10)
-            self.boundary_subdomains = [east,north,west,south,bottom,top]
+            self.boundary_subdomains = None
             self.boundary_names = {"east":1,"north":2,"west":3,"south":4,"bottom":5,"top":6,"inflow":None,"outflow":None}
             self.boundary_types = {"inflow":    ["west","south","north"],
                                 "no_slip":   ["bottom"],
                                 "free_slip": ["top"],
                                 "no_stress": ["east"]}
-
+            
+            if not near(self.inflow_angle,0.0):
+                self.RecomputeBoundaryMarkers(self.inflow_angle)
+            
             mesh_stop = time.time()
             self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
 
@@ -1260,6 +1431,42 @@ class CylinderDomain(GenericDomain):
             # # self.mesh.coordinates()[:,2] = z
             # # self.mesh.bounding_box_tree().build(self.mesh)
 
+        elif self.mesh_type == "aeromesh":
+            from dolfin import XDMFFile
+            import meshio
+
+            filename = 'out.xdmf'
+            filename_boundary = 'out_boundary.xdmf'
+            mesh = Mesh()
+
+            with XDMFFile(filename) as infile:
+                infile.read(mesh)
+
+            mvc = MeshValueCollection("size_t", mesh, mesh.topology().dim() - 1)
+            with XDMFFile(filename_boundary) as infile:
+                infile.read(mvc, "facet_tags")
+            mf = MeshFunction("size_t", mesh, mvc)
+
+
+            self.mesh = mesh
+            self.boundary_markers = mf
+
+            self.bmesh = BoundaryMesh(self.mesh,"exterior")
+            self.boundary_subdomains = None
+            self.boundary_names = {"west":None,"east":None,"south":None,"north":None,"bottom":7,"top":8,"inflow":6,"outflow":5}
+            self.boundary_types = {"inflow":          ["inflow"],
+                                "no_stress":       ["outflow"],
+                                "free_slip":       ["top"],
+                                "no_slip":         ["bottom"]}
+
+            if not near(self.inflow_angle,0.0):
+                self.RecomputeBoundaryMarkers(self.inflow_angle)
+            
+            mesh_stop = time.time()
+            self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
+
+            return
+
         elif self.mesh_type == "gmsh":
             self.fprint("Generating Mesh Using gmsh")
 
@@ -1508,6 +1715,39 @@ class CircleDomain(GenericDomain):
             # mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
             # self.mesh = generate_mesh(mshr_circle,self.res)
 
+        elif self.mesh_type == "aeromesh":
+            from dolfin import XDMFFile
+            import meshio
+
+            filename = 'out.xdmf'
+            filename_boundary = 'out_boundary.xdmf'
+            mesh = Mesh()
+
+            with XDMFFile(filename) as infile:
+                infile.read(mesh)
+
+            mvc = MeshValueCollection("size_t", mesh, mesh.topology().dim() - 1)
+            with XDMFFile(filename_boundary) as infile:
+                infile.read(mvc, "facet_tags")
+            mf = MeshFunction("size_t", mesh, mvc)
+
+
+            self.mesh = mesh
+            self.boundary_markers = mf
+
+            self.bmesh = BoundaryMesh(self.mesh,"exterior")
+            self.boundary_subdomains = None
+            self.boundary_names = {"west":None,"east":None,"south":None,"north":None,"bottom":None,"top":None,"inflow":8,"outflow":7}
+            self.boundary_types = {"inflow":  ["inflow"],
+                               "no_stress": ["outflow"]}
+            
+            if not near(self.inflow_angle,0.0):
+                self.RecomputeBoundaryMarkers(self.inflow_angle)
+
+            mesh_stop = time.time()
+            self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
+
+            return
 
         elif self.mesh_type == "gmsh":
             self.fprint("Generating Mesh Using gmsh")
@@ -1725,7 +1965,41 @@ class RectangleDomain(GenericDomain):
         self.fprint("")
         self.fprint("Generating Mesh")
 
-        if self.mesh_type == "gmsh":
+        if self.mesh_type == "aeromesh":
+            from dolfin import XDMFFile
+            import meshio
+
+            filename = 'out.xdmf'
+            filename_boundary = 'out_boundary.xdmf'
+            mesh = Mesh()
+
+            with XDMFFile(filename) as infile:
+                infile.read(mesh)
+
+            mvc = MeshValueCollection("size_t", mesh, mesh.topology().dim() - 1)
+            with XDMFFile(filename_boundary) as infile:
+                infile.read(mvc, "facet_tags")
+            mf = MeshFunction("size_t", mesh, mvc)
+
+
+            self.mesh = mesh
+            self.boundary_markers = mf
+            self.bmesh = BoundaryMesh(self.mesh,"exterior")
+
+            self.boundary_subdomains = None
+            self.boundary_names = {"east":1,"north":2,"west":3,"south":4,"bottom":None,"top":None,"inflow":None,"outflow":None}
+            self.boundary_types = {"inflow":    ["west","south","north"],
+                               "no_stress": ["east"]}
+
+            if not near(self.inflow_angle,0.0):
+                self.RecomputeBoundaryMarkers(self.inflow_angle)
+            
+            mesh_stop = time.time()
+            self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
+
+            return
+
+        elif self.mesh_type == "gmsh":
 
             if (self.params.rank == 0):
 
