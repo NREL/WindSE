@@ -118,7 +118,7 @@ class GenericBoundary(object):
 
         self.fprint("Applying Boundary Conditions",offset=1)
         # If running in parallel, avoid using boundary markers
-        if self.params.num_procs > 1:
+        if self.params.num_procs > 1 and self.dom.mesh_type != 'aeromesh':
 
             self.bcu = []
             self.bcp = []

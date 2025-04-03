@@ -32,9 +32,10 @@ def toAeroMesh(params):
 
     domain_out = {'domain': {}}
     dtype = params['domain']['type']
+    aeroParams = params['aeromesh']
 
     ### Domain Params
-    if dtype == 'box':
+    if dtype == 'box' or dtype == 'rectangle':
         domain_out['domain']['x_range'] = params['domain']['x_range']
         domain_out['domain']['y_range'] = params['domain']['y_range']
         domain_out['domain']['z_range'] = params['domain'].get('z_range')
@@ -51,7 +52,9 @@ def toAeroMesh(params):
         domain_out['farm_length_scale'] = domain_out['background_length_scale'] / 2
         domain_out['turbine_length_scale'] = domain_out['farm_length_scale'] / 2
 
-    elif dtype == 'cylinder':
+        domain_out['domain']['type'] = 'box'
+
+    elif dtype == 'cylinder' or dtype == 'circle':
         domain_out['domain']['radius'] = params['domain']['radius']
         domain_out['domain']['center'] = params['domain']['center']
         domain_out['domain']['z_range'] = params['domain'].get('z_range')
@@ -61,28 +64,30 @@ def toAeroMesh(params):
         domain_out['turbine_length_scale'] = domain_out['farm_length_scale'] / 2
         domain_out['rotor_distance'] = params['turbines']['RD']
 
+        domain_out['domain']['type'] = 'cylinder'
+
         nx = params['domain']['nt']
 
-
     refine_custom = {}
-    for refinement in params['refine']['refine_custom']:
+    for i, refinement in enumerate(params['refine']['refine_custom']):
         refine_custom[refinement] = {
             'type': params['refine']['refine_custom'][refinement]['type'],
             'x_range': params['refine']['refine_custom'][refinement]['x_range'],
             'y_range': params['refine']['refine_custom'][refinement]['y_range'],
-            'length_scale': domain_out['farm_length_scale']
+            'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else domain_out['farm_length_scale']
         }
         if params['refine']['refine_custom'][refinement].get('z_range') is not None:
-            refine_custom[refinement]['height'] = params['refine']['refine_custom'][refinement].get('z_range')
+            refine_custom[refinement]['z_range'] = params['refine']['refine_custom'][refinement].get('z_range')
     refine_custom['num_refines'] = len(params['refine']['refine_custom'])
 
     refine_out = {
         'domain': domain_out['domain'],
         'refine': {
             'global_scale': 1,
-            'background_length_scale': domain_out['background_length_scale'],
+            'background_length_scale': aeroParams['background_length_scale'] if aeroParams['background_length_scale'] > 0 else domain_out['background_length_scale'],
             'turbine': {
-                'threshold_rotor_distance': domain_out['rotor_distance']
+                'threshold_rotor_distance': domain_out['rotor_distance'],
+                'type': aeroParams['turbine_type']
             }
         },
         'refine_custom': refine_custom
@@ -153,22 +158,26 @@ def toAeroMesh(params):
     domain = refine_out['domain']
     refine = refine_out['refine']
 
-    refine['turbine']['length_scale'] = domain_out['turbine_length_scale']
+    refine['turbine']['length_scale'] = aeroParams['turbine_length_scale'] if aeroParams['turbine_length_scale'] > 0 else domain_out['turbine_length_scale']
     refine['farm'] = {}
-    refine['farm']['type'] = 'none'
-    refine['farm']['length_scale'] = domain_out['turbine_length_scale']
-    refine['turbine']['type'] = 'circle'
-    refine['turbine']['threshold_upstream_distance'] = 60
-    refine['turbine']['threshold_downstream_distance'] = 270
+    refine['farm']['type'] = aeroParams['farm_type']
+    refine['farm']['length_scale'] = aeroParams['farm_length_scale'] if aeroParams['farm_length_scale'] > 0 else domain_out['turbine_length_scale']
+    if refine['turbine']['type'] == 'wake':
+        refine['turbine']['threshold_upstream_distance'] = aeroParams['turbine_upstream_distance']
+        refine['turbine']['threshold_downstream_distance'] = aeroParams['turbine_downstream_distance']
+        if aeroParams['turbine_upstream_distance'] < 0 or aeroParams['turbine_downstream_distance'] < 0:
+            raise Exception("Must have non-negative upstream and downstream distances in wake models.")
     domain['dimension'] = 2
     refine_out['filetype'] = 'xdmf'
+    refine_out['filename'] = "".join([params['general']['folder'], 'aeromesh/', params['general']['name']])
+    refine_out['suppress_out'] = 0
 
     height = domain_out['domain']['z_range']
     if height is not None:
         refine_out['domain']['z_range'] = height
         domain['dimension'] = 3
 
-        aspect_threshold = params['refine']['warp_height']
+        aspect_threshold = aeroParams['aspect_threshold'] if aeroParams['aspect_threshold'] > 0 else params['refine']['warp_height']
         nz = params['domain']['nz']
         percent = params['refine']['warp_percent']
 
@@ -177,13 +186,21 @@ def toAeroMesh(params):
         else:
             planar_delta = domain_out['domain']['radius'] * 2 * math.pi
 
-        aspect_bot, aspect_top = getAspects(planar_delta, height, 
-                                            aspect_threshold, percent, nx, nz)
-        
+        if aeroParams['upper_aspect_ratio'] > 0 and aeroParams['lower_aspect_ratio'] > 0:
+            aspect_top = aeroParams['upper_aspect_ratio']
+            aspect_bot = aeroParams['lower_aspect_ratio']
+        else:
+            aspect_bot, aspect_top = getAspects(planar_delta, height, 
+                                                aspect_threshold, percent, nx, nz)
         domain['aspect_distance'] = aspect_threshold
         domain['aspect_ratio'] = aspect_bot
         domain['upper_aspect_ratio'] = aspect_top
 
+    if params['boundary_conditions']['inflow_angle'] is None:
+        domain['inflow_angle'] = 0
+    else:
+        domain['inflow_angle'] = params['boundary_conditions']['inflow_angle'] if type(params['boundary_conditions']['inflow_angle']) is not list else 0
+    
     return refine_out
 
 ### This checks if we are just doing documentation ###
@@ -1119,11 +1136,18 @@ class BoxDomain(GenericDomain):
         if self.mesh_type == "aeromesh":
             from dolfin import XDMFFile
             import meshio
+            outfolder = "".join([self.params['general']['folder'], "aeromesh/"])
+            if (self.params.rank == 0):
+                import aeromesh as am
+                aeroParams = toAeroMesh(self.params)
+                os.makedirs(outfolder, exist_ok=True)
+                am.runAeroMesh(aeroParams)
 
-            filename = 'out.xdmf'
-            filename_boundary = 'out_boundary.xdmf'
-            aeroParams = toAeroMesh(self.params)
-            print(aeroParams)
+            self.params.comm.Barrier()
+            
+            name = self.params['general']['name']
+            filename = "".join([outfolder, name, '.xdmf'])
+            filename_boundary = "".join([outfolder, name, '_boundary.xdmf'])
             mesh = Mesh()
 
             with XDMFFile(filename) as infile:
@@ -1413,7 +1437,7 @@ class CylinderDomain(GenericDomain):
         mesh_start = time.time()
         self.fprint("")
         if self.mesh_type == "mshr":
-            raise NotImplementedError("Mshr is no longer supported, use gmsh instead.")
+            raise NotImplementedError("Mshr is no longer supported, use aeromesh instead.")
             # self.fprint("Generating Mesh Using mshr")
 
             # ### Create Mesh ###
@@ -1434,9 +1458,18 @@ class CylinderDomain(GenericDomain):
         elif self.mesh_type == "aeromesh":
             from dolfin import XDMFFile
             import meshio
+            outfolder = "".join([self.params['general']['folder'], "aeromesh/"])
+            if (self.params.rank == 0):
+                import aeromesh as am
+                aeroParams = toAeroMesh(self.params)
+                os.makedirs(outfolder, exist_ok=True)
+                am.runAeroMesh(aeroParams)
 
-            filename = 'out.xdmf'
-            filename_boundary = 'out_boundary.xdmf'
+            self.params.comm.Barrier()
+            
+            name = self.params['general']['name']
+            filename = "".join([outfolder, name, '.xdmf'])
+            filename_boundary = "".join([outfolder, name, '_boundary.xdmf'])
             mesh = Mesh()
 
             with XDMFFile(filename) as infile:
@@ -1446,7 +1479,6 @@ class CylinderDomain(GenericDomain):
             with XDMFFile(filename_boundary) as infile:
                 infile.read(mvc, "facet_tags")
             mf = MeshFunction("size_t", mesh, mvc)
-
 
             self.mesh = mesh
             self.boundary_markers = mf
@@ -1718,9 +1750,18 @@ class CircleDomain(GenericDomain):
         elif self.mesh_type == "aeromesh":
             from dolfin import XDMFFile
             import meshio
+            outfolder = "".join([self.params['general']['folder'], "aeromesh/"])
+            if (self.params.rank == 0):
+                import aeromesh as am
+                aeroParams = toAeroMesh(self.params)
+                os.makedirs(outfolder, exist_ok=True)
+                am.runAeroMesh(aeroParams)
 
-            filename = 'out.xdmf'
-            filename_boundary = 'out_boundary.xdmf'
+            self.params.comm.Barrier()
+            
+            name = self.params['general']['name']
+            filename = "".join([outfolder, name, '.xdmf'])
+            filename_boundary = "".join([outfolder, name, '_boundary.xdmf'])
             mesh = Mesh()
 
             with XDMFFile(filename) as infile:
@@ -1730,7 +1771,6 @@ class CircleDomain(GenericDomain):
             with XDMFFile(filename_boundary) as infile:
                 infile.read(mvc, "facet_tags")
             mf = MeshFunction("size_t", mesh, mvc)
-
 
             self.mesh = mesh
             self.boundary_markers = mf
@@ -1968,9 +2008,18 @@ class RectangleDomain(GenericDomain):
         if self.mesh_type == "aeromesh":
             from dolfin import XDMFFile
             import meshio
+            outfolder = "".join([self.params['general']['folder'], "aeromesh/"])
+            if (self.params.rank == 0):
+                import aeromesh as am
+                aeroParams = toAeroMesh(self.params)
+                os.makedirs(outfolder, exist_ok=True)
+                am.runAeroMesh(aeroParams)
 
-            filename = 'out.xdmf'
-            filename_boundary = 'out_boundary.xdmf'
+            self.params.comm.Barrier()
+            
+            name = self.params['general']['name']
+            filename = "".join([outfolder, name, '.xdmf'])
+            filename_boundary = "".join([outfolder, name, '_boundary.xdmf'])
             mesh = Mesh()
 
             with XDMFFile(filename) as infile:
@@ -1980,7 +2029,6 @@ class RectangleDomain(GenericDomain):
             with XDMFFile(filename_boundary) as infile:
                 infile.read(mvc, "facet_tags")
             mf = MeshFunction("size_t", mesh, mvc)
-
 
             self.mesh = mesh
             self.boundary_markers = mf

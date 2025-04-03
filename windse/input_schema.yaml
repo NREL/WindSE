@@ -1145,4 +1145,62 @@ properties:
         type: "string"
         default: "floris_input.yaml"
         description: "The filename to use when saving the FLORIS inputs."
-
+  # ================================================================
+  aeromesh:
+    properties:
+      turbine_length_scale:
+        type:
+          - "number"
+        default: -1
+        description: "The length scale for AeroMesh-defined turbines."
+      farm_length_scale:
+        type:
+          - "number"
+        default: -1
+        description: "The length scale for AeroMesh-defined farms."
+      background_length_scale:
+        type:
+          - "number"
+        default: -1
+        description: "The background length scale for AeroMesh-defined domains."
+      custom_length_scale:
+        type:
+          - "array"
+          - "null"
+        default: Null
+        description: "An (ordered) list of length scales for AeroMesh custom refinements."
+      turbine_upstream_distance:
+        type:
+          - "number"
+        default: -1
+        description: "The extension of the turbine wake into the negative inflow direction."
+      turbine_downstream_distance:
+        type:
+          - "number"
+        default: -1
+        description: "The extension of the turbine wake into the positive inflow direction."
+      lower_aspect_ratio:
+        type:
+          - "number"
+        default: -1
+        description: "The aspect ratio below the cutoff threshold."
+      upper_aspect_ratio:
+        type:
+          - "number"
+        default: -1
+        description: "The aspect ratio above the cutoff threshold."
+      aspect_threshold:
+        type:
+          - "number"
+        default: -1
+        description: "The distance at which the aspect ratios swap."
+      turbine_type:
+        type:
+          - "string"
+        default: "simple"
+        description: "The meshing algorithm used for the turbines."
+      farm_type:
+        type:
+          - "string"
+        default: "none"
+        description: "The meshing algorithm used to for the farms."

@@ -51,6 +51,7 @@ domain:
     
     ####################### Rectangle Domain #########################
     # type: rectangle        #                      |
+    # mesh_type: aeromesh
     # x_range: [-1200, 1200] # x-range of the domain | m
     # y_range: [-1200, 1200] # y-range of the domain | m
     # nx: 100                # Number of x-nodes     | -
@@ -60,10 +61,11 @@ domain:
 
     # ########################### Circle Domain #########################
     type: circle                                  
-    mesh_type: gmsh         # squircular, elliptic, stretch
+    mesh_type: aeromesh         # squircular, elliptic, stretch
     radius: 1200            # x-range of the domain | m
     center: [0.0, 0.0]      # y-range of the domain | m
     nt: 62                  # segments around circle| -
+    res: 25
     # ###################################################################
 
 

@@ -31,6 +31,7 @@ domain:
     
     ######################## Rectangle Domain #########################
     type: box              #                       |
+    mesh_type: aeromesh
     x_range: [-1200, 1200] # x-range of the domain | m
     y_range: [-1200, 1200] # y-range of the domain | m
     z_range: [0.04, 640]   # z-range of the domain | m
@@ -77,7 +78,7 @@ problem:
 
 solver:
     # nonlinear_solver: newton
-    # newton_relaxation: 0.9
+    # newton_relaxation: 0.1
     type: multiangle
     endpoint: true
     save_power: true
