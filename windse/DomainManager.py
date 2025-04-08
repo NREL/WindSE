@@ -33,6 +33,8 @@ def toAeroMesh(params):
     domain_out = {'domain': {}}
     dtype = params['domain']['type']
     aeroParams = params['aeromesh']
+    
+    ## Check if periodic boundary conditions are used; if yes, raise exception.
 
     ### Domain Params
     if dtype == 'box' or dtype == 'rectangle':
@@ -68,18 +70,50 @@ def toAeroMesh(params):
 
         nx = params['domain']['nt']
 
-    refine_custom = {}
-    for i, refinement in enumerate(params['refine']['refine_custom']):
-        refine_custom[refinement] = {
-            'type': params['refine']['refine_custom'][refinement]['type'],
-            'x_range': params['refine']['refine_custom'][refinement]['x_range'],
-            'y_range': params['refine']['refine_custom'][refinement]['y_range'],
-            'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else domain_out['farm_length_scale']
-        }
-        if params['refine']['refine_custom'][refinement].get('z_range') is not None:
-            refine_custom[refinement]['z_range'] = params['refine']['refine_custom'][refinement].get('z_range')
-    refine_custom['num_refines'] = len(params['refine']['refine_custom'])
+    refine_custom = None
+    if params['refine']['refine_custom'] is not None:
+        refine_custom = {}
+        for i, refinement in enumerate(params['refine']['refine_custom']):
+            if params['refine']['refine_custom'][refinement]['type'] == 'box':
+                refine_custom[refinement] = {
+                    'type': params['refine']['refine_custom'][refinement]['type'],
+                    'x_range': params['refine']['refine_custom'][refinement]['x_range'],
+                    'y_range': params['refine']['refine_custom'][refinement]['y_range'],
+                    'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else domain_out['farm_length_scale']
+                }
+                if params['refine']['refine_custom'][refinement].get('z_range') is not None:
+                    refine_custom[refinement]['z_range'] = params['refine']['refine_custom'][refinement].get('z_range')
+            elif params['refine']['refine_custom'][refinement]['type'] == 'cylinder':
+                x = params['refine']['refine_custom'][refinement]['center'][0]
+                y = params['refine']['refine_custom'][refinement]['center'][1]
+                refine_custom[refinement] = {
+                    'type': 'cylinder',
+                    'x_range': x,
+                    'y_range': y,
+                    'radius': params['refine']['refine_custom'][refinement]['radius'],
+                    'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else domain_out['farm_length_scale']
+                }
+                if len(params['refine']['refine_custom'][refinement]['center']) > 2:
+                    z = params['refine']['refine_custom'][refinement]['center'][2]
+                    refine_custom[refinement]['z_range'] = [z, params['refine']['refine_custom'][refinement].get('height') if params['refine']['refine_custom'][refinement].get('height') else params['refine']['refine_custom'][refinement].get('length')]
+            elif params['refine']['refine_custom'][refinement]['type'] == 'stream':
+                x = params['refine']['refine_custom'][refinement]['center'][0]
+                y = params['refine']['refine_custom'][refinement]['center'][1]
+                z = 0
+                if len(params['refine']['refine_custom'][refinement]['center']) > 2:
+                    z = params['refine']['refine_custom'][refinement]['center'][2]
+                refine_custom[refinement] = {
+                    'type': 'stream',
+                    'x_range': x,
+                    'y_range': y,
+                    'z_range': z,
+                    'radius': params['refine']['refine_custom'][refinement]['radius'],
+                    'length': params['refine']['refine_custom'][refinement]['length'],
+                    'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else domain_out['farm_length_scale']
+                }
+        refine_custom['num_refines'] = len(params['refine']['refine_custom'])
 
+    domain_out['rotor_distance'] *= params['refine'].get('turbine_factor', 1)
     refine_out = {
         'domain': domain_out['domain'],
         'refine': {
@@ -89,9 +123,12 @@ def toAeroMesh(params):
                 'threshold_rotor_distance': domain_out['rotor_distance'],
                 'type': aeroParams['turbine_type']
             }
-        },
-        'refine_custom': refine_custom
+        }
     }
+
+    if refine_custom is not None:
+        refine_out['refine_custom'] = refine_custom
+
 
     farm_type = params['wind_farm']['type']
 
@@ -116,22 +153,18 @@ def toAeroMesh(params):
         ex_x = params['wind_farm']['ex_x']
         ex_y = params['wind_farm']['ex_y']
 
-        xtot = abs(ex_x[1]) + abs(ex_x[0])
-        ytot = abs(ex_y[1]) + abs(ex_y[0])
-
-        x_increment = int(xtot / cols)
-        y_increment = int(ytot / rows)
-
-        jitter = params['wind_farm']['jitter']
+        jitter = params['wind_farm'].get('jitter', 0)
 
         i = 0
         np.random.seed(seed)
-        for row_coord in range(ex_y[0], ex_y[1], y_increment):
-            for col_coord in range(ex_x[0], ex_x[1], x_increment):
+        x = np.linspace(ex_x[0], ex_x[1], cols)
+        y = np.linspace(ex_y[0], ex_y[1], rows)
+        for row_coord in y:
+            for col_coord in x:
                 target = refine_out['refine']['turbine']
-                perterb_x = np.random.random() * 50
-                perterb_y = np.random.random() * 50
-                target[i] = {
+                perterb_x = np.random.random() * jitter
+                perterb_y = np.random.random() * jitter
+                target[i + 1] = {
                     'x': col_coord + perterb_x,
                     'y': row_coord + perterb_y
                 }
@@ -149,7 +182,7 @@ def toAeroMesh(params):
 
         for i, pair in enumerate(zip(coordsX, coordsY)):
             target = refine_out['refine']['turbine']
-            target[i] = {
+            target[i + 1] = {
                 'x': pair[0],
                 'y': pair[1]
             }
@@ -170,7 +203,7 @@ def toAeroMesh(params):
     domain['dimension'] = 2
     refine_out['filetype'] = 'xdmf'
     refine_out['filename'] = "".join([params['general']['folder'], 'aeromesh/', params['general']['name']])
-    refine_out['suppress_out'] = 0
+    refine_out['suppress_out'] = 1
 
     height = domain_out['domain']['z_range']
     if height is not None:
@@ -200,7 +233,6 @@ def toAeroMesh(params):
         domain['inflow_angle'] = 0
     else:
         domain['inflow_angle'] = params['boundary_conditions']['inflow_angle'] if type(params['boundary_conditions']['inflow_angle']) is not list else 0
-    
     return refine_out
 
 ### This checks if we are just doing documentation ###
@@ -355,7 +387,7 @@ class GenericDomain(object):
     A GenericDomain contains on the basic functions required by all domain objects
     """
 
-    def __init__(self):
+    def __init__(self, farm):
         ### save a reference of option and create local version specifically of domain options ###
         self.params = windse_parameters
         self.first_save = True
@@ -363,6 +395,7 @@ class GenericDomain(object):
         self.fprint = self.params.fprint
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
+        self.farm = farm
 
         ### Update attributes based on params file ###
         for key, value in self.params["domain"].items():
@@ -507,7 +540,7 @@ class GenericDomain(object):
             if self.boundary_subdomains[i] is not None:
                 self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
 
-    def BoxRefine(self,x_range,y_range,z_range=[],expand_factor=1):
+    def BoxRefine(self,x_range,y_range,z_range=[],expand_factor=1,):
         refine_start = time.time()
 
         ### Calculate Expanded Region ###
@@ -1111,8 +1144,8 @@ class BoxDomain(GenericDomain):
         *ny* in the *y*-direction, and *nz* in the *z*-direction.
     """
 
-    def __init__(self):
-        super(BoxDomain, self).__init__()
+    def __init__(self, farm):
+        super(BoxDomain, self).__init__(farm)
 
         self.fprint("Generating Box Domain",special="header")
 
@@ -1136,6 +1169,7 @@ class BoxDomain(GenericDomain):
         if self.mesh_type == "aeromesh":
             from dolfin import XDMFFile
             import meshio
+            
             outfolder = "".join([self.params['general']['folder'], "aeromesh/"])
             if (self.params.rank == 0):
                 import aeromesh as am
@@ -1412,8 +1446,8 @@ class CylinderDomain(GenericDomain):
         *nz* in the *z*-direction.
     """
 
-    def __init__(self):
-        super(CylinderDomain, self).__init__()
+    def __init__(self, farm):
+        super(CylinderDomain, self).__init__(farm)
 
         self.fprint("Generating Cylinder Domain",special="header")
 
@@ -1717,8 +1751,8 @@ class CircleDomain(GenericDomain):
     ADD DOCUMENTATION
     """
 
-    def __init__(self):
-        super(CircleDomain, self).__init__()
+    def __init__(self, farm):
+        super(CircleDomain, self).__init__(farm)
 
         self.fprint("Generating Circle Domain",special="header")
 
@@ -1750,6 +1784,7 @@ class CircleDomain(GenericDomain):
         elif self.mesh_type == "aeromesh":
             from dolfin import XDMFFile
             import meshio
+            print(self.farm.initial_turbine_locations) #### USE ME FOR TURBINE LOCATIONS
             outfolder = "".join([self.params['general']['folder'], "aeromesh/"])
             if (self.params.rank == 0):
                 import aeromesh as am
@@ -1988,8 +2023,8 @@ class RectangleDomain(GenericDomain):
         Properly implement a RectangleDomain and 2D in general.
     """
 
-    def __init__(self):
-        super(RectangleDomain, self).__init__()
+    def __init__(self, farm):
+        super(RectangleDomain, self).__init__(farm)
 
         self.fprint("Generating Rectangle Domain",special="header")
 
@@ -2273,9 +2308,9 @@ class ImportedDomain(GenericDomain):
 
     """
 
-    def __init__(self):
+    def __init__(self, farm):
         # raise NotImplementedError("Imported Domains need to be updated. Please use an Interpolated domain for now.")
-        super(ImportedDomain, self).__init__()
+        super(ImportedDomain, self).__init__(farm)
 
         self.fprint("Importing Domain",special="header")
 
@@ -2356,8 +2391,8 @@ class ImportedDomain(GenericDomain):
         self.fprint("Initial Domain Setup",special="footer")
 
 class InterpolatedCylinderDomain(CylinderDomain):
-    def __init__(self):
-        super(InterpolatedCylinderDomain, self).__init__()
+    def __init__(self, farm):
+        super(InterpolatedCylinderDomain, self).__init__(farm)
         # self.original_refine = super(InterpolatedCylinderDomain, self).Refine
         # self.original_move = super(InterpolatedCylinderDomain, self).Move
 
@@ -2383,12 +2418,11 @@ class InterpolatedCylinderDomain(CylinderDomain):
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")
 
     def Finalize(self):
-        self.Move(self.ground_function)
         DefaultFinalize(self)
 
 class InterpolatedBoxDomain(BoxDomain):
-    def __init__(self):
-        super(InterpolatedBoxDomain, self).__init__()
+    def __init__(self, farm):
+        super(InterpolatedBoxDomain, self).__init__(farm)
         # self.original_refine = super(InterpolatedCylinderDomain, self).Refine
         # self.original_move = super(InterpolatedCylinderDomain, self).Move
 
@@ -2414,13 +2448,12 @@ class InterpolatedBoxDomain(BoxDomain):
         self.fprint("Ground Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")
 
     def Finalize(self):
-        self.Move(self.ground_function)
         DefaultFinalize(self)
 
 
 class PeriodicDomain(BoxDomain):
-    def __init__(self):
-        super(PeriodicDomain, self).__init__()
+    def __init__(self, farm):
+        super(PeriodicDomain, self).__init__(farm)
 
 
         # self.extra_forcing_term

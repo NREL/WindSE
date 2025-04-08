@@ -27,10 +27,10 @@ class GridWindFarm(GenericWindFarm):
     Args: 
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
-    def __init__(self,dom):
+    def __init__(self):
 
         self.name = "Grid Farm"
-        super(GridWindFarm, self).__init__(dom)
+        super(GridWindFarm, self).__init__()
 
     def load_parameters(self):
 

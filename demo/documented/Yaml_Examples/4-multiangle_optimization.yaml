@@ -28,7 +28,8 @@ turbines:
 domain: 
 
     ######################## Rectangle Domain #########################
-    type: box              #                       |
+    type: box     
+    mesh_type: aeromesh         #                       |
     x_range: [-1200, 1200] # x-range of the domain | m
     y_range: [-1200, 1200] # y-range of the domain | m
     z_range: [0.04, 640]   # z-range of the domain | m
@@ -73,3 +74,8 @@ optimization:
     control_types: [layout]
     layout_bounds: [[-720, 720],[-720, 720]] 
     gradient: true
+
+aeromesh:
+    upper_aspect_ratio: 1
+    lower_aspect_ratio: 1
+    aspect_threshold: 1

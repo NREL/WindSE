@@ -92,6 +92,13 @@ def BuildDomain(params):
         the wind farm object that contains the turbine information.
     """
 
+    #### Build Farm
+    farm_dict = {"grid":windse.GridWindFarm,
+                 "random":windse.RandomWindFarm,
+                 "imported":windse.ImportedWindFarm,
+                 "empty":windse.EmptyWindFarm}
+    farm = farm_dict[params["wind_farm"]["type"]]()
+
     ### Build Domain ###
     if params["domain"]["interpolated"]:
         dom_dict = {"box":windse.InterpolatedBoxDomain,
@@ -104,28 +111,22 @@ def BuildDomain(params):
                     "cylinder":windse.CylinderDomain,
                     "circle":windse.CircleDomain,
                     "imported":windse.ImportedDomain}
-    dom = dom_dict[params["domain"]["type"]]()
-
-
-    #### Build Farm
-    farm_dict = {"grid":windse.GridWindFarm,
-                 "random":windse.RandomWindFarm,
-                 "imported":windse.ImportedWindFarm,
-                 "empty":windse.EmptyWindFarm}
-    farm = farm_dict[params["wind_farm"]["type"]](dom)
-
+    dom = dom_dict[params["domain"]["type"]](farm)
+    
     if dom.type != "imported" and dom.mesh_type != "aeromesh":
         ### warp and refine the mesh
         windse.WarpMesh(dom)
         windse.RefineMesh(dom,farm)
-
+        if dom.type == "interpolated":
+            dom.Move(dom.ground_function)
         #print('Calling from driver_function')
         #Q = dom.my_fs(dom.mesh, 'P', 1)
         #f = dom.my_fn(Q)
         #print('finished in driver_function')
 
         ### Finalize the Domain ###
-        dom.Finalize()
+    dom.Finalize()
+    farm.Finalize(dom)
 
     return dom, farm
 

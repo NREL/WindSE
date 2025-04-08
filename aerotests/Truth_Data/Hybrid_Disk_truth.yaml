@@ -1,0 +1,70 @@
+GenericWindFarm:
+  min_x: 0.0
+  max_x: 630.0
+  avg_x: 315.0
+  min_y: 0.0
+  max_y: 0.0
+  avg_y: 0.0
+  min_z: 0.0
+  max_z: 0.0
+  avg_z: 0.0
+  min_yaw: -0.34906585
+  max_yaw: 0.0
+  avg_yaw: -0.174532925
+DomainManager:
+  dim: 3
+  x_min: -378.0
+  x_max: 1386.0
+  y_min: -378.0
+  y_max: 378.0
+  z_min: -378.0
+  z_max: 378.0
+  volume: 1008189504.0000001
+  ID_east: 1
+  SA_east: 571536.0000000002
+  ID_north: 2
+  SA_north: 1333584.0000000002
+  ID_west: 3
+  SA_west: 571536.0000000002
+  ID_south: 4
+  SA_south: 1333584.0000000002
+  ID_bottom: 5
+  SA_bottom: 1333584.0000000002
+  ID_top: 6
+  SA_top: 1333584.0000000002
+FunctionSpaceManager:
+  velocity_dofs: 27831
+  pressure_dofs: 9277
+  total_dofs: 37108
+BoundaryManager:
+  min_x: 8.0
+  max_x: 8.0
+  avg_x: 8.0
+  min_y: 0.0
+  max_y: 0.0
+  avg_y: 0.0
+  min_z: 0.0
+  max_z: 0.0
+  avg_z: 0.0
+  min_p: 0.0
+  max_p: 0.0
+  avg_p: 0.0
+  min_initial_values: -9.285010390831794e-06
+  max_initial_values: 8.000032376404425
+  avg_initial_values: 1.0000006205560399
+  num_bc: 11
+ProblemManager:
+  int_nu_T: 0.31809256596214047
+  int_tf_x: -0.00020960132822566763
+  int_tf_y: 3.7664812403131343e-05
+  int_tf_z: 5.8423717021612e-11
+SolverManager:
+  min_x_vel: 1.425987621980796
+  max_x_vel: 9.400834595072158
+  avg_x_vel: 7.999999600000173
+  min_y_vel: -1.0522512705935723
+  max_y_vel: 1.2941893006821648
+  avg_y_vel: -0.0026106145515894462
+  min_z_vel: -1.2215844177809718
+  max_z_vel: 1.2190362832840114
+  avg_z_vel: -0.0026106145515894462
