@@ -1,5 +1,5 @@
 general:
-    # name: "alm_original"
+    name: "ALM_Unsteady_2"
     output: ["initial_guess","height","turbine_force","solution","mesh"]
     # dolfin_adjoint: True
     debug_mode: True
@@ -19,7 +19,7 @@ turbines:
 
 domain:
     type: box                    # A box domain, specified by x, y, and z dimensions
-    
+    mesh_type: aeromesh
     # Diameter for IEA RWT = 130 m, relevant for domain sizing
     x_range: [-378, 1386]        # x-range of the domain, [-2D, 6D] | m
     y_range: [-378, 378]         # y-range of the domain, [-2D, 2D] | m
@@ -67,3 +67,8 @@ solver:
 #     record_time: 0.0
 #     # optimize: False
 #     gradient: True
+
+aeromesh:
+    upper_aspect_ratio: 1
+    lower_aspect_ratio: 1
+    aspect_threshold: 1

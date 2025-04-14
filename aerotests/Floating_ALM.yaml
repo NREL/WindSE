@@ -76,3 +76,4 @@ aeromesh:
     upper_aspect_ratio: 1
     lower_aspect_ratio: 1
     aspect_threshold: 1
+    turbine_type: sphere

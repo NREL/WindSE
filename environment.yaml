@@ -38,4 +38,5 @@ dependencies:
     - fatpack
     - gmsh
     - meshio
+    - aeromesh
     - -e .

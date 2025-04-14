@@ -21,6 +21,7 @@ domain:
     
     ########################### Box Domain ############################
     type: box              #                       |
+    mesh_type: aeromesh
     x_range: [-650,  650] # x-range of the domain | m
     y_range: [-650, 650] # y-range of the domain | m
     z_range: [0.04, 650]   # z-range of the domain | m
