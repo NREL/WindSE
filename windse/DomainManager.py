@@ -82,8 +82,6 @@ def toAeroMesh(params, farm):
         HH = params['turbines']['HH']
     domain_out['rotor_distance'] *= params['refine'].get('turbine_factor', 1)
 
-    ## Check if periodic boundary conditions are used; if yes, raise exception.
-
     ### Domain Params
     if dtype == 'box' or dtype == 'rectangle':
         domain_out['domain']['x_range'] = params['domain']['x_range']
@@ -112,8 +110,10 @@ def toAeroMesh(params, farm):
 
         nx = params['domain']['nt']
 
-    domain_out['farm_length_scale'] = domain_out['background_length_scale'] / (2 ** params['refine']['farm_num'])
-    # domain_out['farm_length_scale'] = domain_out['background_length_scale'] / 2
+    custom_length_scale = domain_out['background_length_scale']
+    if params['refine']['refine_custom'] is not None:
+        custom_length_scale /= 2
+    domain_out['farm_length_scale'] = custom_length_scale / (2 ** params['refine']['farm_num'])
 
     refine_custom = None
     if params['refine']['refine_custom'] is not None:
@@ -125,7 +125,7 @@ def toAeroMesh(params, farm):
                     'type': params['refine']['refine_custom'][refinement]['type'],
                     'x_range': [x * expand_factor for x in params['refine']['refine_custom'][refinement]['x_range']],
                     'y_range': [y * expand_factor for y in params['refine']['refine_custom'][refinement]['y_range']],
-                    'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else domain_out['farm_length_scale']
+                    'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else custom_length_scale
                 }
                 if params['refine']['refine_custom'][refinement].get('z_range') is not None:
                     refine_custom[refinement]['z_range'] = [z * expand_factor for z in params['refine']['refine_custom'][refinement].get('z_range')]
@@ -137,7 +137,7 @@ def toAeroMesh(params, farm):
                     'x_range': x,
                     'y_range': y,
                     'radius': params['refine']['refine_custom'][refinement]['radius'] * expand_factor,
-                    'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else domain_out['farm_length_scale']
+                    'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else custom_length_scale
                 }
                 if len(params['refine']['refine_custom'][refinement]['center']) > 2:
                     z = params['refine']['refine_custom'][refinement]['center'][2]
@@ -155,7 +155,7 @@ def toAeroMesh(params, farm):
                     'z_range': z,
                     'radius': params['refine']['refine_custom'][refinement]['radius'] * expand_factor,
                     'length': params['refine']['refine_custom'][refinement]['length'] * expand_factor,
-                    'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else domain_out['farm_length_scale'],
+                    'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else custom_length_scale,
                     'theta': params['refine']['refine_custom'][refinement].get('theta', 0)
                 }
         refine_custom['num_refines'] = len(params['refine']['refine_custom'])

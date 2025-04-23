@@ -15,6 +15,7 @@ turbines:
     chord_factor: 1.0
     gauss_factor: 2.0
     RD: 130.0
+    blade_segements: 2
 
 domain:
     type: box                    # A box domain, specified by x, y, and z dimensions
