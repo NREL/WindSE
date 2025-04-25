@@ -17,8 +17,8 @@ turbines:
     ######################### Turbine Properties ########################
     type: disk
     RD: 126.0             # Turbine Diameter         | m
-    # thickness: 20.0       # Effective Thickness      | m
-    # axial: 0.33           # Axial Induction          | -
+    thickness: 20.0       # Effective Thickness      | m
+    axial: 0.33           # Axial Induction          | -
     force: sine           # radial force distribution| -
 
     # These two are left off because they are supplied in the wind_farm.csv file
@@ -31,7 +31,6 @@ domain:
     
     ########################### Box Domain ############################
     type: box              #                       |
-    mesh_type: aeromesh
     x_range: [-1200, 1200] # x-range of the domain | m
     y_range: [-600, 600] # y-range of the domain | m
     z_range: [0.04, 640]   # z-range of the domain | m
@@ -42,7 +41,7 @@ domain:
 
     ########################## Cylinder Domain ########################
     # type: cylinder          #                       |
-    # mesh_type: aeromesh   # elliptic, stretch mshr|
+    # mesh_type: mshr   # elliptic, stretch mshr|
     # radius: 1200            # x-range of the domain | m
     # center: [0.0, 0.0]      # y-range of the domain | m
     # z_range: [0.0, 640]    # z-range of the domain | m
@@ -68,8 +67,8 @@ refine:
             x_range: [-1000, 1200]
             y_range: [-200, 200]
             z_range: [0, 200]
-#     turbine_num: 1         # number of turbine refinements| -
-#     turbine_factor: 1.25   # turbine radius multiplier    | -
+    turbine_num: 1         # number of turbine refinements| -
+    turbine_factor: 1.25   # turbine radius multiplier    | -
 
 
 function_space:
@@ -80,7 +79,6 @@ boundary_conditions:
     HH_vel: 8.0
     k: 0.4
     inflow_angle: 285.0
-    # inflow_angle: 0
     ######### Uncomment to test out custom BCs for BoxDomain ##########
     # boundary_types:
     #     inflow: ["west"]

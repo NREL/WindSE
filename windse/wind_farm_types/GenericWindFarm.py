@@ -65,6 +65,8 @@ class GenericWindFarm(object):
         self.setup_turbines()
         self.fprint("Turbines Set up",special="footer")
 
+        self.debug_output() 
+
     def setup(self):
         """
         This function builds the wind farm as well as sets up the turbines
@@ -74,8 +76,6 @@ class GenericWindFarm(object):
         self.fprint("Number of Turbines: {:d}".format(self.numturbs))
         self.fprint("Type of Turbines: {}".format(self.turbine_type))
         self.initial_turbine_locations = self.initialize_turbine_locations()
-
-        self.debug_output() 
 
     def load_parameters(self):
         """
