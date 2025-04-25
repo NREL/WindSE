@@ -239,6 +239,9 @@ def toAeroMesh(params, farm):
         domain['inflow_angle'] = 0
     else:
         domain['inflow_angle'] = params['boundary_conditions']['inflow_angle'] if type(params['boundary_conditions']['inflow_angle']) is not list else 0
+
+    if params['domain']['interpolated'] is True:
+        refine_out['domain']['terrain_path'] = params['domain']['terrain_path']
     return refine_out
 
 ### This checks if we are just doing documentation ###
