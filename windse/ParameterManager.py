@@ -136,7 +136,10 @@ class Parameters(dict):
             self.TerminalUpdate(next_dic,keys[1:],value)
         elif len(keys) == 1:
             current_value = dic.get(keys[0],"")
-            if isinstance(current_value,int):
+            # print(keys,value,current_value)
+            if isinstance(current_value,bool):
+                dic[keys[0]] = value == 'True'
+            elif isinstance(current_value,int):
                 dic[keys[0]] = int(value)
             elif isinstance(current_value,float):
                 dic[keys[0]] = float(value)
@@ -148,7 +151,7 @@ class Parameters(dict):
                 if len(formatted_value) == 1 and "," in formatted_value[0]:
                     formatted_value = formatted_value[0].split(",")
 
-                dic[keys[0]] = value
+                dic[keys[0]] = formatted_value
 
     def CheckParameters(self,updates,defaults,out_string=""):
 

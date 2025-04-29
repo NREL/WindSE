@@ -344,6 +344,7 @@ properties:
           - "null"
         enum:
           - "grid"
+          - "trap"
           - "random"
           - "imported"
           - "empty"
@@ -420,6 +421,32 @@ properties:
           - "null"
         description: "Integer number of turbines in the x direction."
         units: "dimensionless"
+      num_x:
+        default: Null
+        type:
+          - "integer"
+          - "null"
+        description: "Integer number of turbines in the x direction."
+        units: "dimensionless"
+      num_y:
+        default: Null
+        type:
+          - "integer"
+          - "null"
+        description: "Integer number of turbines in the y direction."
+        units: "dimensionless"
+      expand_factor:
+        default: 1.0
+        type:
+          - "number"
+        description: "How much the farm grows (>1) or shrinks (<1) between the first and last columns."
+        units: "dimensionless"
+      leading_center:
+        default: [0.0,0.0]
+        type:
+          - "array"
+        description: "Location of the center of the leading column of turbines."
+        units: "meter"
       jitter:
         default: 0.0
         type:
@@ -648,7 +675,7 @@ properties:
         description: "Integer number of farm level refinements."
         units: "dimensionless"
       farm_type:
-        default: "square"
+        default: "box"
         type: "string"
         enum:
           - "full"
@@ -855,6 +882,25 @@ properties:
               - "array"
               - "null"
             description: "List of no_stress bc names."
+      use_bk_force:
+        default: False
+        type: "boolean"
+        description: "When True, adds a background body force to mimic blockage of near by wind farm."
+      bk_func_type:
+        default: Null
+        type:
+          - "string"
+          - "null"
+        description: "choose the type of blockage approximation."
+        enum:
+          - "body_force"
+          - "velocity_perturbation"
+          - Null
+      neighbor_offset:
+        default: [0,0]
+        type:
+          - "object"
+        description: "location in rotor diameters of the neighboring farm"
   # ================================================================
   problem:
     # additionalProperties: False

@@ -10,6 +10,7 @@ if windse_parameters.dolfin_adjoint:
 ### import the wind farm types
 from .GenericWindFarm  import GenericWindFarm
 from .GridWindFarm     import GridWindFarm
+from .TrapWindFarm     import TrapWindFarm
 from .RandomWindFarm   import RandomWindFarm
 from .ImportedWindFarm import ImportedWindFarm
 from .EmptyWindFarm    import EmptyWindFarm

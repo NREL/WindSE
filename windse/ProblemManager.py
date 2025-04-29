@@ -352,12 +352,13 @@ class StabilizedProblem(GenericProblem):
         self.ReyStress=self.nu_T*grad(self.u_k)
         self.vertKE= self.ReyStress[0,2]*self.u_k[0]
 
+
         ### Create the functional ###
-        self.F = inner(grad(self.u_k)*self.u_k, v)*dx
-        self.F +=   Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx
+        self.F = inner(grad(self.u_k+self.bd.u_bk)*(self.u_k+self.bd.u_bk), v)*dx
+        self.F +=   Sx*Sx*(nu+self.nu_T)*inner(grad(self.u_k+self.bd.u_bk), grad(v))*dx
         self.F += - inner(div(v),self.p_k)*dx
-        self.F += - inner(div(self.u_k),q)*dx
-        self.F += - inner(f,v)*dx
+        self.F += - inner(div(self.u_k+self.bd.u_bk),q)*dx
+        self.F += - inner(self.bd.bf_bk,v)*dx
         self.F += - tf_term 
 
 
@@ -365,6 +366,85 @@ class StabilizedProblem(GenericProblem):
         if abs(float(self.mbody_force)) >= 1e-14:
             self.fprint("Using Body Force")
             self.F += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
+
+        # print(self.use_bk_force)    
+        # if self.use_bk_force == True:
+        #     print("doing this thing")
+        #     x = SpatialCoordinate(self.dom.mesh)
+
+        #     # x_test_range = np.linspace(-378, 2268,10000)
+        #     # y_test_range = np.linspace(-1890, 1890,10000)
+
+        #     # # bg_force_S = (x[0]/1500*x[1]/2000)**2.0
+        #     # # self.F += -inner(div(v),bg_force_S)*dx
+        #     # # self.F += inner(v,grad(bg_force_S))*dx
+        #     # # self.F += inner(v,bg_force_V)*dx
+
+        #     # bg_force_V = as_tensor(((x[0]/1500*x[1]/2000)*1/1500*x[1]/2000,(x[0]/1500*x[1]/2000)*x[0]/1500*1/2000,0.0))
+        #     # self.F += inner(v,bg_force_V)*dx
+
+        #     # x_0 = -1500.0
+        #     # x_1 = -1500.0
+        #     # x_mag = 1.0/max((x_test_range-x_0)*(x_test_range-x_1)*(x_test_range-x_0)*(x_test_range-x_1))
+        #     # y_0 = -1000.0
+        #     # y_1 = 1000.0
+        #     # y_mag = 1.0/max((y_test_range-y_0)*(y_test_range-y_1))
+        #     # bg_force = -100.0* x_mag*(x[0]-x_0)*(x[0]-x_1)*(x[0]-x_0)*(x[0]-x_1) * y_mag*(x[1]-y_0)*(x[1]-y_1)
+
+        #     # bg_force_save = project(bg_force,self.fs.Q,solver_type='gmres',preconditioner_type="hypre_amg")
+        #     # trash = self.params.Save(bg_force_save,"bg_force",subfolder="functions/")
+
+        #     # # self.F += inner(bg_force,q)*dx
+        #     # self.F += -inner(div(v),bg_force)*dx
+
+
+        #     x_test_range = np.linspace(-3780, 2268,10000)
+        #     y_test_range = np.linspace(-3780, 3780,10000)
+
+        #     x_0 = -3780.
+        #     x_1 = -3780.
+        #     x_mag = 1.0/max((x_test_range-x_0)*(x_test_range-x_1))
+        #     y_0 = -1764.0+756
+        #     y_1 = 1764.0+756
+        #     y_mag = 1.0/max((y_test_range-y_0)*(y_test_range-y_1))#*(y_test_range-y_2)*(y_test_range-y_3)))
+        #     x_force = 0.0005* (x_mag*(x[0]-x_0)*(x[0]-x_1)) * (y_mag*(x[1]-y_0)*(x[1]-y_1))#*(x[1]-y_2)*(x[1]-y_3)) 
+
+        #     x_0 = -3780.
+        #     x_1 = -3780.
+        #     x_mag = 1.0/max((x_test_range-x_0)*(x_test_range-x_1))
+        #     y_0 = -3780.0+756
+        #     y_1 = 0.0+756
+        #     y_2 = 3780.0+756
+        #     y_mag = 1.0/max((y_test_range-y_0)*(y_test_range-y_1)*(y_test_range-y_2))
+        #     y_force = 0.00005* (x_mag*(x[0]-x_0)*(x[0]-x_1))**2.0 * y_mag*(x[1]-y_0)*(x[1]-y_1)*(x[1]-y_2)
+
+        #     # # x_W = 700.0
+        #     # # y_W = 700.0
+        #     # # x_0 = 0.0
+        #     # # y_0 = 0.0
+        #     # # x_force = 0.05*exp(-pow(((x[0]-x_0)/x_W)**2+((x[1]-y_0)/y_W)**2,1.0))
+
+
+        #     z_force = 0.0
+        #     bg_force = as_vector((x_force,y_force,z_force))
+            
+        #     bg_force_save = project(bg_force,self.fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
+        #     trash = self.params.Save(bg_force_save,"bg_force",subfolder="functions/")
+            
+
+        #     # # nu_T_background=self.ComputeTurbulenceModel(bg_force)
+        #     # # F_background = 0
+        #     # # F_background += inner(grad(bg_force)*bg_force, v)*dx
+        #     # # F_background +=   Sx*Sx*(nu+nu_T_background)*inner(grad(bg_force), grad(v))*dx
+
+ 
+
+
+
+
+        #     # # self.F += -F_background
+        #     self.F += inner(-bg_force,v)*dx
+
 
         ################ THIS IS A CHEAT ####################\
         if self.use_corrective_force:
@@ -402,6 +482,8 @@ class StabilizedProblem(GenericProblem):
                 term25 = dvdy*q*dx
             else:
                 term25 = (abs(sin(inflow_angle))*dudx*q + abs(cos(inflow_angle))*dvdy*q)*dx
+
+
 
             self.F -= term25
 
