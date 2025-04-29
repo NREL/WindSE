@@ -647,4 +647,3 @@ class TurbSimInflow(LogLayerInflow):
 
 
 
-
