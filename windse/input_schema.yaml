@@ -882,6 +882,25 @@ properties:
               - "array"
               - "null"
             description: "List of no_stress bc names."
+      use_bk_force:
+        default: False
+        type: "boolean"
+        description: "When True, adds a background body force to mimic blockage of near by wind farm."
+      bk_func_type:
+        default: Null
+        type:
+          - "string"
+          - "null"
+        description: "choose the type of blockage approximation."
+        enum:
+          - "body_force"
+          - "velocity_perturbation"
+          - Null
+      neighbor_offset:
+        default: [0,0]
+        type:
+          - "object"
+        description: "location in rotor diameters of the neighboring farm"
   # ================================================================
   problem:
     # additionalProperties: False
@@ -907,29 +926,6 @@ properties:
         default: False
         type: "boolean"
         description: "Relax divergence free constraint to entrain momentum from 'above' and 'below'."
-      use_bk_force:
-        default: False
-        type: "boolean"
-        description: "When True, adds a background body force to mimic blockage of near by wind farm."
-      bk_func_type:
-        default: Null
-        type:
-          - "string"
-          - "null"
-        description: "choose the type of blockage approximation."
-        enum:
-          - "body_force"
-          - "velocity_perturbation"
-          - Null
-      neighbor_offset:
-        default: [0,0]
-        type:
-          - "object"
-        description: "location in rotor diameters of the neighboring farm"
-        enum:
-          - "body_force"
-          - "velocity_perturbation"
-          - Null
       viscosity:
         default: 0.1
         type: "number"
