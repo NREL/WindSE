@@ -114,11 +114,11 @@ def BuildDomain(params):
     dom = dom_dict[params["domain"]["type"]](farm)
     
     farm.Finalize(dom)
-    if dom.type != "imported" and dom.mesh_type != "aeromesh":
+    if ~(dom.type == "imported" or dom.mesh_type == "aeromesh"):
         ### warp and refine the mesh
         windse.WarpMesh(dom)
         windse.RefineMesh(dom,farm)
-        if dom.type == "interpolated":
+        if dom.interpolated:
             dom.Move(dom.ground_function)
         #print('Calling from driver_function')
         #Q = dom.my_fs(dom.mesh, 'P', 1)
