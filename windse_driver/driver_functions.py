@@ -114,7 +114,7 @@ def BuildDomain(params):
     dom = dom_dict[params["domain"]["type"]](farm)
     
     farm.Finalize(dom)
-    if ~(dom.type == "imported" or dom.mesh_type == "aeromesh"):
+    if dom.type != "imported" and dom.mesh_type != "aeromesh":
         ### warp and refine the mesh
         windse.WarpMesh(dom)
         windse.RefineMesh(dom,farm)
