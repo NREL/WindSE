@@ -3,17 +3,15 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.9 #3.10 causes CI to hang in parallel
-  - mpich
-  # - mpich=4.1.2=hd33e60e_101
-  # - mpich=4.0.3
+  # - python=3.7
   - coveralls
   - dolfin-adjoint=2019.1.0
-  - fenics
+  - fenics=2019.1.0=py39*_26
   - hdf5
   - jsonschema
   - matplotlib
   - memory_profiler
+  - mshr
   - openmdao
   - pandas
   - pyoptsparse
@@ -21,7 +19,8 @@ dependencies:
   - pytest-cov
   - pytest-mpi
   - pyyaml
-  - scipy
+  - scipy=1.7.0
+  - sympy=1.13.3
   - slepc
   - sphinx<7.0.0
   - pip
@@ -37,5 +36,6 @@ dependencies:
     - pulp
     - fatpack
     - gmsh
-    - meshio
+    - meshio==5.3.4
+    - h5py==3.13.0
     - -e .
