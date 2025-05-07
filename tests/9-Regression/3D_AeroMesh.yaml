@@ -35,8 +35,8 @@ domain:
     nx: 16                 # Number of x-nodes     | -
     ny: 8                  # Number of y-nodes     | -
     nz: 8                  # Number of z-nodes      | -
-    # interpolated: true 
-    # terrain_path: Input_Data/3D_AeroMesh/skew_terrain.txt
+    interpolated: true 
+    terrain_path: Input_Data/3D_AeroMesh/aero_terrain.txt
     ###################################################################
 
 refine:
