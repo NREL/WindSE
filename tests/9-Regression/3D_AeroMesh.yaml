@@ -32,9 +32,9 @@ domain:
     x_range: [-1200, 1200] # x-range of the domain | m
     y_range: [-600, 600] # y-range of the domain | m
     z_range: [0.04, 640]   # z-range of the domain | m
-    nx: 16                 # Number of x-nodes     | -
-    ny: 8                  # Number of y-nodes     | -
-    nz: 8                  # Number of z-nodes      | -
+    nx: 32                 # Number of x-nodes     | -
+    ny: 16                  # Number of y-nodes     | -
+    nz: 16                  # Number of z-nodes      | -
     interpolated: true 
     terrain_path: Input_Data/3D_AeroMesh/aero_terrain.txt
     ###################################################################
