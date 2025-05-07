@@ -5,9 +5,9 @@ GenericWindFarm:
   min_y: 0.0
   max_y: 0.0
   avg_y: 0.0
-  min_z: 110.96879099376909
-  max_z: 110.96879099376909
-  avg_z: 110.96879099376909
+  min_z: 110.0
+  max_z: 110.0
+  avg_z: 110.0
   min_yaw: 0.34899603722878614
   max_yaw: 0.34899603722878614
   avg_yaw: 0.34899603722878614
@@ -19,27 +19,27 @@ DomainManager:
   y_max: 600.0
   z_min: 0.04
   z_max: 640.0
-  volume: 1798743647.9834409
+  volume: 1843084799.9999948
   ID_east: 1
-  SA_east: 768000.0000000009
+  SA_east: 767952.0000000015
   ID_north: 2
-  SA_north: 1534699.3510467333
+  SA_north: 1535904.0000000028
   ID_west: 3
-  SA_west: 768000.0000000023
+  SA_west: 767952.0000000014
   ID_south: 4
-  SA_south: 1534702.2229456753
+  SA_south: 1535904.0000000026
   ID_bottom: 5
-  SA_bottom: 2917333.519344743
+  SA_bottom: 2880000.0000000084
   ID_top: 6
-  SA_top: 2880000.0000000093
+  SA_top: 2880000.000000009
 FunctionSpaceManager:
-  velocity_dofs: 267231
-  pressure_dofs: 89077
-  total_dofs: 356308
+  velocity_dofs: 41964
+  pressure_dofs: 13988
+  total_dofs: 55952
 BoundaryManager:
-  min_x: -3.49492566423441e-11
-  max_x: 9.007052312405811
-  avg_x: 7.769205674992436
+  min_x: 3.447078524149278
+  max_x: 9.01272987410735
+  avg_x: 7.821980187944384
   min_y: 0.0
   max_y: 0.0
   avg_y: 0.0
@@ -49,37 +49,37 @@ BoundaryManager:
   min_p: 0.0
   max_p: 0.0
   avg_p: 0.0
-  min_initial_values: -3.49492566423441e-11
-  max_initial_values: 9.007052312405811
-  avg_initial_values: 1.9423014187481071
+  min_initial_values: 0.0
+  max_initial_values: 9.01272987410735
+  avg_initial_values: 1.9554950469860999
   num_bc: 11
 ProblemManager:
-  int_nu_T: 2.4054617905515023
-  int_tf_x: -0.0010381691225006416
-  int_tf_y: -0.0003777805814740496
+  int_nu_T: 2.4130055134575437
+  int_tf_x: -0.0010152918726012681
+  int_tf_y: -0.00036945575213536325
   int_tf_z: 0.0
 SolverManager:
-  min_x_vel: -0.005771471281668966
-  max_x_vel: 10.08487893822369
-  avg_x_vel: 8.544680154048713
-  min_y_vel: -1.156429531705548
-  max_y_vel: 1.143646677282888
-  avg_y_vel: -0.009505992073636619
-  min_z_vel: -0.9478118922872926
-  max_z_vel: 1.7322594582725672
-  avg_z_vel: -0.009505992073636619
+  min_x_vel: 0.0
+  max_x_vel: 9.81828818946284
+  avg_x_vel: 8.23567104652408
+  min_y_vel: -1.3582444825769062
+  max_y_vel: 0.729073439813634
+  avg_y_vel: 0.003269466534900418
+  min_z_vel: -0.881334328778603
+  max_z_vel: 0.9969847146370853
+  avg_z_vel: 0.003269466534900418
 OptimizationManager:
   n_controls: 6
-  obj_value0: 3.010956432452057
+  obj_value0: 3.5601856965739564
   val0_x_0: -525.0
   val0_y_0: 0.0
   val0_x_1: 525.0
   val0_y_1: 0.0
   val0_yaw_0: 0.34899603722878614
   val0_yaw_1: 0.34899603722878614
-  grad_x_0: -0.0015069490273535574
-  grad_y_0: -0.0006421414410354076
-  grad_x_1: 0.0007409265879125704
-  grad_y_1: 0.0006908467682875037
-  grad_yaw_0: -1.2759636283055862
-  grad_yaw_1: -0.5893780564128404
+  grad_x_0: -0.00019439098096022886
+  grad_y_0: -0.0005201324403337599
+  grad_x_1: -0.0012047009332474823
+  grad_y_1: 0.0012516620776043207
+  grad_yaw_0: -1.2896387665168194
+  grad_yaw_1: -0.9977855459436658
