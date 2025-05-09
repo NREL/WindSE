@@ -1,5 +1,6 @@
 import os
 import __main__
+from mpi4py import MPI
 
 ### Get the name of program importing this package ###
 if hasattr(__main__,"__file__"):
@@ -54,6 +55,12 @@ def get_action():
 
 ### Run the driver ###
 def run_action(params_loc=None):
+
+
+    # Check to see if call from exec and parallel
+    if __name__ == "windse_driver.driver" and MPI.COMM_WORLD.Get_size()>1:
+        raise NotImplementedError("Using the 'windse run' command in parallel is not currently supported. Instead run 'mpirun -n # python -u WindSE/windse_driver/driver.py run <your yaml file here>'")
+
     tick = time.time()
 
     ### Clean up other module references ###
