@@ -25,10 +25,10 @@ class RandomWindFarm(GenericWindFarm):
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
 
-    def __init__(self,dom):
+    def __init__(self):
 
         self.name = "Random Farm"
-        super(RandomWindFarm, self).__init__(dom)
+        super(RandomWindFarm, self).__init__()
 
     def load_parameters(self):
         self.numturbs     = self.params["wind_farm"]["numturbs"]

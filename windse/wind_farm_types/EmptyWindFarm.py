@@ -2,10 +2,10 @@ from . import GenericWindFarm
 
 class EmptyWindFarm(GenericWindFarm):
 
-    def __init__(self,dom):
+    def __init__(self):
 
         self.name = "Empty Farm"
-        super(EmptyWindFarm, self).__init__(dom)
+        super(EmptyWindFarm, self).__init__()
 
     def load_parameters(self):
         pass

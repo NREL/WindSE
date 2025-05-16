@@ -14,6 +14,236 @@ if hasattr(__main__,"__file__"):
 else:
     main_file = "ipython"
 
+def createAeroMesh(params, farm):
+    from dolfin import XDMFFile
+    import meshio
+    outfolder = "".join([params['general']['folder'], "aeromesh/"])
+    if (params.rank == 0):
+        import aeromesh as am
+        aeroParams = toAeroMesh(params, farm)
+        os.makedirs(outfolder, exist_ok=True)
+        am.runAeroMesh(aeroParams)
+
+    params.comm.Barrier()
+            
+    name = params['general']['name']
+    filename = "".join([outfolder, name, '.xdmf'])
+    filename_boundary = "".join([outfolder, name, '_boundary.xdmf'])
+    mesh = Mesh()
+
+    with XDMFFile(filename) as infile:
+        infile.read(mesh)
+
+    mvc = MeshValueCollection("size_t", mesh, mesh.topology().dim() - 1)
+    with XDMFFile(filename_boundary) as infile:
+        infile.read(mvc, "facet_tags")
+    mf = MeshFunction("size_t", mesh, mvc)
+    return mesh, mf
+
+def toAeroMesh(params, farm):
+    import math
+
+    def getAspects(pdelta, z, warp_height, warp_percent, nx, nz):
+        dx = (pdelta[1] - pdelta[0]) / nx if type(pdelta) is list else pdelta / nx
+
+        dz_top = (z[1] - warp_height) / ((1 - warp_percent) * nz)
+        dz_bot = (warp_height - z[0]) / (warp_percent * nz)
+
+        aspect_top = dx / dz_top
+        aspect_bot = dx / dz_bot
+
+        return aspect_bot, aspect_top
+
+    domain_out = {'domain': {}}
+    dtype = params['domain']['type']
+    farm_type = params['wind_farm']['type']
+    aeroParams = params['aeromesh']
+    
+    HH = 0
+    if farm_type == 'imported':
+        imported = farm.imported_params
+        if len(imported) > 0:
+            hhcol = imported.get("HH")
+            rotorcol = imported.get('Diameter')
+            if rotorcol is not None:
+                domain_out['rotor_distance'] = rotorcol[0]
+            else:
+                rotorcol = imported.get('RD')
+                if rotorcol is not None:
+                    domain_out['rotor_distance'] = rotorcol[0]
+                else:
+                    domain_out['rotor_distance'] = params['turbines']['RD']
+            if hhcol is not None:
+                HH = hhcol[0]
+            else:
+                HH = params['turbines']['HH']
+    else:
+        domain_out['rotor_distance'] = params['turbines']['RD']
+        HH = params['turbines']['HH']
+    domain_out['rotor_distance'] *= params['refine'].get('turbine_factor', 1)
+
+    ### Domain Params
+    if dtype == 'box' or dtype == 'rectangle':
+        domain_out['domain']['x_range'] = params['domain']['x_range']
+        domain_out['domain']['y_range'] = params['domain']['y_range']
+        domain_out['domain']['z_range'] = params['domain'].get('z_range')
+
+        nx = params['domain']['nx']
+        ny = params['domain']['ny']
+
+        x_sum = abs( domain_out['domain']['x_range'][1]) + abs( domain_out['domain']['x_range'][0])
+        y_sum = abs(domain_out['domain']['y_range'][1]) + abs(domain_out['domain']['y_range'][0])
+
+        ### Refine Params (upstream, downstream later)
+        domain_out['background_length_scale'] = min(x_sum / nx, y_sum / ny)
+
+        domain_out['domain']['type'] = 'box'
+
+    elif dtype == 'cylinder' or dtype == 'circle':
+        domain_out['domain']['radius'] = params['domain']['radius']
+        domain_out['domain']['center'] = params['domain']['center']
+        domain_out['domain']['z_range'] = params['domain'].get('z_range')
+
+        domain_out['background_length_scale'] = params['domain']['res'] * 4
+
+        domain_out['domain']['type'] = 'cylinder'
+
+        nx = params['domain']['nt']
+
+    custom_length_scale = domain_out['background_length_scale']
+    if params['refine']['refine_custom'] is not None:
+        custom_length_scale /= 2
+    domain_out['farm_length_scale'] = custom_length_scale / (2 ** params['refine']['farm_num'])
+
+    refine_custom = None
+    if params['refine']['refine_custom'] is not None:
+        refine_custom = {}
+        for i, refinement in enumerate(params['refine']['refine_custom']):
+            expand_factor = params['refine']['refine_custom'][refinement].get('expand_factor', 1)
+            if params['refine']['refine_custom'][refinement]['type'] == 'box':
+                refine_custom[refinement] = {
+                    'type': params['refine']['refine_custom'][refinement]['type'],
+                    'x_range': [x * expand_factor for x in params['refine']['refine_custom'][refinement]['x_range']],
+                    'y_range': [y * expand_factor for y in params['refine']['refine_custom'][refinement]['y_range']],
+                    'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else custom_length_scale
+                }
+                if params['refine']['refine_custom'][refinement].get('z_range') is not None:
+                    refine_custom[refinement]['z_range'] = [z * expand_factor for z in params['refine']['refine_custom'][refinement].get('z_range')]
+            elif params['refine']['refine_custom'][refinement]['type'] == 'cylinder':
+                x = params['refine']['refine_custom'][refinement]['center'][0]
+                y = params['refine']['refine_custom'][refinement]['center'][1]
+                refine_custom[refinement] = {
+                    'type': 'cylinder',
+                    'x_range': x,
+                    'y_range': y,
+                    'radius': params['refine']['refine_custom'][refinement]['radius'] * expand_factor,
+                    'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else custom_length_scale
+                }
+                if len(params['refine']['refine_custom'][refinement]['center']) > 2:
+                    z = params['refine']['refine_custom'][refinement]['center'][2]
+                    refine_custom[refinement]['z_range'] = [z, params['refine']['refine_custom'][refinement].get('height') * expand_factor]
+            elif params['refine']['refine_custom'][refinement]['type'] == 'stream':
+                x = params['refine']['refine_custom'][refinement]['center'][0]
+                y = params['refine']['refine_custom'][refinement]['center'][1]
+                z = 0
+                if len(params['refine']['refine_custom'][refinement]['center']) > 2:
+                    z = params['refine']['refine_custom'][refinement]['center'][2]
+                refine_custom[refinement] = {
+                    'type': 'stream',
+                    'x_range': x,
+                    'y_range': y,
+                    'z_range': z,
+                    'radius': params['refine']['refine_custom'][refinement]['radius'] * expand_factor,
+                    'length': params['refine']['refine_custom'][refinement]['length'] * expand_factor,
+                    'length_scale': aeroParams['custom_length_scale'][i] if aeroParams['custom_length_scale'] is not None else custom_length_scale,
+                    'theta': params['refine']['refine_custom'][refinement].get('theta', 0)
+                }
+        refine_custom['num_refines'] = len(params['refine']['refine_custom'])
+
+    refine_out = {
+        'domain': domain_out['domain'],
+        'refine': {
+            'global_scale': 1,
+            'background_length_scale': aeroParams['background_length_scale'] if aeroParams['background_length_scale'] > 0 else domain_out['background_length_scale'],
+            'turbine': {
+                'threshold_rotor_distance': domain_out['rotor_distance'],
+            }
+        }
+    }
+    turb_type = params['refine']['turbine_type']
+    refine_out['refine']['turbine']['type'] = turb_type
+    if turb_type == 'wake':
+        if aeroParams['turbine_upstream_distance'] > 0:
+            refine_out['refine']['turbine']['threshold_upstream_distance'] = aeroParams['turbine_upstream_distance']
+        else:
+            refine_out['refine']['turbine']['threshold_upstream_distance'] = domain_out['rotor_distance']
+        if aeroParams['turbine_downstream_distance'] > 0:
+            refine_out['refine']['turbine']['threshold_downstream_distance'] = aeroParams['turbine_downstream_distance']
+        else:
+            refine_out['refine']['turbine']['threshold_downstream_distance'] = 4 * domain_out['rotor_distance']
+
+    if refine_custom is not None:
+        refine_out['refine_custom'] = refine_custom
+    
+    if params['refine']['turbine_num'] > 0:
+        locations = farm.initial_turbine_locations
+        for i in range(len(locations)):
+            target = refine_out['refine']['turbine']
+            target[i + 1] = {
+                'x': float(locations[i][0]),
+                'y': float(locations[i][1]),
+                'HH': HH
+            }
+        target['num_turbines'] = len(locations)
+    else:
+        refine_out['refine']['turbine']['num_turbines'] = 0
+    domain_out['turbine_length_scale'] = domain_out['farm_length_scale'] / (2 ** params['refine']['turbine_num'])
+
+    domain = refine_out['domain']
+    refine = refine_out['refine']
+
+    refine['turbine']['length_scale'] = aeroParams['turbine_length_scale'] if aeroParams['turbine_length_scale'] > 0 else domain_out['turbine_length_scale']
+    refine['farm'] = {}
+    refine['farm']['type'] = aeroParams['farm_type']
+    refine['farm']['length_scale'] = aeroParams['farm_length_scale'] if aeroParams['farm_length_scale'] > 0 else domain_out['farm_length_scale']
+    domain['dimension'] = 2
+    refine_out['filetype'] = 'xdmf'
+    refine_out['filename'] = "".join([params['general']['folder'], 'aeromesh/', params['general']['name']])
+    refine_out['suppress_out'] = 0
+
+    height = domain_out['domain']['z_range']
+    if height is not None:
+        refine_out['domain']['z_range'] = height
+        domain['dimension'] = 3
+
+        aspect_threshold = aeroParams['aspect_threshold'] if aeroParams['aspect_threshold'] > 0 else params['refine']['warp_height']
+        nz = params['domain']['nz']
+        percent = params['refine']['warp_percent']
+
+        if dtype == 'box':
+            planar_delta = domain_out['domain']['x_range']
+        else:
+            planar_delta = domain_out['domain']['radius'] * 2 * math.pi
+
+        if aeroParams['upper_aspect_ratio'] > 0 and aeroParams['lower_aspect_ratio'] > 0:
+            aspect_top = aeroParams['upper_aspect_ratio']
+            aspect_bot = aeroParams['lower_aspect_ratio']
+        else:
+            aspect_bot, aspect_top = getAspects(planar_delta, height, 
+                                                aspect_threshold, percent, nx, nz)
+        domain['aspect_distance'] = aspect_threshold
+        domain['aspect_ratio'] = aspect_bot
+        domain['upper_aspect_ratio'] = aspect_top
+
+    if params['boundary_conditions']['inflow_angle'] is None:
+        domain['inflow_angle'] = 0
+    else:
+        domain['inflow_angle'] = params['boundary_conditions']['inflow_angle'] if type(params['boundary_conditions']['inflow_angle']) is not list else 0
+
+    if params['domain']['interpolated'] is True:
+        refine_out['domain']['terrain_path'] = params['domain']['terrain_path']
+    return refine_out
+
 ### This checks if we are just doing documentation ###
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
@@ -166,7 +396,7 @@ class GenericDomain(object):
     A GenericDomain contains on the basic functions required by all domain objects
     """
 
-    def __init__(self):
+    def __init__(self, farm):
         ### save a reference of option and create local version specifically of domain options ###
         self.params = windse_parameters
         self.first_save = True
@@ -174,6 +404,7 @@ class GenericDomain(object):
         self.fprint = self.params.fprint
         self.tag_output = self.params.tag_output
         self.debug_mode = self.params.debug_mode
+        self.farm = farm
 
         ### Update attributes based on params file ###
         for key, value in self.params["domain"].items():
@@ -318,7 +549,7 @@ class GenericDomain(object):
             if self.boundary_subdomains[i] is not None:
                 self.boundary_subdomains[i].mark(self.boundary_markers, i+1,check_midpoint=False)
 
-    def BoxRefine(self,x_range,y_range,z_range=[],expand_factor=1):
+    def BoxRefine(self,x_range,y_range,z_range=[],expand_factor=1,):
         refine_start = time.time()
 
         ### Calculate Expanded Region ###
@@ -922,8 +1153,8 @@ class BoxDomain(GenericDomain):
         *ny* in the *y*-direction, and *nz* in the *z*-direction.
     """
 
-    def __init__(self):
-        super(BoxDomain, self).__init__()
+    def __init__(self, farm):
+        super(BoxDomain, self).__init__(farm)
 
         self.fprint("Generating Box Domain",special="header")
 
@@ -944,7 +1175,29 @@ class BoxDomain(GenericDomain):
         self.fprint("")
         self.fprint("Generating Mesh")
 
-        if self.mesh_type == "gmsh":
+        if self.mesh_type == "aeromesh":
+            mesh, mf = createAeroMesh(self.params, self.farm)
+
+            self.mesh = mesh
+            self.boundary_markers = mf
+
+            self.bmesh = BoundaryMesh(self.mesh,"exterior")
+            self.boundary_subdomains = None
+            self.boundary_names = {"east":1,"north":2,"west":3,"south":4,"bottom":5,"top":6,"inflow":None,"outflow":None}
+            self.boundary_types = {"inflow":    ["west","south","north"],
+                                "no_slip":   ["bottom"],
+                                "free_slip": ["top"],
+                                "no_stress": ["east"]}
+            
+            if not near(self.inflow_angle,0.0):
+                self.RecomputeBoundaryMarkers(self.inflow_angle)
+            
+            mesh_stop = time.time()
+            self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
+
+            return
+        
+        elif self.mesh_type == "gmsh":
 
             if (self.params.rank == 0):
 
@@ -1178,8 +1431,8 @@ class CylinderDomain(GenericDomain):
         *nz* in the *z*-direction.
     """
 
-    def __init__(self):
-        super(CylinderDomain, self).__init__()
+    def __init__(self, farm):
+        super(CylinderDomain, self).__init__(farm)
 
         self.fprint("Generating Cylinder Domain",special="header")
 
@@ -1203,7 +1456,7 @@ class CylinderDomain(GenericDomain):
         mesh_start = time.time()
         self.fprint("")
         if self.mesh_type == "mshr":
-            raise NotImplementedError("Mshr is no longer supported, use gmsh instead.")
+            raise NotImplementedError("Mshr is no longer supported, use aeromesh instead.")
             # self.fprint("Generating Mesh Using mshr")
 
             # ### Create Mesh ###
@@ -1220,6 +1473,28 @@ class CylinderDomain(GenericDomain):
             # # z = self.mesh.coordinates()[:,2]#+self.z_range[0]
             # # self.mesh.coordinates()[:,2] = z
             # # self.mesh.bounding_box_tree().build(self.mesh)
+
+        elif self.mesh_type == "aeromesh":
+            mesh, mf = createAeroMesh(self.params, self.farm)
+
+            self.mesh = mesh
+            self.boundary_markers = mf
+
+            self.bmesh = BoundaryMesh(self.mesh,"exterior")
+            self.boundary_subdomains = None
+            self.boundary_names = {"west":None,"east":None,"south":None,"north":None,"bottom":7,"top":8,"inflow":6,"outflow":5}
+            self.boundary_types = {"inflow":          ["inflow"],
+                                "no_stress":       ["outflow"],
+                                "free_slip":       ["top"],
+                                "no_slip":         ["bottom"]}
+
+            if not near(self.inflow_angle,0.0):
+                self.RecomputeBoundaryMarkers(self.inflow_angle)
+            
+            mesh_stop = time.time()
+            self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
+
+            return
 
         elif self.mesh_type == "gmsh":
             self.fprint("Generating Mesh Using gmsh")
@@ -1439,8 +1714,8 @@ class CircleDomain(GenericDomain):
     ADD DOCUMENTATION
     """
 
-    def __init__(self):
-        super(CircleDomain, self).__init__()
+    def __init__(self, farm):
+        super(CircleDomain, self).__init__(farm)
 
         self.fprint("Generating Circle Domain",special="header")
 
@@ -1469,6 +1744,24 @@ class CircleDomain(GenericDomain):
             # mshr_circle = Circle(Point(self.center[0],self.center[1]), self.radius, self.nt)
             # self.mesh = generate_mesh(mshr_circle,self.res)
 
+        elif self.mesh_type == "aeromesh":
+            mesh, mf = createAeroMesh(self.params, self.farm)
+            self.mesh = mesh
+            self.boundary_markers = mf
+
+            self.bmesh = BoundaryMesh(self.mesh,"exterior")
+            self.boundary_subdomains = None
+            self.boundary_names = {"west":None,"east":None,"south":None,"north":None,"bottom":None,"top":None,"inflow":8,"outflow":7}
+            self.boundary_types = {"inflow":  ["inflow"],
+                               "no_stress": ["outflow"]}
+            
+            if not near(self.inflow_angle,0.0):
+                self.RecomputeBoundaryMarkers(self.inflow_angle)
+
+            mesh_stop = time.time()
+            self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
+
+            return
 
         elif self.mesh_type == "gmsh":
             self.fprint("Generating Mesh Using gmsh")
@@ -1669,8 +1962,8 @@ class RectangleDomain(GenericDomain):
         Properly implement a RectangleDomain and 2D in general.
     """
 
-    def __init__(self):
-        super(RectangleDomain, self).__init__()
+    def __init__(self, farm):
+        super(RectangleDomain, self).__init__(farm)
 
         self.fprint("Generating Rectangle Domain",special="header")
 
@@ -1686,7 +1979,27 @@ class RectangleDomain(GenericDomain):
         self.fprint("")
         self.fprint("Generating Mesh")
 
-        if self.mesh_type == "gmsh":
+        if self.mesh_type == "aeromesh":
+            mesh, mf = createAeroMesh(self.params, self.farm)
+
+            self.mesh = mesh
+            self.boundary_markers = mf
+            self.bmesh = BoundaryMesh(self.mesh,"exterior")
+
+            self.boundary_subdomains = None
+            self.boundary_names = {"east":1,"north":2,"west":3,"south":4,"bottom":None,"top":None,"inflow":None,"outflow":None}
+            self.boundary_types = {"inflow":    ["west","south","north"],
+                               "no_stress": ["east"]}
+
+            if not near(self.inflow_angle,0.0):
+                self.RecomputeBoundaryMarkers(self.inflow_angle)
+            
+            mesh_stop = time.time()
+            self.fprint("Mesh Generated: {:1.2f} s".format(mesh_stop-mesh_start))
+
+            return
+
+        elif self.mesh_type == "gmsh":
 
             if (self.params.rank == 0):
 
@@ -1912,9 +2225,9 @@ class ImportedDomain(GenericDomain):
 
     """
 
-    def __init__(self):
+    def __init__(self, farm):
         # raise NotImplementedError("Imported Domains need to be updated. Please use an Interpolated domain for now.")
-        super(ImportedDomain, self).__init__()
+        super(ImportedDomain, self).__init__(farm)
 
         self.fprint("Importing Domain",special="header")
 
@@ -1995,8 +2308,8 @@ class ImportedDomain(GenericDomain):
         self.fprint("Initial Domain Setup",special="footer")
 
 class InterpolatedCylinderDomain(CylinderDomain):
-    def __init__(self):
-        super(InterpolatedCylinderDomain, self).__init__()
+    def __init__(self, farm):
+        super(InterpolatedCylinderDomain, self).__init__(farm)
         # self.original_refine = super(InterpolatedCylinderDomain, self).Refine
         # self.original_move = super(InterpolatedCylinderDomain, self).Move
 
@@ -2022,12 +2335,11 @@ class InterpolatedCylinderDomain(CylinderDomain):
         self.fprint("Interpolating Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")
 
     def Finalize(self):
-        self.Move(self.ground_function)
         DefaultFinalize(self)
 
 class InterpolatedBoxDomain(BoxDomain):
-    def __init__(self):
-        super(InterpolatedBoxDomain, self).__init__()
+    def __init__(self, farm):
+        super(InterpolatedBoxDomain, self).__init__(farm)
         # self.original_refine = super(InterpolatedCylinderDomain, self).Refine
         # self.original_move = super(InterpolatedCylinderDomain, self).Move
 
@@ -2053,13 +2365,12 @@ class InterpolatedBoxDomain(BoxDomain):
         self.fprint("Ground Function Built: {:1.2f} s".format(interp_stop-interp_start),special="footer")
 
     def Finalize(self):
-        self.Move(self.ground_function)
         DefaultFinalize(self)
 
 
 class PeriodicDomain(BoxDomain):
-    def __init__(self):
-        super(PeriodicDomain, self).__init__()
+    def __init__(self, farm):
+        super(PeriodicDomain, self).__init__(farm)
 
 
         # self.extra_forcing_term
