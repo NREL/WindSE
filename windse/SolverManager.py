@@ -2057,19 +2057,25 @@ class MultiAngleSolver(SteadySolver):
         if self.params["domain"]["type"] in ["imported"]:
             raise ValueError("Cannot use a Multi-Angle Solver with an "+self.params["domain"]["type"]+" domain.")
         self.orignal_solve = super(MultiAngleSolver, self).Solve
+        
         if self.problem.dom.raw_inflow_angle is None:
-            self.wind_range = [0, 2.0*np.pi,self.num_wind_angles]
+            self.wind_range = [0, 360,self.num_wind_angles]
         elif isinstance(self.problem.dom.raw_inflow_angle,list):
             if len(self.problem.dom.raw_inflow_angle)==3:
                 self.wind_range = self.problem.dom.raw_inflow_angle
             else:
                 self.wind_range = [self.problem.dom.raw_inflow_angle[0],self.problem.dom.raw_inflow_angle[1],self.num_wind_angles]
         else:
-            self.wind_range = [self.problem.dom.raw_inflow_angle,self.problem.dom.raw_inflow_angle+2.0*np.pi,self.num_wind_angles]
+            self.wind_range = [self.problem.dom.raw_inflow_angle,self.problem.dom.raw_inflow_angle+360,self.num_wind_angles]
+
 
         self.angles = np.linspace(*self.wind_range,endpoint=self.endpoint)
         self.angles = meteor_to_math(self.angles)
         # self.angles += self.angle_offset
+
+        # print(self.wind_range)
+        # print(self.angles)
+        # exit()
 
     def Solve(self):
         for i, theta in enumerate(self.angles):

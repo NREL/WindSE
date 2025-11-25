@@ -29,10 +29,10 @@ class ImportedWindFarm(GenericWindFarm):
     Args: 
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
-    def __init__(self,dom):
+    def __init__(self):
 
         self.name = "Imported Farm"
-        super(ImportedWindFarm, self).__init__(dom)
+        super(ImportedWindFarm, self).__init__()
 
         ### special stuff here ###
 

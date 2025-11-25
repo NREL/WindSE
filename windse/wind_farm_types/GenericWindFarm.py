@@ -14,13 +14,12 @@ class GenericWindFarm(object):
     Args:
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
-    def __init__(self, dom):
+    def __init__(self):
         """
         Store anything needed prior to setup
         """
 
         # Store WindSE Objects
-        self.dom = dom
         self.params = windse_parameters
         self.fprint = self.params.fprint
         self.tag_output = self.params.tag_output
@@ -59,6 +58,15 @@ class GenericWindFarm(object):
         self.fprint(f"Generating {self.name}",special="header")
         self.setup()
         self.fprint(f"{self.name} Generated",special="footer")
+
+    def Finalize(self, dom):
+        self.dom = dom
+
+        self.fprint("Setting Up Turbines: ",special="header")
+        self.setup_turbines()
+        self.fprint("Turbines Set up",special="footer")
+
+        self.debug_output() 
 
     def setup(self):
         """
@@ -686,6 +694,10 @@ class GenericWindFarm(object):
                 else:
                     FS = self.fs.V
                 # project onto the function space
+                # from dolfin import Function
+                # func = Function(FS)
+                # func = project(func,FS,**self.extra_kwarg)
+                
                 func = project(func,FS,solver_type='cg',preconditioner_type="hypre_amg",**self.extra_kwarg)
 
             # save, if first time, store the file location pointers

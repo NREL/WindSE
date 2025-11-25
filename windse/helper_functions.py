@@ -19,7 +19,14 @@ def meteor_to_math(angle):
     Additionally the input is in degrees and the output is in radians. 
 
     '''
-    return np.radians(270.0-angle)
+    new_angle =np.radians(270.0-angle)
+
+    # Clamp between 0 and 2pi
+    new_angle = (new_angle < 0)                                      * (new_angle + 2*np.pi) \
+              + np.logical_and(new_angle >= 0, new_angle <= 2*np.pi) * (new_angle)           \
+              + (new_angle > 2*np.pi)                                * (new_angle - 2*np.pi) 
+
+    return new_angle
 
 def math_to_meteor(angle):
     '''
@@ -31,6 +38,16 @@ def math_to_meteor(angle):
     Additionally the input is in radians and the output is in degrees. 
 
     '''
+    new_angle =270.0-np.degrees(angle)
+
+    # Clamp between 0 and 360
+    new_angle = (new_angle < 0)                                  * (new_angle + 360) \
+              + np.logical_and(new_angle >= 0, new_angle <= 360) * (new_angle)       \
+              + (new_angle > 360)                                * (new_angle - 360)    
+        
+    return new_angle
+
+
     return 270.0-np.degrees(angle)
 
 def ufl_eval(form, print_statement=None):
