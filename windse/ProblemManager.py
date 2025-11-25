@@ -1,5 +1,5 @@
 """
-The ProblemManager contains all of the 
+The ProblemManager contains all of the
 different classes of problems that windse can solve
 """
 
@@ -12,7 +12,7 @@ if hasattr(__main__,"__file__"):
     main_file = os.path.basename(__main__.__file__)
 else:
     main_file = "ipython"
-    
+
 ### This checks if we are just doing documentation ###
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
@@ -32,8 +32,8 @@ if not main_file in ["sphinx-build", "__main__.py"]:
 class GenericProblem(object):
     """
     A GenericProblem contains on the basic functions required by all problem objects.
-    
-    Args: 
+
+    Args:
         domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
         windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
         function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
@@ -44,7 +44,7 @@ class GenericProblem(object):
         self.params = windse_parameters
         self.dom  = domain
         self.farm = windfarm
-        self.fs   = function_space 
+        self.fs   = function_space
         self.bd  = boundary_data
         self.tf_first_save = True
         self.fprint = self.params.fprint
@@ -59,7 +59,7 @@ class GenericProblem(object):
         if isinstance(self.record_time,str):
             self.record_time = 0.0
 
-        self.extra_kwarg = {}            
+        self.extra_kwarg = {}
         if self.params.dolfin_adjoint:
             self.extra_kwarg["annotate"] = False
 
@@ -128,7 +128,7 @@ class GenericProblem(object):
                     self.tag_output("max_cd", np.max(cd))
                     self.tag_output("avg_cd", np.mean(cd))
                     self.tag_output("num_actuator_nodes", np.mean(num_actuator_nodes))
-                
+
 
     def ComputeTurbineForceTerm(self,u,v,inflow_angle,**kwargs):
         tf_start = time.time()
@@ -237,7 +237,7 @@ class GenericProblem(object):
         """
         This function recomputes all necessary components for a new wind direction
 
-        Args: 
+        Args:
             inflow_angle (float): The new wind angle in radians
         """
         adj_start = time.time()
@@ -281,17 +281,17 @@ class GenericProblem(object):
             yaw = float(yaw)
             self.farm.yaw[turb_i] = yaw
             self.farm.myaw[turb_i] = Constant(yaw)
-        
+
 
         self.CopyALMtoWindFarm()
 
 
 class StabilizedProblem(GenericProblem):
     """
-    The StabilizedProblem setup everything required for solving Navier-Stokes with 
+    The StabilizedProblem setup everything required for solving Navier-Stokes with
     a stabilization term
 
-    Args: 
+    Args:
         domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
         windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
         function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
@@ -299,7 +299,7 @@ class StabilizedProblem(GenericProblem):
     """
     def __init__(self,domain,windfarm,function_space,boundary_conditions):
         super(StabilizedProblem, self).__init__(domain,windfarm,function_space,boundary_conditions)
-        
+
         ### Create Functional ###
         self.ComputeFunctional(self.dom.inflow_angle)
         self.DebugOutput()
@@ -336,7 +336,7 @@ class StabilizedProblem(GenericProblem):
         ### These constants will be moved into the params file ###
         f = Constant((0.0,)*self.dom.dim)
         f.rename("f","f")
-        
+
         nu = self.viscosity
         vonKarman=0.41
         eps=Constant(self.stability_eps)
@@ -358,7 +358,7 @@ class StabilizedProblem(GenericProblem):
         self.F += - inner(div(v),self.p_k)*dx
         self.F += - inner(div(self.u_k),q)*dx
         self.F += - inner(f,v)*dx
-        self.F += - tf_term 
+        self.F += - tf_term
 
 
         # Add body force to functional
@@ -379,14 +379,14 @@ class StabilizedProblem(GenericProblem):
         ########################################################
 
         # self.F_sans_tf =  (1.0)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx
-        # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf*(self.u_k[0]**2+self.u_k[1]**2),v)*dx 
-        # stab_sans_tf = - eps*inner(grad(q), grad(self.p_k))*dx 
+        # self.F = inner(grad(self.u_k)*self.u_k, v)*dx + (nu+self.nu_T)*inner(grad(self.u_k), grad(v))*dx - inner(div(v),self.p_k)*dx - inner(div(self.u_k),q)*dx - inner(f,v)*dx - inner(self.tf*(self.u_k[0]**2+self.u_k[1]**2),v)*dx
+        # stab_sans_tf = - eps*inner(grad(q), grad(self.p_k))*dx
         # self.F_sans_tf += stab
 
         ### Add in the Stabilizing term ###
         if abs(float(eps)) >= 1e-14:
             self.fprint("Using Stabilization Term")
-            stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
+            stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx
             self.F += stab
 
 
@@ -410,9 +410,9 @@ class StabilizedProblem(GenericProblem):
 
 class TaylorHoodProblem(GenericProblem):
     """
-    The TaylorHoodProblem sets up everything required for solving Navier-Stokes 
+    The TaylorHoodProblem sets up everything required for solving Navier-Stokes
 
-    Args: 
+    Args:
         domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
         windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
         function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
@@ -469,12 +469,12 @@ class TaylorHoodProblem(GenericProblem):
         self.F += - inner(div(self.v),self.p_k)*dx
         self.F += - inner(div(self.u_k),self.q)*dx
         # self.F += - inner(f,v)*dx
-        self.F += - tf_term 
+        self.F += - tf_term
 
         # ### Add in the Stabilizing term ###
         # if abs(float(eps)) >= 1e-14:
         #     self.fprint("Using Stabilization Term")
-        #     stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
+        #     stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx
         #     self.F += stab
 
         # Add body force to functional
@@ -506,7 +506,7 @@ class IterativeSteady(GenericProblem):
     The IterativeSteady sets up everything required for solving Navier-Stokes using
     the SIMPLE algorithm
 
-    Args: 
+    Args:
         domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
         windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
         function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
@@ -548,7 +548,7 @@ class IterativeSteady(GenericProblem):
         self.dp = Function(self.fs.Q)
         self.p_k_old = Function(self.fs.Q)
 
-        U_CN = 0.5*(u + self.u_k) 
+        U_CN = 0.5*(u + self.u_k)
 
         # Adams-Bashforth velocity
         # U_AB = 1.5*u_k - 0.5*u_k_old # Time level k+1/2
@@ -559,7 +559,7 @@ class IterativeSteady(GenericProblem):
 
         # ================================================================
 
-        # FIXME: This up_k function is only present to avoid errors  
+        # FIXME: This up_k function is only present to avoid errors
         # during assignments in GenericSolver.__init__
 
         # Create the combined function space
@@ -581,7 +581,7 @@ class IterativeSteady(GenericProblem):
         # Solve for u_hat, a velocity estimate which doesn't include pressure gradient effects
         F1 = inner(dot(self.u_k, nabla_grad(u)), v)*dx \
            + (nu+self.nu_T)*inner(grad(u), grad(v))*dx \
-           - tf_term 
+           - tf_term
 
         # Add body force to functional
         F1 += inner(-self.mbody_force*self.bd.inflow_unit_vector,v)*dx
@@ -632,7 +632,7 @@ class UnsteadyProblem(GenericProblem):
     The UnsteadyProblem sets up everything required for solving Navier-Stokes using
     a fractional-step method with an adaptive timestep size
 
-    Args: 
+    Args:
         domain (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
         windfarm (:meth:`windse.WindFarmManager.GenericWindFarmm`): a windse windfarm object.
         function_space (:meth:`windse.FunctionSpaceManager.GenericFunctionSpace`): a windse function space object.
@@ -686,7 +686,7 @@ class UnsteadyProblem(GenericProblem):
         self.u_k1.assign(self.bd.bc_velocity)
         self.u_k2.assign(self.bd.bc_velocity)
 
-        # Calculate Reynolds stress 
+        # Calculate Reynolds stress
         self.uk_sum = Function(self.fs.V, name="uk_sum")
         self.uk_sum.assign(self.dt_c*self.u_k)
         self.vertKE = Function(self.fs.Q, name="vertKE")
@@ -713,7 +713,7 @@ class UnsteadyProblem(GenericProblem):
 
         # ================================================================
 
-        # FIXME: This up_k function is only present to avoid errors  
+        # FIXME: This up_k function is only present to avoid errors
         # during assignments in GenericSolver.__init__
 
         # Create the combined function space

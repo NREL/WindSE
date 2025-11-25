@@ -11,6 +11,8 @@ from .ActuatorDisk       import ActuatorDisk
 from .ActuatorDisk2D     import ActuatorDisk2D
 from .ActuatorDiskExpr   import ActuatorDiskExpr
 from .ActuatorDiskNumpy  import ActuatorDiskNumpy
+from .ActuatorDiskSimplePowerCurve import ActuatorDiskSimplePowerCurve
+from .ActuatorDiskTSPowerCurve import ActuatorDiskTSPowerCurve
 from .ActuatorHybridDisk import ActuatorHybridDisk
 from .ActuatorLine       import ActuatorLine
 from .ActuatorLineDolfin import ActuatorLineDolfin
@@ -28,6 +30,10 @@ turbine_dict = {
     "numpy_disks":  ActuatorDiskNumpy,
     "hybrid_disk":  ActuatorHybridDisk,
     "hybrid_disks": ActuatorHybridDisk,
+    "power_disk":   ActuatorDiskSimplePowerCurve,
+    "power_disks":  ActuatorDiskSimplePowerCurve,
+    "power_ts_disk":   ActuatorDiskTSPowerCurve,
+    "power_ts_disks":  ActuatorDiskTSPowerCurve,
     "line":         ActuatorLine,
     "lines":        ActuatorLine,
     "dolfin_line":  ActuatorLineDolfin,

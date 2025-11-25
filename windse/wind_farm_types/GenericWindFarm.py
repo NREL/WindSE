@@ -4,14 +4,14 @@ import numpy as np
 import time, os
 from . import MeshFunction, CompiledSubDomain, Measure, cells, project, inner, FiniteElement, FunctionSpace, MixedElement, assemble, dx, parameters, Form, File
 import matplotlib.pyplot as plt
-from pyadjoint.tape import stop_annotating 
+from pyadjoint.tape import stop_annotating
 from pyadjoint import AdjFloat
 
 class GenericWindFarm(object):
     """
     A GenericWindFarm contains on the basic functions and attributes required by all wind farm objects.
-    
-    Args: 
+
+    Args:
         dom (:meth:`windse.DomainManager.GenericDomain`): a windse domain object.
     """
     def __init__(self):
@@ -34,6 +34,7 @@ class GenericWindFarm(object):
         # Set any global flags
         self.func_first_save = True
         self.power_first_save = True
+        self.thrust_first_save = True
 
         # Init blank turbine list
         self.turbines = []
@@ -45,7 +46,7 @@ class GenericWindFarm(object):
             self.control_types = self.params["optimization"]["control_types"]
             self.optimizing = True
 
-        ### extra_kwargs will reduce overhead on operations that we don't want dolfin_adjoint to track 
+        ### extra_kwargs will reduce overhead on operations that we don't want dolfin_adjoint to track
         self.extra_kwarg = {}
         if self.params.dolfin_adjoint:
             self.extra_kwarg["annotate"] = False
@@ -70,23 +71,29 @@ class GenericWindFarm(object):
     def setup(self):
         """
         This function builds the wind farm as well as sets up the turbines
-        """  
-        self.load_parameters()      
-        self.compute_parameters()      
+        """
+        self.load_parameters()
+        self.compute_parameters()
         self.fprint("Number of Turbines: {:d}".format(self.numturbs))
         self.fprint("Type of Turbines: {}".format(self.turbine_type))
         self.initial_turbine_locations = self.initialize_turbine_locations()
 
+        self.fprint("Setting Up Turbines: ",special="header")
+        self.setup_turbines()
+        self.fprint("Turbines Set up",special="footer")
+
+        self.debug_output()
+
     def load_parameters(self):
         """
         This function will parse the parameters from the yaml file
-        """  
+        """
         raise NotImplementedError(type(self))
 
     def compute_parameters(self):
         """
         This function will compute any additional parameters
-        """  
+        """
         raise NotImplementedError(type(self))
 
     def initialize_turbine_locations():
@@ -142,7 +149,7 @@ class GenericWindFarm(object):
 
     def calculate_farm_bounding_box(self):
         """
-        This functions takes into consideration the turbine locations, diameters, 
+        This functions takes into consideration the turbine locations, diameters,
         and hub heights to create lists that describe the extent of the windfarm.
         These lists are append to the parameters object.
         """
@@ -150,7 +157,7 @@ class GenericWindFarm(object):
         RD = self.get_rotor_diameters()
         ground = self.get_ground_heights()
 
-        ### Locate the extreme turbines ### 
+        ### Locate the extreme turbines ###
         x_min = np.argmin(x)
         x_max = np.argmax(x)
         y_min = np.argmin(y)
@@ -162,12 +169,12 @@ class GenericWindFarm(object):
         self.ex_x = [x[x_min]-RD[x_min]/2.0,x[x_max]+RD[x_max]/2.0]
         self.ex_y = [y[y_min]-RD[y_min]/2.0,y[y_max]+RD[y_max]/2.0]
         self.ex_z = [min(ground),z[z_max]+RD[z_max]/2.0]
-        
+
         return [self.ex_x,self.ex_y,self.ex_z]
 
     def update_heights(self):
         """
-        updates the hub height for all turbines in farm 
+        updates the hub height for all turbines in farm
         """
         for turb in self.turbines:
             turb.calculate_heights()
@@ -205,7 +212,7 @@ class GenericWindFarm(object):
         # create a measure for the turbines
         self.local_dx = Measure('dx', subdomain_data=self.turbine_subdomains)
 
-        # check if the number of turbines might trigger a python recursion error.    
+        # check if the number of turbines might trigger a python recursion error.
         if self.numturbs > self.too_many_turbines:
             final_tf_list, final_local_dx = self.compress_turbine_function(u,fs)
         else:
@@ -239,7 +246,7 @@ class GenericWindFarm(object):
         final_local_dx = []
         counter = 0
         group = 1
-        
+
         # Create a cell function that will be used to store the subdomains
         temp_subdomain = MeshFunction("size_t", self.dom.mesh, self.dom.mesh.topology().dim())
         temp_subdomain.set_all(0)
@@ -265,7 +272,7 @@ class GenericWindFarm(object):
                 if self.dom.dim == 3:
                     subdomain_marker = CompiledSubDomain("(x[0]-x0)*(x[0]-x0)+(x[1]-y0)*(x[1]-y0)+(x[2]-HH)*(x[2]-HH)<=r*r",r=self.local_dx_scaling*turb.RD/2.0, HH=turb.z, x0=turb.x, y0=turb.y)
                 else:
-                    subdomain_marker = CompiledSubDomain("(x[0]-x0)*(x[0]-x0)+(x[1]-y0)*(x[1]-y0)<=r*r",r=self.local_dx_scaling*turb.RD/2.0, x0=turb.x, y0=turb.y)                
+                    subdomain_marker = CompiledSubDomain("(x[0]-x0)*(x[0]-x0)+(x[1]-y0)*(x[1]-y0)<=r*r",r=self.local_dx_scaling*turb.RD/2.0, x0=turb.x, y0=turb.y)
 
                 # add the subdomain to the marker
                 subdomain_marker.mark(temp_subdomain,group)
@@ -279,7 +286,7 @@ class GenericWindFarm(object):
                     self.fprint(f"Projecting tf3 for group {group}")
                     proj_tf3 = project(tf3,fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
                     combined_tf_list.append(proj_tf1*u[0]**2+proj_tf2*u[1]**2+proj_tf3*u[0]*u[1])
-                    
+
                     # reset loop values
                     tf1 = 0
                     tf2 = 0
@@ -319,7 +326,7 @@ class GenericWindFarm(object):
                     subdomain_marker = CompiledSubDomain("(x[0]-x0)*(x[0]-x0)+(x[1]-y0)*(x[1]-y0)+(x[2]-HH)*(x[2]-HH)<=r*r",r=self.local_dx_scaling*turb.RD/2.0, HH=turb.z, x0=turb.x, y0=turb.y)
                 else:
                     subdomain_marker = CompiledSubDomain("(x[0]-x0)*(x[0]-x0)+(x[1]-y0)*(x[1]-y0)<=r*r",r=self.local_dx_scaling*turb.RD/2.0, x0=turb.x, y0=turb.y)
-                               
+
                 # add the subdomain to the marker
                 subdomain_marker.mark(temp_subdomain,group)
 
@@ -328,7 +335,7 @@ class GenericWindFarm(object):
                     self.fprint(f"Projecting tf for group {group}")
                     proj_tf = project(tf,fs.V,solver_type='gmres',preconditioner_type="hypre_amg")
                     combined_tf_list.append(proj_tf)
-                    
+
                     # reset loop values
                     tf = 0
                     counter = 0
@@ -346,12 +353,12 @@ class GenericWindFarm(object):
             # create a measure for the final turbine group
             final_local_dx = Measure('dx', subdomain_data=temp_subdomain)
 
-        # create the final turbine force          
+        # create the final turbine force
         return combined_tf_list, final_local_dx
 
     def update_controls(self):
         """
-        iterates over the controls list assigns self.<name> to the control, self.m<name> 
+        iterates over the controls list assigns self.<name> to the control, self.m<name>
         """
         for turb in self.turbines:
             turb.update_controls()
@@ -363,13 +370,38 @@ class GenericWindFarm(object):
         for turb in self.turbines:
             turb.update_turbine_force(u, inflow_angle, fs, **kwargs)
 
+    def compute_thrust(self, u, inflow_angle):
+        """
+        Computes the per-turbine net thrust for the full farm
+        """
+
+        ### Build the integrand
+        val = 0
+        for turb in self.turbines:
+            temp = turb.thrust(u, inflow_angle)
+            if not isinstance(temp,(float,AdjFloat)):
+                if self.use_local_tf_dx:
+                    val += temp*self.local_dx(turb.index+1)
+                else:
+                    val += temp*dx
+            else:
+                val += temp
+
+        ### Assemble if needed
+        if not isinstance(val,(float,AdjFloat)):
+            J = assemble(val)
+        else:
+            J = val
+
+        return J
+
     def compute_power(self, u, inflow_angle):
         """
         Computes the power for the full farm
         """
 
         ### Build the integrand
-        val = 0
+        val = 0.0
         for turb in self.turbines:
             temp = turb.power(u, inflow_angle)
             if not isinstance(temp,(float,AdjFloat)):
@@ -387,6 +419,41 @@ class GenericWindFarm(object):
             J = val
 
         return J
+
+    def save_thrust(self, u, inflow_angle, iter_val = 0.0, simTime = 0.0):
+        """
+        saves the thrust output for each turbine
+        """
+
+        J_list=np.zeros(self.numturbs+3)
+        J_list[0]=iter_val
+        J_list[1]=simTime
+        with stop_annotating():
+            for i,turb in enumerate(self.turbines):
+                val = turb.thrust(u,inflow_angle)
+
+                ### Assemble if needed
+                if not isinstance(val,(float,AdjFloat)):
+                    if self.use_local_tf_dx:
+                        J = assemble(val*self.local_dx(turb.index+1))
+                    else:
+                        J = assemble(val*dx)
+                else:
+                    J = val
+
+                J_list[i+2] = J
+
+        J_list[-1]=sum(J_list[2:])
+
+        folder_string = self.params.folder+"data/"
+        if not os.path.exists(folder_string): os.makedirs(folder_string)
+
+        if self.thrust_first_save:
+            header = str("Iter_val    "+"Time    "+"Turbine_%d    "*self.numturbs % tuple(range(self.numturbs))+"Sum")
+            self.params.save_csv("thrust_data",header=header,data=[J_list],subfolder=self.params.folder+"data/",mode='w')
+            self.thrust_first_save = False
+        else:
+            self.params.save_csv("thrust_data",data=[J_list],subfolder=self.params.folder+"data/",mode='a')
 
     def save_power(self, u, inflow_angle, iter_val = 0.0, simTime = 0.0):
         """
@@ -408,7 +475,7 @@ class GenericWindFarm(object):
                         J = assemble(val*dx)
                 else:
                     J = val
-                    
+
                 J_list[i+2] = J
 
         J_list[-1]=sum(J_list[2:])
@@ -576,10 +643,10 @@ class GenericWindFarm(object):
         elif isinstance(objective_value,(list,np.ndarray)):
             plt.title("Objective Value: {: 5.6f}".format(sum(objective_value)))
         else:
-            plt.title("Objective Value: {: 5.6f}".format(float(objective_value))) 
-        plt.xlabel("Blade Span")      
+            plt.title("Objective Value: {: 5.6f}".format(float(objective_value)))
+        plt.xlabel("Blade Span")
         plt.ylabel("Chord")
-        plt.legend()      
+        plt.legend()
 
         plt.savefig(file_string, transparent=True)
 
@@ -591,7 +658,7 @@ class GenericWindFarm(object):
     def save_functions(self,val=0):
         """
         This function call the prepare_saved_functions from each turbine, combines the functions and saves them.
-        It then check to see if it can save the function out right and if not it projects. 
+        It then check to see if it can save the function out right and if not it projects.
         "val" can be the time, or angle, its just the iterator for saving mulitple steps
         Note: this function is way over engineered!
         """
@@ -621,7 +688,7 @@ class GenericWindFarm(object):
             # Note: this is overkill
             if not hasattr(func,"_cpp_object"):
 
-                # choose an appropriate function space 
+                # choose an appropriate function space
                 if func.geometric_dimension() == 1:
                     FS = self.fs.Q
                 else:
@@ -639,7 +706,7 @@ class GenericWindFarm(object):
                 self.func_files.append(out_file)
             else:
                 self.params.Save(func, func_name,subfolder="functions/",val=val,file=self.func_files[i])
-        
+
         # save the farm level turbine subdomain function
         if self.numturbs > 0:
             if self.func_first_save:
@@ -717,7 +784,7 @@ class GenericWindFarm(object):
     ########################################################################################################
     ############## It would be smart to eventually move these to a separate refinement module ##############
     ########################################################################################################
- 
+
     def SimpleRefine(self,radius,expand_factor=1):
         if self.numturbs == 0:
             return
@@ -730,7 +797,7 @@ class GenericWindFarm(object):
 
         ### Create the cell markers ###
         cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
-        
+
         ### Get Dimension ###
         n = self.numturbs
         d = self.dom.dim
@@ -882,7 +949,7 @@ class GenericWindFarm(object):
 
         ### Create the cell markers ###
         cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
-        
+
         ### Get Dimension ###
         n = self.numturbs
         d = self.dom.dim
@@ -981,7 +1048,7 @@ class GenericWindFarm(object):
 
         ### Create the cell markers ###
         cell_f = MeshFunction('bool', self.dom.mesh, self.dom.mesh.geometry().dim(),False)
-        
+
         ### Get Dimension ###
         n = self.numturbs
         d = self.dom.dim
@@ -992,7 +1059,7 @@ class GenericWindFarm(object):
         turb_y = turb_locs[:,1]
         if self.dom.dim == 3:
             turb_z = turb_locs[:,2]
-            
+
 
         self.fprint("Marking Near Turbine")
         mark_start = time.time()
@@ -1030,4 +1097,3 @@ class GenericWindFarm(object):
         refine_stop = time.time()
         self.fprint("Mesh Refinement Finished: {:1.2f} s".format(refine_stop-refine_start),special="footer")
 
-        

@@ -12,7 +12,7 @@ if hasattr(__main__,"__file__"):
     main_file = os.path.basename(__main__.__file__)
 else:
     main_file = "ipython"
-    
+
 ### This checks if we are just doing documentation ###
 if not main_file in ["sphinx-build", "__main__.py"]:
     from dolfin import *
@@ -56,12 +56,12 @@ if not main_file in ["sphinx-build", "__main__.py"]:
 
     ### Improved dolfin parameters ###
     parameters["std_out_all_processes"] = False;
-    parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'        
+    parameters['form_compiler']['cpp_optimize_flags'] = '-O3 -fno-math-errno -march=native'
     parameters["form_compiler"]["optimize"]     = True
     parameters["form_compiler"]["cpp_optimize"] = True
     parameters['form_compiler']['representation'] = default_representation
     parameters['form_compiler']['quadrature_degree'] = windse_parameters["function_space"]["quadrature_degree"]
-    
+
 class GenericSolver(object):
     """
     A GenericSolver contains on the basic functions required by all solver objects.
@@ -87,7 +87,7 @@ class GenericSolver(object):
         for key, value in self.params["optimization"].items():
             setattr(self,key,value)
 
-        self.extra_kwarg = {}            
+        self.extra_kwarg = {}
         if self.params.dolfin_adjoint:
             self.extra_kwarg["annotate"] = False
 
@@ -107,7 +107,7 @@ class GenericSolver(object):
             if isinstance(self.opt_turb_id,int):
                 self.opt_turb_id = [self.opt_turb_id]
             elif self.opt_turb_id == "all":
-                self.opt_turb_id = range(self.problem.farm.numturbs) 
+                self.opt_turb_id = range(self.problem.farm.numturbs)
             elif isinstance(self.opt_turb_id, str):
                 self.opt_turb_id = [int(self.opt_turb_id)]
 
@@ -181,7 +181,7 @@ class GenericSolver(object):
         """
         This function recomputes all necessary components for a new wind direction
 
-        Args: 
+        Args:
             theta (float): The new wind angle in radians
         """
         self.problem.ChangeWindSpeed(inflow_speed)
@@ -190,7 +190,7 @@ class GenericSolver(object):
         """
         This function recomputes all necessary components for a new wind direction
 
-        Args: 
+        Args:
             theta (float): The new wind angle in radians
         """
         self.problem.ChangeWindAngle(inflow_angle)
@@ -224,10 +224,20 @@ class GenericSolver(object):
     @no_annotations
     def EvaulatePowerFunctional(self):
         kwargs = {
-            "iter_val": self.iter_val, 
+            "iter_val": self.iter_val,
             "simTime": self.simTime
         }
         out = self.problem.farm.save_power(self.problem.u_k,self.problem.dom.inflow_angle, **kwargs)
+        return out
+
+
+    @no_annotations
+    def EvaulateThrustFunctional(self):
+        kwargs = {
+            "iter_val": self.iter_val,
+            "simTime": self.simTime
+        }
+        out = self.problem.farm.save_thrust(self.problem.u_k,self.problem.dom.inflow_angle, **kwargs)
         return out
 
 
@@ -239,7 +249,7 @@ class GenericSolver(object):
         if self.J_saved:
             first_call = False
 
-        annotate = self.params.dolfin_adjoint 
+        annotate = self.params.dolfin_adjoint
 
         ### Iterate over objectives ###
         obj_list = [opt_iter, self.iter_val, self.simTime]
@@ -254,7 +264,7 @@ class GenericSolver(object):
             kwargs.update(obj_kwargs)
             out = obj_funcs._annotated_objective(objective_func, *args, **kwargs)
             obj_list.append(out)
-        J = obj_list[3] #grab first objective 
+        J = obj_list[3] #grab first objective
 
         # ### Flip the sign because the objective is minimized but these values are maximized
         # for i in range(1,len(obj_list)):
@@ -295,7 +305,7 @@ class SteadySolver(GenericSolver):
     """
     This solver is for solving the steady state problem
 
-    Args: 
+    Args:
         problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
     """
     def __init__(self,problem):
@@ -322,7 +332,7 @@ class SteadySolver(GenericSolver):
         # exit()
 
         ####################################################################
-        ### This is the better way to define a nonlinear problem but it 
+        ### This is the better way to define a nonlinear problem but it
         ### doesn't play nice with dolfin_adjoint
         ### Define Jacobian ###
         # dU = TrialFunction(self.problem.fs.W)
@@ -391,7 +401,7 @@ class SteadySolver(GenericSolver):
                               "relative_tolerance": 1e-5,
                               "error_on_nonconvergence": False,
                               "krylov_solver": krylov_options}
-        
+
             solver_parameters = {"nonlinear_solver": "newton",
                                  "newton_solver": newton_options}
 
@@ -413,7 +423,7 @@ class SteadySolver(GenericSolver):
                                  "error_on_nonconvergence": False,
                                  "line_search": "bt", #[basic,bt,cp,l2,nleqerr]
                                  "krylov_solver": krylov_options
-                                 }}  
+                                 }}
 
         else:
             raise ValueError("Unknown nonlinear solver type: {0}".format(self.nonlinear_solver))
@@ -484,11 +494,14 @@ class SteadySolver(GenericSolver):
         ### Evaluate the objectives ###
         if self.optimizing or self.save_objective:
             self.J += self.EvaluateObjective()
-            # self.J += self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle)) 
+            # self.J += self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle))
             self.J = self.control_updater(self.J, self.problem)
 
         if self.save_power:
             self.EvaulatePowerFunctional()
+
+        if self.save_thrust:
+            self.EvaulateThrustFunctional()
 
             # print(self.outflow_markers)
             # self.J += -dot(self.problem.farm.rotor_disks,self.u_k)*dx
@@ -509,14 +522,14 @@ class SteadySolver(GenericSolver):
 
         self.DebugOutput()
 
-# 
+#
 # ================================================================
 
 class IterativeSteadySolver(GenericSolver):
     """
     This solver is for solving the iterative steady state problem
 
-    Args: 
+    Args:
         problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
     """
     def __init__(self,problem):
@@ -553,7 +566,7 @@ class IterativeSteadySolver(GenericSolver):
             return sor_vel, sor_pr
 
         def get_relaxation_param(a_min, a_max, a_c, a_cw, x):
-            
+
             # a_min = minimum sor value
             # a_max = maximum sor value
             # a_c = crossover location
@@ -563,7 +576,7 @@ class IterativeSteadySolver(GenericSolver):
             alpha = 1.0/(1.0+np.exp(alpha_exp))
             alpha = alpha*(a_max-a_min) + a_min
             alpha = float(alpha)
-            
+
             return alpha
 
         ### Save Files before solve ###
@@ -760,7 +773,7 @@ class IterativeSteadySolver(GenericSolver):
         ### Evaluate the objectives ###
         if self.optimizing or self.save_objective:
             self.J += self.EvaluateObjective()
-            # self.J += self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle)) 
+            # self.J += self.objective_func(self,(self.iter_theta-self.problem.dom.inflow_angle))
             self.J = self.control_updater(self.J, self.problem)
 
         if self.save_power and "power":
@@ -800,7 +813,7 @@ class UnsteadySolver(GenericSolver):
     This solver can only be used if an unsteady problem has been specified in
     the input file.
 
-    Args: 
+    Args:
         problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
     """
     def __init__(self,problem):
@@ -824,7 +837,7 @@ class UnsteadySolver(GenericSolver):
             #self.final_time = 10.0
 
         # ================================================================
-        
+
         # Start a counter for the total simulation time
         self.fprint("dt: %.4f" % (self.problem.dt))
         self.fprint("Final Time: %.1f" % (self.final_time))
@@ -1038,7 +1051,7 @@ class UnsteadySolver(GenericSolver):
             tic = time.time()
             # solve(self.problem.a2==self.problem.L2, self.problem.p_k, bcs=self.problem.bd.bcp)
             # solve(self.problem.a2==self.problem.L2, self.problem.p_k, bcs=self.problem.bd.bcp, solver_parameters={"linear_solver": "gmres","preconditioner": "petsc_amg"})
-            
+
             b2 = assemble(self.problem.L2, tensor=b2)
             [bc.apply(b2) for bc in self.problem.bd.bcp]
             if self.optimizing:
@@ -1055,7 +1068,7 @@ class UnsteadySolver(GenericSolver):
             tic = time.time()
             # solve(self.problem.a3==self.problem.L3, self.problem.u_k)
             # solve(self.problem.a3==self.problem.L3, self.problem.u_k, solver_parameters={"linear_solver": "cg","preconditioner": "jacobi"})
-            
+
             b3 = assemble(self.problem.L3, tensor=b3)
             if self.optimizing:
                 # solve(A3, self.problem.u_k.vector(), b3, 'gmres', 'default')
@@ -1085,13 +1098,13 @@ class UnsteadySolver(GenericSolver):
                     self.problem.uk_sum.assign(self.problem.uk_sum+self.problem.dt_c*self.problem.u_k)
                 elif self.simTime >= self.record_time:
                     self.problem.vertKE = (self.problem.u_k[0]-self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))*(self.problem.u_k[2]-self.problem.uk_sum[2]/(self.record_time-self.u_avg_time))*(self.problem.uk_sum[0]/(self.record_time-self.u_avg_time))
-            
+
             if self.save_all_timesteps:
                 self.SaveTimeSeries(self.simTime,simIter)
             elif save_next_timestep:
                 # Read in new inlet values
                 # bcu = self.updateInletVelocityFromFile(saveCount, bcu)
-                
+
                 # Clean up self.simTime to avoid accumulating round-off error
                 saveCount += 1
                 self.simTime = self.save_interval*saveCount
@@ -1124,10 +1137,10 @@ class UnsteadySolver(GenericSolver):
                 # # t2 = time.time()
                 # # print(t2-t1)
 
-                # Power [=] N*m*rads/s 
+                # Power [=] N*m*rads/s
                 # self.problem.alm_power = self.problem.rotor_torque*(2.0*np.pi*self.problem.rpm/60.0)
                 # self.problem.alm_power_dolfin = self.problem.rotor_torque_dolfin*(2.0*np.pi*self.problem.rpm/60.0)
-                
+
                 # # self.problem.alm_power_sum += self.problem.alm_power*self.problem.dt
                 # # self.problem.alm_power_average = self.problem.alm_power_sum/self.simTime
 
@@ -1197,7 +1210,7 @@ class UnsteadySolver(GenericSolver):
                 self.adj_time_list.append(self.simTime)
 
                 self.J += float(self.problem.dt)*J_next
-                self.problem.dt_sum += self.problem.dt 
+                self.problem.dt_sum += self.problem.dt
                 J_new = float(self.J/self.problem.dt_sum)
 
                 ### TODO, replace this with an actual stabilization criteria such as relative difference tolerance
@@ -1441,14 +1454,14 @@ class UnsteadySolver(GenericSolver):
             Ry = np.array([[np.cos(theta), 0, np.sin(theta)],
                            [0, 1, 0],
                            [-np.sin(theta), 0, np.cos(theta)]])
-            
+
             return Ry
 
         def rot_z(theta):
             Rz = np.array([[np.cos(theta), -np.sin(theta), 0],
                            [np.sin(theta), np.cos(theta), 0],
                            [0, 0, 1]])
-            
+
             return Rz
 
         #================================================================
@@ -1585,68 +1598,68 @@ class UnsteadySolver(GenericSolver):
 
             # Set if using local velocity around inidividual nodes
             using_local_velocity = False
-        
+
             if using_local_velocity:
                 # Generate the fluid velocity from the actual node locations in the flow
                 u_fluid = np.zeros((3, num_actuator_nodes))
-                
+
                 for k in range(num_actuator_nodes):
                     u_fluid[:, k] = self.problem.u_k1(xblade_rotated[0, k],
                                                       xblade_rotated[1, k],
                                                       xblade_rotated[2, k])
-                                    
+
             else:
                 # Generate the fluid velocity analytically using the hub height velocity
                 # u_inf_vec = u_inf*np.ones(num_actuator_nodes)
-                
+
                 # u_fluid = np.vstack((u_inf_vec,
                 #                      np.zeros(num_actuator_nodes),
                 #                      np.zeros(num_actuator_nodes)))
                 u_fluid = np.zeros((3, num_actuator_nodes))
-                
+
                 for k in range(num_actuator_nodes):
                     u_fluid[0, k] = 8.0*(xblade_rotated[2, k]/hub_height)**0.18
 
-            
+
             # Rotate the blade velocity in the global x, y, z, coordinate system
             blade_vel_rotated = np.dot(Rz, np.dot(Rx, -blade_vel))
-                            
+
             # Form the total relative velocity vector (including velocity from rotating blade)
             u_rel = u_fluid + blade_vel_rotated
-            
+
             # Create unit vectors in the direction of u_rel
             u_rel_mag = np.linalg.norm(u_rel, axis=0)
             u_rel_mag[u_rel_mag < 1e-6] = 1e-6
             u_unit = u_rel/u_rel_mag
-            
+
             # Calculate the lift and drag forces using the relative velocity magnitude
             lift = (0.5*cl*rho*c*w*u_rel_mag**2)/(eps**3 * np.pi**1.5)
             drag = (0.5*cd*rho*c*w*u_rel_mag**2)/(eps**3 * np.pi**1.5)
-            
+
             # Calculate the force at every mesh point due to every node [numGridPts x NumActuators]
             nodal_lift = lift*np.exp(-dist2/eps**2)
             nodal_drag = drag*np.exp(-dist2/eps**2)
-            
+
             # Calculate a vector in the direction of the blade
-            blade_unit = xblade_rotated[:, -1] - np.array([0.0, 0.0, hub_height])  
-            
+            blade_unit = xblade_rotated[:, -1] - np.array([0.0, 0.0, hub_height])
+
             for k in range(num_actuator_nodes):
                 # The drag unit simply points opposite the relative velocity unit vector
                 drag_unit = -u_unit[:, k]
-                
+
                 # The lift is normal to the plane generated by the blade and relative velocity
                 lift_unit = np.cross(drag_unit, blade_unit)
                 lift_unit_mag = np.linalg.norm(lift_unit)
                 if lift_unit_mag < 1e-6:
                     lift_unit_mag = 1e-6
                 lift_unit = lift_unit/lift_unit_mag
-                
+
                 vector_nodal_drag = np.outer(nodal_drag[:, k], drag_unit)
                 vector_nodal_lift = np.outer(nodal_lift[:, k], lift_unit)
 
                 drag_force += vector_nodal_drag
                 lift_force += vector_nodal_lift
-                    
+
             # The total turbine force is the sum of lift and drag effects
         turbine_force = drag_force + lift_force
 
@@ -1739,7 +1752,7 @@ class UnsteadySolver(GenericSolver):
 
         for theta_0 in theta_vec:
             theta = theta_0 + theta_offset
-            
+
             # Create rotation matrix for this turbine blade
             rotA = np.array([[1, 0, 0],
                              [0, np.cos(theta), -np.sin(theta)],
@@ -1786,7 +1799,7 @@ class UnsteadySolver(GenericSolver):
                     tf_vec[3*k+0] += -drag_sum
                     tf_vec[3*k+1] += lift_sum*np.sin(theta)
                     tf_vec[3*k+2] += -lift_sum*np.cos(theta)
-                
+
         tf_vec[np.abs(tf_vec) < 1e-12] = 0.0
 
         self.problem.tf.vector()[:] = tf_vec
@@ -1821,7 +1834,7 @@ class UnsteadySolver(GenericSolver):
             # Position of the kth turbune
             xpos = float(self.problem.farm.mx[k])
             ypos = float(self.problem.farm.my[k])
-            
+
             if self.problem.dom.dim == 2:
                 x0 = np.array([xpos, ypos])
             else:
@@ -2034,10 +2047,10 @@ class MultiAngleSolver(SteadySolver):
     This solver will solve the problem using the steady state solver for every
     angle in angles.
 
-    Args: 
+    Args:
         problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
         angles (list): A list of wind inflow directions.
-    """ 
+    """
 
     def __init__(self,problem):
         super(MultiAngleSolver, self).__init__(problem)
@@ -2080,10 +2093,10 @@ class TimeSeriesSolver(SteadySolver):
     This solver will solve the problem using the steady state solver for every
     angle in angles.
 
-    Args: 
+    Args:
         problem (:meth:`windse.ProblemManager.GenericProblem`): a windse problem object.
         angles (list): A list of wind inflow directions.
-    """ 
+    """
 
     def __init__(self,problem):
         super(TimeSeriesSolver, self).__init__(problem)
@@ -2153,7 +2166,7 @@ class TimeSeriesSolver(SteadySolver):
 
 
     #         W = self.problem.farm.thickness[0]*1.0
-    #         R = self.problem.farm.RD[0]/2.0 
+    #         R = self.problem.farm.RD[0]/2.0
 
     #         T_norm = 2.0*gamma(7.0/6.0)
     #         D_norm = pi*gamma(4.0/3.0)
@@ -2173,7 +2186,7 @@ class TimeSeriesSolver(SteadySolver):
     #             print(dim_scale)
     #             dim_scale = 2*R*R*volNormalization_2D/volNormalization_3D
     #             print(dim_scale)
-    #         else: 
+    #         else:
     #             dim_scale = 1.0
 
     #         ### Calculate Power ###
@@ -2204,7 +2217,7 @@ class TimeSeriesSolver(SteadySolver):
     #     #         ### Set some Values ###
     #     #         yaw = self.problem.farm.myaw[i]+inflow_angle
     #     #         W = self.problem.farm.W[i]
-    #     #         R = self.problem.farm.RD[i]/2.0 
+    #     #         R = self.problem.farm.RD[i]/2.0
     #     #         A = pi*R**2.0
     #     #         a = self.problem.farm.ma[i]
     #     #         C_tprime = 4*a/(1-a)
@@ -2268,7 +2281,7 @@ class TimeSeriesSolver(SteadySolver):
     #         f.close()
 
     #     return J
-        
+
     # # def CalculatePowerFunctional_o(self,delta_yaw = 0.0):
     # # # def CalculatePowerFunctional(self,delta_yaw = 0.0):
     # #     self.fprint("Computing Power Functional")
@@ -2283,14 +2296,14 @@ class TimeSeriesSolver(SteadySolver):
     # #         mz = self.problem.farm.mz[i]
     # #         x0 = [mx,my,mz]
     # #         W = self.problem.farm.thickness[i]*1.0
-    # #         R = self.problem.farm.RD[i]/2.0 
+    # #         R = self.problem.farm.RD[i]/2.0
     # #         ma = self.problem.farm.ma[i]
     # #         yaw = self.problem.farm.myaw[i]+delta_yaw
     # #         u = self.u_next
     # #         A = pi*R**2.0
     # #         C_tprime = 4*ma/(1-ma)
     # #         C_pprime = 0.45/(1-ma)**3
-            
+
     # #         ### Rotate and Shift the Turbine ###
     # #         xs = self.problem.farm.YawTurbine(x,x0,yaw)
     # #         u_d = u[0]*cos(yaw) + u[1]*sin(yaw)
@@ -2360,7 +2373,7 @@ class TimeSeriesSolver(SteadySolver):
 
     # #             ### Create the function that represents the force ###
     # #             if self.problem.farm.force == "constant":
-    # #                 F = 0.5*self.problem.farm.RD[i]*C_tprime    
+    # #                 F = 0.5*self.problem.farm.RD[i]*C_tprime
     # #             elif self.problem.farm.force == "sine":
     # #                 F = 0.5*self.problem.farm.RD[i]*C_tprime*(r*sin(pi*r)+0.5)/(.81831)
 
@@ -2386,12 +2399,12 @@ class TimeSeriesSolver(SteadySolver):
     # #             ### LIST O PROBLEMS ###
     # #             # 1. Unfortunately, this is not a form so cannot be used with dolfin_adjoint (this just returns a float)
     # #             # 2. Where did WTGbase go? I know it need to be a scaler but does yaw angle not matter in 2D?
-    # #             # 3. Should the C_pprime term be inside the numerator? 
+    # #             # 3. Should the C_pprime term be inside the numerator?
     # #             # 4. Are you positive you want to divide by the total force (F*T*D) instead of just the space kernal (T*D)
 
 
 
- 
+
 
 
 

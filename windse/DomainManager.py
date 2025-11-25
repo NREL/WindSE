@@ -1377,7 +1377,7 @@ class BoxDomain(GenericDomain):
         diagonal_ids = [outflow_id,outflow_id,inflow_id,inflow_id]
 
         ### Count the number of pi/2 sections in the new inflow_angle ###
-        turns = inflow_angle/(pi/2)
+        turns = ((inflow_angle % (2*np.pi) + (2*np.pi)) % (2*np.pi))/(pi/2)
 
         ### New order ###
         tol = 1e-3

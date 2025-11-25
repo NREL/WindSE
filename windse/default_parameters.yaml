@@ -1,23 +1,23 @@
 # These are all the available parameters. For more details visit https://windse.readthedocs.io/en/latest/params.html
 
 general:                        # parameters for ParameterManager
-    name:               Null        # The folder name for the current run 
+    name:               Null        # The folder name for the current run
     preappend_datetime: False       # if true, the time and date will be preappened to the output folder
     output:             [solution]  # These are the fields that can be saved during/after the simulation, choices: "mesh", "initial_guess", "height", "turbine_force", "solution", "debug"
     output_folder:      output/     # This is the root folder for all the output files
     output_type:        pvd         # this is the filetype various fields are saved it, choices "pvd", "xdmf" (note "xdmf" is better for parallel, but "pvd" can be opened during simulation)
-    dolfin_adjoint:     False       # If true, this will import dolfin_adjoint which is required for calculating gradients. Must be true for optimizations 
+    dolfin_adjoint:     False       # If true, this will import dolfin_adjoint which is required for calculating gradients. Must be true for optimizations
     debug_mode:         False       # If true, a file, tagged_output.yaml, in the root output folder. used for recursive tests
 
 domain:                         # parameters for DomainManager
-    type:                Null       # The type of domain    
+    type:                Null       # The type of domain
     path:                Null       # The path to all domain files if using imported domain and standard naming
     mesh_path:           Null       # a specific path for the imported mesh file
     terrain_path:        Null       # a specific path for the terrain file if using complex/interpolated terrain
     bound_path:          Null       # a specific path to a MeshFunction file that store the boundary IDs
     filetype:            xml.gz     # The file type for imported domains. Choices: xml, xml.gz, h5
     scaled:              False      # Attempt scale the domain to km instead of m. (Extremely experimental, do not use)
-    ground_reference:    0.0        # the z-coordinate of the ground. 
+    ground_reference:    0.0        # the z-coordinate of the ground.
     streamwise_periodic: False      # sets periodic boundary conditions along the x-direction (Not yet implemented)
     spanwise_periodic:   False      # sets periodic boundary conditions along the y-direction (Not yet implemented)
     x_range:             Null       # the extents, in meters, of the domain in the streamwise direction
@@ -45,8 +45,8 @@ domain:                         # parameters for DomainManager
         my:        Null                 # y slope
 
 wind_farm:                  # parameters for WindFarmManager
-    type:           Null        # type of wind farm (grid, random, imported, empty)      
-    path:           Null        # location of imported wind farm 
+    type:           Null        # type of wind farm (grid, random, imported, empty)
+    path:           Null        # location of imported wind farm
     display:        False       # If true, then matplotlib with show() the wind farm/chord profiles mid run
     ex_x:           Null        # extents of the farm in the x direction in meters
     ex_y:           Null        # extents of the farm in the y direction in meters
@@ -71,10 +71,10 @@ turbines:                   # parameters for the turbine objects
     force:          sine        # distribution of force along the radial direction of an actuator disk. choices: constant, sine, ?chord?
     rpm:            Null        # rotations per minute for the alm method
     read_turb_data: Null        # location of alm data
-    blade_segments: computed    # number of nodes along the rotor radius 
+    blade_segments: computed    # number of nodes along the rotor radius
     use_local_velocity: True    # use the velocity at the rotor to compute alm forces (otherwise use inflow)
     max_chord:      1000        # upper limit when optimizing chord
-    chord_factor:   1.0         # This multiplies all the chords by a constant factor, e.g., 2.0 makes a chord that's twice as thick everywhere 
+    chord_factor:   1.0         # This multiplies all the chords by a constant factor, e.g., 2.0 makes a chord that's twice as thick everywhere
     gauss_factor:   2.0         # This is the factor that gets multiplied by the minimum mesh spacing to set the gaussian width, e.g., gaussian_width = 2.0*dx_min
     tip_loss:       True        # Determines whether or not a tip-loss model is used in the calculation of the ALM force (False means no tip loss is modeled)
     hub_rad:        0.0         # The radius of the hub. If non-zero, actuator nodes will still be placed in the range [0, rotor_radius], but the lift/drag properties in the range [0, hub_rad] will be modified to reflect the blade root
@@ -84,7 +84,7 @@ turbines:                   # parameters for the turbine objects
     motion_file: Null           # Location to the platform motion data
     motion_type: Null           # Type of motion to apply can be single string or list of: 'surge', 'sway', 'heave', 'roll', 'pitch', and/or 'yaw'
     use_gauss_vel_probe: False  # Prob velocity at ALM nodes using an gaussian sphere rather than eval()
-    use_ap_linear_interp: False # Uses linear interpolation when building the airfoil polars. 
+    use_ap_linear_interp: False # Uses linear interpolation when building the airfoil polars.
 
 refine:                     # parameters for RefinementManager
     warp_type:      Null        # warping will shift the nodes along the z direction concentrating them near the ground. choices: "smooth", "split"
@@ -93,17 +93,17 @@ refine:                     # parameters for RefinementManager
     warp_height:    Null        # for split warps, where the spit happens
     farm_num:       0           # number of farm level refinements
     farm_type:      square      # type of farm level refinements. choices: "full", "box", "cylinder", "stream"
-    farm_factor:    1.0         # scaling factor for the size of the refinement  
+    farm_factor:    1.0         # scaling factor for the size of the refinement
     turbine_num:    0           # number of turbine level refinements
     turbine_type:   simple      # type of turbine refinement. choices: "simple", "tear", "wake"
-    turbine_factor: 1.0         # scaling factor for the size of the refinement 
+    turbine_factor: 1.0         # scaling factor for the size of the refinement
     refine_custom:  Null        # allows for a list of custom refine commands
     refine_power_calc: False    # bare minimum refinement around turbines to increase power calculation accuracy
 
 function_space:                 # parameters for the FunctionSpaceManager
     type:              Null         # type of function space
     quadrature_degree: 6            # used when calculating integrals
-    turbine_space:     Quadrature   # used with numpy turbine_method, sets the space the turbine are calculate on 
+    turbine_space:     Quadrature   # used with numpy turbine_method, sets the space the turbine are calculate on
     turbine_degree:    6            # used with numpy turbine_method, sets degree
 
 boundary_conditions:    # parameters for the BoundaryManager
@@ -123,7 +123,7 @@ boundary_conditions:    # parameters for the BoundaryManager
         top:     Null           # positive z
         inflow:  Null           # inflow, used in cylinder/circle
         outflow: Null           # outflow, used in cylinder/circle
-    boundary_types:         # used for changing the boundary types 
+    boundary_types:         # used for changing the boundary types
         inflow:    Null         # list of inflow bc names
         no_slip:   Null         # list of no_slip bc names
         free_slip: Null         # list of free_slip bc names
@@ -149,9 +149,10 @@ solver:                         # parameters for the SolverManager
     endpoint:          False        # include the final wind angle in the sweep
     velocity_path:     Null         # location of inflow velocities for multivelocity
     save_power:        True         # save the power data to the data folder
+    save_thrust:        True        # save the thrust data to the data folder
     nonlinear_solver:  snes         # type of nonlinear solver. choices: snes, newton
     newton_relaxation: 1.0          # relaxation parameter (0,1] for newton
-    cfl_target: 0.5                 # target cfl number for unsteady solve 
+    cfl_target: 0.5                 # target cfl number for unsteady solve
     cl_iterator: 0                  # debugging tool, do not use
     save_all_timesteps: False       # Save fields at every time step
 
@@ -166,13 +167,13 @@ optimization:                   # parameters for OptimizationManager
             scale:  1               # sets the scale for the constraint, use to match objective magnitude. use -1 to flip constraint to target-c(m)>=0 ==> c(m) <= target
             kwargs: Null            # if constraint is based on an objective function with kwargs, set them here
     save_objective: False           # save the objective do a file in data/
-    opt_turb_id :   all             # which turbines to optimize, int or list or "all" 
-    record_time:    0.0             # when to start recording for unsteady objectives float or "computed"  
+    opt_turb_id :   all             # which turbines to optimize, int or list or "all"
+    record_time:    0.0             # when to start recording for unsteady objectives float or "computed"
     alm_DELs:
         DEL_start_time: 0
     u_avg_time:     0               # when to start averaging velocity for use in objective functions
     opt_routine:    SLSQP           # optimization method, choices: SLSQP, L-BFGS-B, OM_SLSQP, SNOPT (requires custom install)
-    obj_ref:        1.              # Sets the value of the objective function that will be treated as 1 by the SNOPT driver             
+    obj_ref:        1.              # Sets the value of the objective function that will be treated as 1 by the SNOPT driver
     obj_ref0:       0.              # Sets the value of the objective function that will be treated as 0 by the SNOPT driver
     taylor_test:    False           # Run the taylor test
     optimize:       False           # optimize the problem

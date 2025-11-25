@@ -444,13 +444,13 @@ properties:
         units: "dimensionless"
       use_local_tf_dx:
         default: False
-        type: 
+        type:
           - "boolean"
         description: "A flag to assemble the tf using a local dx measure for each turbine."
         units: "dimensionless"
       local_dx_scaling:
         default: 2.5
-        type: 
+        type:
           - "number"
         description: "Controls how big the local domain integration is in rotor diameters."
         units: "dimensionless"
@@ -470,6 +470,7 @@ properties:
           - "2D_disk"
           - "numpy_disk"
           - "disk"
+          - "power_disk"
           - "hybrid_disk"
           - "line"
           - "expr_disk"
@@ -970,6 +971,10 @@ properties:
         default: True
         type: "boolean"
         description: "Save the power data to the data folder."
+      save_thrust:
+        default: False
+        type: "boolean"
+        description: "Save the thrust data to the data folder."
       nonlinear_solver:
         type: "string"
         description: "Type of nonlinear solver, options are ``snes`` or ``newton``."
