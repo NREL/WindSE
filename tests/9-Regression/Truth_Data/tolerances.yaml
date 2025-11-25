@@ -7,3 +7,5 @@ SolverManager:
   "*min": [1e-3,"absolute"] 
 DomainManager:
   volume: [1e-9, "relative"]
+BoundaryManager:
+  avg_x:  [1e-3, "relative"]

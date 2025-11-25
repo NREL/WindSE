@@ -96,9 +96,14 @@ class GenericBoundary(object):
             # bk_func_type = "velocity_perturbation"
             # bk_func_type = "body_force"
             if self.bk_func_type == "body_force":
+                # gauss_coeffs = [
+                #     [
+                #         [0,   0, 6, 6, 0.02, 1.0, 1.0, 1.0],
+                #     ],
                 gauss_coeffs = [
                     [
-                        [0,   0, 6, 6, 0.02, 1.0, 1.0, 1.0],
+                        [0, -30, 40, 20, 0.0045, 1.0, 1.0, 1.0],
+                        # [0, -31.5, 45, 23.25, 0.005, 1.0, 1.0, 1.0],
                     ],
                 ]
             elif self.bk_func_type == "velocity_perturbation":
@@ -134,7 +139,12 @@ class GenericBoundary(object):
                 raise ValueError(f"unknown type of blockage approximation: {self.bk_func_type}")
 
             # loop over coeff to build gauss functions
-            bk_func = [0,0,0]
+            if self.dom.dim == 2:
+                bk_func = [0,0]
+            if self.dom.dim == 3:
+                bk_func = [0,0,0]
+
+
             for i in range(len(gauss_coeffs)):
                 comp_coeffs = gauss_coeffs[i]
 
@@ -149,8 +159,9 @@ class GenericBoundary(object):
                     py =         val[6]
                     po =         val[7]
                     bk_func[i] += 1.0*am*exp(-( (((x[0]-x0)/xs)**2)**px + (((x[1]-y0)/ys)**2)**py )**po  )
-
-                bk_func[i] *= exp(-((x[2]-self.vel_height)/(farm_RD/2))**2)
+                
+                if self.dom.dim == 3:
+                    bk_func[i] *= exp(-((x[2]-self.vel_height)/(farm_RD/2))**2)
 
             # project the force to the velocity function space
             bk_func = as_vector(bk_func)

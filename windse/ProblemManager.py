@@ -232,6 +232,15 @@ class GenericProblem(object):
         self.u_k, self.p_k = split(self.up_k)
         self.farm.SimpleControlUpdate()
 
+    def ChangeAxial(self,axial):
+        adj_start = time.time()
+        self.fprint("Adjusting Axial Induction",special="header")
+        self.fprint("New Value: {:1.8f}".format(axial))
+        for turb in self.farm.turbines:
+            turb.axial = axial
+            turb.maxial.assign(axial)
+        adj_stop = time.time()
+        self.fprint("Axial Induction Adjusted: {:1.2f} s".format(adj_stop-adj_start),special="footer")
 
     def ChangeWindAngle(self,inflow_angle):
         """
@@ -516,13 +525,15 @@ class TaylorHoodProblem(GenericProblem):
         ### These constants will be moved into the params file ###
         f = Constant((0.0,)*self.dom.dim)
         vonKarman=0.41
-        eps=Constant(0.000001)
+        eps=Constant(self.stability_eps)
+        eps.rename("eps","eps")
         nu = self.viscosity
 
 
         self.fprint("Viscosity:         {:1.2e}".format(float(self.viscosity)))
         self.fprint("Max Mixing Length: {:1.2e}".format(float(self.lmax)))
 
+        rot_mat = as_tensor([[cos(inflow_angle),-sin(inflow_angle)],[sin(inflow_angle), cos(inflow_angle)]])
 
         ### Create the test/trial/functions ###
         self.v,self.q = TestFunctions(self.fs.W)
@@ -551,13 +562,14 @@ class TaylorHoodProblem(GenericProblem):
         self.F += - inner(div(self.v),self.p_k)*dx
         self.F += - inner(div(self.u_k),self.q)*dx
         # self.F += - inner(f,v)*dx
+        self.F += - inner(dot(rot_mat,self.bd.bf_bk),self.v)*dx
         self.F += - tf_term 
 
-        # ### Add in the Stabilizing term ###
-        # if abs(float(eps)) >= 1e-14:
-        #     self.fprint("Using Stabilization Term")
-        #     stab = - eps*inner(grad(q), grad(self.p_k))*dx - eps*inner(grad(q), dot(grad(self.u_k), self.u_k))*dx 
-        #     self.F += stab
+        ### Add in the Stabilizing term ###
+        if abs(float(eps)) >= 1e-14:
+            self.fprint("Using Stabilization Term")
+            stab = - eps*inner(grad(self.q), grad(self.p_k))*dx - eps*inner(grad(self.q), dot(grad(self.u_k), self.u_k))*dx 
+            self.F += stab
 
         # Add body force to functional
         if abs(float(self.mbody_force)) >= 1e-14:

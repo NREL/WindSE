@@ -48,7 +48,7 @@ def math_to_meteor(angle):
     return new_angle
 
 
-    return 270.0-np.degrees(angle)
+    # return 270.0-np.degrees(angle)
 
 def ufl_eval(form, print_statement=None):
     '''

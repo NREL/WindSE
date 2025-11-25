@@ -178,6 +178,15 @@ class GenericSolver(object):
         u.vector()[:]=u.vector()[:]*self.problem.dom.xscale
         self.problem.dom.mesh.coordinates()[:]=self.problem.dom.mesh.coordinates()[:]*self.problem.dom.xscale
 
+    def ChangeAxial(self,axial):
+        """
+        This function recomputes all necessary components for a new axial induction
+
+        Args: 
+            axial (float): The new axial induction factor
+        """
+        self.problem.ChangeAxial(axial)
+
     def ChangeWindSpeed(self,inflow_speed):
         """
         This function recomputes all necessary components for a new wind direction
@@ -2068,6 +2077,7 @@ class MultiAngleSolver(SteadySolver):
 
     def Solve(self):
         for i, theta in enumerate(self.angles):
+            tic = time.time()
             self.fprint("Performing Solve {:d} of {:d}".format(i+1,len(self.angles)),special="header")
             self.fprint("Wind Angle: "+repr(math_to_meteor(theta)))
             if i > 0 or not near(theta,self.problem.dom.inflow_angle):
@@ -2075,7 +2085,13 @@ class MultiAngleSolver(SteadySolver):
                 self.ChangeWindAngle(theta)
             self.iter_val = math_to_meteor(theta)
             self.orignal_solve()
-            self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
+
+
+            toc = time.time()
+
+            self.fprint("Finished Solve {:d} of {:d}: {:0.2f} s".format(i+1,len(self.angles),toc-tic),special="footer")
+
+
 
 class TimeSeriesSolver(SteadySolver):
     """
@@ -2093,29 +2109,47 @@ class TimeSeriesSolver(SteadySolver):
             raise ValueError("Cannot use a Multi-Angle Solver with an "+self.params["domain"]["type"]+" domain.")
         self.orignal_solve = super(TimeSeriesSolver, self).Solve
 
-        raw_data = np.loadtxt(self.velocity_path,comments="#")
+        raw_data = np.genfromtxt(self.velocity_path,comments="#", delimiter=", ", skip_header=1)
         self.times = raw_data[:,0]
         self.speeds = raw_data[:,1]
         self.angles = raw_data[:,2]
+        self.axials = raw_data[:,4]
         self.num_solve = len(self.speeds)
 
     def Solve(self):
+        import time
+
         for i in range(self.num_solve):
+
+            tic = time.time()
+
             time  = self.times[i]
             theta = self.angles[i]
             speed = self.speeds[i]
+            axial = self.axials[i]
             self.fprint("Performing Solve {:d} of {:d}".format(i+1,len(self.angles)),special="header")
             self.fprint("Time: "+repr(time))
             self.fprint("Wind Angle: "+repr(theta))
             self.fprint("Wind Speed: "+repr(speed))
+            self.fprint("Axial Val:  "+repr(axial))
+
+            # TODO: need to handle the case where axial induction is zero
+
+            # update values
+            self.ChangeAxial(axial)
             if i > 0 or not near(speed,self.problem.bd.HH_vel):
                 self.ChangeWindSpeed(speed)
             if i > 0 or not near(theta,self.problem.dom.inflow_angle):
                 self.ChangeWindAngle(theta)
             self.iter_val = time
+
+            # solve
             self.orignal_solve()
 
-            self.fprint("Finished Solve {:d} of {:d}".format(i+1,len(self.angles)),special="footer")
+            toc = time.time()
+
+
+            self.fprint("Finished Solve {:d} of {:d}: {:0.2f} s".format(i+1,len(self.angles),toc-tic),special="footer")
 
 
 

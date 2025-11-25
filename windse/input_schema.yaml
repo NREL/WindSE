@@ -899,7 +899,7 @@ properties:
       neighbor_offset:
         default: [0,0]
         type:
-          - "object"
+          - "array"
         description: "location in rotor diameters of the neighboring farm"
   # ================================================================
   problem:
